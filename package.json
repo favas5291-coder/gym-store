@@ -1,0 +1,20 @@
+{
+  "name": "gym-store",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "vite": "^8.2.2"
+  }
+}
