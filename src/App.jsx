@@ -1,38 +1,192 @@
-import { useState } from "react";
+import { useState,useEffect } from "react";
+import {
+  BrowserRouter,
+  Route,
+  Routes,
+} from "react-router-dom";
 
+import CheckoutPage from "./pages/CheckoutPage";
 import Navbar from "./components/Navbar";
-import Hero from "./components/Hero";
-import CategorySection from "./components/CategorySection";
-import ProductSection from "./components/ProductSection";
-import Cart from "./components/Cart";
-import Footer from "./components/Footer";
+import Home from "./pages/Home";
+import Shop from "./pages/Shop";
+import CartPage from "./pages/CartPage";
+import ProductPage from "./pages/ProductPage";
+import WishlistPage from "./pages/WishlistPage";
 
 function App() {
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState(() => {
+  const savedCart = localStorage.getItem("gymdrobe-cart");
 
-  function addToCart(product) {
-    setCart((currentCart) => [
+  return savedCart
+    ? JSON.parse(savedCart)
+    : [];
+});
+
+const [wishlist, setWishlist] = useState(() => {
+  const savedWishlist =
+    localStorage.getItem("gymdrobe-wishlist");
+
+  return savedWishlist
+    ? JSON.parse(savedWishlist)
+    : [];
+});
+useEffect(() => {
+  localStorage.setItem(
+    "gymdrobe-cart",
+    JSON.stringify(cart)
+  );
+}, [cart]);
+
+useEffect(() => {
+  localStorage.setItem(
+    "gymdrobe-wishlist",
+    JSON.stringify(wishlist)
+  );
+}, [wishlist]);
+
+  const cartCount = cart.reduce(
+    (total, item) => total + item.quantity,
+    0
+  );
+
+  function addToCart(
+  product,
+  quantity,
+  selectedSize,
+  selectedColor
+) {
+  setCart((currentCart) => {
+    const existingProduct =
+      currentCart.find(
+        (item) =>
+          item.id === product.id &&
+          item.selectedSize === selectedSize &&
+          item.selectedColor === selectedColor
+      );
+
+    if (existingProduct) {
+      return currentCart.map((item) => {
+        if (
+          item.id === product.id &&
+          item.selectedSize === selectedSize &&
+          item.selectedColor === selectedColor
+        ) {
+          return {
+            ...item,
+            quantity:
+              item.quantity + quantity,
+          };
+        }
+
+        return item;
+      });
+    }
+
+    const discountedPrice =
+      product.price -
+      (product.price * product.discount) / 100;
+
+    return [
       ...currentCart,
-      product
-    ]);
+      {
+        ...product,
+        price: discountedPrice,
+        quantity,
+        selectedSize,
+        selectedColor,
+      },
+    ];
+  });
+}
+
+  function toggleWishlist(product) {
+    setWishlist((currentWishlist) => {
+      const exists =
+        currentWishlist.some(
+          (item) => item.id === product.id
+        );
+
+      if (exists) {
+        return currentWishlist.filter(
+          (item) => item.id !== product.id
+        );
+      }
+
+      return [
+        ...currentWishlist,
+        product,
+      ];
+    });
   }
 
   return (
-    <>
-      <Navbar cartCount={cart.length} />
+    <BrowserRouter>
+      
+      <Navbar
+  cartCount={cartCount}
+  wishlistCount={wishlist.length}
+/>
 
-      <Hero />
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <Home
+              addToCart={addToCart}
+              wishlist={wishlist}
+              toggleWishlist={toggleWishlist}
+            />
+          }
+        />
 
-      <CategorySection />
+        <Route
+          path="/shop"
+          element={
+            <Shop
+              addToCart={addToCart}
+              wishlist={wishlist}
+              toggleWishlist={toggleWishlist}
+            />
+          }
+        />
 
-      <ProductSection
-        onAddToCart={addToCart}
-      />
+        <Route
+          path="/cart"
+          element={
+            <CartPage
+              cart={cart}
+              setCart={setCart}
+            />
+          }
+        />
 
-      <Cart cart={cart} />
-
-      <Footer />
-    </>
+        <Route
+          path="/product/:id"
+          element={
+            <ProductPage
+              addToCart={addToCart}
+            />
+          }
+        />
+        <Route
+  path="/wishlist"
+  element={
+    <WishlistPage
+      wishlist={wishlist}
+      toggleWishlist={toggleWishlist}
+    />
+  }
+/>
+<Route
+  path="/checkout"
+  element={
+    <CheckoutPage
+      cart={cart}
+    />
+  }
+/>
+      </Routes>
+    </BrowserRouter>
   );
 }
 

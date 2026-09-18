@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 function Hero() {
   return (
     <section
@@ -20,12 +22,12 @@ function Hero() {
           Everything you need for every workout.
         </p>
 
-        <a
-          href="#products"
+        <Link
+          to="/shop"
           className="inline-block bg-orange-600 hover:bg-orange-700 px-8 py-4 rounded-lg font-semibold transition"
         >
           EXPLORE PRODUCTS
-        </a>
+        </Link>
 
       </div>
     </section>

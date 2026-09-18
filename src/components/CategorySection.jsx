@@ -1,17 +1,8 @@
 import CategoryCard from "./CategoryCard";
+import categories from "../data/categories";
 
 function CategorySection() {
-  const categories = [
-    { name: "Workout Clothes", icon: "👕" },
-    { name: "Shoes", icon: "👟" },
-    { name: "Protein", icon: "🥚" },
-    { name: "Socks", icon: "🧦" },
-    { name: "Water Bottles", icon: "💧" },
-    { name: "Shaker Bottles", icon: "🥤" },
-    { name: "Gym Towels", icon: "🧖" },
-    { name: "Headphones", icon: "🎧" },
-    { name: "Padlocks", icon: "🔒" }
-  ];
+ 
 
   return (
     <section
