@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-function CheckoutPage({ cart }) {
+function CheckoutPage({ cart,setCart  }) {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -145,11 +145,13 @@ function CheckoutPage({ cart }) {
     };
 
     localStorage.setItem(
-      "gymdrobe-last-order",
-      JSON.stringify(order)
-    );
+  "gymdrobe-last-order",
+  JSON.stringify(order)
+);
 
-    navigate("/order-success");
+setCart([]);
+
+navigate("/order-success");
   }
 
   /*

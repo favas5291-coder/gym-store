@@ -4,7 +4,7 @@ import {
   Route,
   Routes,
 } from "react-router-dom";
-
+import OrderSuccessPage from "./pages/OrderSuccessPage";
 import CheckoutPage from "./pages/CheckoutPage";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
@@ -182,8 +182,13 @@ useEffect(() => {
   element={
     <CheckoutPage
       cart={cart}
+      setCart={setCart}
     />
   }
+/>
+<Route
+  path="/order-success"
+  element={<OrderSuccessPage />}
 />
       </Routes>
     </BrowserRouter>
