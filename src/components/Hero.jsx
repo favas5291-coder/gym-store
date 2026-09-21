@@ -9,7 +9,8 @@ function Hero() {
       className="
         hero-video
         relative
-        min-h-[calc(100vh-73px)]
+        min-h-[calc(100svh-73px)]
+        min-h-[calc(100dvh-73px)]
         text-white
         flex
         items-center
@@ -17,7 +18,9 @@ function Hero() {
         text-center
         px-4
         sm:px-6
-        py-16
+        py-12
+        sm:py-16
+        md:py-20
         overflow-hidden
       "
     >
@@ -34,7 +37,7 @@ function Hero() {
 
       <div className="absolute inset-0 bg-[linear-gradient(rgba(8,9,13,0.68),rgba(8,9,13,0.82))]" />
 
-      <div className="relative z-10 max-w-3xl w-full">
+      <div className="relative z-10 w-full max-w-3xl">
         <p
           className="
             tracking-[3px]
@@ -42,7 +45,8 @@ function Hero() {
             text-gray-400
             text-xs
             sm:text-sm
-            mb-4
+            mb-3
+            sm:mb-4
           "
         >
           YOUR FITNESS. YOUR STYLE.
@@ -55,7 +59,8 @@ function Hero() {
             md:text-7xl
             font-bold
             leading-[1.1]
-            mb-6
+            mb-4
+            sm:mb-6
           "
         >
           TRAIN HARD
@@ -71,7 +76,8 @@ function Hero() {
             text-gray-300
             max-w-xl
             mx-auto
-            mb-8
+            mb-6
+            sm:mb-8
           "
         >
           Everything you need for every workout.
@@ -84,6 +90,7 @@ function Hero() {
             items-center
             justify-center
             w-full
+            max-w-xs
             sm:w-auto
             bg-orange-600
             hover:bg-orange-700
