@@ -178,6 +178,14 @@
   color: #f8fafc !important;
 }
 
+.hero-video-frame {
+  width: max(100%, 177.78vh);
+  height: max(100%, 56.25vw);
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

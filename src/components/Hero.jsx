@@ -27,7 +27,7 @@ function Hero() {
           src={videoUrl}
           allow="autoplay; encrypted-media; picture-in-picture"
           allowFullScreen={false}
-          className="absolute inset-0 h-[140%] w-[140%] -left-[20%] -top-[20%] pointer-events-none brightness-75 contrast-125 saturate-75"
+          className="hero-video-frame absolute pointer-events-none brightness-75 contrast-125 saturate-75"
           loading="lazy"
         />
       </div>
