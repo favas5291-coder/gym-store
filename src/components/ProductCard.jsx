@@ -5,142 +5,231 @@ function ProductCard({
   name,
   category,
   price,
-  discount,
   rating,
+  discount = 0,
   image,
-  wishlist,
-  toggleWishlist,
-  onSelect,
+  wishlist = false,
+  onWishlist,
 }) {
+  const discountedPrice =
+    price - (price * discount) / 100;
+
   return (
     <div
-      onClick={onSelect}
       className="
+        relative
         bg-white
-        rounded-xl
-        p-6
-        shadow-sm
-        hover:shadow-xl
+        text-black
+        rounded-2xl
+        overflow-hidden
+        border border-gray-200
+        shadow-[0_2px_10px_rgba(15,23,42,0.05)]
+        hover:shadow-[0_10px_25px_rgba(15,23,42,0.08)]
         hover:-translate-y-1
-        transition
+        transition-all
+        duration-300
+        group
       "
     >
-      {/* PRODUCT IMAGE */}
-      <div className="relative h-48 bg-gray-200 rounded-lg mb-4 overflow-hidden flex items-center justify-center">
 
-        {/* DISCOUNT */}
-        {discount > 0 && (
-          <span className="absolute top-3 left-3 bg-orange-600 text-white text-xs font-bold px-3 py-1 rounded-full z-10">
-            {discount}% OFF
-          </span>
-        )}
-
-        {/* WISHLIST */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-
-            const product = {
-              id,
-              name,
-              category,
-              price,
-              discount,
-              rating,
-              image,
-            };
-
-            toggleWishlist(product);
-          }}
+      {/* Discount */}
+      {discount > 0 && (
+        <span
           className="
             absolute
             top-3
-            right-3
-            bg-white
-            rounded-full
-            w-10
-            h-10
-            shadow
-            text-xl
+            left-3
             z-10
-            hover:scale-110
-            transition
+            bg-orange-600
+            text-white
+            text-[10px]
+            sm:text-xs
+            font-bold
+            px-2
+            py-1
+            rounded-full
           "
         >
-          {wishlist?.some(
-            (item) => item.id === id
-          )
-            ? "❤️"
-            : "🤍"}
-        </button>
+          {discount}% OFF
+        </span>
+      )}
 
-        {/* IMAGE */}
-        <img
-          src={image}
-          alt={name}
-          className="h-full w-full object-cover"
-        />
+      {/* Wishlist */}
+      <button
+        type="button"
+        onClick={() => onWishlist?.()}
+        aria-label={
+          wishlist
+            ? "Remove from wishlist"
+            : "Add to wishlist"
+        }
+        className="
+          absolute
+          top-3
+          right-3
+          z-10
+          w-9
+          h-9
+          sm:w-10
+          sm:h-10
+          rounded-full
+          bg-white/90
+          border border-gray-200
+          backdrop-blur-sm
+          flex
+          items-center
+          justify-center
+          text-lg
+          sm:text-xl
+          hover:scale-110
+          transition
+          active:scale-95
+        "
+      >
+        <span aria-hidden="true">{wishlist ? "❤️" : "♡"}</span>
+      </button>
+
+      {/* Product Image */}
+      <Link to={`/product/${id}`}>
+        <div
+          className="
+            h-44
+            sm:h-52
+            md:h-56
+            bg-gray-100
+            overflow-hidden
+            flex
+            items-center
+            justify-center
+          "
+        >
+          <img
+            src={image}
+            alt={name}
+            className="
+              w-full
+              h-full
+              object-cover
+              group-hover:scale-105
+              transition
+              duration-500
+            "
+          />
+        </div>
+      </Link>
+
+      {/* Product Details */}
+      <div className="p-4 sm:p-4">
+
+        {/* Category */}
+        <p
+          className="
+            text-[10px]
+            sm:text-[11px]
+            uppercase
+            tracking-[0.12em]
+            text-gray-500
+            mb-1
+          "
+        >
+          {category}
+        </p>
+
+        {/* Product Name */}
+        <Link to={`/product/${id}`}>
+          <h3
+            className="
+              font-semibold
+              text-sm
+              sm:text-[15px]
+              leading-5
+              line-clamp-2
+              min-h-[40px]
+              sm:min-h-[46px]
+              hover:text-orange-600
+              transition
+            "
+          >
+            {name}
+          </h3>
+        </Link>
+
+        {/* Rating */}
+        <div
+          className="
+            flex
+            items-center
+            gap-1
+            mt-2
+            text-xs
+            sm:text-sm
+            text-gray-600
+          "
+        >
+          <span>⭐</span>
+          <span className="font-medium">{rating}</span>
+        </div>
+
+        {/* Price */}
+        <div
+          className="
+            flex
+            flex-wrap
+            items-center
+            gap-2
+            mt-3
+          "
+        >
+          <span
+            className="
+              text-lg
+              sm:text-xl
+              font-bold
+            "
+          >
+            ₹{Math.round(discountedPrice)}
+          </span>
+
+          {discount > 0 && (
+            <span
+              className="
+                text-xs
+                sm:text-sm
+                text-gray-400
+                line-through
+              "
+            >
+              ₹{price}
+            </span>
+          )}
+        </div>
+
+        {/* Add to bag */}
+        <div className="mt-4 flex items-center gap-2">
+          <Link
+            to={`/product/${id}`}
+            className="
+              flex-1
+              flex
+              items-center
+              justify-center
+              bg-[#111827]
+              hover:bg-[#1f2937]
+              text-white
+              py-2.5
+              rounded-xl
+              text-sm
+              font-semibold
+              transition
+              active:scale-[0.98]
+            "
+          >
+            Add to Bag
+          </Link>
+        </div>
+
       </div>
 
-      {/* PRODUCT NAME */}
-      <Link
-        to={`/product/${id}`}
-        onClick={(e) => e.stopPropagation()}
-        className="
-          text-xl
-          font-bold
-          mb-2
-          block
-          hover:text-orange-600
-        "
-      >
-        {name}
-      </Link>
-
-      {/* CATEGORY */}
-      <p className="text-gray-500 mb-2">
-        {category}
-      </p>
-
-      {/* DISCOUNTED PRICE */}
-      <p className="text-lg font-bold">
-        ₹
-        {(
-          price -
-          (price * discount) / 100
-        ).toLocaleString("en-IN")}
-      </p>
-
-      {/* ORIGINAL PRICE */}
-      <p className="text-sm text-gray-500 line-through">
-        ₹{price.toLocaleString("en-IN")}
-      </p>
-
-      {/* RATING */}
-      <p className="mb-4">
-        ⭐ {rating}
-      </p>
-
-      {/* VIEW PRODUCT */}
-      <Link
-        to={`/product/${id}`}
-        onClick={(e) => e.stopPropagation()}
-        className="
-          block
-          w-full
-          bg-orange-600
-          hover:bg-orange-700
-          text-white
-          py-3
-          rounded-lg
-          font-semibold
-          transition
-          text-center
-        "
-      >
-        VIEW PRODUCT
-      </Link>
     </div>
   );
 }

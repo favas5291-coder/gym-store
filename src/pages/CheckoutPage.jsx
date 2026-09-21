@@ -1,8 +1,103 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
 import { Link, useNavigate } from "react-router-dom";
 
-function CheckoutPage({ cart,setCart  }) {
+import {
+  calculateOrderPricing,
+  FREE_SHIPPING_LIMIT,
+} from "../utils/orderCalculations";
+
+function InputField({
+  label,
+  name,
+  type = "text",
+  value,
+  error,
+  onChange,
+  placeholder,
+  inputMode,
+}) {
+  return (
+    <div>
+      <label
+        htmlFor={name}
+        className="
+          block
+          text-sm
+          sm:text-base
+          font-semibold
+          mb-2
+        "
+      >
+        {label}
+      </label>
+
+      <input
+        id={name}
+        name={name}
+        type={type}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        inputMode={inputMode}
+        autoComplete={
+          name === "name"
+            ? "name"
+            : name === "email"
+            ? "email"
+            : name === "phone"
+            ? "tel"
+            : name === "address"
+            ? "street-address"
+            : name === "city"
+            ? "address-level2"
+            : name === "state"
+            ? "address-level1"
+            : name === "pincode"
+            ? "postal-code"
+            : "off"
+        }
+        className={`
+          w-full
+          border
+          rounded-xl
+          px-3
+          sm:px-4
+          py-3
+          text-sm
+          sm:text-base
+          outline-none
+          transition
+          ${
+            error
+              ? "border-red-500 focus:ring-2 focus:ring-red-200"
+              : "border-gray-300 focus:ring-2 focus:ring-orange-200 focus:border-orange-500"
+          }
+        `}
+      />
+
+      {error && (
+        <p
+          className="
+            text-red-500
+            text-xs
+            sm:text-sm
+            mt-1.5
+          "
+        >
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function CheckoutPage({ cart, setCart }) {
   const navigate = useNavigate();
+
+  // ==========================================
+  // CUSTOMER FORM
+  // ==========================================
 
   const [formData, setFormData] = useState({
     name: "",
@@ -14,643 +109,1238 @@ function CheckoutPage({ cart,setCart  }) {
     pincode: "",
   });
 
-  const [deliveryMethod, setDeliveryMethod] = useState("standard");
-  const [paymentMethod, setPaymentMethod] = useState("cod");
+  // ==========================================
+  // DELIVERY
+  // ==========================================
+
+  const [deliveryMethod, setDeliveryMethod] =
+    useState("standard");
+
+  // ==========================================
+  // PAYMENT
+  // ==========================================
+
+  const [paymentMethod, setPaymentMethod] =
+    useState("cod");
+
+  // ==========================================
+  // FORM ERRORS
+  // ==========================================
 
   const [errors, setErrors] = useState({});
 
-  /*
-    -------------------------
-    PRICE CALCULATIONS
-    -------------------------
-  */
+  // ==========================================
+  // SUBMITTING
+  // ==========================================
 
-  const subtotal = cart.reduce(
-    (total, item) => total + item.price * item.quantity,
-    0
-  );
+  const [isSubmitting, setIsSubmitting] =
+    useState(false);
 
-  const FREE_SHIPPING_LIMIT = 2000;
+  // ==========================================
+  // COUPON
+  // ==========================================
 
-  const deliveryCharge =
-    subtotal === 0
-      ? 0
-      : subtotal >= FREE_SHIPPING_LIMIT
-      ? 0
-      : deliveryMethod === "express"
-      ? 199
-      : 99;
+  const [coupon, setCoupon] = useState(null);
 
-  const finalTotal = subtotal + deliveryCharge;
+  // ==========================================
+  // LOAD COUPON
+  // ==========================================
 
-  /*
-    -------------------------
-    FORM HANDLER
-    -------------------------
-  */
+  useEffect(() => {
+    const savedCoupon =
+      localStorage.getItem("gymdrobe-coupon");
 
-  function handleChange(e) {
-    const { name, value } = e.target;
-
-    setFormData((currentData) => ({
-      ...currentData,
-      [name]: value,
-    }));
-
-    setErrors((currentErrors) => ({
-      ...currentErrors,
-      [name]: "",
-    }));
-  }
-
-  /*
-    -------------------------
-    VALIDATION
-    -------------------------
-  */
-
-  function validateForm() {
-    const newErrors = {};
-
-    if (!formData.name.trim()) {
-      newErrors.name = "Please enter your name.";
+    if (savedCoupon) {
+      try {
+        setCoupon(JSON.parse(savedCoupon));
+      } catch {
+        localStorage.removeItem(
+          "gymdrobe-coupon"
+        );
+      }
     }
+  }, []);
 
-    if (!formData.email.trim()) {
-      newErrors.email = "Please enter your email.";
-    } else if (!formData.email.includes("@")) {
-      newErrors.email = "Please enter a valid email.";
-    }
-
-    if (!formData.phone.trim()) {
-      newErrors.phone = "Please enter your phone number.";
-    } else if (formData.phone.length !== 10) {
-      newErrors.phone = "Phone number must contain 10 digits.";
-    }
-
-    if (!formData.address.trim()) {
-      newErrors.address = "Please enter your delivery address.";
-    }
-
-    if (!formData.city.trim()) {
-      newErrors.city = "Please enter your city.";
-    }
-
-    if (!formData.state.trim()) {
-      newErrors.state = "Please enter your state.";
-    }
-
-    if (!formData.pincode.trim()) {
-      newErrors.pincode = "Please enter your PIN code.";
-    } else if (formData.pincode.length !== 6) {
-      newErrors.pincode = "PIN code must contain 6 digits.";
-    }
-
-    setErrors(newErrors);
-
-    return Object.keys(newErrors).length === 0;
-  }
-
-  /*
-    -------------------------
-    PLACE ORDER
-    -------------------------
-  */
-
-  function handlePlaceOrder(e) {
-    e.preventDefault();
-
-    if (cart.length === 0) {
-      alert("Your cart is empty.");
-      navigate("/shop");
-      return;
-    }
-
-    const isValid = validateForm();
-
-    if (!isValid) {
-      return;
-    }
-
-    const order = {
-      id: `GD${Date.now()}`,
-      customer: formData,
-      items: cart,
-      deliveryMethod,
-      paymentMethod,
-      subtotal,
-      deliveryCharge,
-      total: finalTotal,
-      createdAt: new Date().toISOString(),
-    };
-
-    localStorage.setItem(
-  "gymdrobe-last-order",
-  JSON.stringify(order)
-);
-
-setCart([]);
-
-navigate("/order-success");
-  }
-
-  /*
-    -------------------------
-    EMPTY CART
-    -------------------------
-  */
+  // ==========================================
+  // EMPTY CART
+  // ==========================================
 
   if (cart.length === 0) {
     return (
-      <section className="min-h-screen bg-gray-100 px-6 py-20">
-        <div className="max-w-xl mx-auto bg-white rounded-xl p-10 text-center shadow-sm">
-          <div className="text-6xl mb-5">🛒</div>
+      <section
+        className="
+          min-h-screen
+          bg-gray-100
+          text-black
+          px-3
+          sm:px-6
+          py-10
+          sm:py-20
+        "
+      >
+        <div
+          className="
+            max-w-2xl
+            mx-auto
+            bg-white
+            rounded-2xl
+            sm:rounded-3xl
+            shadow-sm
+            p-6
+            sm:p-10
+            text-center
+          "
+        >
+          <div
+            className="
+              text-5xl
+              sm:text-6xl
+              mb-5
+              sm:mb-6
+            "
+          >
+            🛒
+          </div>
 
-          <h1 className="text-3xl font-bold mb-3">
+          <h1
+            className="
+              text-2xl
+              sm:text-3xl
+              font-bold
+              mb-4
+            "
+          >
             Your cart is empty
           </h1>
 
-          <p className="text-gray-500 mb-7">
-            Add some products before proceeding to checkout.
+          <p
+            className="
+              text-sm
+              sm:text-base
+              text-gray-500
+              mb-7
+              sm:mb-8
+              max-w-md
+              mx-auto
+            "
+          >
+            Add some products before
+            proceeding to checkout.
           </p>
 
           <Link
             to="/shop"
-            className="inline-block bg-orange-600 hover:bg-orange-700 text-white px-7 py-3 rounded-lg font-semibold"
+            className="
+              inline-flex
+              items-center
+              justify-center
+              w-full
+              sm:w-auto
+              bg-orange-600
+              hover:bg-orange-700
+              text-white
+              px-7
+              sm:px-8
+              py-3.5
+              sm:py-4
+              rounded-xl
+              font-semibold
+              transition
+              active:scale-[0.98]
+            "
           >
-            CONTINUE SHOPPING
+            GO TO SHOP
           </Link>
         </div>
       </section>
     );
   }
 
+  // ==========================================
+  // FORM CHANGE
+  // ==========================================
+
+  function handleChange(e) {
+    const { name, value } = e.target;
+
+    setFormData((current) => ({
+      ...current,
+      [name]: value,
+    }));
+
+    setErrors((current) => ({
+      ...current,
+      [name]: "",
+    }));
+  }
+
+  // ==========================================
+  // ORDER PRICING
+  // ==========================================
+
+  const {
+    subtotal,
+    couponDiscount,
+    totalAfterCoupon,
+    shipping,
+    finalTotal,
+  } = calculateOrderPricing({
+    cart,
+    coupon,
+    deliveryMethod,
+  });
+
+  // ==========================================
+  // VALIDATION
+  // ==========================================
+
+  function validateForm() {
+    const newErrors = {};
+
+    if (!formData.name.trim()) {
+      newErrors.name =
+        "Please enter your full name.";
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email =
+        "Please enter your email.";
+    } else if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        formData.email
+      )
+    ) {
+      newErrors.email =
+        "Please enter a valid email.";
+    }
+
+    if (!formData.phone.trim()) {
+      newErrors.phone =
+        "Please enter your phone number.";
+    } else if (
+      !/^[6-9]\d{9}$/.test(
+        formData.phone
+      )
+    ) {
+      newErrors.phone =
+        "Enter a valid 10-digit Indian phone number.";
+    }
+
+    if (!formData.address.trim()) {
+      newErrors.address =
+        "Please enter your address.";
+    }
+
+    if (!formData.city.trim()) {
+      newErrors.city =
+        "Please enter your city.";
+    }
+
+    if (!formData.state.trim()) {
+      newErrors.state =
+        "Please enter your state.";
+    }
+
+    if (!formData.pincode.trim()) {
+      newErrors.pincode =
+        "Please enter your pincode.";
+    } else if (
+      !/^\d{6}$/.test(
+        formData.pincode
+      )
+    ) {
+      newErrors.pincode =
+        "Enter a valid 6-digit pincode.";
+    }
+
+    setErrors(newErrors);
+
+    return (
+      Object.keys(newErrors).length === 0
+    );
+  }
+
+  // ==========================================
+  // PLACE ORDER
+  // ==========================================
+
+  function handleSubmit(e) {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    // ========================================
+    // CREATE ORDER
+    // ========================================
+
+    const order = {
+      id: `GD-${Date.now()}`,
+
+      createdAt:
+        new Date().toISOString(),
+
+      customer: {
+        ...formData,
+      },
+
+      items: cart.map((item) => ({
+        id: item.id,
+        name: item.name,
+        image: item.image,
+        category: item.category,
+        price: item.price,
+        quantity: item.quantity,
+        selectedSize:
+          item.selectedSize || null,
+        selectedColor:
+          item.selectedColor || null,
+      })),
+
+      pricing: {
+        subtotal,
+        couponDiscount,
+        shipping,
+        total: finalTotal,
+      },
+
+      coupon: coupon
+        ? {
+            code: coupon.code,
+            type: coupon.type,
+            value: coupon.value,
+          }
+        : null,
+
+      deliveryMethod,
+      paymentMethod,
+    };
+
+    // ========================================
+// SAVE ORDER
+// ========================================
+
+// Save latest order
+localStorage.setItem(
+  "gymdrobe-last-order",
+  JSON.stringify(order)
+);
+
+// Save order history
+const existingOrders =
+  JSON.parse(
+    localStorage.getItem(
+      "gymdrobe-orders"
+    )
+  ) || [];
+
+existingOrders.unshift(order);
+
+localStorage.setItem(
+  "gymdrobe-orders",
+  JSON.stringify(existingOrders)
+);
+
+    // ========================================
+    // CLEAR CART
+    // ========================================
+
+    setCart([]);
+
+    // ========================================
+    // CLEAR COUPON
+    // ========================================
+
+    localStorage.removeItem(
+      "gymdrobe-coupon"
+    );
+
+    // ========================================
+    // GO TO SUCCESS PAGE
+    // ========================================
+
+    setTimeout(() => {
+      navigate("/order-success");
+    }, 500);
+  }
+
+  // ==========================================
+  // UI
+  // ==========================================
+
   return (
-    <section className="min-h-screen bg-gray-100 py-16 px-6">
-      <div className="max-w-6xl mx-auto">
+    <section
+      className="
+        min-h-screen
+        bg-gray-100
+        text-black
+        px-3
+        sm:px-6
+        py-7
+        sm:py-10
+        md:py-16
+      "
+    >
+      <div className="max-w-7xl mx-auto">
 
-        <h1 className="text-4xl font-bold mb-3">
-          CHECKOUT
-        </h1>
+        {/* HEADER */}
 
-        <p className="text-gray-500 mb-10">
-          Complete your details to place your order.
-        </p>
+        <div className="mb-7 sm:mb-10">
+          <Link
+            to="/cart"
+            className="
+              inline-flex
+              items-center
+              text-sm
+              sm:text-base
+              text-gray-500
+              hover:text-orange-600
+              transition
+            "
+          >
+            ← Back to Cart
+          </Link>
 
-        <form onSubmit={handlePlaceOrder}>
+          <h1
+            className="
+              text-3xl
+              sm:text-4xl
+              font-bold
+              mt-3
+              sm:mt-4
+            "
+          >
+            Checkout
+          </h1>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <p
+            className="
+              text-sm
+              sm:text-base
+              text-gray-500
+              mt-2
+            "
+          >
+            Complete your details to place
+            your order.
+          </p>
+        </div>
 
-            {/* CUSTOMER DETAILS */}
+        <form onSubmit={handleSubmit}>
+          <div
+            className="
+              grid
+              lg:grid-cols-3
+              gap-5
+              sm:gap-6
+              lg:gap-8
+            "
+          >
 
-            <div className="lg:col-span-2 space-y-6">
+            {/* ==================================
+                LEFT SIDE
+            ================================== */}
 
-              <div className="bg-white rounded-xl p-6 shadow-sm">
+            <div
+              className="
+                lg:col-span-2
+                space-y-4
+                sm:space-y-6
+              "
+            >
 
-                <h2 className="text-2xl font-bold mb-6">
-                  Customer Information
+              {/* CUSTOMER DETAILS */}
+
+              <div
+                className="
+                  bg-white
+                  rounded-xl
+                  sm:rounded-2xl
+                  p-4
+                  sm:p-6
+                  shadow-sm
+                "
+              >
+                <h2
+                  className="
+                    text-lg
+                    sm:text-xl
+                    font-bold
+                    mb-5
+                    sm:mb-6
+                  "
+                >
+                  1. Customer Details
                 </h2>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div
+                  className="
+                    grid
+                    sm:grid-cols-2
+                    gap-4
+                    sm:gap-5
+                  "
+                >
+                  <InputField
+                    label="Full Name"
+                    name="name"
+                    value={formData.name}
+                    error={errors.name}
+                    onChange={handleChange}
+                    placeholder="Your full name"
+                  />
 
-                  <div>
-                    <label className="block font-semibold mb-2">
-                      Full Name
-                    </label>
+                  <InputField
+                    label="Email"
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    error={errors.email}
+                    onChange={handleChange}
+                    placeholder="you@example.com"
+                  />
 
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      placeholder="Enter your full name"
-                      className="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500"
-                    />
-
-                    {errors.name && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {errors.name}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold mb-2">
-                      Email
-                    </label>
-
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      placeholder="example@email.com"
-                      className="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500"
-                    />
-
-                    {errors.email && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {errors.email}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold mb-2">
-                      Phone Number
-                    </label>
-
-                    <input
-                      type="tel"
+                  <div className="sm:col-span-2">
+                    <InputField
+                      label="Phone Number"
                       name="phone"
+                      type="tel"
                       value={formData.phone}
-                      onChange={(e) => {
-                        const value = e.target.value
-                          .replace(/\D/g, "")
-                          .slice(0, 10);
-
-                        setFormData((currentData) => ({
-                          ...currentData,
-                          phone: value,
-                        }));
-
-                        setErrors((currentErrors) => ({
-                          ...currentErrors,
-                          phone: "",
-                        }));
-                      }}
-                      placeholder="10 digit phone number"
-                      className="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500"
+                      error={errors.phone}
+                      onChange={handleChange}
+                      placeholder="10-digit phone number"
                     />
-
-                    {errors.phone && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {errors.phone}
-                      </p>
-                    )}
                   </div>
-
                 </div>
-
               </div>
 
               {/* ADDRESS */}
 
-              <div className="bg-white rounded-xl p-6 shadow-sm">
-
-                <h2 className="text-2xl font-bold mb-6">
-                  Delivery Address
+              <div
+                className="
+                  bg-white
+                  rounded-xl
+                  sm:rounded-2xl
+                  p-4
+                  sm:p-6
+                  shadow-sm
+                "
+              >
+                <h2
+                  className="
+                    text-lg
+                    sm:text-xl
+                    font-bold
+                    mb-5
+                    sm:mb-6
+                  "
+                >
+                  2. Delivery Address
                 </h2>
 
-                <div className="space-y-5">
+                <div className="space-y-4 sm:space-y-5">
 
-                  <div>
-                    <label className="block font-semibold mb-2">
-                      Address
-                    </label>
+                  <InputField
+                    label="Address"
+                    name="address"
+                    value={formData.address}
+                    error={errors.address}
+                    onChange={handleChange}
+                    placeholder="House number, street, area"
+                  />
 
-                    <textarea
-                      name="address"
-                      value={formData.address}
+                  <div
+                    className="
+                      grid
+                      sm:grid-cols-3
+                      gap-4
+                      sm:gap-5
+                    "
+                  >
+                    <InputField
+                      label="City"
+                      name="city"
+                      value={formData.city}
+                      error={errors.city}
                       onChange={handleChange}
-                      placeholder="House number, street, area"
-                      rows="3"
-                      className="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500"
+                      placeholder="City"
                     />
 
-                    {errors.address && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {errors.address}
-                      </p>
-                    )}
+                    <InputField
+                      label="State"
+                      name="state"
+                      value={formData.state}
+                      error={errors.state}
+                      onChange={handleChange}
+                      placeholder="State"
+                    />
+
+                    <InputField
+                      label="Pincode"
+                      name="pincode"
+                      type="text"
+                      value={formData.pincode}
+                      error={errors.pincode}
+                      onChange={handleChange}
+                      placeholder="6-digit pincode"
+                      inputMode="numeric"
+                    />
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-
-                    <div>
-                      <label className="block font-semibold mb-2">
-                        City
-                      </label>
-
-                      <input
-                        type="text"
-                        name="city"
-                        value={formData.city}
-                        onChange={handleChange}
-                        placeholder="City"
-                        className="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500"
-                      />
-
-                      {errors.city && (
-                        <p className="text-red-500 text-sm mt-1">
-                          {errors.city}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold mb-2">
-                        State
-                      </label>
-
-                      <input
-                        type="text"
-                        name="state"
-                        value={formData.state}
-                        onChange={handleChange}
-                        placeholder="State"
-                        className="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500"
-                      />
-
-                      {errors.state && (
-                        <p className="text-red-500 text-sm mt-1">
-                          {errors.state}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold mb-2">
-                        PIN Code
-                      </label>
-
-                      <input
-                        type="text"
-                        name="pincode"
-                        value={formData.pincode}
-                        onChange={(e) => {
-                          const value = e.target.value
-                            .replace(/\D/g, "")
-                            .slice(0, 6);
-
-                          setFormData((currentData) => ({
-                            ...currentData,
-                            pincode: value,
-                          }));
-
-                          setErrors((currentErrors) => ({
-                            ...currentErrors,
-                            pincode: "",
-                          }));
-                        }}
-                        placeholder="6 digit PIN"
-                        className="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-orange-500"
-                      />
-
-                      {errors.pincode && (
-                        <p className="text-red-500 text-sm mt-1">
-                          {errors.pincode}
-                        </p>
-                      )}
-                    </div>
-
-                  </div>
-
                 </div>
-
               </div>
 
               {/* DELIVERY */}
 
-              <div className="bg-white rounded-xl p-6 shadow-sm">
-
-                <h2 className="text-2xl font-bold mb-6">
-                  Delivery Method
+              <div
+                className="
+                  bg-white
+                  rounded-xl
+                  sm:rounded-2xl
+                  p-4
+                  sm:p-6
+                  shadow-sm
+                "
+              >
+                <h2
+                  className="
+                    text-lg
+                    sm:text-xl
+                    font-bold
+                    mb-5
+                    sm:mb-6
+                  "
+                >
+                  3. Delivery Method
                 </h2>
 
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
 
-                  <label className="flex items-center justify-between border rounded-lg p-4 cursor-pointer hover:border-orange-500">
+                  {/* STANDARD */}
 
-                    <div className="flex items-center gap-3">
+                  <label
+                    className={`
+                      flex
+                      items-center
+                      justify-between
+                      gap-3
+                      sm:gap-4
+                      border
+                      rounded-xl
+                      p-3.5
+                      sm:p-4
+                      cursor-pointer
+                      transition
+                      ${
+                        deliveryMethod ===
+                        "standard"
+                          ? "border-orange-500 bg-orange-50"
+                          : "border-gray-200 hover:border-gray-400"
+                      }
+                    `}
+                  >
+                    <div
+                      className="
+                        flex
+                        items-center
+                        gap-3
+                        min-w-0
+                      "
+                    >
                       <input
                         type="radio"
                         name="delivery"
                         value="standard"
-                        checked={deliveryMethod === "standard"}
-                        onChange={(e) =>
-                          setDeliveryMethod(e.target.value)
+                        checked={
+                          deliveryMethod ===
+                          "standard"
                         }
+                        onChange={(e) =>
+                          setDeliveryMethod(
+                            e.target.value
+                          )
+                        }
+                        className="shrink-0"
                       />
 
-                      <div>
-                        <p className="font-semibold">
+                      <div className="min-w-0">
+                        <p
+                          className="
+                            font-semibold
+                            text-sm
+                            sm:text-base
+                          "
+                        >
                           Standard Delivery
                         </p>
-                        <p className="text-sm text-gray-500">
-                          Delivery within 3–7 days
+
+                        <p
+                          className="
+                            text-xs
+                            sm:text-sm
+                            text-gray-500
+                            mt-0.5
+                          "
+                        >
+                          3–7 business days
                         </p>
                       </div>
                     </div>
 
-                    <span className="font-bold">
-                      {subtotal >= FREE_SHIPPING_LIMIT
+                    <span
+                      className="
+                        font-bold
+                        text-sm
+                        sm:text-base
+                        shrink-0
+                      "
+                    >
+                      {totalAfterCoupon >=
+                      FREE_SHIPPING_LIMIT
                         ? "FREE"
                         : "₹99"}
                     </span>
-
                   </label>
 
-                  <label className="flex items-center justify-between border rounded-lg p-4 cursor-pointer hover:border-orange-500">
+                  {/* EXPRESS */}
 
-                    <div className="flex items-center gap-3">
+                  <label
+                    className={`
+                      flex
+                      items-center
+                      justify-between
+                      gap-3
+                      sm:gap-4
+                      border
+                      rounded-xl
+                      p-3.5
+                      sm:p-4
+                      cursor-pointer
+                      transition
+                      ${
+                        deliveryMethod ===
+                        "express"
+                          ? "border-orange-500 bg-orange-50"
+                          : "border-gray-200 hover:border-gray-400"
+                      }
+                    `}
+                  >
+                    <div
+                      className="
+                        flex
+                        items-center
+                        gap-3
+                        min-w-0
+                      "
+                    >
                       <input
                         type="radio"
                         name="delivery"
                         value="express"
-                        checked={deliveryMethod === "express"}
-                        onChange={(e) =>
-                          setDeliveryMethod(e.target.value)
+                        checked={
+                          deliveryMethod ===
+                          "express"
                         }
+                        onChange={(e) =>
+                          setDeliveryMethod(
+                            e.target.value
+                          )
+                        }
+                        className="shrink-0"
                       />
 
-                      <div>
-                        <p className="font-semibold">
+                      <div className="min-w-0">
+                        <p
+                          className="
+                            font-semibold
+                            text-sm
+                            sm:text-base
+                          "
+                        >
                           Express Delivery
                         </p>
-                        <p className="text-sm text-gray-500">
-                          Delivery within 1–2 days
+
+                        <p
+                          className="
+                            text-xs
+                            sm:text-sm
+                            text-gray-500
+                            mt-0.5
+                          "
+                        >
+                          1–3 business days
                         </p>
                       </div>
                     </div>
 
-                    <span className="font-bold">
+                    <span
+                      className="
+                        font-bold
+                        text-sm
+                        sm:text-base
+                        shrink-0
+                      "
+                    >
                       ₹199
                     </span>
-
                   </label>
-
                 </div>
-
               </div>
 
               {/* PAYMENT */}
 
-              <div className="bg-white rounded-xl p-6 shadow-sm">
-
-                <h2 className="text-2xl font-bold mb-6">
-                  Payment Method
+              <div
+                className="
+                  bg-white
+                  rounded-xl
+                  sm:rounded-2xl
+                  p-4
+                  sm:p-6
+                  shadow-sm
+                "
+              >
+                <h2
+                  className="
+                    text-lg
+                    sm:text-xl
+                    font-bold
+                    mb-5
+                    sm:mb-6
+                  "
+                >
+                  4. Payment Method
                 </h2>
 
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
 
-                  <label className="flex items-center gap-3 border rounded-lg p-4 cursor-pointer hover:border-orange-500">
+                  {/* COD */}
+
+                  <label
+                    className={`
+                      flex
+                      items-start
+                      gap-3
+                      border
+                      rounded-xl
+                      p-3.5
+                      sm:p-4
+                      cursor-pointer
+                      transition
+                      ${
+                        paymentMethod ===
+                        "cod"
+                          ? "border-orange-500 bg-orange-50"
+                          : "border-gray-200 hover:border-gray-400"
+                      }
+                    `}
+                  >
                     <input
                       type="radio"
                       name="payment"
                       value="cod"
-                      checked={paymentMethod === "cod"}
-                      onChange={(e) =>
-                        setPaymentMethod(e.target.value)
+                      checked={
+                        paymentMethod ===
+                        "cod"
                       }
+                      onChange={(e) =>
+                        setPaymentMethod(
+                          e.target.value
+                        )
+                      }
+                      className="mt-1 shrink-0"
                     />
 
-                    <div>
-                      <p className="font-semibold">
+                    <div className="min-w-0">
+                      <p
+                        className="
+                          font-semibold
+                          text-sm
+                          sm:text-base
+                        "
+                      >
                         Cash on Delivery
                       </p>
-                      <p className="text-sm text-gray-500">
-                        Pay when your order arrives.
+
+                      <p
+                        className="
+                          text-xs
+                          sm:text-sm
+                          text-gray-500
+                          mt-0.5
+                        "
+                      >
+                        Pay when your order
+                        arrives.
                       </p>
                     </div>
                   </label>
 
-                  <label className="flex items-center gap-3 border rounded-lg p-4 cursor-pointer hover:border-orange-500">
+                  {/* ONLINE */}
+
+                  <label
+                    className={`
+                      flex
+                      items-start
+                      gap-3
+                      border
+                      rounded-xl
+                      p-3.5
+                      sm:p-4
+                      cursor-pointer
+                      transition
+                      ${
+                        paymentMethod ===
+                        "online"
+                          ? "border-orange-500 bg-orange-50"
+                          : "border-gray-200 hover:border-gray-400"
+                      }
+                    `}
+                  >
                     <input
                       type="radio"
                       name="payment"
                       value="online"
-                      checked={paymentMethod === "online"}
-                      onChange={(e) =>
-                        setPaymentMethod(e.target.value)
+                      checked={
+                        paymentMethod ===
+                        "online"
                       }
+                      onChange={(e) =>
+                        setPaymentMethod(
+                          e.target.value
+                        )
+                      }
+                      className="mt-1 shrink-0"
                     />
 
-                    <div>
-                      <p className="font-semibold">
+                    <div className="min-w-0">
+                      <p
+                        className="
+                          font-semibold
+                          text-sm
+                          sm:text-base
+                        "
+                      >
                         Online Payment
                       </p>
-                      <p className="text-sm text-gray-500">
-                        Payment gateway will be connected later.
+
+                      <p
+                        className="
+                          text-xs
+                          sm:text-sm
+                          text-gray-500
+                          mt-0.5
+                        "
+                      >
+                        Payment gateway will be
+                        connected later.
                       </p>
                     </div>
                   </label>
-
                 </div>
-
               </div>
-
             </div>
 
-            {/* ORDER SUMMARY */}
+            {/* ==================================
+                ORDER SUMMARY
+            ================================== */}
 
             <div>
-
-              <div className="bg-white rounded-xl p-6 shadow-sm sticky top-24">
-
-                <h2 className="text-2xl font-bold mb-6">
+              <div
+                className="
+                  bg-white
+                  rounded-xl
+                  sm:rounded-2xl
+                  p-4
+                  sm:p-6
+                  shadow-sm
+                  lg:sticky
+                  lg:top-24
+                "
+              >
+                <h2
+                  className="
+                    text-lg
+                    sm:text-xl
+                    font-bold
+                    mb-5
+                    sm:mb-6
+                  "
+                >
                   Order Summary
                 </h2>
 
-                <div className="space-y-4 mb-6">
+                {/* ITEMS */}
 
+                <div
+                  className="
+                    space-y-3
+                    sm:space-y-4
+                    mb-5
+                    sm:mb-6
+                    max-h-[420px]
+                    overflow-y-auto
+                    pr-1
+                  "
+                >
                   {cart.map((item) => (
                     <div
-                      key={`${item.id}-${item.selectedSize || "default"}-${item.selectedColor || "default"}`}
-                      className="flex gap-3"
+                      key={`${item.id}-${item.selectedSize}-${item.selectedColor}`}
+                      className="
+                        flex
+                        gap-3
+                      "
                     >
-
                       <img
                         src={item.image}
                         alt={item.name}
-                        className="w-16 h-16 object-cover rounded-lg"
+                        className="
+                          w-14
+                          h-14
+                          sm:w-16
+                          sm:h-16
+                          rounded-lg
+                          object-cover
+                          bg-gray-100
+                          shrink-0
+                        "
                       />
 
-                      <div className="flex-1">
-                        <p className="font-semibold text-sm">
+                      <div
+                        className="
+                          flex-1
+                          min-w-0
+                        "
+                      >
+                        <p
+                          className="
+                            font-semibold
+                            text-xs
+                            sm:text-sm
+                            line-clamp-2
+                          "
+                        >
                           {item.name}
                         </p>
 
-                        <p className="text-xs text-gray-500">
+                        <p
+                          className="
+                            text-[11px]
+                            sm:text-xs
+                            text-gray-500
+                            mt-1
+                          "
+                        >
                           Qty: {item.quantity}
                         </p>
 
                         {item.selectedSize && (
-                          <p className="text-xs text-gray-500">
-                            Size: {item.selectedSize}
+                          <p
+                            className="
+                              text-[11px]
+                              sm:text-xs
+                              text-gray-500
+                            "
+                          >
+                            Size:{" "}
+                            {item.selectedSize}
                           </p>
                         )}
 
                         {item.selectedColor && (
-                          <p className="text-xs text-gray-500">
-                            Color: {item.selectedColor}
+                          <p
+                            className="
+                              text-[11px]
+                              sm:text-xs
+                              text-gray-500
+                            "
+                          >
+                            Color:{" "}
+                            {item.selectedColor}
                           </p>
                         )}
                       </div>
 
-                      <p className="font-semibold">
-                        ₹{(
-                          item.price * item.quantity
-                        ).toLocaleString("en-IN")}
+                      <p
+                        className="
+                          font-semibold
+                          text-xs
+                          sm:text-sm
+                          shrink-0
+                        "
+                      >
+                        ₹
+                        {(
+                          item.price *
+                          item.quantity
+                        ).toLocaleString(
+                          "en-IN"
+                        )}
                       </p>
-
                     </div>
                   ))}
-
                 </div>
 
-                <hr className="mb-5" />
+                {/* PRICES */}
 
-                <div className="flex justify-between mb-3">
-                  <span>Subtotal</span>
+                <div
+                  className="
+                    border-t
+                    border-gray-200
+                    pt-4
+                    sm:pt-5
+                    space-y-3
+                    sm:space-y-4
+                    text-sm
+                    sm:text-base
+                  "
+                >
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-500">
+                      Subtotal
+                    </span>
 
-                  <span>
-                    ₹{subtotal.toLocaleString("en-IN")}
-                  </span>
+                    <span className="font-semibold">
+                      ₹
+                      {subtotal.toLocaleString(
+                        "en-IN"
+                      )}
+                    </span>
+                  </div>
+
+                  {couponDiscount > 0 && (
+                    <div
+                      className="
+                        flex
+                        justify-between
+                        gap-4
+                        text-green-600
+                      "
+                    >
+                      <span>
+                        Coupon{" "}
+                        {coupon?.code}
+                      </span>
+
+                      <span className="font-semibold">
+                        -₹
+                        {couponDiscount.toLocaleString(
+                          "en-IN"
+                        )}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-500">
+                      Delivery
+                    </span>
+
+                    <span className="font-semibold">
+                      {shipping === 0
+                        ? "FREE"
+                        : `₹${shipping}`}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="flex justify-between mb-3">
-                  <span>Delivery</span>
+                {/* TOTAL */}
 
-                  <span>
-                    {deliveryCharge === 0
-                      ? "FREE"
-                      : `₹${deliveryCharge}`}
-                  </span>
+                <div
+                  className="
+                    border-t
+                    border-gray-200
+                    mt-5
+                    pt-5
+                  "
+                >
+                  <div
+                    className="
+                      flex
+                      justify-between
+                      items-center
+                      gap-4
+                    "
+                  >
+                    <span
+                      className="
+                        text-base
+                        sm:text-lg
+                        font-bold
+                      "
+                    >
+                      Total
+                    </span>
+
+                    <span
+                      className="
+                        text-xl
+                        sm:text-2xl
+                        font-bold
+                      "
+                    >
+                      ₹
+                      {finalTotal.toLocaleString(
+                        "en-IN"
+                      )}
+                    </span>
+                  </div>
                 </div>
 
-                <hr className="my-4" />
-
-                <div className="flex justify-between text-xl font-bold mb-6">
-                  <span>Total</span>
-
-                  <span>
-                    ₹{finalTotal.toLocaleString("en-IN")}
-                  </span>
-                </div>
+                {/* PLACE ORDER */}
 
                 <button
                   type="submit"
-                  className="w-full bg-orange-600 hover:bg-orange-700 text-white py-4 rounded-lg font-bold transition"
+                  disabled={isSubmitting}
+                  className="
+                    w-full
+                    bg-orange-600
+                    hover:bg-orange-700
+                    disabled:bg-gray-400
+                    disabled:cursor-not-allowed
+                    text-white
+                    py-3.5
+                    sm:py-4
+                    rounded-xl
+                    font-bold
+                    text-sm
+                    sm:text-base
+                    mt-5
+                    sm:mt-6
+                    transition
+                    active:scale-[0.98]
+                  "
                 >
-                  PLACE ORDER
+                  {isSubmitting
+                    ? "PLACING ORDER..."
+                    : "PLACE ORDER"}
                 </button>
 
-                <Link
-                  to="/cart"
-                  className="block text-center text-gray-500 hover:text-black mt-4"
+                <p
+                  className="
+                    text-[10px]
+                    sm:text-xs
+                    text-gray-500
+                    text-center
+                    mt-3
+                    sm:mt-4
+                    leading-5
+                  "
                 >
-                  ← Back to Cart
-                </Link>
-
+                  By placing this order,
+                  you agree to our terms and
+                  conditions.
+                </p>
               </div>
-
             </div>
-
           </div>
-
         </form>
-
       </div>
     </section>
   );

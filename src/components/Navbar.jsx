@@ -1,131 +1,392 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import logoImage from "../assets/logo.png";
 
 function Navbar({
   cartCount = 0,
   wishlistCount = 0,
 }) {
+  const [isMenuOpen, setIsMenuOpen] =
+    useState(false);
+
+  function closeMenu() {
+    setIsMenuOpen(false);
+  }
+
   return (
-    <nav className="bg-white shadow-sm sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <nav className="bg-white text-gray-900 shadow-sm sticky top-0 z-50">
 
-        {/* LOGO */}
-        <Link
-          to="/"
-          className="text-2xl font-bold"
-        >
-          GymDrobe
-        </Link>
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
 
-        {/* NAVIGATION */}
-        <div className="hidden md:flex items-center gap-8">
+        {/* ==============================
+            MAIN NAVBAR
+        ============================== */}
+
+        <div className="flex items-center justify-between">
+
+          {/* LOGO */}
 
           <Link
             to="/"
-            className="hover:text-orange-600 transition"
+            onClick={closeMenu}
+            className="
+              text-2xl
+              md:text-3xl
+              font-black
+              tracking-tight
+            "
           >
-            Home
+            <img
+              src={logoImage}
+              alt="Gymdrobe"
+              className="h-10 w-10 scale-200 object-contain invert"
+            />
           </Link>
 
-          <Link
-            to="/shop"
-            className="hover:text-orange-600 transition"
-          >
-            Shop
-          </Link>
+          {/* ==============================
+              DESKTOP NAVIGATION
+          ============================== */}
 
-          <Link
-            to="/shop?category=Workout%20Clothes"
-            className="hover:text-orange-600 transition"
-          >
-            Categories
-          </Link>
+          <div className="hidden md:flex items-center gap-3">
 
-          <Link
-            to="/shop"
-            className="hover:text-orange-600 transition"
-          >
-            Offers
-          </Link>
+            <Link
+              to="/"
+              className="
+                px-4 py-2 rounded-full
+                text-sm font-semibold tracking-[0.12em]
+                uppercase text-gray-800
+                transition-all duration-200
+                hover:text-orange-600 hover:bg-orange-50
+                hover:-translate-y-0.5
+              "
+            >
+              Home
+            </Link>
+
+            <Link
+              to="/shop"
+              className="
+                px-4 py-2 rounded-full
+                text-sm font-semibold tracking-[0.12em]
+                uppercase text-gray-800
+                transition-all duration-200
+                hover:text-orange-600 hover:bg-orange-50
+                hover:-translate-y-0.5
+              "
+            >
+              Shop
+            </Link>
+
+            <Link
+              to="/shop?category=Workout%20Clothes"
+              className="
+                px-4 py-2 rounded-full
+                text-sm font-semibold tracking-[0.12em]
+                uppercase text-gray-800
+                transition-all duration-200
+                hover:text-orange-600 hover:bg-orange-50
+                hover:-translate-y-0.5
+              "
+            >
+              Categories
+            </Link>
+
+            <Link
+              to="/shop"
+              className="
+                px-4 py-2 rounded-full
+                text-sm font-semibold tracking-[0.12em]
+                uppercase text-gray-800
+                transition-all duration-200
+                hover:text-orange-600 hover:bg-orange-50
+                hover:-translate-y-0.5
+              "
+            >
+              Offers
+            </Link>
+
+          </div>
+
+          {/* ==============================
+              RIGHT SIDE
+          ============================== */}
+
+          <div className="flex items-center gap-2 md:gap-3">
+
+            {/* WISHLIST */}
+
+            <Link
+              to="/wishlist"
+              aria-label={`${wishlistCount} items in wishlist`}
+              className="
+                relative
+                flex items-center justify-center
+                w-9 h-9
+                rounded-full
+                border border-gray-200
+                bg-white
+                text-xl text-gray-700
+                hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600
+                transition-all duration-200
+              "
+            >
+              <span aria-hidden="true" className="leading-none">♡</span>
+
+              {wishlistCount > 0 && (
+                <span
+                  className="
+                    absolute
+                    -top-1.5 -right-1.5
+                    bg-[#111827]
+                    text-white
+                    text-[9px]
+                    font-bold
+                    min-w-[18px] h-[18px]
+                    px-1
+                    rounded-full
+                    flex items-center justify-center
+                    border border-white
+                    leading-none
+                  "
+                >
+                  {wishlistCount}
+                </span>
+              )}
+
+            </Link>
+
+            {/* CART */}
+
+            <Link
+              to="/cart"
+              aria-label={`${cartCount} items in cart`}
+              className="
+                relative
+                inline-flex items-center justify-center
+                gap-2
+                px-4 py-2
+                rounded-xl
+                border border-gray-200
+                bg-white
+                text-sm font-semibold tracking-[0.08em]
+                uppercase text-gray-800
+                shadow-sm
+                hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600
+                transition-all duration-200
+              "
+            >
+              <span aria-hidden="true" className="text-base">👜</span>
+              <span>Bag</span>
+
+              {cartCount > 0 && (
+                <span
+                  className="
+                    inline-flex items-center justify-center
+                    bg-[#111827]
+                    text-white
+                    text-[9px]
+                    font-bold
+                    min-w-[18px] h-[18px]
+                    px-1
+                    rounded-full
+                    border border-white
+                    leading-none
+                  "
+                >
+                  {cartCount}
+                </span>
+              )}
+
+            </Link>
+
+            {/* ==============================
+                MOBILE MENU BUTTON
+            ============================== */}
+
+            <button
+              type="button"
+              onClick={() =>
+                setIsMenuOpen(
+                  (current) => !current
+                )
+              }
+              aria-label={
+                isMenuOpen
+                  ? "Close menu"
+                  : "Open menu"
+              }
+              aria-expanded={isMenuOpen}
+              className="
+                md:hidden
+                text-2xl
+                w-10
+                h-10
+                flex
+                items-center
+                justify-center
+                rounded-lg
+                hover:bg-gray-100
+                transition
+              "
+            >
+              {isMenuOpen ? "✕" : "☰"}
+            </button>
+
+          </div>
 
         </div>
 
-        {/* RIGHT SIDE */}
-        <div className="flex items-center gap-4">
+        {/* ==============================
+            MOBILE MENU
+        ============================== */}
 
-          {/* WISHLIST */}
-          <Link
-            to="/wishlist"
-            aria-label={`${wishlistCount} items in wishlist`}
+        {isMenuOpen && (
+          <div
             className="
-              relative
-              text-2xl
-              hover:scale-110
-              transition
+              md:hidden
+              border-t
+              border-gray-100
+              mt-4
+              pt-4
+              pb-2
             "
           >
-            ❤️
 
-            {wishlistCount > 0 && (
-              <span
+            <div className="flex flex-col">
+
+              <Link
+                to="/"
+                onClick={closeMenu}
                 className="
-                  absolute
-                  -top-2
-                  -right-2
-                  bg-orange-600
-                  text-white
-                  text-xs
-                  font-bold
-                  w-5
-                  h-5
-                  rounded-full
-                  flex
-                  items-center
-                  justify-center
+                  px-4 py-3 rounded-xl
+                  font-semibold tracking-[0.12em] uppercase
+                  text-gray-800
+                  hover:bg-orange-50 hover:text-orange-600
+                  transition-all duration-200
                 "
               >
-                {wishlistCount}
-              </span>
-            )}
-          </Link>
+                Home
+              </Link>
 
-          {/* CART */}
-          <Link
-            to="/cart"
-            aria-label={`${cartCount} items in cart`}
-            className="
-              relative
-              text-2xl
-              hover:scale-110
-              transition
-            "
-          >
-            🛒
-
-            {cartCount > 0 && (
-              <span
+              <Link
+                to="/shop"
+                onClick={closeMenu}
                 className="
-                  absolute
-                  -top-2
-                  -right-2
-                  bg-orange-600
-                  text-white
-                  text-xs
-                  font-bold
-                  w-5
-                  h-5
-                  rounded-full
-                  flex
-                  items-center
-                  justify-center
+                  px-4 py-3 rounded-xl
+                  font-semibold tracking-[0.12em] uppercase
+                  text-gray-800
+                  hover:bg-orange-50 hover:text-orange-600
+                  transition-all duration-200
                 "
               >
-                {cartCount}
-              </span>
-            )}
-          </Link>
+                Shop
+              </Link>
 
-        </div>
+              <Link
+                to="/shop?category=Workout%20Clothes"
+                onClick={closeMenu}
+                className="
+                  px-4 py-3 rounded-xl
+                  font-semibold tracking-[0.12em] uppercase
+                  text-gray-800
+                  hover:bg-orange-50 hover:text-orange-600
+                  transition-all duration-200
+                "
+              >
+                Categories
+              </Link>
+
+              <Link
+                to="/shop"
+                onClick={closeMenu}
+                className="
+                  px-4 py-3 rounded-xl
+                  font-semibold tracking-[0.12em] uppercase
+                  text-gray-800
+                  hover:bg-orange-50 hover:text-orange-600
+                  transition-all duration-200
+                "
+              >
+                Offers
+              </Link>
+
+              <div className="border-t border-gray-100 my-2" />
+
+              <Link
+                to="/wishlist"
+                onClick={closeMenu}
+                className="
+                  px-3
+                  py-3
+                  rounded-lg
+                  hover:bg-gray-100
+                  hover:text-orange-600
+                  transition
+                  flex
+                  items-center
+                  justify-between
+                "
+              >
+                <span>Wishlist</span>
+
+                {wishlistCount > 0 && (
+                  <span
+                    className="
+                      bg-orange-600
+                      text-white
+                      text-xs
+                      font-bold
+                      px-2
+                      py-1
+                      rounded-full
+                    "
+                  >
+                    {wishlistCount}
+                  </span>
+                )}
+              </Link>
+
+              <Link
+                to="/cart"
+                onClick={closeMenu}
+                className="
+                  px-3
+                  py-3
+                  rounded-lg
+                  hover:bg-gray-100
+                  hover:text-orange-600
+                  transition
+                  flex
+                  items-center
+                  justify-between
+                "
+              >
+                <span>Cart</span>
+
+                {cartCount > 0 && (
+                  <span
+                    className="
+                      bg-orange-600
+                      text-white
+                      text-xs
+                      font-bold
+                      px-2
+                      py-1
+                      rounded-full
+                    "
+                  >
+                    {cartCount}
+                  </span>
+                )}
+              </Link>
+
+            </div>
+
+          </div>
+        )}
+
       </div>
+
     </nav>
   );
 }

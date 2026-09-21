@@ -74,7 +74,9 @@
 .animate-gradient-text {
   background: linear-gradient(135deg, #ff6b00 0%, #ff2a54 40%, #a855f7 75%, #3b82f6 100%);
   background-size: 300% 300%;
+  background-clip: text;
   -webkit-background-clip: text;
+  color: transparent;
   -webkit-text-fill-color: transparent;
   animation: gradient-flow 8s ease infinite;
 }
@@ -131,6 +133,49 @@
   outline: none;
   border-color: #f97316;
   box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
+}
+
+/* Keep muted text fully opaque and readable on light surfaces. */
+.text-gray-300,
+.text-gray-400,
+.text-gray-500,
+.text-gray-600,
+.text-zinc-400,
+.text-zinc-500,
+.text-zinc-600 {
+  color: #000000 !important;
+}
+
+/* Preserve contrast when the same utilities are used on dark panels. */
+.bg-zinc-900 .text-gray-300,
+.bg-zinc-900 .text-gray-400,
+.bg-zinc-900 .text-gray-500,
+.bg-zinc-900 .text-gray-600,
+.bg-zinc-950 .text-zinc-400,
+.bg-zinc-950 .text-zinc-500,
+.bg-zinc-950 .text-zinc-600 {
+  color: #ffffff !important;
+}
+
+.shop-page .text-gray-300,
+.shop-page .text-gray-400,
+.shop-page .text-gray-500,
+.shop-page .text-gray-600,
+.shop-page .text-zinc-400,
+.shop-page .text-zinc-500,
+.shop-page .text-zinc-600 {
+  color: #000000 !important;
+}
+
+.shop-page {
+  color: #000000;
+}
+
+.hero-video .text-gray-300,
+.hero-video .text-gray-400,
+.hero-video .text-gray-500,
+.hero-video .text-gray-600 {
+  color: #f8fafc !important;
 }
 
 /* Custom Scrollbar */

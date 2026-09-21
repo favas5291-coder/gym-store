@@ -1,41 +1,48 @@
+import shirtIcon from "../assets/icon shirt.png";
+import workoutClothesImage from "../assets/tshirt.jpg";
+import shoesImage from "../assets/shoes.jpg";
+import proteinImage from "../assets/bottle2.jpg";
+import socksImage from "../assets/Socks .jpg";
+import waterBottleImage from "../assets/bottle.jpg";
+import shakerImage from "../assets/shaker.jpg";
+import towelImage from "../assets/Towel.jpg";
+import headphonesImage from "../assets/bag.png";
+import padlockImage from "../assets/logo.png";
 
 const categories = [
   {
     name: "Workout Clothes",
-    icon: "👕",
+    icon: workoutClothesImage,
   },
   {
     name: "Gym Shoes",
-    icon: "👟",
+    icon: shoesImage,
   },
   {
     name: "Protein",
-    icon: "🥤",
+    icon: proteinImage,
   },
   {
     name: "Socks",
-    icon: "🧦",
+    icon: socksImage,
   },
   {
     name: "Water Bottles",
-    icon: "💧",
+    icon: waterBottleImage,
   },
   {
     name: "Shaker Bottles",
-    icon: "🥤",
+    icon: shakerImage,
   },
   {
     name: "Gym Towels",
-    icon: "🧖",
+    icon: towelImage,
   },
   {
     name: "Headphones",
-    icon: "🎧",
+    icon: headphonesImage,
   },
-  {
-    name: "Padlocks",
-    icon: "🔒",
-  },
+ 
 ];
 
 export default categories;

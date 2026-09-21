@@ -4,7 +4,6 @@ import ProductSection from "../components/ProductSection";
 import Footer from "../components/Footer";
 
 function Home({
-  addToCart,
   wishlist,
   toggleWishlist,
 }) {
@@ -15,9 +14,10 @@ function Home({
       <CategorySection />
 
       <ProductSection
-        onAddToCart={addToCart}
         wishlist={wishlist}
-        toggleWishlist={toggleWishlist}
+        toggleWishlist={
+          toggleWishlist
+        }
       />
 
       <Footer />

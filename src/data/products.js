@@ -20,14 +20,7 @@ import image14 from "../assets/towel3.jpg";
 import image15 from "../assets/socks2.jpg";
 import image16 from "../assets/socks3.jpg";
 
-import image17 from "../assets/bottle2.jpg";
-import image18 from "../assets/bottle3.jpg";
-
-
 const products = [
-  // =====================================================
-  // 1. GYM TRAINING T-SHIRT
-  // =====================================================
   {
     id: 1,
     name: "Gym Training T-Shirt",
@@ -73,37 +66,33 @@ const products = [
     ],
 
     description:
-      "Comfortable training t-shirt designed for everyday gym workouts.",
+      "Premium lightweight gym training T-shirt designed for comfortable workouts, running and everyday fitness activities.",
 
     reviews: [
       {
         id: 1,
-        name: "favas",
+        name: "Favas",
         rating: 5,
         comment:
-          "Very comfortable and good quality for workouts.",
+          "Very comfortable and good quality.",
       },
       {
         id: 2,
-        name: "nishad",
-        rating: 4,
+        name: "Nishad",
+        rating: 5,
         comment:
-          "Good t-shirt. The fitting is nice.",
+          "Perfect for gym workouts.",
       },
       {
         id: 3,
-        name: "midlaj",
-        rating: 5,
+        name: "Midlaj",
+        rating: 4,
         comment:
-          "The material is comfortable and perfect for gym training.",
+          "Good material and fitting.",
       },
     ],
   },
 
-
-  // =====================================================
-  // 2. PERFORMANCE GYM SHOES
-  // =====================================================
   {
     id: 2,
     name: "Performance Gym Shoes",
@@ -119,25 +108,25 @@ const products = [
 
     variants: {
       Black: {
-        7: 2,
-        8: 4,
-        9: 5,
-        10: 3,
-        11: 1,
+        7: 3,
+        8: 5,
+        9: 8,
+        10: 5,
+        11: 2,
       },
 
       White: {
-        7: 3,
-        8: 5,
-        9: 4,
-        10: 2,
-        11: 1,
+        7: 2,
+        8: 4,
+        9: 6,
+        10: 4,
+        11: 2,
       },
 
       Grey: {
-        7: 2,
-        8: 3,
-        9: 5,
+        7: 3,
+        8: 5,
+        9: 7,
         10: 4,
         11: 2,
       },
@@ -152,37 +141,26 @@ const products = [
     ],
 
     description:
-      "Lightweight performance gym shoes designed for training and workouts.",
+      "Performance-focused gym shoes with a lightweight design, comfortable cushioning and strong grip.",
 
     reviews: [
       {
         id: 1,
-        name: "jouhar",
+        name: "Arjun",
         rating: 5,
         comment:
-          "Very comfortable shoes for gym training.",
+          "Great shoes for training.",
       },
       {
         id: 2,
-        name: "Adil",
+        name: "Rahul",
         rating: 4,
         comment:
-          "Good grip and comfortable for workouts.",
-      },
-      {
-        id: 3,
-        name: "Fahad",
-        rating: 5,
-        comment:
-          "The shoes feel lightweight and provide good support.",
+          "Comfortable and stylish.",
       },
     ],
   },
 
-
-  // =====================================================
-  // 3. PREMIUM SHAKER BOTTLE
-  // =====================================================
   {
     id: 3,
     name: "Premium Shaker Bottle",
@@ -194,19 +172,23 @@ const products = [
 
     sizes: [],
 
-    colors: ["Black", "White", "Blue"],
+    colors: [
+      "Black",
+      "White",
+      "Blue",
+    ],
 
     variants: {
       Black: {
-        default: 5,
+        default: 15,
       },
 
       White: {
-        default: 8,
+        default: 12,
       },
 
       Blue: {
-        default: 6,
+        default: 10,
       },
     },
 
@@ -219,37 +201,26 @@ const products = [
     ],
 
     description:
-      "Durable shaker bottle designed for protein shakes, supplements, and hydration.",
+      "Premium leak-resistant shaker bottle designed for protein shakes, supplements and everyday hydration.",
 
     reviews: [
       {
         id: 1,
-        name: "Fahad",
+        name: "Favas",
         rating: 5,
         comment:
-          "Strong shaker and easy to clean.",
+          "Good quality shaker.",
       },
       {
         id: 2,
-        name: "Ameen",
+        name: "Adil",
         rating: 4,
         comment:
-          "Good quality shaker for the price.",
-      },
-      {
-        id: 3,
-        name: "Rahul",
-        rating: 5,
-        comment:
-          "Very useful for protein shakes and the design looks good.",
+          "Looks premium.",
       },
     ],
   },
 
-
-  // =====================================================
-  // 4. PREMIUM GYM TOWEL
-  // =====================================================
   {
     id: 4,
     name: "Premium Gym Towel",
@@ -261,19 +232,23 @@ const products = [
 
     sizes: [],
 
-    colors: ["Black", "White", "Grey"],
+    colors: [
+      "Black",
+      "White",
+      "Grey",
+    ],
 
     variants: {
       Black: {
-        default: 20,
-      },
-
-      White: {
         default: 15,
       },
 
+      White: {
+        default: 10,
+      },
+
       Grey: {
-        default: 24,
+        default: 12,
       },
     },
 
@@ -286,7 +261,7 @@ const products = [
     ],
 
     description:
-      "Soft and absorbent gym towel for workouts, training, and everyday use.",
+      "Soft, absorbent and lightweight gym towel designed for training sessions and everyday workouts.",
 
     reviews: [
       {
@@ -294,29 +269,18 @@ const products = [
         name: "Nihal",
         rating: 5,
         comment:
-          "Very soft and comfortable to use during workouts.",
+          "Very soft towel.",
       },
       {
         id: 2,
-        name: "Akhil",
+        name: "Shamil",
         rating: 4,
         comment:
-          "Good towel with decent absorbency.",
-      },
-      {
-        id: 3,
-        name: "Sameer",
-        rating: 5,
-        comment:
-          "Good quality and perfect size for the gym.",
+          "Good for gym use.",
       },
     ],
   },
 
-
-  // =====================================================
-  // 5. TRAINING SOCKS
-  // =====================================================
   {
     id: 5,
     name: "Training Socks",
@@ -326,27 +290,35 @@ const products = [
     rating: 4.4,
     discount: 10,
 
-    sizes: ["S", "M", "L"],
+    sizes: [
+      "S",
+      "M",
+      "L",
+    ],
 
-    colors: ["Black", "White", "Grey"],
+    colors: [
+      "Black",
+      "White",
+      "Grey",
+    ],
 
     variants: {
       Black: {
-        S: 5,
-        M: 8,
-        L: 4,
+        S: 10,
+        M: 15,
+        L: 10,
       },
 
       White: {
-        S: 7,
-        M: 10,
-        L: 5,
+        S: 8,
+        M: 12,
+        L: 9,
       },
 
       Grey: {
-        S: 4,
-        M: 6,
-        L: 3,
+        S: 6,
+        M: 10,
+        L: 7,
       },
     },
 
@@ -359,49 +331,42 @@ const products = [
     ],
 
     description:
-      "Comfortable training socks designed to provide support during everyday workouts.",
+      "Comfortable training socks designed with breathable fabric and a secure fit for workouts.",
 
     reviews: [
       {
         id: 1,
-        name: "Irfan",
-        rating: 5,
+        name: "Favas",
+        rating: 4,
         comment:
-          "Very comfortable and fits perfectly.",
+          "Comfortable socks.",
       },
       {
         id: 2,
-        name: "Shamil",
-        rating: 4,
+        name: "Ameen",
+        rating: 5,
         comment:
-          "Good quality socks for everyday workouts.",
-      },
-      {
-        id: 3,
-        name: "Afsal",
-        rating: 4,
-        comment:
-          "Comfortable and breathable during training.",
+          "Good quality.",
       },
     ],
   },
 
-
-  // =====================================================
-  // 6. GYM WATER BOTTLE
-  // =====================================================
   {
     id: 6,
     name: "Gym Water Bottle",
     category: "Water Bottles",
     price: 499,
     brand: "GymDrobe",
-    rating: 4.6,
+    rating: 4.3,
     discount: 10,
 
     sizes: [],
 
-    colors: ["Black", "White", "Blue"],
+    colors: [
+      "Black",
+      "White",
+      "Blue",
+    ],
 
     variants: {
       Black: {
@@ -421,38 +386,15 @@ const products = [
 
     images: [
       image6,
-      image17,
-      image18,
+      image11,
+      image12,
     ],
 
     description:
-      "Durable gym water bottle designed to keep you hydrated throughout your workout.",
+      "Durable gym water bottle designed for hydration during workouts, running and outdoor activities.",
 
-    reviews: [
-      {
-        id: 1,
-        name: "favas",
-        rating: 5,
-        comment:
-          "Good quality bottle and easy to carry to the gym.",
-      },
-      {
-        id: 2,
-        name: "Rashid",
-        rating: 4,
-        comment:
-          "Nice design and good capacity.",
-      },
-      {
-        id: 3,
-        name: "Naveen",
-        rating: 5,
-        comment:
-          "Strong bottle and perfect for daily workouts.",
-      },
-    ],
+    reviews: [],
   },
 ];
-
 
 export default products;

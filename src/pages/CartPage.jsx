@@ -1,6 +1,9 @@
 import Cart from "../components/Cart";
 
-function CartPage({ cart, setCart }) {
+function CartPage({
+  cart,
+  setCart,
+}) {
   return (
     <Cart
       cart={cart}

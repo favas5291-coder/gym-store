@@ -1,984 +1,1614 @@
-import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Link,
+  useParams,
+} from "react-router-dom";
+
 import products from "../data/products";
 
-function ProductPage({ addToCart }) {
+function ProductPage({
+  addToCart,
+  wishlist = [],
+  toggleWishlist,
+}) {
   const { id } = useParams();
 
-  // =====================================================
-  // PRODUCT STATE
-  // =====================================================
-
-  const [quantity, setQuantity] = useState(1);
-  const [selectedSize, setSelectedSize] = useState("");
-  const [selectedColor, setSelectedColor] = useState("");
-  const [selectedImage, setSelectedImage] = useState(0);
-  const [isZoomed, setIsZoomed] = useState(false);
-
-  // =====================================================
-  // REVIEW STATE
-  // =====================================================
-
-  const [reviewName, setReviewName] = useState("");
-  const [reviewComment, setReviewComment] = useState("");
-  const [reviewRating, setReviewRating] = useState(5);
-
-  const [userReviews, setUserReviews] = useState(() => {
-    const savedReviews =
-      localStorage.getItem("gymdrobe-reviews");
-
-    return savedReviews
-      ? JSON.parse(savedReviews)
-      : {};
-  });
-
-  // =====================================================
+  // =========================
   // FIND PRODUCT
-  // =====================================================
+  // =========================
 
   const product = products.find(
     (item) => item.id === Number(id)
   );
 
+  // =========================
+  // STATES
+  // =========================
+
+  const [quantity, setQuantity] = useState(1);
+
+  const [selectedSize, setSelectedSize] =
+    useState("");
+
+  const [selectedColor, setSelectedColor] =
+    useState("");
+
+  const [selectedImage, setSelectedImage] =
+    useState("");
+
+  const [isZoomed, setIsZoomed] =
+    useState(false);
+
+  // =========================
+  // REVIEW STATES
+  // =========================
+
+  const [reviewName, setReviewName] =
+    useState("");
+
+  const [reviewRating, setReviewRating] =
+    useState(5);
+
+  const [reviewComment, setReviewComment] =
+    useState("");
+
+  const [userReviews, setUserReviews] =
+    useState([]);
+
+  // =========================
+  // PRODUCT INITIALIZATION
+  // =========================
+
+  useEffect(() => {
+    if (!product) return;
+
+    // Main image
+    setSelectedImage(
+      product.image || ""
+    );
+
+    // First available color
+    setSelectedColor(
+      product.colors?.[0] || ""
+    );
+
+    // First available size
+    setSelectedSize(
+      product.sizes?.[0] || ""
+    );
+
+    // Reset quantity
+    setQuantity(1);
+
+    // =========================
+    // LOAD USER REVIEWS
+    // =========================
+
+    const savedReviews =
+      localStorage.getItem(
+        "gymdrobe-reviews"
+      );
+
+    if (savedReviews) {
+      try {
+        const allReviews =
+          JSON.parse(savedReviews);
+
+        setUserReviews(
+          allReviews[product.id] || []
+        );
+      } catch {
+        setUserReviews([]);
+      }
+    } else {
+      setUserReviews([]);
+    }
+  }, [product]);
+
+  // =========================
+  // PRODUCT NOT FOUND
+  // =========================
+
   if (!product) {
     return (
-      <div className="p-10 text-center">
-        <h1 className="text-3xl font-bold">
-          Product Not Found
-        </h1>
-      </div>
+      <section
+        className="
+          min-h-screen
+          flex
+          items-center
+          justify-center
+          px-4
+          sm:px-6
+          bg-gray-50
+        "
+      >
+        <div className="text-center">
+
+          <div
+            className="
+              text-6xl
+              mb-5
+            "
+          >
+            😕
+          </div>
+
+          <h1
+            className="
+              text-3xl
+              sm:text-4xl
+              font-black
+              mb-4
+            "
+          >
+            Product Not Found
+          </h1>
+
+          <p
+            className="
+              text-gray-500
+              mb-6
+            "
+          >
+            The product you're looking for
+            doesn't exist.
+          </p>
+
+          <Link
+            to="/shop"
+            className="
+              inline-block
+              bg-orange-600
+              hover:bg-orange-700
+              text-white
+              px-6
+              py-3
+              rounded-lg
+              font-bold
+              transition
+            "
+          >
+            Back to Shop
+          </Link>
+
+        </div>
+      </section>
     );
   }
 
-  // =====================================================
-  // COMBINE DEFAULT + USER REVIEWS
-  // =====================================================
+  // =========================
+  // IMAGE GALLERY
+  // =========================
 
-  const defaultReviews =
-    product.reviews || [];
+  const productImages = [
+    product.image,
+    ...(product.images || []),
+  ].filter(
+    (image, index, array) =>
+      image &&
+      array.indexOf(image) === index
+  );
 
-  const savedProductReviews =
-    userReviews[product.id] || [];
+  // =========================
+  // STOCK
+  // =========================
 
-  const reviews = [
-    ...defaultReviews,
-    ...savedProductReviews,
-  ];
+  let stock = 0;
 
-  // =====================================================
-  // RATING CALCULATIONS
-  // =====================================================
+  if (product.variants) {
 
-  const reviewCount = reviews.length;
+    // -------------------------
+    // SIZE + COLOR
+    // -------------------------
 
-  const averageRating =
-    reviewCount > 0
-      ? (
-          reviews.reduce(
-            (total, review) =>
-              total + review.rating,
-            0
-          ) / reviewCount
-        ).toFixed(1)
-      : "0.0";
-
-  function getRatingCount(rating) {
-    return reviews.filter(
-      (review) =>
-        review.rating === rating
-    ).length;
-  }
-
-  function getRatingPercentage(rating) {
-    if (reviewCount === 0) {
-      return 0;
+    if (
+      selectedColor &&
+      selectedSize
+    ) {
+      stock =
+        product.variants?.[
+          selectedColor
+        ]?.[selectedSize] ?? 0;
     }
 
-    return Math.round(
-      (getRatingCount(rating) /
-        reviewCount) *
-        100
-    );
+    // -------------------------
+    // COLOR ONLY
+    // -------------------------
+
+    else if (selectedColor) {
+      stock =
+        product.variants?.[
+          selectedColor
+        ]?.default ?? 0;
+    }
+
+  } else {
+    // -------------------------
+    // NORMAL STOCK
+    // -------------------------
+
+    stock = product.stock ?? 0;
   }
 
-  // =====================================================
-  // PRODUCT DATA
-  // =====================================================
+  // =========================
+  // KEEP QUANTITY VALID
+  // =========================
 
-  const relatedProducts =
-    products.filter(
-      (item) => item.id !== product.id
-    );
-
-  const discountedPrice =
-    product.price -
-    (product.price * product.discount) /
-      100;
-
-  const totalDiscountedPrice =
-    discountedPrice * quantity;
-
-  const totalOriginalPrice =
-    product.price * quantity;
-
-  // =====================================================
-  // VARIANT STOCK
-  // =====================================================
-
-  let availableStock = 0;
-
-  if (
-    selectedColor &&
-    selectedSize &&
-    product.variants?.[selectedColor]?.[
-      selectedSize
-    ] !== undefined
-  ) {
-    availableStock =
-      product.variants[selectedColor][
-        selectedSize
-      ];
-  } else if (
-    selectedColor &&
-    product.variants?.[selectedColor]?.default !==
-      undefined
-  ) {
-    availableStock =
-      product.variants[selectedColor].default;
-  } else if (!product.colors?.length) {
-    availableStock =
-      product.stock ?? 0;
-  }
-
-  // =====================================================
-  // PRODUCT FUNCTIONS
-  // =====================================================
-
-  function handleSizeChange(size) {
-    setSelectedSize(size);
-    setQuantity(1);
-  }
-
-  function handleColorChange(color) {
-    setSelectedColor(color);
-    setQuantity(1);
-  }
-
-  function decreaseQuantity() {
-    setQuantity(
-      Math.max(1, quantity - 1)
-    );
-  }
-
-  function increaseQuantity() {
-    if (availableStock <= 0) {
+  useEffect(() => {
+    if (stock <= 0) {
+      setQuantity(1);
       return;
     }
 
-    setQuantity(
+    setQuantity((currentQuantity) =>
       Math.min(
-        availableStock,
-        quantity + 1
+        currentQuantity,
+        stock
       )
     );
-  }
+  }, [
+    stock,
+    selectedSize,
+    selectedColor,
+  ]);
+
+  // =========================
+  // REVIEWS
+  // =========================
+
+  const allReviews = [
+    ...(product.reviews || []),
+    ...userReviews,
+  ];
+
+  // =========================
+  // AVERAGE RATING
+  // =========================
+
+  const averageRating =
+    allReviews.length > 0
+      ? (
+          allReviews.reduce(
+            (total, review) =>
+              total +
+              Number(review.rating),
+            0
+          ) / allReviews.length
+        ).toFixed(1)
+      : product.rating;
+
+  // =========================
+  // RATING BREAKDOWN
+  // =========================
+
+  const ratingBreakdown =
+    [5, 4, 3, 2, 1].map(
+      (rating) => {
+
+        const count =
+          allReviews.filter(
+            (review) =>
+              Number(review.rating) ===
+              rating
+          ).length;
+
+        const percentage =
+          allReviews.length > 0
+            ? (count /
+                allReviews.length) *
+              100
+            : 0;
+
+        return {
+          rating,
+          count,
+          percentage,
+        };
+      }
+    );
+
+  // =========================
+  // DISCOUNTED PRICE
+  // =========================
+
+  const discountedPrice =
+    product.price -
+    (product.price *
+      product.discount) /
+      100;
+
+  // =========================
+  // WISHLIST STATUS
+  // =========================
+
+  const isWishlisted =
+    wishlist.some(
+      (item) =>
+        item.id === product.id
+    );
+
+  // =========================
+  // ADD TO CART
+  // =========================
 
   function handleAddToCart() {
+
+    // -------------------------
+    // SIZE REQUIRED
+    // -------------------------
+
     if (
       product.sizes?.length > 0 &&
       !selectedSize
     ) {
-      alert("Please select a size");
+      alert(
+        "Please select a size."
+      );
       return;
     }
+
+    // -------------------------
+    // COLOR REQUIRED
+    // -------------------------
 
     if (
       product.colors?.length > 0 &&
       !selectedColor
     ) {
-      alert("Please select a color");
+      alert(
+        "Please select a color."
+      );
       return;
     }
 
-    if (availableStock <= 0) {
-      alert("This variant is out of stock");
+    // -------------------------
+    // OUT OF STOCK
+    // -------------------------
+
+    if (stock <= 0) {
+      alert(
+        "This product is out of stock."
+      );
       return;
     }
+
+    // -------------------------
+    // QUANTITY CHECK
+    // -------------------------
+
+    if (quantity > stock) {
+      alert(
+        `Only ${stock} item${
+          stock > 1 ? "s" : ""
+        } available.`
+      );
+      return;
+    }
+
+    // -------------------------
+    // ADD TO CART
+    // -------------------------
 
     addToCart(
       product,
       quantity,
-      selectedSize,
-      selectedColor
+      selectedSize || null,
+      selectedColor || null
     );
   }
 
-  // =====================================================
-  // ADD REVIEW
-  // =====================================================
+  // =========================
+  // QUANTITY
+  // =========================
 
-  function handleSubmitReview(e) {
+  function increaseQuantity() {
+    if (stock <= 0) return;
+
+    setQuantity((currentQuantity) =>
+      Math.min(
+        currentQuantity + 1,
+        stock
+      )
+    );
+  }
+
+  function decreaseQuantity() {
+    setQuantity((currentQuantity) =>
+      Math.max(
+        1,
+        currentQuantity - 1
+      )
+    );
+  }
+
+  // =========================
+  // REVIEW SUBMIT
+  // =========================
+
+  function handleReviewSubmit(e) {
     e.preventDefault();
 
-    if (!reviewName.trim()) {
-      alert("Please enter your name");
-      return;
-    }
-
-    if (!reviewComment.trim()) {
-      alert("Please write a review");
+    if (
+      !reviewName.trim() ||
+      !reviewComment.trim()
+    ) {
+      alert(
+        "Please enter your name and review."
+      );
       return;
     }
 
     const newReview = {
       id: Date.now(),
       name: reviewName.trim(),
-      rating: reviewRating,
-      comment: reviewComment.trim(),
+      rating: Number(
+        reviewRating
+      ),
+      comment:
+        reviewComment.trim(),
     };
 
-    const updatedReviews = {
-      ...userReviews,
-      [product.id]: [
-        ...(userReviews[product.id] || []),
-        newReview,
-      ],
-    };
+    // -------------------------
+    // LOAD EXISTING REVIEWS
+    // -------------------------
 
-    setUserReviews(updatedReviews);
+    const savedReviews =
+      localStorage.getItem(
+        "gymdrobe-reviews"
+      );
+
+    let allReviewsData = {};
+
+    if (savedReviews) {
+      try {
+        allReviewsData =
+          JSON.parse(savedReviews);
+      } catch {
+        allReviewsData = {};
+      }
+    }
+
+    // -------------------------
+    // SAVE NEW REVIEW
+    // -------------------------
+
+    allReviewsData[product.id] = [
+      ...(allReviewsData[
+        product.id
+      ] || []),
+      newReview,
+    ];
 
     localStorage.setItem(
       "gymdrobe-reviews",
-      JSON.stringify(updatedReviews)
+      JSON.stringify(
+        allReviewsData
+      )
     );
 
-    setReviewName("");
-    setReviewComment("");
-    setReviewRating(5);
+    // -------------------------
+    // UPDATE UI
+    // -------------------------
 
-    alert("Review added successfully!");
+    setUserReviews(
+      (currentReviews) => [
+        ...currentReviews,
+        newReview,
+      ]
+    );
+
+    // -------------------------
+    // RESET FORM
+    // -------------------------
+
+    setReviewName("");
+    setReviewRating(5);
+    setReviewComment("");
+
+    alert(
+      "Review submitted successfully!"
+    );
   }
 
+  // =========================
+  // RELATED PRODUCTS
+  // =========================
+
+  const relatedProducts = useMemo(
+    () =>
+      products
+        .filter(
+          (item) =>
+            item.category ===
+              product.category &&
+            item.id !== product.id
+        )
+        .slice(0, 3),
+    [product]
+  );
+
+  // =========================
+  // RENDER
+  // =========================
+
   return (
-    <section className="py-20 px-6 bg-white">
+    <section
+      className="
+        bg-gray-50
+        text-black
+        min-h-screen
+        py-6
+        sm:py-10
+        md:py-12
+        px-3
+        sm:px-6
+      "
+    >
+      <div
+        className="
+          max-w-7xl
+          mx-auto
+        "
+      >
 
-      {/* =====================================================
-          PRODUCT DETAILS
-      ===================================================== */}
+        {/* =========================
+            PRODUCT SECTION
+        ========================= */}
 
-      <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 items-start">
+        <div
+          className="
+            grid
+            lg:grid-cols-2
+            gap-7
+            lg:gap-12
+            bg-white
+            rounded-2xl
+            sm:rounded-3xl
+            p-4
+            sm:p-6
+            md:p-10
+            shadow-sm
+          "
+        >
 
-        {/* PRODUCT IMAGES */}
+          {/* =========================
+              IMAGE GALLERY
+          ========================= */}
 
-        <div>
+          <div className="min-w-0">
 
-          <div
-            className="
-              bg-gray-100
-              rounded-xl
-              overflow-hidden
-              cursor-zoom-in
-            "
-            onMouseEnter={() =>
-              setIsZoomed(true)
-            }
-            onMouseLeave={() =>
-              setIsZoomed(false)
-            }
-          >
-            <img
-              src={
-                product.images?.[
-                  selectedImage
-                ] || product.image
+            {/* MAIN IMAGE */}
+
+            <div
+              className="
+                relative
+                bg-gray-100
+                rounded-xl
+                sm:rounded-2xl
+                overflow-hidden
+                h-[360px]
+                sm:h-[450px]
+                md:h-[500px]
+                cursor-zoom-in
+              "
+              onMouseEnter={() =>
+                setIsZoomed(true)
               }
-              alt={product.name}
-              className={`
-                w-full
-                h-[500px]
-                object-cover
-                transition-transform
-                duration-500
-                ${
-                  isZoomed
-                    ? "scale-125"
-                    : "scale-100"
-                }
-              `}
-            />
-          </div>
+              onMouseLeave={() =>
+                setIsZoomed(false)
+              }
+            >
 
-          {product.images?.length > 0 && (
-            <div className="
-              flex
-              gap-3
-              mt-4
-              overflow-x-auto
-            ">
+              <img
+                src={selectedImage}
+                alt={product.name}
+                className={`
+                  w-full
+                  h-full
+                  object-cover
+                  transition-transform
+                  duration-500
+                  ${
+                    isZoomed
+                      ? "scale-110"
+                      : "scale-100"
+                  }
+                `}
+              />
 
-              {product.images.map(
-                (image, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() => {
-                      setSelectedImage(index);
-                      setIsZoomed(false);
-                    }}
-                    className={`
-                      border-2
-                      rounded-lg
-                      overflow-hidden
-                      flex-shrink-0
-                      ${
-                        selectedImage === index
-                          ? "border-orange-600"
-                          : "border-gray-300"
-                      }
-                    `}
-                  >
-                    <img
-                      src={image}
-                      alt={`${product.name} view ${
-                        index + 1
-                      }`}
-                      className="
-                        w-20
-                        h-20
-                        object-cover
-                      "
-                    />
-                  </button>
-                )
+              {/* DISCOUNT */}
+
+              {product.discount > 0 && (
+                <span
+                  className="
+                    absolute
+                    top-3
+                    left-3
+                    sm:top-5
+                    sm:left-5
+                    bg-orange-600
+                    text-white
+                    text-xs
+                    sm:text-sm
+                    px-3
+                    sm:px-4
+                    py-1.5
+                    sm:py-2
+                    rounded-full
+                    font-bold
+                  "
+                >
+                  {product.discount}% OFF
+                </span>
+              )}
+
+              {/* STOCK BADGE */}
+
+              {stock <= 0 && (
+                <span
+                  className="
+                    absolute
+                    top-3
+                    right-3
+                    sm:top-5
+                    sm:right-5
+                    bg-red-600
+                    text-white
+                    text-xs
+                    sm:text-sm
+                    px-3
+                    py-1.5
+                    rounded-full
+                    font-bold
+                  "
+                >
+                  OUT OF STOCK
+                </span>
               )}
 
             </div>
-          )}
 
-        </div>
+            {/* THUMBNAILS */}
 
-        {/* PRODUCT INFORMATION */}
+            {productImages.length > 0 && (
+              <div
+                className="
+                  grid
+                  grid-cols-4
+                  gap-2
+                  sm:gap-4
+                  mt-3
+                  sm:mt-4
+                "
+              >
 
-        <div>
-
-          <p className="
-            uppercase
-            tracking-widest
-            text-orange-600
-            font-semibold
-            mb-2
-          ">
-            {product.category}
-          </p>
-
-          <p className="
-            text-gray-500
-            mb-3
-          ">
-            Brand: {product.brand}
-          </p>
-
-          <h1 className="
-            text-5xl
-            font-bold
-            mb-4
-          ">
-            {product.name}
-          </h1>
-
-          {/* RATING */}
-
-          <div className="
-            flex
-            items-center
-            gap-3
-            mb-5
-          ">
-
-            <span className="
-              text-yellow-500
-              text-xl
-            ">
-              {"★".repeat(
-                Math.round(
-                  Number(averageRating)
-                )
-              )}
-            </span>
-
-            <span className="font-semibold">
-              {averageRating}
-            </span>
-
-            <span className="text-gray-500">
-              ({reviewCount} reviews)
-            </span>
-
-          </div>
-
-          {/* PRICE */}
-
-          <p className="
-            text-3xl
-            font-bold
-            mb-1
-          ">
-            ₹
-            {totalDiscountedPrice.toLocaleString(
-              "en-IN"
-            )}
-          </p>
-
-          <p className="
-            text-gray-500
-            line-through
-            mb-6
-          ">
-            ₹
-            {totalOriginalPrice.toLocaleString(
-              "en-IN"
-            )}
-          </p>
-
-          {/* SIZE */}
-
-          {product.sizes?.length > 0 && (
-            <div className="mb-6">
-
-              <p className="
-                font-semibold
-                mb-3
-              ">
-                Select Size
-              </p>
-
-              <div className="
-                flex
-                flex-wrap
-                gap-3
-              ">
-
-                {product.sizes.map(
-                  (size) => (
+                {productImages.map(
+                  (image, index) => (
                     <button
-                      key={size}
                       type="button"
+                      key={`${image}-${index}`}
                       onClick={() =>
-                        handleSizeChange(size)
+                        setSelectedImage(
+                          image
+                        )
                       }
                       className={`
-                        px-5
-                        py-2
-                        border
                         rounded-lg
+                        sm:rounded-xl
+                        overflow-hidden
+                        border-2
                         transition
                         ${
-                          selectedSize === size
-                            ? "bg-black text-white border-black"
-                            : "bg-white hover:bg-gray-100"
+                          selectedImage ===
+                          image
+                            ? "border-orange-600"
+                            : "border-transparent"
                         }
                       `}
                     >
-                      {size}
-                    </button>
-                  )
-                )}
 
-              </div>
-            </div>
-          )}
-
-          {/* COLOR */}
-
-          {product.colors?.length > 0 && (
-            <div className="mb-6">
-
-              <p className="
-                font-semibold
-                mb-3
-              ">
-                Select Color
-              </p>
-
-              <div className="
-                flex
-                flex-wrap
-                gap-3
-              ">
-
-                {product.colors.map(
-                  (color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() =>
-                        handleColorChange(color)
-                      }
-                      className={`
-                        px-5
-                        py-2
-                        border
-                        rounded-lg
-                        transition
-                        ${
-                          selectedColor === color
-                            ? "bg-black text-white border-black"
-                            : "bg-white hover:bg-gray-100"
-                        }
-                      `}
-                    >
-                      {color}
-                    </button>
-                  )
-                )}
-
-              </div>
-            </div>
-          )}
-
-          {/* STOCK */}
-
-          {selectedColor &&
-          (selectedSize ||
-            product.sizes?.length === 0) ? (
-            <p
-              className={`
-                font-semibold
-                mb-6
-                ${
-                  availableStock > 0
-                    ? "text-green-600"
-                    : "text-red-600"
-                }
-              `}
-            >
-              {availableStock > 0
-                ? `${availableStock} items available`
-                : "Out of Stock"}
-            </p>
-          ) : (
-            <p className="
-              text-gray-500
-              mb-6
-            ">
-              Select your options to see stock
-            </p>
-          )}
-
-          {/* DESCRIPTION */}
-
-          <p className="
-            text-gray-600
-            mb-8
-          ">
-            {product.description}
-          </p>
-
-          {/* QUANTITY */}
-
-          <div className="
-            flex
-            items-center
-            gap-4
-            mb-8
-          ">
-
-            <span className="font-semibold">
-              Quantity
-            </span>
-
-            <button
-              type="button"
-              onClick={decreaseQuantity}
-              disabled={
-                availableStock === 0
-              }
-              className="
-                w-10
-                h-10
-                bg-gray-200
-                hover:bg-gray-300
-                disabled:opacity-40
-                disabled:cursor-not-allowed
-                rounded-lg
-                font-bold
-              "
-            >
-              −
-            </button>
-
-            <span className="
-              font-bold
-              text-lg
-              min-w-[25px]
-              text-center
-            ">
-              {quantity}
-            </span>
-
-            <button
-              type="button"
-              onClick={increaseQuantity}
-              disabled={
-                availableStock === 0 ||
-                quantity >= availableStock
-              }
-              className="
-                w-10
-                h-10
-                bg-gray-200
-                hover:bg-gray-300
-                disabled:opacity-40
-                disabled:cursor-not-allowed
-                rounded-lg
-                font-bold
-              "
-            >
-              +
-            </button>
-
-          </div>
-
-          {/* ADD TO CART */}
-
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            disabled={
-              availableStock === 0
-            }
-            className={`
-              w-full
-              md:w-auto
-              px-10
-              py-4
-              rounded-lg
-              font-semibold
-              text-white
-              transition
-              ${
-                availableStock > 0
-                  ? "bg-orange-600 hover:bg-orange-700"
-                  : "bg-gray-400 cursor-not-allowed"
-              }
-            `}
-          >
-            {availableStock > 0
-              ? "ADD TO CART"
-              : "OUT OF STOCK"}
-          </button>
-
-        </div>
-      </div>
-
-
-      {/* =====================================================
-          CUSTOMER REVIEWS
-      ===================================================== */}
-
-      <div className="
-        max-w-6xl
-        mx-auto
-        mt-24
-        border-t
-        pt-16
-      ">
-
-        <h2 className="
-          text-4xl
-          font-bold
-          mb-10
-        ">
-          Customer Reviews
-        </h2>
-
-
-        {/* =====================================================
-            RATING SUMMARY + BREAKDOWN
-        ===================================================== */}
-
-        <div className="
-          grid
-          md:grid-cols-3
-          gap-10
-          mb-16
-        ">
-
-          {/* AVERAGE RATING */}
-
-          <div className="
-            bg-gray-100
-            rounded-xl
-            p-8
-            text-center
-          ">
-
-            <p className="
-              text-5xl
-              font-bold
-              mb-3
-            ">
-              {averageRating}
-            </p>
-
-            <p className="
-              text-yellow-500
-              text-2xl
-              mb-3
-            ">
-              {"★".repeat(
-                Math.round(
-                  Number(averageRating)
-                )
-              )}
-            </p>
-
-            <p className="text-gray-500">
-              Based on {reviewCount} reviews
-            </p>
-
-          </div>
-
-
-          {/* RATING BREAKDOWN */}
-
-          <div className="
-            md:col-span-2
-          ">
-
-            <h3 className="
-              text-xl
-              font-bold
-              mb-5
-            ">
-              Rating Breakdown
-            </h3>
-
-            <div className="
-              space-y-3
-            ">
-
-              {[5, 4, 3, 2, 1].map(
-                (rating) => (
-                  <div
-                    key={rating}
-                    className="
-                      flex
-                      items-center
-                      gap-3
-                    "
-                  >
-
-                    <span className="
-                      w-12
-                      font-semibold
-                    ">
-                      {rating} ★
-                    </span>
-
-                    <div className="
-                      flex-1
-                      h-3
-                      bg-gray-200
-                      rounded-full
-                      overflow-hidden
-                    ">
-                      <div
+                      <img
+                        src={image}
+                        alt={`${product.name} ${
+                          index + 1
+                        }`}
                         className="
-                          h-full
-                          bg-yellow-400
+                          w-full
+                          h-20
+                          sm:h-24
+                          object-cover
                         "
-                        style={{
-                          width: `${getRatingPercentage(
-                            rating
-                          )}%`,
-                        }}
                       />
-                    </div>
 
-                    <span className="
-                      w-12
-                      text-right
-                      text-gray-500
-                    ">
-                      {getRatingPercentage(
-                        rating
-                      )}%
-                    </span>
+                    </button>
+                  )
+                )}
 
-                  </div>
-                )
-              )}
-
-            </div>
+              </div>
+            )}
 
           </div>
 
-        </div>
+          {/* =========================
+              PRODUCT DETAILS
+          ========================= */}
 
+          <div className="min-w-0">
 
-        {/* =====================================================
-            ADD REVIEW FORM
-        ===================================================== */}
+            {/* CATEGORY */}
 
-        <div className="
-          bg-gray-100
-          rounded-xl
-          p-8
-          mb-16
-        ">
-
-          <h3 className="
-            text-2xl
-            font-bold
-            mb-6
-          ">
-            Write a Review
-          </h3>
-
-          <form
-            onSubmit={handleSubmitReview}
-            className="
-              max-w-2xl
-              space-y-5
-            "
-          >
+            <p
+              className="
+                text-orange-600
+                text-xs
+                sm:text-sm
+                font-bold
+                uppercase
+                tracking-wider
+                mb-2
+              "
+            >
+              {product.category}
+            </p>
 
             {/* NAME */}
 
+            <h1
+              className="
+                text-3xl
+                sm:text-4xl
+                md:text-5xl
+                font-black
+                leading-tight
+                mb-4
+                sm:mb-5
+              "
+            >
+              {product.name}
+            </h1>
+
+            {/* RATING */}
+
+            <div
+              className="
+                flex
+                flex-wrap
+                items-center
+                gap-2
+                sm:gap-4
+                mb-5
+                sm:mb-6
+              "
+            >
+
+              <span
+                className="
+                  text-base
+                  sm:text-lg
+                  font-semibold
+                "
+              >
+                ⭐ {averageRating}
+              </span>
+
+              <span
+                className="
+                  text-sm
+                  sm:text-base
+                  text-gray-500
+                "
+              >
+                ({allReviews.length} reviews)
+              </span>
+
+            </div>
+
+            {/* PRICE */}
+
+            <div
+              className="
+                flex
+                flex-wrap
+                items-center
+                gap-3
+                mb-5
+                sm:mb-6
+              "
+            >
+
+              <span
+                className="
+                  text-2xl
+                  sm:text-3xl
+                  font-black
+                "
+              >
+                ₹
+                {discountedPrice.toLocaleString(
+                  "en-IN"
+                )}
+              </span>
+
+              {product.discount > 0 && (
+                <span
+                  className="
+                    text-base
+                    sm:text-lg
+                    text-gray-400
+                    line-through
+                  "
+                >
+                  ₹
+                  {product.price.toLocaleString(
+                    "en-IN"
+                  )}
+                </span>
+              )}
+
+              {product.discount > 0 && (
+                <span
+                  className="
+                    text-sm
+                    font-bold
+                    text-green-600
+                  "
+                >
+                  Save ₹
+                  {Math.round(
+                    product.price -
+                      discountedPrice
+                  ).toLocaleString(
+                    "en-IN"
+                  )}
+                </span>
+              )}
+
+            </div>
+
+            {/* DESCRIPTION */}
+
+            <p
+              className="
+                text-sm
+                sm:text-base
+                text-gray-600
+                leading-6
+                sm:leading-7
+                mb-7
+                sm:mb-8
+              "
+            >
+              {product.description}
+            </p>
+
+            {/* =========================
+                SIZE
+            ========================= */}
+
+            {product.sizes?.length > 0 && (
+              <div className="mb-6 sm:mb-7">
+
+                <div
+                  className="
+                    flex
+                    items-center
+                    justify-between
+                    mb-3
+                  "
+                >
+
+                  <h3 className="font-bold">
+                    Select Size
+                  </h3>
+
+                  <span
+                    className="
+                      text-xs
+                      text-gray-500
+                    "
+                  >
+                    Required
+                  </span>
+
+                </div>
+
+                <div
+                  className="
+                    flex
+                    flex-wrap
+                    gap-2
+                    sm:gap-3
+                  "
+                >
+
+                  {product.sizes.map(
+                    (size) => {
+
+                      const sizeStock =
+                        selectedColor &&
+                        product.variants
+                          ? product
+                              .variants?.[
+                              selectedColor
+                            ]?.[size] ?? 0
+                          : 0;
+
+                      const isSizeOut =
+                        Boolean(
+                          product.variants &&
+                          selectedColor &&
+                          sizeStock <= 0
+                        );
+
+                      return (
+                        <button
+                          type="button"
+                          key={size}
+                          disabled={
+                            isSizeOut
+                          }
+                          onClick={() => {
+                            setSelectedSize(
+                              size
+                            );
+                            setQuantity(1);
+                          }}
+                          className={`
+                            min-w-[52px]
+                            px-4
+                            sm:px-5
+                            py-2.5
+                            sm:py-3
+                            rounded-lg
+                            border
+                            text-sm
+                            sm:text-base
+                            font-semibold
+                            transition
+                            ${
+                              selectedSize ===
+                              size
+                                ? "bg-orange-600 text-white border-orange-600"
+                                : isSizeOut
+                                ? "bg-gray-100 text-gray-400 border-gray-200 line-through cursor-not-allowed"
+                                : "bg-white hover:border-orange-500"
+                            }
+                          `}
+                        >
+                          {size}
+                        </button>
+                      );
+                    }
+                  )}
+
+                </div>
+
+              </div>
+            )}
+
+            {/* =========================
+                COLOR
+            ========================= */}
+
+            {product.colors?.length > 0 && (
+              <div className="mb-6 sm:mb-7">
+
+                <h3 className="font-bold mb-3">
+                  Select Color
+                </h3>
+
+                <div
+                  className="
+                    flex
+                    flex-wrap
+                    gap-2
+                    sm:gap-3
+                  "
+                >
+
+                  {product.colors.map(
+                    (color) => {
+
+                      const colorStock =
+                        product.variants?.[
+                          color
+                        ]?.default;
+
+                      const isColorOut =
+                        product.sizes?.length ===
+                          0 &&
+                        product.variants &&
+                        colorStock !==
+                          undefined &&
+                        colorStock <= 0;
+
+                      return (
+                        <button
+                          type="button"
+                          key={color}
+                          disabled={
+                            isColorOut
+                          }
+                          onClick={() => {
+                            setSelectedColor(
+                              color
+                            );
+                            setQuantity(1);
+                          }}
+                          className={`
+                            px-4
+                            sm:px-5
+                            py-2.5
+                            sm:py-3
+                            rounded-lg
+                            border
+                            text-sm
+                            sm:text-base
+                            font-semibold
+                            transition
+                            ${
+                              selectedColor ===
+                              color
+                                ? "bg-gray-900 text-white border-gray-900"
+                                : isColorOut
+                                ? "bg-gray-100 text-gray-400 border-gray-200 line-through cursor-not-allowed"
+                                : "bg-white hover:border-gray-900"
+                            }
+                          `}
+                        >
+                          {color}
+                        </button>
+                      );
+                    }
+                  )}
+
+                </div>
+
+              </div>
+            )}
+
+            {/* =========================
+                STOCK
+            ========================= */}
+
+            <div className="mb-5">
+
+              {stock > 0 ? (
+                <p
+                  className="
+                    text-green-600
+                    font-semibold
+                    text-sm
+                    sm:text-base
+                  "
+                >
+                  ✓ {stock} available
+                </p>
+              ) : (
+                <p
+                  className="
+                    text-red-600
+                    font-semibold
+                    text-sm
+                    sm:text-base
+                  "
+                >
+                  Out of stock
+                </p>
+              )}
+
+            </div>
+
+            {/* =========================
+                QUANTITY
+            ========================= */}
+
+            <div
+              className="
+                flex
+                items-center
+                gap-3
+                mb-6
+              "
+            >
+
+              <button
+                type="button"
+                onClick={
+                  decreaseQuantity
+                }
+                disabled={
+                  quantity <= 1 ||
+                  stock <= 0
+                }
+                className="
+                  w-11
+                  h-11
+                  rounded-lg
+                  bg-gray-200
+                  hover:bg-gray-300
+                  disabled:opacity-50
+                  disabled:cursor-not-allowed
+                  font-bold
+                  text-lg
+                  active:scale-95
+                  transition
+                "
+              >
+                −
+              </button>
+
+              <span
+                className="
+                  w-10
+                  text-center
+                  font-bold
+                "
+              >
+                {quantity}
+              </span>
+
+              <button
+                type="button"
+                onClick={
+                  increaseQuantity
+                }
+                disabled={
+                  stock <= 0 ||
+                  quantity >= stock
+                }
+                className="
+                  w-11
+                  h-11
+                  rounded-lg
+                  bg-gray-900
+                  text-white
+                  hover:bg-black
+                  disabled:opacity-50
+                  disabled:cursor-not-allowed
+                  font-bold
+                  text-lg
+                  active:scale-95
+                  transition
+                "
+              >
+                +
+              </button>
+
+            </div>
+
+            {/* =========================
+                ACTIONS
+            ========================= */}
+
+            <div
+              className="
+                flex
+                gap-2
+                sm:gap-3
+              "
+            >
+
+              {/* ADD TO CART */}
+
+              <button
+                type="button"
+                onClick={
+                  handleAddToCart
+                }
+                disabled={
+                  stock <= 0
+                }
+                className="
+                  flex-1
+                  bg-orange-600
+                  hover:bg-orange-700
+                  disabled:bg-gray-400
+                  text-white
+                  py-3.5
+                  sm:py-4
+                  rounded-xl
+                  font-bold
+                  text-sm
+                  sm:text-base
+                  transition
+                  active:scale-[0.98]
+                "
+              >
+                {stock > 0
+                  ? "ADD TO CART"
+                  : "OUT OF STOCK"}
+              </button>
+
+              {/* WISHLIST */}
+
+              <button
+                type="button"
+                onClick={() =>
+                  toggleWishlist?.(
+                    product
+                  )
+                }
+                aria-label={
+                  isWishlisted
+                    ? "Remove from wishlist"
+                    : "Add to wishlist"
+                }
+                className="
+                  w-12
+                  sm:w-14
+                  shrink-0
+                  bg-gray-100
+                  hover:bg-gray-200
+                  rounded-xl
+                  text-xl
+                  sm:text-2xl
+                  transition
+                  active:scale-95
+                "
+              >
+                {isWishlisted
+                  ? "❤️"
+                  : "🤍"}
+              </button>
+
+            </div>
+
+          </div>
+        </div>
+
+        {/* =========================
+            REVIEWS
+        ========================= */}
+
+        <div
+          className="
+            mt-7
+            sm:mt-10
+            md:mt-12
+            bg-white
+            rounded-2xl
+            sm:rounded-3xl
+            p-4
+            sm:p-6
+            md:p-10
+          "
+        >
+
+          <h2
+            className="
+              text-2xl
+              sm:text-3xl
+              font-black
+              mb-6
+              sm:mb-8
+            "
+          >
+            Customer Reviews
+          </h2>
+
+          <div
+            className="
+              grid
+              lg:grid-cols-3
+              gap-8
+              lg:gap-10
+            "
+          >
+
+            {/* =========================
+                RATING SUMMARY
+            ========================= */}
+
             <div>
 
-              <label className="
-                block
-                font-semibold
-                mb-2
-              ">
-                Your Name
-              </label>
+              <div
+                className="
+                  text-4xl
+                  sm:text-5xl
+                  font-black
+                  mb-2
+                "
+              >
+                {averageRating}
+              </div>
+
+              <p className="mb-6">
+                ⭐⭐⭐⭐⭐
+              </p>
+
+              <div
+                className="
+                  space-y-3
+                "
+              >
+
+                {ratingBreakdown.map(
+                  (item) => (
+                    <div
+                      key={
+                        item.rating
+                      }
+                      className="
+                        flex
+                        items-center
+                        gap-2
+                        sm:gap-3
+                      "
+                    >
+
+                      <span
+                        className="
+                          w-7
+                          sm:w-8
+                          text-sm
+                        "
+                      >
+                        {item.rating}★
+                      </span>
+
+                      <div
+                        className="
+                          flex-1
+                          h-2
+                          bg-gray-200
+                          rounded-full
+                          overflow-hidden
+                        "
+                      >
+
+                        <div
+                          className="
+                            h-full
+                            bg-orange-500
+                          "
+                          style={{
+                            width: `${item.percentage}%`,
+                          }}
+                        />
+
+                      </div>
+
+                      <span
+                        className="
+                          text-xs
+                          sm:text-sm
+                          text-gray-500
+                        "
+                      >
+                        {item.count}
+                      </span>
+
+                    </div>
+                  )
+                )}
+
+              </div>
+
+            </div>
+
+            {/* =========================
+                REVIEW LIST
+            ========================= */}
+
+            <div
+              className="
+                lg:col-span-2
+                space-y-5
+              "
+            >
+
+              {allReviews.length ===
+              0 ? (
+                <p className="text-gray-500">
+                  No reviews yet.
+                </p>
+              ) : (
+                allReviews.map(
+                  (review) => (
+                    <div
+                      key={
+                        review.id
+                      }
+                      className="
+                        border-b
+                        pb-5
+                      "
+                    >
+
+                      <div
+                        className="
+                          flex
+                          flex-col
+                          sm:flex-row
+                          sm:items-center
+                          sm:justify-between
+                          gap-2
+                          mb-2
+                        "
+                      >
+
+                        <strong>
+                          {review.name}
+                        </strong>
+
+                        <span>
+                          {"⭐".repeat(
+                            Number(
+                              review.rating
+                            )
+                          )}
+                        </span>
+
+                      </div>
+
+                      <p
+                        className="
+                          text-gray-600
+                          text-sm
+                          sm:text-base
+                        "
+                      >
+                        {review.comment}
+                      </p>
+
+                    </div>
+                  )
+                )
+              )}
+
+            </div>
+
+          </div>
+
+          {/* =========================
+              REVIEW FORM
+          ========================= */}
+
+          <form
+            onSubmit={
+              handleReviewSubmit
+            }
+            className="
+              mt-8
+              sm:mt-12
+              border-t
+              pt-8
+              sm:pt-10
+            "
+          >
+
+            <h3
+              className="
+                text-xl
+                sm:text-2xl
+                font-bold
+                mb-5
+                sm:mb-6
+              "
+            >
+              Write a Review
+            </h3>
+
+            <div
+              className="
+                grid
+                md:grid-cols-2
+                gap-4
+                sm:gap-5
+              "
+            >
 
               <input
                 type="text"
-                value={reviewName}
+                value={
+                  reviewName
+                }
                 onChange={(e) =>
                   setReviewName(
                     e.target.value
                   )
                 }
-                placeholder="Enter your name"
+                placeholder="Your name"
                 className="
                   w-full
-                  p-3
                   border
                   rounded-lg
-                  bg-white
+                  px-4
+                  py-3
                   outline-none
-                  focus:ring-2
-                  focus:ring-orange-500
+                  focus:border-orange-500
                 "
               />
 
-            </div>
-
-
-            {/* STAR RATING */}
-
-            <div>
-
-              <label className="
-                block
-                font-semibold
-                mb-2
-              ">
-                Your Rating
-              </label>
-
-              <div className="
-                flex
-                gap-2
-              ">
-
-                {[1, 2, 3, 4, 5].map(
-                  (rating) => (
-                    <button
-                      key={rating}
-                      type="button"
-                      onClick={() =>
-                        setReviewRating(
-                          rating
-                        )
-                      }
-                      className={`
-                        text-3xl
-                        transition
-                        hover:scale-110
-                        ${
-                          rating <=
-                          reviewRating
-                            ? "text-yellow-500"
-                            : "text-gray-300"
-                        }
-                      `}
-                    >
-                      ★
-                    </button>
-                  )
-                )}
-
-              </div>
-
-            </div>
-
-
-            {/* COMMENT */}
-
-            <div>
-
-              <label className="
-                block
-                font-semibold
-                mb-2
-              ">
-                Your Review
-              </label>
-
-              <textarea
-                value={reviewComment}
+              <select
+                value={
+                  reviewRating
+                }
                 onChange={(e) =>
-                  setReviewComment(
-                    e.target.value
+                  setReviewRating(
+                    Number(
+                      e.target.value
+                    )
                   )
                 }
-                placeholder="Write your experience..."
-                rows="5"
                 className="
                   w-full
-                  p-3
                   border
                   rounded-lg
-                  bg-white
+                  px-4
+                  py-3
                   outline-none
-                  resize-none
-                  focus:ring-2
-                  focus:ring-orange-500
+                  focus:border-orange-500
+                  bg-white
                 "
-              />
+              >
+
+                <option value={5}>
+                  5 Stars
+                </option>
+
+                <option value={4}>
+                  4 Stars
+                </option>
+
+                <option value={3}>
+                  3 Stars
+                </option>
+
+                <option value={2}>
+                  2 Stars
+                </option>
+
+                <option value={1}>
+                  1 Star
+                </option>
+
+              </select>
 
             </div>
 
-
-            {/* SUBMIT */}
+            <textarea
+              value={
+                reviewComment
+              }
+              onChange={(e) =>
+                setReviewComment(
+                  e.target.value
+                )
+              }
+              placeholder="Write your review..."
+              rows="5"
+              className="
+                w-full
+                border
+                rounded-lg
+                px-4
+                py-3
+                mt-4
+                sm:mt-5
+                outline-none
+                focus:border-orange-500
+                resize-y
+              "
+            />
 
             <button
               type="submit"
               className="
-                bg-orange-600
-                hover:bg-orange-700
+                mt-4
+                sm:mt-5
+                w-full
+                sm:w-auto
+                bg-gray-900
+                hover:bg-black
                 text-white
-                px-8
+                px-7
                 py-3
                 rounded-lg
-                font-semibold
+                font-bold
                 transition
+                active:scale-[0.98]
               "
             >
               SUBMIT REVIEW
@@ -988,181 +1618,108 @@ function ProductPage({ addToCart }) {
 
         </div>
 
+        {/* =========================
+            RELATED PRODUCTS
+        ========================= */}
 
-        {/* =====================================================
-            REVIEW LIST
-        ===================================================== */}
+        {relatedProducts.length >
+          0 && (
+          <div
+            className="
+              mt-8
+              sm:mt-12
+            "
+          >
 
-        <div>
+            <h2
+              className="
+                text-2xl
+                sm:text-3xl
+                font-black
+                mb-6
+                sm:mb-8
+              "
+            >
+              RELATED PRODUCTS
+            </h2>
 
-          <h3 className="
-            text-2xl
-            font-bold
-            mb-6
-          ">
-            Customer Experiences
-          </h3>
+            <div
+              className="
+                grid
+                grid-cols-2
+                lg:grid-cols-3
+                gap-3
+                sm:gap-5
+                lg:gap-6
+              "
+            >
 
-          {reviews.length === 0 ? (
-            <p className="text-gray-500">
-              No reviews yet.
-            </p>
-          ) : (
-            <div className="
-              space-y-5
-            ">
-              {reviews.map(
-                (review) => (
-                  <div
-                    key={review.id}
+              {relatedProducts.map(
+                (item) => (
+                  <Link
+                    key={item.id}
+                    to={`/product/${item.id}`}
                     className="
-                      border
-                      rounded-xl
-                      p-6
                       bg-white
+                      rounded-xl
+                      sm:rounded-2xl
+                      p-3
+                      sm:p-4
+                      shadow-sm
+                      hover:shadow-xl
+                      transition
+                      overflow-hidden
                     "
                   >
 
-                    <div className="
-                      flex
-                      items-center
-                      justify-between
-                      mb-3
-                    ">
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="
+                        w-full
+                        h-40
+                        sm:h-56
+                        lg:h-64
+                        object-cover
+                        rounded-lg
+                        sm:rounded-xl
+                        mb-3
+                        sm:mb-4
+                      "
+                    />
 
-                      <div>
+                    <h3
+                      className="
+                        font-bold
+                        text-sm
+                        sm:text-lg
+                        line-clamp-2
+                      "
+                    >
+                      {item.name}
+                    </h3>
 
-                        <p className="
-                          font-bold
-                        ">
-                          {review.name}
-                        </p>
-
-                        <p className="
-                          text-yellow-500
-                        ">
-                          {"★".repeat(
-                            review.rating
-                          )}
-                        </p>
-
-                      </div>
-
-                    </div>
-
-                    <p className="
-                      text-gray-600
-                    ">
-                      {review.comment}
+                    <p
+                      className="
+                        text-xs
+                        sm:text-sm
+                        text-gray-500
+                        mt-1
+                      "
+                    >
+                      {item.category}
                     </p>
 
-                  </div>
+                  </Link>
                 )
               )}
+
             </div>
-          )}
 
-        </div>
+          </div>
+        )}
 
       </div>
-
-
-      {/* =====================================================
-          RELATED PRODUCTS
-      ===================================================== */}
-
-      <div className="
-        max-w-6xl
-        mx-auto
-        mt-20
-      ">
-
-        <h2 className="
-          text-3xl
-          font-bold
-          mb-8
-        ">
-          Related Products
-        </h2>
-
-        <div className="
-          grid
-          grid-cols-1
-          md:grid-cols-3
-          gap-6
-        ">
-
-          {relatedProducts
-            .slice(0, 3)
-            .map((item) => {
-
-              const itemDiscountedPrice =
-                item.price -
-                (item.price *
-                  item.discount) /
-                  100;
-
-              return (
-                <Link
-                  key={item.id}
-                  to={`/product/${item.id}`}
-                  className="
-                    bg-gray-100
-                    p-4
-                    rounded-xl
-                    hover:shadow-lg
-                    transition
-                  "
-                >
-
-                  <img
-                    src={
-                      item.images?.[0] ||
-                      item.image
-                    }
-                    alt={item.name}
-                    className="
-                      h-40
-                      w-full
-                      object-cover
-                      rounded-lg
-                      mb-4
-                    "
-                  />
-
-                  <h3 className="
-                    font-bold
-                    text-lg
-                    mb-2
-                  ">
-                    {item.name}
-                  </h3>
-
-                  <p className="font-semibold">
-                    ₹
-                    {itemDiscountedPrice.toLocaleString(
-                      "en-IN"
-                    )}
-                  </p>
-
-                  <p className="
-                    text-sm
-                    text-gray-500
-                    line-through
-                  ">
-                    ₹
-                    {item.price.toLocaleString(
-                      "en-IN"
-                    )}
-                  </p>
-
-                </Link>
-              );
-            })}
-
-        </div>
-      </div>
-
     </section>
   );
 }
