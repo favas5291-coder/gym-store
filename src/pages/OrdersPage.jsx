@@ -50,7 +50,7 @@ function OrdersPage() {
 
                   <div className="font-bold">
                     ₹
-                    {order.pricing.total.toLocaleString(
+                    {order.pricing.finalTotal.toLocaleString(
                       "en-IN"
                     )}
                   </div>

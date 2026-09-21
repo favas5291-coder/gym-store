@@ -1,4 +1,3 @@
-import shirtIcon from "../assets/icon shirt.png";
 import workoutClothesImage from "../assets/tshirt.jpg";
 import shoesImage from "../assets/shoes.jpg";
 import proteinImage from "../assets/bottle2.jpg";
@@ -7,7 +6,6 @@ import waterBottleImage from "../assets/bottle.jpg";
 import shakerImage from "../assets/shaker.jpg";
 import towelImage from "../assets/Towel.jpg";
 import headphonesImage from "../assets/bag.png";
-import padlockImage from "../assets/logo.png";
 
 const categories = [
   {

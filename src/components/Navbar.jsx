@@ -123,29 +123,30 @@ function Navbar({
                 flex items-center justify-center
                 w-9 h-9
                 rounded-full
-                border border-gray-200
-                bg-white
-                text-xl text-gray-700
-                hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600
+                border border-slate-700
+                bg-slate-900
+                text-xl text-white
+                shadow-sm
+                hover:border-orange-400 hover:bg-slate-800 hover:text-orange-300
                 transition-all duration-200
               "
             >
-              <span aria-hidden="true" className="leading-none">♡</span>
+              <span aria-hidden="true" className="leading-none text-lg">♡</span>
 
               {wishlistCount > 0 && (
                 <span
                   className="
                     absolute
                     -top-1.5 -right-1.5
-                    bg-[#111827]
-                    text-white
+                    bg-orange-500
+                    text-slate-950
                     text-[9px]
                     font-bold
                     min-w-[18px] h-[18px]
                     px-1
                     rounded-full
                     flex items-center justify-center
-                    border border-white
+                    border border-slate-900
                     leading-none
                   "
                 >
@@ -166,12 +167,12 @@ function Navbar({
                 gap-2
                 px-4 py-2
                 rounded-xl
-                border border-gray-200
-                bg-white
+                border border-slate-700
+                bg-slate-900
                 text-sm font-semibold tracking-[0.08em]
-                uppercase text-gray-800
+                uppercase text-white
                 shadow-sm
-                hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600
+                hover:border-orange-400 hover:bg-slate-800 hover:text-orange-300
                 transition-all duration-200
               "
             >
@@ -182,14 +183,14 @@ function Navbar({
                 <span
                   className="
                     inline-flex items-center justify-center
-                    bg-[#111827]
-                    text-white
+                    bg-orange-500
+                    text-slate-950
                     text-[9px]
                     font-bold
                     min-w-[18px] h-[18px]
                     px-1
                     rounded-full
-                    border border-white
+                    border border-slate-900
                     leading-none
                   "
                 >
@@ -319,8 +320,11 @@ function Navbar({
                   px-3
                   py-3
                   rounded-lg
-                  hover:bg-gray-100
-                  hover:text-orange-600
+                  bg-slate-900
+                  text-white
+                  border border-slate-700
+                  hover:bg-slate-800
+                  hover:text-orange-300
                   transition
                   flex
                   items-center
@@ -332,8 +336,8 @@ function Navbar({
                 {wishlistCount > 0 && (
                   <span
                     className="
-                      bg-orange-600
-                      text-white
+                      bg-orange-500
+                      text-slate-950
                       text-xs
                       font-bold
                       px-2

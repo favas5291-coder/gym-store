@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   BrowserRouter,
   Route,
@@ -48,9 +48,13 @@ function App() {
     const savedCart =
       localStorage.getItem("gymdrobe-cart");
 
-    return savedCart
-      ? JSON.parse(savedCart)
-      : [];
+    try {
+      return savedCart
+        ? JSON.parse(savedCart)
+        : [];
+    } catch {
+      return [];
+    }
   });
 
   // ==============================
@@ -61,10 +65,24 @@ function App() {
     const savedWishlist =
       localStorage.getItem("gymdrobe-wishlist");
 
-    return savedWishlist
-      ? JSON.parse(savedWishlist)
-      : [];
+    try {
+      return savedWishlist
+        ? JSON.parse(savedWishlist)
+        : [];
+    } catch {
+      return [];
+    }
   });
+
+  // ==============================
+  // CART COUNT
+  // ==============================
+
+  const cartCount = cart.reduce(
+    (total, item) =>
+      total + Number(item.quantity || 0),
+    0
+  );
 
   // ==============================
   // SAVE CART
@@ -89,16 +107,6 @@ function App() {
   }, [wishlist]);
 
   // ==============================
-  // CART COUNT
-  // ==============================
-
-  const cartCount = cart.reduce(
-    (total, item) =>
-      total + item.quantity,
-    0
-  );
-
-  // ==============================
   // GET VARIANT STOCK
   // ==============================
 
@@ -116,46 +124,124 @@ function App() {
     }
 
     // --------------------------------
-    // Products with size + color
+    // Size + Color
     // --------------------------------
-    // Example:
-    // variants: {
-    //   Black: {
-    //     M: 10,
-    //     L: 8
-    //   }
-    // }
 
-    if (selectedColor && selectedSize) {
+    if (
+      selectedColor &&
+      selectedSize
+    ) {
       return (
-        product.variants?.[selectedColor]?.[
-          selectedSize
-        ] ?? 0
+        product.variants?.[
+          selectedColor
+        ]?.[selectedSize] ?? 0
       );
     }
 
     // --------------------------------
-    // Products with color only
+    // Color Only
     // --------------------------------
-    // Example:
-    // variants: {
-    //   Black: {
-    //     default: 15
-    //   }
-    // }
 
     if (selectedColor) {
       return (
-        product.variants?.[selectedColor]?.default ??
-        0
+        product.variants?.[
+          selectedColor
+        ]?.default ?? 0
       );
     }
 
     // --------------------------------
-    // Variants exist but nothing selected
+    // Nothing Selected
     // --------------------------------
 
     return 0;
+  }
+
+  // ==============================
+  // BUY NOW ITEM
+  // ==============================
+
+  const [buyNowItem, setBuyNowItem] =
+    useState(null);
+
+  // ==============================
+  // BUY NOW
+  // ==============================
+
+  function buyNow(
+    product,
+    quantity = 1,
+    selectedSize = null,
+    selectedColor = null
+  ) {
+    // --------------------------------
+    // GET STOCK
+    // --------------------------------
+
+    const stock = getVariantStock(
+      product,
+      selectedSize,
+      selectedColor
+    );
+
+    // --------------------------------
+    // OUT OF STOCK
+    // --------------------------------
+
+    if (stock <= 0) {
+      showToast(
+        "This product is out of stock.",
+        "error"
+      );
+
+      return false;
+    }
+
+    // --------------------------------
+    // QUANTITY CHECK
+    // --------------------------------
+
+    if (quantity > stock) {
+      showToast(
+        `Only ${stock} item${
+          stock > 1 ? "s" : ""
+        } available.`,
+        "warning"
+      );
+
+      return false;
+    }
+
+    // --------------------------------
+    // CALCULATE SELLING PRICE
+    // --------------------------------
+
+    const discountedPrice =
+      product.price -
+      (product.price * product.discount) /
+        100;
+
+    // --------------------------------
+    // CREATE BUY NOW ITEM
+    // --------------------------------
+
+    setBuyNowItem({
+      ...product,
+      price: discountedPrice,
+      quantity,
+      selectedSize,
+      selectedColor,
+    });
+
+    return true;
+  }
+
+  // ==============================
+  // CLEAR BUY NOW
+  // ==============================
+
+  function clearBuyNow() {
+    setBuyNowItem(null);
   }
 
   // ==============================
@@ -168,6 +254,10 @@ function App() {
     selectedSize = null,
     selectedColor = null
   ) {
+    // --------------------------------
+    // GET STOCK
+    // --------------------------------
+
     const stock = getVariantStock(
       product,
       selectedSize,
@@ -196,8 +286,10 @@ function App() {
         currentCart.find(
           (item) =>
             item.id === product.id &&
-            item.selectedSize === selectedSize &&
-            item.selectedColor === selectedColor
+            item.selectedSize ===
+              selectedSize &&
+            item.selectedColor ===
+              selectedColor
         );
 
       // ==============================
@@ -232,8 +324,10 @@ function App() {
         return currentCart.map((item) => {
           if (
             item.id === product.id &&
-            item.selectedSize === selectedSize &&
-            item.selectedColor === selectedColor
+            item.selectedSize ===
+              selectedSize &&
+            item.selectedColor ===
+              selectedColor
           ) {
             return {
               ...item,
@@ -266,12 +360,11 @@ function App() {
 
       const discountedPrice =
         product.price -
-        (product.price *
-          product.discount) /
+        (product.price * product.discount) /
           100;
 
       // ==============================
-      // ADD NEW PRODUCT
+      // ADD PRODUCT
       // ==============================
 
       showToast(
@@ -284,7 +377,7 @@ function App() {
         {
           ...product,
 
-          // Store actual selling price
+          // Current selling price
           price: discountedPrice,
 
           quantity,
@@ -309,7 +402,7 @@ function App() {
         );
 
       // ==============================
-      // REMOVE FROM WISHLIST
+      // REMOVE
       // ==============================
 
       if (exists) {
@@ -325,7 +418,7 @@ function App() {
       }
 
       // ==============================
-      // ADD TO WISHLIST
+      // ADD
       // ==============================
 
       showToast(
@@ -430,15 +523,18 @@ function App() {
             ============================== */}
 
         <Route
-  path="/product/:id"
-  element={
-    <ProductPage
-      addToCart={addToCart}
-      wishlist={wishlist}
-      toggleWishlist={toggleWishlist}
-    />
-  }
-/>
+          path="/product/:id"
+          element={
+            <ProductPage
+              addToCart={addToCart}
+              buyNow={buyNow}
+              wishlist={wishlist}
+              toggleWishlist={
+                toggleWishlist
+              }
+            />
+          }
+        />
 
         {/* ==============================
             WISHLIST
@@ -466,6 +562,11 @@ function App() {
             <CheckoutPage
               cart={cart}
               setCart={setCart}
+              buyNowItem={buyNowItem}
+              setBuyNowItem={
+                setBuyNowItem
+              }
+              clearBuyNow={clearBuyNow}
             />
           }
         />
@@ -480,12 +581,17 @@ function App() {
             <OrderSuccessPage />
           }
         />
+
+        {/* ==============================
+            ORDERS
+            ============================== */}
+
         <Route
-  path="/orders"
-  element={
-    <OrdersPage />
-  }
-/>
+          path="/orders"
+          element={
+            <OrdersPage />
+          }
+        />
 
       </Routes>
 

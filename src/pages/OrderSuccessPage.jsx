@@ -242,7 +242,7 @@ function OrderSuccessPage() {
 
               <span>
                 ₹
-                {pricing.total.toLocaleString(
+                {pricing.finalTotal.toLocaleString(
                   "en-IN"
                 )}
               </span>

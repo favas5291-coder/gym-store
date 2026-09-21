@@ -58,9 +58,9 @@ function Hero() {
             mb-6
           "
         >
-          TRAIN HARD.
+          TRAIN HARD
           <br />
-          SHOP SMART.
+          SHOP SMART
         </h1>
 
         <p

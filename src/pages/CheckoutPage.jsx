@@ -1,11 +1,19 @@
-import { useEffect, useState } from "react";
 
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+
+import {
+  Link,
+  useNavigate,
+} from "react-router-dom";
 
 import {
   calculateOrderPricing,
   FREE_SHIPPING_LIMIT,
 } from "../utils/orderCalculations";
+
+// ==========================================
+// INPUT FIELD
+// ==========================================
 
 function InputField({
   label,
@@ -92,22 +100,32 @@ function InputField({
   );
 }
 
-function CheckoutPage({ cart, setCart }) {
+// ==========================================
+// CHECKOUT PAGE
+// ==========================================
+
+function CheckoutPage({
+  cart,
+  setCart,
+  buyNowItem,
+  clearBuyNow,
+}) {
   const navigate = useNavigate();
 
   // ==========================================
   // CUSTOMER FORM
   // ==========================================
 
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-    city: "",
-    state: "",
-    pincode: "",
-  });
+  const [formData, setFormData] =
+    useState({
+      name: "",
+      email: "",
+      phone: "",
+      address: "",
+      city: "",
+      state: "",
+      pincode: "",
+    });
 
   // ==========================================
   // DELIVERY
@@ -127,7 +145,8 @@ function CheckoutPage({ cart, setCart }) {
   // FORM ERRORS
   // ==========================================
 
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] =
+    useState({});
 
   // ==========================================
   // SUBMITTING
@@ -140,7 +159,27 @@ function CheckoutPage({ cart, setCart }) {
   // COUPON
   // ==========================================
 
-  const [coupon, setCoupon] = useState(null);
+  const [coupon, setCoupon] =
+    useState(null);
+
+  // ==========================================
+  // DETERMINE CHECKOUT ITEMS
+  // ==========================================
+
+  const checkoutItems = useMemo(() => {
+    if (buyNowItem) {
+      return [buyNowItem];
+    }
+
+    return cart;
+  }, [buyNowItem, cart]);
+
+  // ==========================================
+  // BUY NOW MODE
+  // ==========================================
+
+  const isBuyNowCheckout =
+    Boolean(buyNowItem);
 
   // ==========================================
   // LOAD COUPON
@@ -148,11 +187,15 @@ function CheckoutPage({ cart, setCart }) {
 
   useEffect(() => {
     const savedCoupon =
-      localStorage.getItem("gymdrobe-coupon");
+      localStorage.getItem(
+        "gymdrobe-coupon"
+      );
 
     if (savedCoupon) {
       try {
-        setCoupon(JSON.parse(savedCoupon));
+        setCoupon(
+          JSON.parse(savedCoupon)
+        );
       } catch {
         localStorage.removeItem(
           "gymdrobe-coupon"
@@ -162,10 +205,10 @@ function CheckoutPage({ cart, setCart }) {
   }, []);
 
   // ==========================================
-  // EMPTY CART
+  // EMPTY CHECKOUT
   // ==========================================
 
-  if (cart.length === 0) {
+  if (checkoutItems.length === 0) {
     return (
       <section
         className="
@@ -210,7 +253,7 @@ function CheckoutPage({ cart, setCart }) {
               mb-4
             "
           >
-            Your cart is empty
+            Your checkout is empty
           </h1>
 
           <p
@@ -261,7 +304,10 @@ function CheckoutPage({ cart, setCart }) {
   // ==========================================
 
   function handleChange(e) {
-    const { name, value } = e.target;
+    const {
+      name,
+      value,
+    } = e.target;
 
     setFormData((current) => ({
       ...current,
@@ -285,7 +331,7 @@ function CheckoutPage({ cart, setCart }) {
     shipping,
     finalTotal,
   } = calculateOrderPricing({
-    cart,
+    cart: checkoutItems,
     coupon,
     deliveryMethod,
   });
@@ -307,8 +353,8 @@ function CheckoutPage({ cart, setCart }) {
         "Please enter your email.";
     } else if (
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-        formData.email
-      )
+  formData.email
+)
     ) {
       newErrors.email =
         "Please enter a valid email.";
@@ -356,7 +402,8 @@ function CheckoutPage({ cart, setCart }) {
     setErrors(newErrors);
 
     return (
-      Object.keys(newErrors).length === 0
+      Object.keys(newErrors).length ===
+      0
     );
   }
 
@@ -379,6 +426,24 @@ function CheckoutPage({ cart, setCart }) {
     setIsSubmitting(true);
 
     // ========================================
+    // CREATE ORDER ITEMS
+    // ========================================
+
+    const orderItems =
+      checkoutItems.map((item) => ({
+        id: item.id,
+        name: item.name,
+        image: item.image,
+        category: item.category,
+        price: item.price,
+        quantity: item.quantity,
+        selectedSize:
+          item.selectedSize || null,
+        selectedColor:
+          item.selectedColor || null,
+      }));
+
+    // ========================================
     // CREATE ORDER
     // ========================================
 
@@ -392,23 +457,16 @@ function CheckoutPage({ cart, setCart }) {
         ...formData,
       },
 
-      items: cart.map((item) => ({
-        id: item.id,
-        name: item.name,
-        image: item.image,
-        category: item.category,
-        price: item.price,
-        quantity: item.quantity,
-        selectedSize:
-          item.selectedSize || null,
-        selectedColor:
-          item.selectedColor || null,
-      })),
+      items: orderItems,
 
       pricing: {
         subtotal,
         couponDiscount,
         shipping,
+        finalTotal,
+
+        // Kept for compatibility
+        // with any older order data.
         total: finalTotal,
       },
 
@@ -421,39 +479,65 @@ function CheckoutPage({ cart, setCart }) {
         : null,
 
       deliveryMethod,
+
       paymentMethod,
+
+      // ======================================
+      // ORDER SOURCE
+      // ======================================
+
+      source: isBuyNowCheckout
+        ? "buy-now"
+        : "cart",
     };
 
     // ========================================
-// SAVE ORDER
-// ========================================
-
-// Save latest order
-localStorage.setItem(
-  "gymdrobe-last-order",
-  JSON.stringify(order)
-);
-
-// Save order history
-const existingOrders =
-  JSON.parse(
-    localStorage.getItem(
-      "gymdrobe-orders"
-    )
-  ) || [];
-
-existingOrders.unshift(order);
-
-localStorage.setItem(
-  "gymdrobe-orders",
-  JSON.stringify(existingOrders)
-);
-
-    // ========================================
-    // CLEAR CART
+    // SAVE LATEST ORDER
     // ========================================
 
-    setCart([]);
+    localStorage.setItem(
+      "gymdrobe-last-order",
+      JSON.stringify(order)
+    );
+
+    // ========================================
+    // SAVE ORDER HISTORY
+    // ========================================
+
+    let existingOrders = [];
+
+    try {
+      existingOrders =
+        JSON.parse(
+          localStorage.getItem(
+            "gymdrobe-orders"
+          )
+        ) || [];
+    } catch {
+      existingOrders = [];
+    }
+
+    existingOrders.unshift(order);
+
+    localStorage.setItem(
+      "gymdrobe-orders",
+      JSON.stringify(
+        existingOrders
+      )
+    );
+
+    // ========================================
+    // CLEAR CORRECT CHECKOUT SOURCE
+    // ========================================
+
+    if (isBuyNowCheckout) {
+      // Buy Now should NOT remove
+      // the user's existing cart.
+      clearBuyNow?.();
+    } else {
+      // Normal cart checkout
+      setCart([]);
+    }
 
     // ========================================
     // CLEAR COUPON
@@ -468,7 +552,9 @@ localStorage.setItem(
     // ========================================
 
     setTimeout(() => {
-      navigate("/order-success");
+      navigate(
+        "/order-success"
+      );
     }, 500);
   }
 
@@ -491,11 +577,18 @@ localStorage.setItem(
     >
       <div className="max-w-7xl mx-auto">
 
-        {/* HEADER */}
+        {/* ==================================
+            HEADER
+        ================================== */}
 
         <div className="mb-7 sm:mb-10">
+
           <Link
-            to="/cart"
+            to={
+              isBuyNowCheckout
+                ? `/product/${buyNowItem.id}`
+                : "/cart"
+            }
             className="
               inline-flex
               items-center
@@ -506,20 +599,48 @@ localStorage.setItem(
               transition
             "
           >
-            ← Back to Cart
+            ←{" "}
+            {isBuyNowCheckout
+              ? "Back to Product"
+              : "Back to Cart"}
           </Link>
 
-          <h1
+          <div
             className="
-              text-3xl
-              sm:text-4xl
-              font-bold
+              flex
+              flex-wrap
+              items-center
+              gap-3
               mt-3
               sm:mt-4
             "
           >
-            Checkout
-          </h1>
+            <h1
+              className="
+                text-3xl
+                sm:text-4xl
+                font-bold
+              "
+            >
+              Checkout
+            </h1>
+
+            {isBuyNowCheckout && (
+              <span
+                className="
+                  bg-gray-900
+                  text-white
+                  text-xs
+                  font-bold
+                  px-3
+                  py-1.5
+                  rounded-full
+                "
+              >
+                BUY NOW
+              </span>
+            )}
+          </div>
 
           <p
             className="
@@ -529,12 +650,13 @@ localStorage.setItem(
               mt-2
             "
           >
-            Complete your details to place
-            your order.
+            Complete your details to
+            place your order.
           </p>
         </div>
 
         <form onSubmit={handleSubmit}>
+
           <div
             className="
               grid
@@ -557,7 +679,9 @@ localStorage.setItem(
               "
             >
 
-              {/* CUSTOMER DETAILS */}
+              {/* ==================================
+                  CUSTOMER DETAILS
+              ================================== */}
 
               <div
                 className="
@@ -592,9 +716,15 @@ localStorage.setItem(
                   <InputField
                     label="Full Name"
                     name="name"
-                    value={formData.name}
-                    error={errors.name}
-                    onChange={handleChange}
+                    value={
+                      formData.name
+                    }
+                    error={
+                      errors.name
+                    }
+                    onChange={
+                      handleChange
+                    }
                     placeholder="Your full name"
                   />
 
@@ -602,9 +732,15 @@ localStorage.setItem(
                     label="Email"
                     name="email"
                     type="email"
-                    value={formData.email}
-                    error={errors.email}
-                    onChange={handleChange}
+                    value={
+                      formData.email
+                    }
+                    error={
+                      errors.email
+                    }
+                    onChange={
+                      handleChange
+                    }
                     placeholder="you@example.com"
                   />
 
@@ -613,16 +749,24 @@ localStorage.setItem(
                       label="Phone Number"
                       name="phone"
                       type="tel"
-                      value={formData.phone}
-                      error={errors.phone}
-                      onChange={handleChange}
+                      value={
+                        formData.phone
+                      }
+                      error={
+                        errors.phone
+                      }
+                      onChange={
+                        handleChange
+                      }
                       placeholder="10-digit phone number"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* ADDRESS */}
+              {/* ==================================
+                  ADDRESS
+              ================================== */}
 
               <div
                 className="
@@ -651,9 +795,15 @@ localStorage.setItem(
                   <InputField
                     label="Address"
                     name="address"
-                    value={formData.address}
-                    error={errors.address}
-                    onChange={handleChange}
+                    value={
+                      formData.address
+                    }
+                    error={
+                      errors.address
+                    }
+                    onChange={
+                      handleChange
+                    }
                     placeholder="House number, street, area"
                   />
 
@@ -668,18 +818,30 @@ localStorage.setItem(
                     <InputField
                       label="City"
                       name="city"
-                      value={formData.city}
-                      error={errors.city}
-                      onChange={handleChange}
+                      value={
+                        formData.city
+                      }
+                      error={
+                        errors.city
+                      }
+                      onChange={
+                        handleChange
+                      }
                       placeholder="City"
                     />
 
                     <InputField
                       label="State"
                       name="state"
-                      value={formData.state}
-                      error={errors.state}
-                      onChange={handleChange}
+                      value={
+                        formData.state
+                      }
+                      error={
+                        errors.state
+                      }
+                      onChange={
+                        handleChange
+                      }
                       placeholder="State"
                     />
 
@@ -687,9 +849,15 @@ localStorage.setItem(
                       label="Pincode"
                       name="pincode"
                       type="text"
-                      value={formData.pincode}
-                      error={errors.pincode}
-                      onChange={handleChange}
+                      value={
+                        formData.pincode
+                      }
+                      error={
+                        errors.pincode
+                      }
+                      onChange={
+                        handleChange
+                      }
                       placeholder="6-digit pincode"
                       inputMode="numeric"
                     />
@@ -697,7 +865,9 @@ localStorage.setItem(
                 </div>
               </div>
 
-              {/* DELIVERY */}
+              {/* ==================================
+                  DELIVERY
+              ================================== */}
 
               <div
                 className="
@@ -891,10 +1061,13 @@ localStorage.setItem(
                       ₹199
                     </span>
                   </label>
+
                 </div>
               </div>
 
-              {/* PAYMENT */}
+              {/* ==================================
+                  PAYMENT
+              ================================== */}
 
               <div
                 className="
@@ -1043,8 +1216,10 @@ localStorage.setItem(
                       </p>
                     </div>
                   </label>
+
                 </div>
               </div>
+
             </div>
 
             {/* ==================================
@@ -1064,19 +1239,48 @@ localStorage.setItem(
                   lg:top-24
                 "
               >
-                <h2
+
+                <div
                   className="
-                    text-lg
-                    sm:text-xl
-                    font-bold
+                    flex
+                    items-center
+                    justify-between
+                    gap-3
                     mb-5
                     sm:mb-6
                   "
                 >
-                  Order Summary
-                </h2>
+                  <h2
+                    className="
+                      text-lg
+                      sm:text-xl
+                      font-bold
+                    "
+                  >
+                    Order Summary
+                  </h2>
 
-                {/* ITEMS */}
+                  {isBuyNowCheckout && (
+                    <span
+                      className="
+                        text-[10px]
+                        sm:text-xs
+                        font-bold
+                        bg-gray-900
+                        text-white
+                        px-2.5
+                        py-1
+                        rounded-full
+                      "
+                    >
+                      1 ITEM
+                    </span>
+                  )}
+                </div>
+
+                {/* ==================================
+                    ITEMS
+                ================================== */}
 
                 <div
                   className="
@@ -1089,105 +1293,114 @@ localStorage.setItem(
                     pr-1
                   "
                 >
-                  {cart.map((item) => (
-                    <div
-                      key={`${item.id}-${item.selectedSize}-${item.selectedColor}`}
-                      className="
-                        flex
-                        gap-3
-                      "
-                    >
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="
-                          w-14
-                          h-14
-                          sm:w-16
-                          sm:h-16
-                          rounded-lg
-                          object-cover
-                          bg-gray-100
-                          shrink-0
-                        "
-                      />
-
+                  {checkoutItems.map(
+                    (item) => (
                       <div
+                        key={`${item.id}-${item.selectedSize}-${item.selectedColor}`}
                         className="
-                          flex-1
-                          min-w-0
+                          flex
+                          gap-3
                         "
                       >
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="
+                            w-14
+                            h-14
+                            sm:w-16
+                            sm:h-16
+                            rounded-lg
+                            object-cover
+                            bg-gray-100
+                            shrink-0
+                          "
+                        />
+
+                        <div
+                          className="
+                            flex-1
+                            min-w-0
+                          "
+                        >
+                          <p
+                            className="
+                              font-semibold
+                              text-xs
+                              sm:text-sm
+                              line-clamp-2
+                            "
+                          >
+                            {item.name}
+                          </p>
+
+                          <p
+                            className="
+                              text-[11px]
+                              sm:text-xs
+                              text-gray-500
+                              mt-1
+                            "
+                          >
+                            Qty:{" "}
+                            {item.quantity}
+                          </p>
+
+                          {item.selectedSize && (
+                            <p
+                              className="
+                                text-[11px]
+                                sm:text-xs
+                                text-gray-500
+                              "
+                            >
+                              Size:{" "}
+                              {
+                                item.selectedSize
+                              }
+                            </p>
+                          )}
+
+                          {item.selectedColor && (
+                            <p
+                              className="
+                                text-[11px]
+                                sm:text-xs
+                                text-gray-500
+                              "
+                            >
+                              Color:{" "}
+                              {
+                                item.selectedColor
+                              }
+                            </p>
+                          )}
+                        </div>
+
                         <p
                           className="
                             font-semibold
                             text-xs
                             sm:text-sm
-                            line-clamp-2
+                            shrink-0
                           "
                         >
-                          {item.name}
+                          ₹
+                          {(
+                            item.price *
+                            item.quantity
+                          ).toLocaleString(
+                            "en-IN"
+                          )}
                         </p>
-
-                        <p
-                          className="
-                            text-[11px]
-                            sm:text-xs
-                            text-gray-500
-                            mt-1
-                          "
-                        >
-                          Qty: {item.quantity}
-                        </p>
-
-                        {item.selectedSize && (
-                          <p
-                            className="
-                              text-[11px]
-                              sm:text-xs
-                              text-gray-500
-                            "
-                          >
-                            Size:{" "}
-                            {item.selectedSize}
-                          </p>
-                        )}
-
-                        {item.selectedColor && (
-                          <p
-                            className="
-                              text-[11px]
-                              sm:text-xs
-                              text-gray-500
-                            "
-                          >
-                            Color:{" "}
-                            {item.selectedColor}
-                          </p>
-                        )}
                       </div>
-
-                      <p
-                        className="
-                          font-semibold
-                          text-xs
-                          sm:text-sm
-                          shrink-0
-                        "
-                      >
-                        ₹
-                        {(
-                          item.price *
-                          item.quantity
-                        ).toLocaleString(
-                          "en-IN"
-                        )}
-                      </p>
-                    </div>
-                  ))}
+                    )
+                  )}
                 </div>
 
-                {/* PRICES */}
+                {/* ==================================
+                    PRICES
+                ================================== */}
 
                 <div
                   className="
@@ -1201,7 +1414,13 @@ localStorage.setItem(
                     sm:text-base
                   "
                 >
-                  <div className="flex justify-between gap-4">
+                  <div
+                    className="
+                      flex
+                      justify-between
+                      gap-4
+                    "
+                  >
                     <span className="text-gray-500">
                       Subtotal
                     </span>
@@ -1237,7 +1456,13 @@ localStorage.setItem(
                     </div>
                   )}
 
-                  <div className="flex justify-between gap-4">
+                  <div
+                    className="
+                      flex
+                      justify-between
+                      gap-4
+                    "
+                  >
                     <span className="text-gray-500">
                       Delivery
                     </span>
@@ -1250,7 +1475,9 @@ localStorage.setItem(
                   </div>
                 </div>
 
-                {/* TOTAL */}
+                {/* ==================================
+                    TOTAL
+                ================================== */}
 
                 <div
                   className="
@@ -1293,11 +1520,15 @@ localStorage.setItem(
                   </div>
                 </div>
 
-                {/* PLACE ORDER */}
+                {/* ==================================
+                    PLACE ORDER
+                ================================== */}
 
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={
+                    isSubmitting
+                  }
                   className="
                     w-full
                     bg-orange-600
@@ -1337,8 +1568,10 @@ localStorage.setItem(
                   you agree to our terms and
                   conditions.
                 </p>
+
               </div>
             </div>
+
           </div>
         </form>
       </div>
@@ -1347,3 +1580,4 @@ localStorage.setItem(
 }
 
 export default CheckoutPage;
+
