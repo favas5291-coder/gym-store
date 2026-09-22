@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import {
@@ -7,144 +8,55 @@ import {
   FREE_SHIPPING_LIMIT,
 } from "../utils/orderCalculations";
 
+import products from "../data/products";
+
+import {
+  getVariantStock,
+  getCartItemKey,
+  revalidateCart,
+} from "../utils/cartUtils";
+
 function Cart({ cart, setCart }) {
   const navigate = useNavigate();
 
-  const [couponCode, setCouponCode] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState(null);
-  const [couponMessage, setCouponMessage] = useState("");
-
   // ==========================================
-  // GET STOCK FOR A CART ITEM
+  // COUPON STATE
   // ==========================================
 
-  function getItemStock(item) {
-    // Product with size + color
+  const [couponCode, setCouponCode] =
+    useState("");
+
+  const [appliedCoupon, setAppliedCoupon] =
+    useState(null);
+
+  const [couponMessage, setCouponMessage] =
+    useState("");
+
+
+  // ==========================================
+  // REVALIDATE CART
+  // ==========================================
+
+  useEffect(() => {
+    const result = revalidateCart(
+      cart,
+      products
+    );
+
+    const currentCartJSON =
+      JSON.stringify(cart);
+
+    const updatedCartJSON =
+      JSON.stringify(result.cart);
+
     if (
-      item.variants &&
-      item.selectedColor &&
-      item.selectedSize
+      currentCartJSON !==
+      updatedCartJSON
     ) {
-      return (
-        item.variants?.[
-          item.selectedColor
-        ]?.[item.selectedSize] ?? 0
-      );
+      setCart(result.cart);
     }
+  }, [cart, setCart]);
 
-    // Product with color only
-    if (
-      item.variants &&
-      item.selectedColor
-    ) {
-      return (
-        item.variants?.[
-          item.selectedColor
-        ]?.default ?? 0
-      );
-    }
-
-    // Normal product without variants
-    return item.stock ?? 0;
-  }
-
-  // ==========================================
-  // CHECK WHETHER TWO CART ITEMS ARE SAME
-  // ==========================================
-
-  function isSameVariant(
-    item,
-    id,
-    size,
-    color
-  ) {
-    return (
-      item.id === id &&
-      item.selectedSize === size &&
-      item.selectedColor === color
-    );
-  }
-
-  // ==========================================
-  // REMOVE ITEM
-  // ==========================================
-
-  function removeItem(itemToRemove) {
-    setCart((currentCart) =>
-      currentCart.filter(
-        (item) =>
-          !isSameVariant(
-            item,
-            itemToRemove.id,
-            itemToRemove.selectedSize,
-            itemToRemove.selectedColor
-          )
-      )
-    );
-  }
-
-  // ==========================================
-  // DECREASE QUANTITY
-  // ==========================================
-
-  function decreaseQuantity(itemToDecrease) {
-    setCart((currentCart) =>
-      currentCart
-        .map((item) => {
-          if (
-            isSameVariant(
-              item,
-              itemToDecrease.id,
-              itemToDecrease.selectedSize,
-              itemToDecrease.selectedColor
-            )
-          ) {
-            return {
-              ...item,
-              quantity: item.quantity - 1,
-            };
-          }
-
-          return item;
-        })
-        .filter(
-          (item) => item.quantity > 0
-        )
-    );
-  }
-
-  // ==========================================
-  // INCREASE QUANTITY
-  // ==========================================
-
-  function increaseQuantity(itemToIncrease) {
-    const stock =
-      getItemStock(itemToIncrease);
-
-    setCart((currentCart) =>
-      currentCart.map((item) => {
-        if (
-          isSameVariant(
-            item,
-            itemToIncrease.id,
-            itemToIncrease.selectedSize,
-            itemToIncrease.selectedColor
-          )
-        ) {
-          if (item.quantity >= stock) {
-            return item;
-          }
-
-          return {
-            ...item,
-            quantity: item.quantity + 1,
-          };
-        }
-
-        return item;
-      })
-    );
-  }
 
   // ==========================================
   // LOAD SAVED COUPON
@@ -164,12 +76,13 @@ function Cart({ cart, setCart }) {
       const savedCouponData =
         JSON.parse(savedCoupon);
 
-      const coupon =
+      const code =
         savedCouponData?.code
-          ? COUPONS[
-              savedCouponData.code
-            ]
-          : null;
+          ?.toUpperCase();
+
+      const coupon = code
+        ? COUPONS[code]
+        : null;
 
       if (coupon) {
         setAppliedCoupon(coupon);
@@ -179,12 +92,136 @@ function Cart({ cart, setCart }) {
           "gymdrobe-coupon"
         );
       }
-    } catch (error) {
+    } catch {
       localStorage.removeItem(
         "gymdrobe-coupon"
       );
     }
   }, []);
+
+
+  // ==========================================
+  // GET STOCK
+  // ==========================================
+
+  function getItemStock(item) {
+    const product = products.find(
+      (productItem) =>
+        String(productItem.id) ===
+        String(item.id)
+    );
+
+    if (!product) {
+      return 0;
+    }
+
+    return getVariantStock(
+      product,
+      item.selectedSize ?? null,
+      item.selectedColor ?? null
+    );
+  }
+
+
+  // ==========================================
+  // REMOVE ITEM
+  // ==========================================
+
+  function removeItem(itemToRemove) {
+    const itemKey =
+      getCartItemKey(itemToRemove);
+
+    setCart((currentCart) =>
+      currentCart.filter(
+        (item) =>
+          getCartItemKey(item) !==
+          itemKey
+      )
+    );
+  }
+
+
+  // ==========================================
+  // DECREASE QUANTITY
+  // ==========================================
+
+  function decreaseQuantity(
+    itemToDecrease
+  ) {
+    const itemKey =
+      getCartItemKey(itemToDecrease);
+
+    setCart((currentCart) =>
+      currentCart
+        .map((item) => {
+          if (
+            getCartItemKey(item) !==
+            itemKey
+          ) {
+            return item;
+          }
+
+          const newQuantity =
+            Number(item.quantity || 1) -
+            1;
+
+          return {
+            ...item,
+            quantity: newQuantity,
+          };
+        })
+        .filter(
+          (item) =>
+            Number(item.quantity) > 0
+        )
+    );
+  }
+
+
+  // ==========================================
+  // INCREASE QUANTITY
+  // ==========================================
+
+  function increaseQuantity(
+    itemToIncrease
+  ) {
+    const itemKey =
+      getCartItemKey(itemToIncrease);
+
+    const stock =
+      getItemStock(itemToIncrease);
+
+    setCart((currentCart) =>
+      currentCart.map((item) => {
+        if (
+          getCartItemKey(item) !==
+          itemKey
+        ) {
+          return item;
+        }
+
+        const currentQuantity =
+          Number(item.quantity || 0);
+
+        // --------------------------------------
+        // STOCK LIMIT
+        // --------------------------------------
+
+        if (
+          currentQuantity >= stock
+        ) {
+          return item;
+        }
+
+        return {
+          ...item,
+          quantity:
+            currentQuantity + 1,
+        };
+      })
+    );
+  }
+
 
   // ==========================================
   // ORDER PRICING
@@ -196,11 +233,14 @@ function Cart({ cart, setCart }) {
     totalAfterCoupon,
     shipping: standardShipping,
     finalTotal,
-  } = calculateOrderPricing({
-    cart,
-    coupon: appliedCoupon,
-    deliveryMethod: "standard",
-  });
+  } = useMemo(() => {
+    return calculateOrderPricing({
+      cart,
+      coupon: appliedCoupon,
+      deliveryMethod: "standard",
+    });
+  }, [cart, appliedCoupon]);
+
 
   // ==========================================
   // APPLY COUPON
@@ -208,11 +248,33 @@ function Cart({ cart, setCart }) {
 
   function applyCoupon() {
     const code =
-      couponCode.trim().toUpperCase();
+      couponCode
+        .trim()
+        .toUpperCase();
 
-    const coupon = COUPONS[code];
+    // ------------------------------------------
+    // EMPTY COUPON
+    // ------------------------------------------
 
-    // Invalid coupon
+    if (!code) {
+      setCouponMessage(
+        "❌ Please enter a coupon code."
+      );
+
+      return;
+    }
+
+    // ------------------------------------------
+    // FIND COUPON
+    // ------------------------------------------
+
+    const coupon =
+      COUPONS[code];
+
+    // ------------------------------------------
+    // INVALID COUPON
+    // ------------------------------------------
+
     if (!coupon) {
       setCouponMessage(
         "❌ Invalid coupon code."
@@ -227,8 +289,14 @@ function Cart({ cart, setCart }) {
       return;
     }
 
-    // Minimum order check
-    if (subtotal < coupon.minimum) {
+    // ------------------------------------------
+    // MINIMUM ORDER CHECK
+    // ------------------------------------------
+
+    if (
+      subtotal <
+      coupon.minimum
+    ) {
       setCouponMessage(
         `❌ Minimum order value is ₹${coupon.minimum.toLocaleString(
           "en-IN"
@@ -244,12 +312,19 @@ function Cart({ cart, setCart }) {
       return;
     }
 
-    // Apply coupon
+    // ------------------------------------------
+    // APPLY COUPON
+    // ------------------------------------------
+
     setAppliedCoupon(coupon);
+
+    setCouponCode(coupon.code);
 
     localStorage.setItem(
       "gymdrobe-coupon",
-      JSON.stringify(coupon)
+      JSON.stringify({
+        code: coupon.code,
+      })
     );
 
     setCouponMessage(
@@ -257,12 +332,14 @@ function Cart({ cart, setCart }) {
     );
   }
 
+
   // ==========================================
   // REMOVE COUPON
   // ==========================================
 
   function removeCoupon() {
     setAppliedCoupon(null);
+
     setCouponCode("");
 
     setCouponMessage(
@@ -274,8 +351,9 @@ function Cart({ cart, setCart }) {
     );
   }
 
+
   // ==========================================
-  // REVALIDATE COUPON WHEN CART CHANGES
+  // REVALIDATE COUPON
   // ==========================================
 
   useEffect(() => {
@@ -283,8 +361,12 @@ function Cart({ cart, setCart }) {
       return;
     }
 
-    if (subtotal < appliedCoupon.minimum) {
+    if (
+      subtotal <
+      appliedCoupon.minimum
+    ) {
       setAppliedCoupon(null);
+
       setCouponCode("");
 
       setCouponMessage(
@@ -299,15 +381,110 @@ function Cart({ cart, setCart }) {
     }
   }, [subtotal, appliedCoupon]);
 
+
   // ==========================================
   // TOTAL ITEMS
   // ==========================================
 
   const totalItems = cart.reduce(
     (total, item) =>
-      total + item.quantity,
+      total +
+      Number(item.quantity || 0),
     0
   );
+
+
+  // ==========================================
+  // TOTAL SAVINGS
+  // ==========================================
+
+  const productSavings =
+    cart.reduce(
+      (total, item) => {
+        const product =
+          products.find(
+            (productItem) =>
+              String(
+                productItem.id
+              ) === String(item.id)
+          );
+
+        if (!product) {
+          return total;
+        }
+
+        const originalPrice =
+          Number(
+            product.price || 0
+          );
+
+        const sellingPrice =
+          Number(
+            item.price || 0
+          );
+
+        const savings =
+          Math.max(
+            originalPrice -
+              sellingPrice,
+            0
+          );
+
+        return (
+          total +
+          savings *
+            Number(
+              item.quantity || 0
+            )
+        );
+      },
+      0
+    );
+
+  const totalSavings =
+    productSavings +
+    couponDiscount;
+
+
+  // ==========================================
+  // CHECKOUT
+  // ==========================================
+
+  function handleCheckout() {
+    if (!cart.length) {
+      return;
+    }
+
+    // ------------------------------------------
+    // FINAL CART VALIDATION
+    // ------------------------------------------
+
+    const result =
+      revalidateCart(
+        cart,
+        products
+      );
+
+    // ------------------------------------------
+    // CART CHANGED
+    // ------------------------------------------
+
+    if (
+      JSON.stringify(result.cart) !==
+      JSON.stringify(cart)
+    ) {
+      setCart(result.cart);
+
+      return;
+    }
+
+    // ------------------------------------------
+    // GO TO CHECKOUT
+    // ------------------------------------------
+
+    navigate("/checkout");
+  }
+
 
   // ==========================================
   // EMPTY CART
@@ -404,8 +581,9 @@ function Cart({ cart, setCart }) {
     );
   }
 
+
   // ==========================================
-  // CART UI
+  // CART
   // ==========================================
 
   return (
@@ -423,7 +601,9 @@ function Cart({ cart, setCart }) {
     >
       <div className="max-w-7xl mx-auto">
 
-        {/* PAGE TITLE */}
+        {/* ====================================
+            HEADER
+        ==================================== */}
 
         <div className="mb-7 sm:mb-10">
           <h1
@@ -445,13 +625,17 @@ function Cart({ cart, setCart }) {
             "
           >
             {totalItems}{" "}
-            item
-            {totalItems !== 1
-              ? "s"
-              : ""}{" "}
+            {totalItems === 1
+              ? "item"
+              : "items"}{" "}
             in your cart
           </p>
         </div>
+
+
+        {/* ====================================
+            MAIN GRID
+        ==================================== */}
 
         <div
           className="
@@ -462,9 +646,9 @@ function Cart({ cart, setCart }) {
           "
         >
 
-          {/* ======================================
+          {/* ==================================
               CART ITEMS
-          ====================================== */}
+          ================================== */}
 
           <div
             className="
@@ -473,17 +657,23 @@ function Cart({ cart, setCart }) {
               sm:space-y-5
             "
           >
+
             {cart.map((item) => {
               const stock =
                 getItemStock(item);
 
+              const quantity =
+                Number(
+                  item.quantity || 0
+                );
+
               const isAtStockLimit =
                 stock > 0 &&
-                item.quantity >= stock;
+                quantity >= stock;
 
               return (
                 <div
-                  key={`${item.id}-${item.selectedSize}-${item.selectedColor}`}
+                  key={getCartItemKey(item)}
                   className="
                     bg-white
                     rounded-xl
@@ -494,6 +684,7 @@ function Cart({ cart, setCart }) {
                     shadow-sm
                   "
                 >
+
                   <div
                     className="
                       flex
@@ -502,7 +693,9 @@ function Cart({ cart, setCart }) {
                     "
                   >
 
-                    {/* IMAGE */}
+                    {/* ======================
+                        IMAGE
+                    ======================= */}
 
                     <Link
                       to={`/product/${item.id}`}
@@ -519,7 +712,10 @@ function Cart({ cart, setCart }) {
                       "
                     >
                       <img
-                        src={item.image}
+                        src={
+                          item.image ||
+                          item.images?.[0]
+                        }
                         alt={item.name}
                         className="
                           w-full
@@ -529,9 +725,17 @@ function Cart({ cart, setCart }) {
                       />
                     </Link>
 
-                    {/* DETAILS */}
 
-                    <div className="flex-1 min-w-0">
+                    {/* ======================
+                        DETAILS
+                    ======================= */}
+
+                    <div
+                      className="
+                        flex-1
+                        min-w-0
+                      "
+                    >
 
                       <div
                         className="
@@ -541,7 +745,11 @@ function Cart({ cart, setCart }) {
                         "
                       >
 
-                        <div className="min-w-0">
+                        <div
+                          className="
+                            min-w-0
+                          "
+                        >
 
                           <Link
                             to={`/product/${item.id}`}
@@ -574,6 +782,7 @@ function Cart({ cart, setCart }) {
 
                         </div>
 
+
                         {/* REMOVE */}
 
                         <button
@@ -605,7 +814,10 @@ function Cart({ cart, setCart }) {
 
                       </div>
 
-                      {/* VARIANTS */}
+
+                      {/* ======================
+                          VARIANTS
+                      ======================= */}
 
                       {(item.selectedSize ||
                         item.selectedColor) && (
@@ -634,7 +846,9 @@ function Cart({ cart, setCart }) {
                             >
                               Size:{" "}
                               <strong>
-                                {item.selectedSize}
+                                {
+                                  item.selectedSize
+                                }
                               </strong>
                             </span>
                           )}
@@ -653,7 +867,9 @@ function Cart({ cart, setCart }) {
                             >
                               Color:{" "}
                               <strong>
-                                {item.selectedColor}
+                                {
+                                  item.selectedColor
+                                }
                               </strong>
                             </span>
                           )}
@@ -661,9 +877,17 @@ function Cart({ cart, setCart }) {
                         </div>
                       )}
 
-                      {/* PRICE */}
 
-                      <div className="mt-2 sm:mt-4">
+                      {/* ======================
+                          PRICE
+                      ======================= */}
+
+                      <div
+                        className="
+                          mt-2
+                          sm:mt-4
+                        "
+                      >
 
                         <span
                           className="
@@ -673,12 +897,14 @@ function Cart({ cart, setCart }) {
                           "
                         >
                           ₹
-                          {item.price.toLocaleString(
+                          {Number(
+                            item.price || 0
+                          ).toLocaleString(
                             "en-IN"
                           )}
                         </span>
 
-                        {item.quantity > 1 && (
+                        {quantity > 1 && (
                           <span
                             className="
                               text-xs
@@ -687,13 +913,16 @@ function Cart({ cart, setCart }) {
                               ml-2
                             "
                           >
-                            × {item.quantity}
+                            × {quantity}
                           </span>
                         )}
 
                       </div>
 
-                      {/* QUANTITY + STOCK */}
+
+                      {/* ======================
+                          QUANTITY + STOCK
+                      ======================= */}
 
                       <div
                         className="
@@ -727,21 +956,28 @@ function Cart({ cart, setCart }) {
                                 item
                               )
                             }
+                            disabled={
+                              quantity <= 1
+                            }
                             aria-label="Decrease quantity"
-                            className="
+                            className={`
                               w-9
                               h-9
                               sm:w-10
                               sm:h-10
-                              hover:bg-gray-100
-                              transition
                               font-bold
                               text-lg
-                              active:bg-gray-200
-                            "
+                              transition
+                              ${
+                                quantity <= 1
+                                  ? "text-gray-300 cursor-not-allowed"
+                                  : "hover:bg-gray-100 active:bg-gray-200"
+                              }
+                            `}
                           >
                             −
                           </button>
+
 
                           <span
                             className="
@@ -753,8 +989,9 @@ function Cart({ cart, setCart }) {
                               font-semibold
                             "
                           >
-                            {item.quantity}
+                            {quantity}
                           </span>
+
 
                           <button
                             type="button"
@@ -787,6 +1024,7 @@ function Cart({ cart, setCart }) {
 
                         </div>
 
+
                         {/* STOCK */}
 
                         <p
@@ -801,7 +1039,9 @@ function Cart({ cart, setCart }) {
                             }
                           `}
                         >
-                          {stock <= 3
+                          {stock <= 0
+                            ? "Out of stock"
+                            : stock <= 3
                             ? `Only ${stock} left`
                             : `${stock} available`}
                         </p>
@@ -809,17 +1049,25 @@ function Cart({ cart, setCart }) {
                       </div>
 
                     </div>
+
                   </div>
+
                 </div>
               );
             })}
+
           </div>
 
-          {/* ======================================
-              ORDER SUMMARY
-          ====================================== */}
 
-          <div className="lg:col-span-1">
+          {/* ==================================
+              ORDER SUMMARY
+          ================================== */}
+
+          <div
+            className="
+              lg:col-span-1
+            "
+          >
 
             <div
               className="
@@ -846,7 +1094,10 @@ function Cart({ cart, setCart }) {
                 Order Summary
               </h2>
 
-              {/* SUBTOTAL */}
+
+              {/* ============================
+                  SUBTOTAL
+              ============================= */}
 
               <div
                 className="
@@ -858,11 +1109,19 @@ function Cart({ cart, setCart }) {
                   sm:text-base
                 "
               >
-                <span className="text-gray-500">
+                <span
+                  className="
+                    text-gray-500
+                  "
+                >
                   Subtotal
                 </span>
 
-                <span className="font-semibold">
+                <span
+                  className="
+                    font-semibold
+                  "
+                >
                   ₹
                   {subtotal.toLocaleString(
                     "en-IN"
@@ -870,7 +1129,10 @@ function Cart({ cart, setCart }) {
                 </span>
               </div>
 
-              {/* COUPON */}
+
+              {/* ============================
+                  COUPON
+              ============================= */}
 
               <div
                 className="
@@ -892,6 +1154,7 @@ function Cart({ cart, setCart }) {
                   Have a coupon?
                 </p>
 
+
                 {appliedCoupon ? (
                   <div
                     className="
@@ -907,7 +1170,9 @@ function Cart({ cart, setCart }) {
                       py-2.5
                     "
                   >
+
                     <div>
+
                       <p
                         className="
                           text-sm
@@ -915,7 +1180,9 @@ function Cart({ cart, setCart }) {
                           text-green-700
                         "
                       >
-                        {appliedCoupon.code}
+                        {
+                          appliedCoupon.code
+                        }
                       </p>
 
                       <p
@@ -926,11 +1193,15 @@ function Cart({ cart, setCart }) {
                       >
                         Coupon applied
                       </p>
+
                     </div>
+
 
                     <button
                       type="button"
-                      onClick={removeCoupon}
+                      onClick={
+                        removeCoupon
+                      }
                       className="
                         text-xs
                         font-semibold
@@ -940,6 +1211,7 @@ function Cart({ cart, setCart }) {
                     >
                       Remove
                     </button>
+
                   </div>
                 ) : (
                   <div
@@ -982,7 +1254,9 @@ function Cart({ cart, setCart }) {
 
                     <button
                       type="button"
-                      onClick={applyCoupon}
+                      onClick={
+                        applyCoupon
+                      }
                       className="
                         shrink-0
                         bg-gray-900
@@ -1002,15 +1276,25 @@ function Cart({ cart, setCart }) {
                   </div>
                 )}
 
+
                 {couponMessage && (
-                  <p className="text-xs sm:text-sm mt-2">
+                  <p
+                    className="
+                      text-xs
+                      sm:text-sm
+                      mt-2
+                    "
+                  >
                     {couponMessage}
                   </p>
                 )}
 
               </div>
 
-              {/* COUPON DISCOUNT */}
+
+              {/* ============================
+                  COUPON DISCOUNT
+              ============================= */}
 
               {couponDiscount > 0 && (
                 <div
@@ -1028,7 +1312,11 @@ function Cart({ cart, setCart }) {
                     Coupon Discount
                   </span>
 
-                  <span className="font-semibold">
+                  <span
+                    className="
+                      font-semibold
+                    "
+                  >
                     -₹
                     {couponDiscount.toLocaleString(
                       "en-IN"
@@ -1038,7 +1326,10 @@ function Cart({ cart, setCart }) {
                 </div>
               )}
 
-              {/* SHIPPING */}
+
+              {/* ============================
+                  SHIPPING
+              ============================= */}
 
               <div
                 className="
@@ -1051,19 +1342,31 @@ function Cart({ cart, setCart }) {
                 "
               >
 
-                <span className="text-gray-500">
+                <span
+                  className="
+                    text-gray-500
+                  "
+                >
                   Standard Delivery
                 </span>
 
-                <span className="font-semibold">
-                  {standardShipping === 0
+                <span
+                  className="
+                    font-semibold
+                  "
+                >
+                  {standardShipping ===
+                  0
                     ? "FREE"
                     : `₹${standardShipping}`}
                 </span>
 
               </div>
 
-              {/* FREE SHIPPING MESSAGE */}
+
+              {/* ============================
+                  FREE SHIPPING MESSAGE
+              ============================= */}
 
               {totalAfterCoupon <
                 FREE_SHIPPING_LIMIT && (
@@ -1087,7 +1390,10 @@ function Cart({ cart, setCart }) {
                 </p>
               )}
 
-              {/* FREE SHIPPING SUCCESS */}
+
+              {/* ============================
+                  FREE SHIPPING SUCCESS
+              ============================= */}
 
               {totalAfterCoupon >=
                 FREE_SHIPPING_LIMIT && (
@@ -1104,7 +1410,45 @@ function Cart({ cart, setCart }) {
                 </p>
               )}
 
-              {/* TOTAL */}
+
+              {/* ============================
+                  SAVINGS
+              ============================= */}
+
+              {totalSavings > 0 && (
+                <div
+                  className="
+                    flex
+                    justify-between
+                    gap-4
+                    mt-4
+                    text-sm
+                    text-green-600
+                  "
+                >
+
+                  <span>
+                    You Save
+                  </span>
+
+                  <span
+                    className="
+                      font-semibold
+                    "
+                  >
+                    ₹
+                    {totalSavings.toLocaleString(
+                      "en-IN"
+                    )}
+                  </span>
+
+                </div>
+              )}
+
+
+              {/* ============================
+                  TOTAL
+              ============================= */}
 
               <div
                 className="
@@ -1152,12 +1496,15 @@ function Cart({ cart, setCart }) {
 
               </div>
 
-              {/* CHECKOUT */}
+
+              {/* ============================
+                  CHECKOUT
+              ============================= */}
 
               <button
                 type="button"
-                onClick={() =>
-                  navigate("/checkout")
+                onClick={
+                  handleCheckout
                 }
                 className="
                   w-full
@@ -1179,7 +1526,10 @@ function Cart({ cart, setCart }) {
                 PROCEED TO CHECKOUT
               </button>
 
-              {/* CONTINUE SHOPPING */}
+
+              {/* ============================
+                  CONTINUE SHOPPING
+              ============================= */}
 
               <Link
                 to="/shop"
@@ -1198,11 +1548,15 @@ function Cart({ cart, setCart }) {
               </Link>
 
             </div>
+
           </div>
+
         </div>
+
       </div>
     </section>
   );
 }
 
 export default Cart;
+

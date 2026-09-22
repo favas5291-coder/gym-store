@@ -1,8 +1,20 @@
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
-import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 
 import products from "../data/products";
+import {
+  getDiscountedPrice,
+} from "../utils/productPricing";
 
 function ProductPage({
   addToCart,
@@ -18,7 +30,7 @@ function ProductPage({
   // ======================================================
 
   const product = products.find(
-    (item) => item.id === Number(id)
+    (item) => String(item.id) === String(id)
   );
 
   // ======================================================
@@ -26,17 +38,36 @@ function ProductPage({
   // ======================================================
 
   const [quantity, setQuantity] = useState(1);
-  const [selectedSize, setSelectedSize] = useState("");
-  const [selectedColor, setSelectedColor] = useState("");
-  const [selectedImage, setSelectedImage] = useState("");
-  const [isZoomed, setIsZoomed] = useState(false);
+
+  const [selectedSize, setSelectedSize] =
+    useState("");
+
+  const [selectedColor, setSelectedColor] =
+    useState("");
+
+  const [selectedImage, setSelectedImage] =
+    useState("");
+
+  const [isZoomed, setIsZoomed] =
+    useState(false);
+
+  // ======================================================
+  // ACTION MESSAGE
+  // ======================================================
+
+  const [actionMessage, setActionMessage] =
+    useState("");
 
   // ======================================================
   // DELIVERY STATES
   // ======================================================
 
-  const [pincode, setPincode] = useState("");
-  const [deliveryMessage, setDeliveryMessage] = useState("");
+  const [pincode, setPincode] =
+    useState("");
+
+  const [deliveryMessage, setDeliveryMessage] =
+    useState("");
+
   const [isCheckingDelivery, setIsCheckingDelivery] =
     useState(false);
 
@@ -44,10 +75,59 @@ function ProductPage({
   // REVIEW STATES
   // ======================================================
 
-  const [reviewName, setReviewName] = useState("");
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewComment, setReviewComment] = useState("");
-  const [userReviews, setUserReviews] = useState([]);
+  const [reviewName, setReviewName] =
+    useState("");
+
+  const [reviewRating, setReviewRating] =
+    useState(5);
+
+  const [reviewComment, setReviewComment] =
+    useState("");
+
+  const [userReviews, setUserReviews] =
+    useState([]);
+
+  // ======================================================
+  // SHARE STATE
+  // ======================================================
+
+  const [shareMessage, setShareMessage] =
+    useState("");
+
+  // ======================================================
+  // RECENTLY VIEWED
+  // ======================================================
+
+  const [
+    recentlyViewedIds,
+    setRecentlyViewedIds,
+  ] = useState([]);
+
+  // ======================================================
+  // TIMER REFERENCES
+  // ======================================================
+
+  const deliveryTimerRef =
+    useRef(null);
+
+  const shareTimerRef =
+    useRef(null);
+
+  const actionTimerRef =
+    useRef(null);
+
+  // ======================================================
+  // PRODUCT OPTIONS
+  // ======================================================
+
+  const sizes = product?.sizes || [];
+  const colors = product?.colors || [];
+
+  const hasSizeOptions =
+    sizes.length > 0;
+
+  const hasColorOptions =
+    colors.length > 0;
 
   // ======================================================
   // PRODUCT INITIALIZATION
@@ -62,49 +142,156 @@ function ProductPage({
       setUserReviews([]);
       setPincode("");
       setDeliveryMessage("");
+      setShareMessage("");
+      setActionMessage("");
+      setRecentlyViewedIds([]);
+
       return;
     }
 
-    // Main image
-    setSelectedImage(product.image || "");
+    // ----------------------------------------------------
+    // MAIN IMAGE
+    // ----------------------------------------------------
 
-    // First available color
-    setSelectedColor(product.colors?.[0] || "");
+    setSelectedImage(
+      product.image || ""
+    );
 
-    // First available size
-    setSelectedSize(product.sizes?.[0] || "");
+    // ----------------------------------------------------
+    // FIND FIRST AVAILABLE COLOR
+    // ----------------------------------------------------
 
-    // Reset quantity
+    let firstAvailableColor =
+      colors[0] || "";
+
+    if (
+      product.variants &&
+      colors.length > 0
+    ) {
+      const availableColor =
+        colors.find((color) => {
+          if (hasSizeOptions) {
+            return sizes.some(
+              (size) =>
+                Number(
+                  product.variants?.[
+                    color
+                  ]?.[size] ?? 0
+                ) > 0
+            );
+          }
+
+          return (
+            Number(
+              product.variants?.[
+                color
+              ]?.default ?? 0
+            ) > 0
+          );
+        });
+
+      firstAvailableColor =
+        availableColor || "";
+    }
+
+    setSelectedColor(
+      firstAvailableColor
+    );
+
+    // ----------------------------------------------------
+    // FIND FIRST AVAILABLE SIZE
+    // ----------------------------------------------------
+
+    let firstAvailableSize =
+      sizes[0] || "";
+
+    if (
+      product.variants &&
+      firstAvailableColor &&
+      sizes.length > 0
+    ) {
+      const availableSize =
+        sizes.find(
+          (size) =>
+            Number(
+              product.variants?.[
+                firstAvailableColor
+              ]?.[size] ?? 0
+            ) > 0
+        );
+
+      firstAvailableSize =
+        availableSize || "";
+    }
+
+    setSelectedSize(
+      firstAvailableSize
+    );
+
+    // ----------------------------------------------------
+    // RESET QUANTITY
+    // ----------------------------------------------------
+
     setQuantity(1);
 
-    // Reset delivery
+    // ----------------------------------------------------
+    // RESET DELIVERY
+    // ----------------------------------------------------
+
     setPincode("");
     setDeliveryMessage("");
+    setIsCheckingDelivery(false);
+
+    // ----------------------------------------------------
+    // RESET SHARE
+    // ----------------------------------------------------
+
+    setShareMessage("");
+
+    // ----------------------------------------------------
+    // RESET ACTION MESSAGE
+    // ----------------------------------------------------
+
+    setActionMessage("");
 
     // ====================================================
     // LOAD USER REVIEWS
     // ====================================================
 
-    const savedReviews = localStorage.getItem(
-      "gymdrobe-reviews"
-    );
+    const savedReviews =
+      localStorage.getItem(
+        "gymdrobe-reviews"
+      );
 
     if (!savedReviews) {
       setUserReviews([]);
     } else {
       try {
-        const allReviews = JSON.parse(savedReviews);
+        const allReviews =
+          JSON.parse(savedReviews);
 
-        setUserReviews(
-          allReviews[product.id] || []
-        );
+        if (
+          allReviews &&
+          typeof allReviews === "object" &&
+          !Array.isArray(allReviews)
+        ) {
+          setUserReviews(
+            Array.isArray(
+              allReviews?.[product.id]
+            )
+              ? allReviews[product.id]
+              : []
+          );
+        } else {
+          setUserReviews([]);
+        }
       } catch {
         setUserReviews([]);
       }
     }
 
     // ====================================================
-    // RECENTLY VIEWED PRODUCTS
+    // RECENTLY VIEWED
     // ====================================================
 
     const savedRecentlyViewed =
@@ -116,23 +303,36 @@ function ProductPage({
 
     if (savedRecentlyViewed) {
       try {
-        recentlyViewed =
-          JSON.parse(savedRecentlyViewed);
+        const parsed =
+          JSON.parse(
+            savedRecentlyViewed
+          );
+
+        if (Array.isArray(parsed)) {
+          recentlyViewed = parsed;
+        }
       } catch {
         recentlyViewed = [];
       }
     }
 
-    // Remove current product if already present
-    recentlyViewed = recentlyViewed.filter(
-      (itemId) => itemId !== product.id
+    recentlyViewed =
+      recentlyViewed.filter(
+        (itemId) =>
+          String(itemId) !==
+          String(product.id)
+      );
+
+    recentlyViewed.unshift(
+      product.id
     );
 
-    // Add current product to beginning
-    recentlyViewed.unshift(product.id);
+    recentlyViewed =
+      recentlyViewed.slice(0, 6);
 
-    // Keep only latest 6
-    recentlyViewed = recentlyViewed.slice(0, 6);
+    setRecentlyViewedIds(
+      recentlyViewed
+    );
 
     localStorage.setItem(
       "gymdrobe-recently-viewed",
@@ -141,49 +341,178 @@ function ProductPage({
   }, [product]);
 
   // ======================================================
-  // IMAGE GALLERY
+  // CLEANUP TIMERS
   // ======================================================
 
-  const productImages = product
-    ? [
-        product.image,
-        ...(product.images || []),
-      ].filter(
-        (image, index, array) =>
-          image &&
-          array.indexOf(image) === index
-      )
-    : [];
+  useEffect(() => {
+    return () => {
+      if (deliveryTimerRef.current) {
+        clearTimeout(
+          deliveryTimerRef.current
+        );
+      }
+
+      if (shareTimerRef.current) {
+        clearTimeout(
+          shareTimerRef.current
+        );
+      }
+
+      if (actionTimerRef.current) {
+        clearTimeout(
+          actionTimerRef.current
+        );
+      }
+    };
+  }, []);
+
+  // ======================================================
+  // PRODUCT IMAGES
+  // ======================================================
+
+  const productImages = useMemo(() => {
+    if (!product) {
+      return [];
+    }
+
+    return [
+      product.image,
+      ...(product.images || []),
+    ].filter(
+      (image, index, array) =>
+        image &&
+        array.indexOf(image) === index
+    );
+  }, [product]);
+
+  // ======================================================
+  // AVAILABLE SIZES
+  // ======================================================
+
+  const availableSizes = useMemo(() => {
+    if (!hasSizeOptions) {
+      return [];
+    }
+
+    if (
+      !product?.variants ||
+      !selectedColor
+    ) {
+      return sizes;
+    }
+
+    return sizes.filter(
+      (size) =>
+        Number(
+          product.variants?.[
+            selectedColor
+          ]?.[size] ?? 0
+        ) > 0
+    );
+  }, [
+    product,
+    sizes,
+    hasSizeOptions,
+    selectedColor,
+  ]);
 
   // ======================================================
   // STOCK CALCULATION
   // ======================================================
 
-  let stock = 0;
-
-  if (product) {
-    if (product.variants) {
-      // Size + Color product
-      if (selectedColor && selectedSize) {
-        stock =
-          product.variants?.[selectedColor]?.[
-            selectedSize
-          ] ?? 0;
-      }
-
-      // Color-only product
-      else if (selectedColor) {
-        stock =
-          product.variants?.[selectedColor]?.default ??
-          0;
-      }
-
-      else {
-        stock = 0;
-      }
-    } else {
-      stock = product.stock ?? 0;
+  const stock = useMemo(() => {
+    if (!product) {
+      return 0;
     }
+
+    // ----------------------------------------------------
+    // PRODUCT WITHOUT VARIANTS
+    // ----------------------------------------------------
+
+    if (!product.variants) {
+      return Number(
+        product.stock ?? 0
+      );
+    }
+
+    // ----------------------------------------------------
+    // PRODUCT WITH COLOR + SIZE
+    // ----------------------------------------------------
+
+    if (
+      selectedColor &&
+      selectedSize
+    ) {
+      return Number(
+        product.variants?.[
+          selectedColor
+        ]?.[selectedSize] ?? 0
+      );
+    }
+
+    // ----------------------------------------------------
+    // PRODUCT WITH COLOR BUT NO SIZE
+    // ----------------------------------------------------
+
+    if (
+      selectedColor &&
+      !hasSizeOptions
+    ) {
+      return Number(
+        product.variants?.[
+          selectedColor
+        ]?.default ?? 0
+      );
+    }
+
+    // ----------------------------------------------------
+    // REQUIRED SELECTION NOT MADE
+    // ----------------------------------------------------
+
+    return 0;
+  }, [
+    product,
+    selectedColor,
+    selectedSize,
+    hasSizeOptions,
+  ]);
+
+  // ======================================================
+  // TOTAL PRODUCT STOCK
+  // USED FOR PRODUCT CARDS
+  // ======================================================
+
+  function getTotalProductStock(item) {
+    if (!item) {
+      return 0;
+    }
+
+    if (!item.variants) {
+      return Number(
+        item.stock ?? 0
+      );
+    }
+
+    let total = 0;
+
+    Object.values(
+      item.variants
+    ).forEach((variant) => {
+      if (
+        !variant ||
+        typeof variant !== "object"
+      ) {
+        return;
+      }
+
+      Object.values(variant).forEach(
+        (value) => {
+          total += Number(value || 0);
+        }
+      );
+    });
+
+    return total;
   }
 
   // ======================================================
@@ -191,6 +520,28 @@ function ProductPage({
   // ======================================================
 
   const stockMessage = useMemo(() => {
+    if (
+      hasSizeOptions &&
+      product?.variants &&
+      !selectedSize
+    ) {
+      return {
+        text: "Please select a size",
+        type: "select",
+      };
+    }
+
+    if (
+      hasColorOptions &&
+      product?.variants &&
+      !selectedColor
+    ) {
+      return {
+        text: "Please select a color",
+        type: "select",
+      };
+    }
+
     if (stock <= 0) {
       return {
         text: "Out of stock",
@@ -209,7 +560,14 @@ function ProductPage({
       text: `${stock} available`,
       type: "available",
     };
-  }, [stock]);
+  }, [
+    stock,
+    hasSizeOptions,
+    hasColorOptions,
+    selectedSize,
+    selectedColor,
+    product,
+  ]);
 
   // ======================================================
   // KEEP QUANTITY VALID
@@ -221,222 +579,576 @@ function ProductPage({
       return;
     }
 
-    setQuantity((currentQuantity) =>
-      Math.min(
-        Math.max(currentQuantity, 1),
-        stock
-      )
+    setQuantity(
+      (currentQuantity) =>
+        Math.min(
+          Math.max(
+            Number(
+              currentQuantity || 1
+            ),
+            1
+          ),
+          stock
+        )
     );
   }, [stock]);
 
   // ======================================================
-  // REVIEWS
+  // FIX INVALID SIZE WHEN COLOR CHANGES
   // ======================================================
 
-  const allReviews = product
-    ? [
-        ...(product.reviews || []),
-        ...userReviews,
-      ]
-    : [];
+  useEffect(() => {
+    if (
+      !product ||
+      !hasSizeOptions
+    ) {
+      return;
+    }
+
+    if (
+      availableSizes.length === 0
+    ) {
+      setSelectedSize("");
+      setQuantity(1);
+      return;
+    }
+
+    if (
+      !availableSizes.includes(
+        selectedSize
+      )
+    ) {
+      setSelectedSize(
+        availableSizes[0]
+      );
+      setQuantity(1);
+    }
+  }, [
+    product,
+    hasSizeOptions,
+    availableSizes,
+    selectedSize,
+  ]);
+
+  // ======================================================
+  // ALL REVIEWS
+  // ======================================================
+
+  const allReviews = useMemo(() => {
+    if (!product) {
+      return [];
+    }
+
+    return [
+      ...(Array.isArray(
+        product.reviews
+      )
+        ? product.reviews
+        : []),
+      ...(Array.isArray(
+        userReviews
+      )
+        ? userReviews
+        : []),
+    ];
+  }, [
+    product,
+    userReviews,
+  ]);
 
   // ======================================================
   // AVERAGE RATING
   // ======================================================
 
-  const averageRating =
-    product && allReviews.length > 0
-      ? (
-          allReviews.reduce(
-            (total, review) =>
-              total + Number(review.rating || 0),
-            0
-          ) / allReviews.length
-        ).toFixed(1)
-      : product?.rating || 0;
+  const averageRating = useMemo(() => {
+    if (!product) {
+      return "0.0";
+    }
+
+    if (allReviews.length === 0) {
+      return Number(
+        product.rating || 0
+      ).toFixed(1);
+    }
+
+    const total =
+      allReviews.reduce(
+        (sum, review) =>
+          sum +
+          Number(
+            review.rating || 0
+          ),
+        0
+      );
+
+    return (
+      total / allReviews.length
+    ).toFixed(1);
+  }, [
+    product,
+    allReviews,
+  ]);
 
   // ======================================================
   // RATING BREAKDOWN
   // ======================================================
 
-  const ratingBreakdown = [5, 4, 3, 2, 1].map(
-    (rating) => {
-      const count = allReviews.filter(
-        (review) =>
-          Number(review.rating) === rating
-      ).length;
+  const ratingBreakdown =
+    useMemo(() => {
+      return [5, 4, 3, 2, 1].map(
+        (rating) => {
+          const count =
+            allReviews.filter(
+              (review) =>
+                Number(
+                  review.rating
+                ) === rating
+            ).length;
 
-      const percentage =
-        allReviews.length > 0
-          ? (count / allReviews.length) * 100
-          : 0;
+          const percentage =
+            allReviews.length > 0
+              ? (count /
+                  allReviews.length) *
+                100
+              : 0;
 
-      return {
-        rating,
-        count,
-        percentage,
-      };
-    }
+          return {
+            rating,
+            count,
+            percentage,
+          };
+        }
+      );
+    }, [allReviews]);
+
+  // ======================================================
+  // PRICING
+  // ======================================================
+
+  const discountedPrice =
+    product
+      ? getDiscountedPrice(product)
+      : 0;
+
+  const originalPrice =
+    product
+      ? Number(
+          product.price || 0
+        )
+      : 0;
+
+  const savings = Math.max(
+    originalPrice -
+      discountedPrice,
+    0
   );
-
-  // ======================================================
-  // DISCOUNTED PRICE
-  // ======================================================
-
-  const discountedPrice = product
-    ? Math.round(
-        product.price -
-          (product.price *
-            (product.discount || 0)) /
-            100
-      )
-    : 0;
-
-  // ======================================================
-  // SAVINGS
-  // ======================================================
-
-  const savings = product
-    ? product.price - discountedPrice
-    : 0;
 
   // ======================================================
   // WISHLIST STATUS
   // ======================================================
 
-  const isWishlisted = product
-    ? wishlist.some(
-        (item) => item.id === product.id
-      )
-    : false;
+  const isWishlisted =
+    product
+      ? wishlist.some(
+          (item) =>
+            item.id === product.id
+        )
+      : false;
 
   // ======================================================
   // RELATED PRODUCTS
   // ======================================================
 
   const relatedProducts = useMemo(() => {
-    if (!product) return [];
+    if (!product) {
+      return [];
+    }
 
-    const sameSubcategory = products.filter(
-      (item) =>
-        item.subcategory &&
-        item.subcategory === product.subcategory &&
-        item.id !== product.id
-    );
-
-    const sameCategory = products.filter(
-      (item) =>
-        item.category === product.category &&
-        item.id !== product.id
-    );
-
-    const sameTags = products.filter(
-      (item) =>
-        item.id !== product.id &&
-        item.tags?.some((tag) =>
-          product.tags?.includes(tag)
+    const scoredProducts =
+      products
+        .filter(
+          (item) =>
+            item.id !== product.id
         )
-    );
+        .map((item) => {
+          let score = 0;
 
-    const combined = [
-      ...sameSubcategory,
-      ...sameCategory,
-      ...sameTags,
-    ];
+          // Same subcategory
+          if (
+            item.subcategory &&
+            item.subcategory ===
+              product.subcategory
+          ) {
+            score += 5;
+          }
 
-    const uniqueProducts = combined.filter(
-      (item, index, array) =>
-        array.findIndex(
-          (productItem) =>
-            productItem.id === item.id
-        ) === index
-    );
+          // Same category
+          if (
+            item.category &&
+            item.category ===
+              product.category
+          ) {
+            score += 3;
+          }
 
-    return uniqueProducts.slice(0, 4);
+          // Shared tags
+          const sharedTags =
+            item.tags?.filter(
+              (tag) =>
+                product.tags?.includes(
+                  tag
+                )
+            ).length || 0;
+
+          score +=
+            sharedTags * 2;
+
+          // Same brand
+          if (
+            item.brand &&
+            product.brand &&
+            item.brand ===
+              product.brand
+          ) {
+            score += 2;
+          }
+
+          // Similar price
+          if (
+            Number(item.price) > 0 &&
+            Number(product.price) > 0
+          ) {
+            const priceDifference =
+              Math.abs(
+                Number(item.price) -
+                  Number(product.price)
+              ) /
+              Number(product.price);
+
+            if (
+              priceDifference <= 0.3
+            ) {
+              score += 1;
+            }
+          }
+
+          // Featured
+          if (
+            item.isFeatured
+          ) {
+            score += 1;
+          }
+
+          // Best seller
+          if (
+            item.isBestSeller
+          ) {
+            score += 1;
+          }
+
+          return {
+            item,
+            score,
+          };
+        });
+
+    return scoredProducts
+      .sort(
+        (a, b) =>
+          b.score - a.score
+      )
+      .map(
+        (entry) => entry.item
+      )
+      .slice(0, 4);
   }, [product]);
 
   // ======================================================
-  // RECENTLY VIEWED
+  // RECENTLY VIEWED PRODUCTS
   // ======================================================
 
-  const recentlyViewedProducts = useMemo(() => {
-    if (!product) return [];
+  const recentlyViewedProducts =
+    useMemo(() => {
+      if (!product) {
+        return [];
+      }
 
-    const saved =
-      localStorage.getItem(
-        "gymdrobe-recently-viewed"
-      );
-
-    if (!saved) return [];
-
-    try {
-      const ids = JSON.parse(saved);
-
-      return ids
+      return recentlyViewedIds
         .filter(
           (productId) =>
-            productId !== product.id
+            String(productId) !==
+            String(product.id)
         )
         .map((productId) =>
           products.find(
             (item) =>
-              item.id === productId
+              String(item.id) ===
+              String(productId)
           )
         )
         .filter(Boolean)
         .slice(0, 5);
-    } catch {
-      return [];
+    }, [
+      product,
+      recentlyViewedIds,
+    ]);
+
+  // ======================================================
+  // SHOW ACTION MESSAGE
+  // ======================================================
+
+  function showActionMessage(
+    message
+  ) {
+    setActionMessage(message);
+
+    if (actionTimerRef.current) {
+      clearTimeout(
+        actionTimerRef.current
+      );
     }
-  }, [product]);
+
+    actionTimerRef.current =
+      setTimeout(() => {
+        setActionMessage("");
+      }, 3000);
+  }
+
+  // ======================================================
+  // CLEAR RECENTLY VIEWED
+  // ======================================================
+
+  function clearRecentlyViewed() {
+    localStorage.removeItem(
+      "gymdrobe-recently-viewed"
+    );
+
+    setRecentlyViewedIds([]);
+  }
+
+  // ======================================================
+  // SHARE PRODUCT
+  // ======================================================
+
+  async function handleShareProduct() {
+    if (!product) {
+      return;
+    }
+
+    const shareData = {
+      title: product.name,
+      text: `Check out ${product.name} on GymDrobe.`,
+      url: window.location.href,
+    };
+
+    try {
+      if (
+        navigator.share &&
+        typeof navigator.share ===
+          "function"
+      ) {
+        await navigator.share(
+          shareData
+        );
+
+        return;
+      }
+
+      if (
+        navigator.clipboard &&
+        typeof navigator.clipboard
+          .writeText ===
+          "function"
+      ) {
+        await navigator.clipboard.writeText(
+          window.location.href
+        );
+
+        setShareMessage(
+          "Product link copied!"
+        );
+
+        if (
+          shareTimerRef.current
+        ) {
+          clearTimeout(
+            shareTimerRef.current
+          );
+        }
+
+        shareTimerRef.current =
+          setTimeout(() => {
+            setShareMessage("");
+          }, 2500);
+
+        return;
+      }
+
+      setShareMessage(
+        "Copy the product URL from your browser."
+      );
+
+      if (
+        shareTimerRef.current
+      ) {
+        clearTimeout(
+          shareTimerRef.current
+        );
+      }
+
+      shareTimerRef.current =
+        setTimeout(() => {
+          setShareMessage("");
+        }, 2500);
+    } catch (error) {
+      if (
+        error?.name ===
+        "AbortError"
+      ) {
+        return;
+      }
+
+      setShareMessage(
+        "Unable to share this product."
+      );
+
+      if (
+        shareTimerRef.current
+      ) {
+        clearTimeout(
+          shareTimerRef.current
+        );
+      }
+
+      shareTimerRef.current =
+        setTimeout(() => {
+          setShareMessage("");
+        }, 2500);
+    }
+  }
 
   // ======================================================
   // DELIVERY CHECK
   // ======================================================
 
   function checkDelivery() {
-    const trimmedPincode = pincode.trim();
-
-    if (!/^\d{6}$/.test(trimmedPincode)) {
-      setDeliveryMessage(
-        "Please enter a valid 6-digit pincode."
-      );
+    if (!product) {
       return;
     }
 
-    if (product.delivery?.available === false) {
+    const trimmedPincode =
+      pincode.trim();
+
+    if (
+      !/^\d{6}$/.test(
+        trimmedPincode
+      )
+    ) {
+      setDeliveryMessage(
+        "Please enter a valid 6-digit pincode."
+      );
+
+      return;
+    }
+
+    if (
+      product.delivery?.available ===
+      false
+    ) {
       setDeliveryMessage(
         "Delivery is currently unavailable for this product."
       );
+
       return;
+    }
+
+    if (
+      deliveryTimerRef.current
+    ) {
+      clearTimeout(
+        deliveryTimerRef.current
+      );
     }
 
     setIsCheckingDelivery(true);
     setDeliveryMessage("");
 
-    setTimeout(() => {
-      const firstDigit = Number(
-        trimmedPincode[0]
+    deliveryTimerRef.current =
+      setTimeout(() => {
+        const firstDigit =
+          Number(
+            trimmedPincode[0]
+          );
+
+        if (
+          firstDigit >= 1 &&
+          firstDigit <= 8
+        ) {
+          setDeliveryMessage(
+            `✓ Delivery available. Expected delivery in ${
+              product.delivery
+                ?.estimatedDays ||
+              "3–7 business days"
+            }.`
+          );
+        } else {
+          setDeliveryMessage(
+            "Delivery is currently unavailable for this pincode."
+          );
+        }
+
+        setIsCheckingDelivery(false);
+      }, 700);
+  }
+
+  // ======================================================
+  // VALIDATE PRODUCT SELECTION
+  // ======================================================
+
+  function validateSelection() {
+    if (
+      hasSizeOptions &&
+      !selectedSize
+    ) {
+      showActionMessage(
+        "Please select a size."
       );
 
-      if (
-        firstDigit >= 1 &&
-        firstDigit <= 8
-      ) {
-        setDeliveryMessage(
-          `✓ Delivery available. Expected delivery in ${
-            product.delivery?.estimatedDays ||
-            "3–7 business days"
-          }.`
-        );
-      } else {
-        setDeliveryMessage(
-          "Delivery is currently unavailable for this pincode."
-        );
-      }
+      return false;
+    }
 
-      setIsCheckingDelivery(false);
-    }, 700);
+    if (
+      hasColorOptions &&
+      !selectedColor
+    ) {
+      showActionMessage(
+        "Please select a color."
+      );
+
+      return false;
+    }
+
+    if (stock <= 0) {
+      showActionMessage(
+        "This product is out of stock."
+      );
+
+      return false;
+    }
+
+    if (
+      quantity > stock
+    ) {
+      showActionMessage(
+        `Only ${stock} item${
+          stock > 1 ? "s" : ""
+        } available.`
+      );
+
+      return false;
+    }
+
+    return true;
   }
 
   // ======================================================
@@ -444,33 +1156,22 @@ function ProductPage({
   // ======================================================
 
   function handleAddToCart() {
-    if (
-      product.sizes?.length > 0 &&
-      !selectedSize
-    ) {
-      alert("Please select a size.");
+    if (!product) {
+      return;
+    }
+
+    if (!validateSelection()) {
       return;
     }
 
     if (
-      product.colors?.length > 0 &&
-      !selectedColor
+      typeof addToCart !==
+      "function"
     ) {
-      alert("Please select a color.");
-      return;
-    }
-
-    if (stock <= 0) {
-      alert("This product is out of stock.");
-      return;
-    }
-
-    if (quantity > stock) {
-      alert(
-        `Only ${stock} item${
-          stock > 1 ? "s" : ""
-        } available.`
+      showActionMessage(
+        "Cart system is unavailable."
       );
+
       return;
     }
 
@@ -487,33 +1188,22 @@ function ProductPage({
   // ======================================================
 
   function handleBuyNow() {
-    if (
-      product.sizes?.length > 0 &&
-      !selectedSize
-    ) {
-      alert("Please select a size.");
+    if (!product) {
+      return;
+    }
+
+    if (!validateSelection()) {
       return;
     }
 
     if (
-      product.colors?.length > 0 &&
-      !selectedColor
+      typeof buyNow !==
+      "function"
     ) {
-      alert("Please select a color.");
-      return;
-    }
-
-    if (stock <= 0) {
-      alert("This product is out of stock.");
-      return;
-    }
-
-    if (quantity > stock) {
-      alert(
-        `Only ${stock} item${
-          stock > 1 ? "s" : ""
-        } available.`
+      showActionMessage(
+        "Buy Now system is unavailable."
       );
+
       return;
     }
 
@@ -534,23 +1224,128 @@ function ProductPage({
   // ======================================================
 
   function increaseQuantity() {
-    if (stock <= 0) return;
+    if (stock <= 0) {
+      return;
+    }
 
-    setQuantity((currentQuantity) =>
-      Math.min(
-        currentQuantity + 1,
-        stock
-      )
+    setQuantity(
+      (currentQuantity) =>
+        Math.min(
+          Number(
+            currentQuantity || 1
+          ) + 1,
+          stock
+        )
     );
   }
 
   function decreaseQuantity() {
-    setQuantity((currentQuantity) =>
-      Math.max(
-        1,
-        currentQuantity - 1
-      )
+    setQuantity(
+      (currentQuantity) =>
+        Math.max(
+          1,
+          Number(
+            currentQuantity || 1
+          ) - 1
+        )
     );
+  }
+
+  // ======================================================
+  // SIZE SELECTION
+  // ======================================================
+
+  function handleSizeChange(size) {
+    if (
+      !availableSizes.includes(
+        size
+      )
+    ) {
+      return;
+    }
+
+    setSelectedSize(size);
+    setQuantity(1);
+    setActionMessage("");
+  }
+
+  // ======================================================
+  // COLOR SELECTION
+  // ======================================================
+
+  function handleColorChange(color) {
+    if (!colors.includes(color)) {
+      return;
+    }
+
+    // Check color stock
+    let colorStock = 0;
+
+    if (product?.variants) {
+      if (hasSizeOptions) {
+        colorStock =
+          sizes.reduce(
+            (
+              total,
+              size
+            ) =>
+              total +
+              Number(
+                product.variants?.[
+                  color
+                ]?.[size] ?? 0
+              ),
+            0
+          );
+      } else {
+        colorStock =
+          Number(
+            product.variants?.[
+              color
+            ]?.default ?? 0
+          );
+      }
+    } else {
+      colorStock =
+        Number(
+          product?.stock ?? 0
+        );
+    }
+
+    if (colorStock <= 0) {
+      showActionMessage(
+        `${color} is currently out of stock.`
+      );
+
+      return;
+    }
+
+    setSelectedColor(color);
+    setQuantity(1);
+    setActionMessage("");
+
+    // ----------------------------------------------------
+    // AUTOMATICALLY SELECT AVAILABLE SIZE
+    // ----------------------------------------------------
+
+    if (
+      product?.variants &&
+      hasSizeOptions
+    ) {
+      const firstAvailableSize =
+        sizes.find(
+          (size) =>
+            Number(
+              product.variants?.[
+                color
+              ]?.[size] ?? 0
+            ) > 0
+        );
+
+      setSelectedSize(
+        firstAvailableSize || ""
+      );
+    }
   }
 
   // ======================================================
@@ -560,59 +1355,128 @@ function ProductPage({
   function handleReviewSubmit(e) {
     e.preventDefault();
 
-    if (
-      !reviewName.trim() ||
-      !reviewComment.trim()
-    ) {
-      alert(
-        "Please enter your name and review."
+    if (!product) {
+      return;
+    }
+
+    const trimmedName =
+      reviewName.trim();
+
+    const trimmedComment =
+      reviewComment.trim();
+
+    if (!trimmedName) {
+      showActionMessage(
+        "Please enter your name."
       );
+
+      return;
+    }
+
+    if (
+      trimmedName.length < 2
+    ) {
+      showActionMessage(
+        "Please enter a valid name."
+      );
+
+      return;
+    }
+
+    if (!trimmedComment) {
+      showActionMessage(
+        "Please write your review."
+      );
+
+      return;
+    }
+
+    if (
+      trimmedComment.length < 5
+    ) {
+      showActionMessage(
+        "Review must contain at least 5 characters."
+      );
+
       return;
     }
 
     const newReview = {
-      id: Date.now(),
-      name: reviewName.trim(),
-      rating: Number(reviewRating),
-      comment: reviewComment.trim(),
+      id:
+        Date.now() +
+        Math.random(),
+      name: trimmedName,
+      rating: Number(
+        reviewRating
+      ),
+      comment:
+        trimmedComment,
       verified: false,
+      createdAt:
+        new Date().toISOString(),
     };
 
-    const savedReviews = localStorage.getItem(
-      "gymdrobe-reviews"
-    );
+    const savedReviews =
+      localStorage.getItem(
+        "gymdrobe-reviews"
+      );
 
     let allReviewsData = {};
 
     if (savedReviews) {
       try {
-        allReviewsData =
+        const parsed =
           JSON.parse(savedReviews);
+
+        if (
+          parsed &&
+          typeof parsed ===
+            "object" &&
+          !Array.isArray(parsed)
+        ) {
+          allReviewsData = parsed;
+        }
       } catch {
         allReviewsData = {};
       }
     }
 
-    allReviewsData[product.id] = [
-      ...(allReviewsData[product.id] || []),
-      newReview,
-    ];
+    const existingReviews =
+      Array.isArray(
+        allReviewsData[
+          product.id
+        ]
+      )
+        ? allReviewsData[
+            product.id
+          ]
+        : [];
+
+    allReviewsData[product.id] =
+      [
+        ...existingReviews,
+        newReview,
+      ];
 
     localStorage.setItem(
       "gymdrobe-reviews",
-      JSON.stringify(allReviewsData)
+      JSON.stringify(
+        allReviewsData
+      )
     );
 
-    setUserReviews((currentReviews) => [
-      ...currentReviews,
-      newReview,
-    ]);
+    setUserReviews(
+      (currentReviews) => [
+        ...currentReviews,
+        newReview,
+      ]
+    );
 
     setReviewName("");
     setReviewRating(5);
     setReviewComment("");
 
-    alert(
+    showActionMessage(
       "Review submitted successfully!"
     );
   }
@@ -657,8 +1521,9 @@ function ProductPage({
               mb-6
             "
           >
-            The product you're looking for
-            doesn't exist.
+            The product you're looking
+            for doesn't exist or may
+            have been removed.
           </p>
 
           <Link
@@ -700,6 +1565,75 @@ function ProductPage({
       "
     >
       <div className="max-w-7xl mx-auto">
+
+        {/* ==================================================
+            BREADCRUMB
+        ================================================== */}
+
+        <nav
+          aria-label="Breadcrumb"
+          className="
+            flex
+            flex-wrap
+            items-center
+            gap-2
+            text-xs
+            sm:text-sm
+            text-gray-500
+            mb-5
+            sm:mb-7
+          "
+        >
+          <Link
+            to="/"
+            className="
+              hover:text-orange-600
+              transition
+            "
+          >
+            Home
+          </Link>
+
+          <span>/</span>
+
+          <Link
+            to="/shop"
+            className="
+              hover:text-orange-600
+              transition
+            "
+          >
+            Shop
+          </Link>
+
+          {product.category && (
+            <>
+              <span>/</span>
+
+              <Link
+                to={`/shop?category=${encodeURIComponent(
+                  product.category
+                )}`}
+                className="
+                  hover:text-orange-600
+                  transition
+                "
+              >
+                {product.category}
+              </Link>
+            </>
+          )}
+
+          {product.subcategory && (
+            <>
+              <span>/</span>
+
+              <span className="text-gray-900 font-medium">
+                {product.subcategory}
+              </span>
+            </>
+          )}
+        </nav>
 
         {/* ==================================================
             PRODUCT MAIN SECTION
@@ -745,9 +1679,19 @@ function ProductPage({
               onMouseLeave={() =>
                 setIsZoomed(false)
               }
+              onFocus={() =>
+                setIsZoomed(true)
+              }
+              onBlur={() =>
+                setIsZoomed(false)
+              }
+              tabIndex={0}
             >
               <img
-                src={selectedImage}
+                src={
+                  selectedImage ||
+                  product.image
+                }
                 alt={product.name}
                 className={`
                   w-full
@@ -789,7 +1733,9 @@ function ProductPage({
 
               {/* DISCOUNT */}
 
-              {product.discount > 0 && (
+              {Number(
+                product.discount || 0
+              ) > 0 && (
                 <span
                   className="
                     absolute
@@ -814,32 +1760,41 @@ function ProductPage({
 
               {/* OUT OF STOCK */}
 
-              {stock <= 0 && (
-                <span
-                  className="
-                    absolute
-                    top-3
-                    right-3
-                    sm:top-5
-                    sm:right-5
-                    bg-red-600
-                    text-white
-                    text-xs
-                    sm:text-sm
-                    px-3
-                    py-1.5
-                    rounded-full
-                    font-bold
-                  "
-                >
-                  OUT OF STOCK
-                </span>
-              )}
+              {stock <= 0 &&
+                !(
+                  hasSizeOptions &&
+                  !selectedSize
+                ) &&
+                !(
+                  hasColorOptions &&
+                  !selectedColor
+                ) && (
+                  <span
+                    className="
+                      absolute
+                      top-3
+                      right-3
+                      sm:top-5
+                      sm:right-5
+                      bg-red-600
+                      text-white
+                      text-xs
+                      sm:text-sm
+                      px-3
+                      py-1.5
+                      rounded-full
+                      font-bold
+                    "
+                  >
+                    OUT OF STOCK
+                  </span>
+                )}
             </div>
 
             {/* THUMBNAILS */}
 
-            {productImages.length > 0 && (
+            {productImages.length >
+              0 && (
               <div
                 className="
                   grid
@@ -856,8 +1811,13 @@ function ProductPage({
                       type="button"
                       key={`${image}-${index}`}
                       onClick={() =>
-                        setSelectedImage(image)
+                        setSelectedImage(
+                          image
+                        )
                       }
+                      aria-label={`View ${product.name} image ${
+                        index + 1
+                      }`}
                       className={`
                         rounded-lg
                         sm:rounded-xl
@@ -865,7 +1825,8 @@ function ProductPage({
                         border-2
                         transition
                         ${
-                          selectedImage === image
+                          selectedImage ===
+                          image
                             ? "border-orange-600"
                             : "border-transparent"
                         }
@@ -888,6 +1849,48 @@ function ProductPage({
                 )}
               </div>
             )}
+
+            {/* SHARE */}
+
+            <div
+              className="
+                mt-4
+                flex
+                flex-wrap
+                items-center
+                gap-3
+              "
+            >
+              <button
+                type="button"
+                onClick={
+                  handleShareProduct
+                }
+                className="
+                  inline-flex
+                  items-center
+                  gap-2
+                  px-4
+                  py-2.5
+                  rounded-lg
+                  border
+                  border-gray-200
+                  bg-white
+                  hover:border-gray-900
+                  text-sm
+                  font-semibold
+                  transition
+                "
+              >
+                🔗 Share Product
+              </button>
+
+              {shareMessage && (
+                <span className="text-sm text-green-600 font-semibold">
+                  {shareMessage}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* ==================================================
@@ -1037,7 +2040,9 @@ function ProductPage({
                 )}
               </span>
 
-              {product.discount > 0 && (
+              {Number(
+                product.discount || 0
+              ) > 0 && (
                 <span
                   className="
                     text-base
@@ -1047,13 +2052,15 @@ function ProductPage({
                   "
                 >
                   ₹
-                  {product.price.toLocaleString(
+                  {originalPrice.toLocaleString(
                     "en-IN"
                   )}
                 </span>
               )}
 
-              {product.discount > 0 && (
+              {Number(
+                product.discount || 0
+              ) > 0 && (
                 <span
                   className="
                     text-sm
@@ -1101,7 +2108,73 @@ function ProductPage({
             </p>
 
             {/* ==================================================
-                PRODUCT QUICK INFORMATION
+                ACTION MESSAGE
+            ================================================== */}
+
+            {actionMessage && (
+              <div
+                className="
+                  mb-5
+                  rounded-lg
+                  border
+                  border-orange-200
+                  bg-orange-50
+                  px-4
+                  py-3
+                  text-sm
+                  text-orange-700
+                  font-semibold
+                "
+                role="alert"
+              >
+                {actionMessage}
+              </div>
+            )}
+
+            {/* ==================================================
+                HIGHLIGHTS
+            ================================================== */}
+
+            {product.highlights?.length >
+              0 && (
+              <div className="mb-7">
+                <h3 className="font-bold text-lg mb-3">
+                  Product Highlights
+                </h3>
+
+                <div className="grid sm:grid-cols-2 gap-2.5">
+                  {product.highlights.map(
+                    (
+                      highlight,
+                      index
+                    ) => (
+                      <div
+                        key={`${highlight}-${index}`}
+                        className="
+                          flex
+                          items-start
+                          gap-2
+                          bg-gray-50
+                          rounded-lg
+                          p-3
+                        "
+                      >
+                        <span className="text-green-600 font-bold">
+                          ✓
+                        </span>
+
+                        <span className="text-sm text-gray-700">
+                          {highlight}
+                        </span>
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ==================================================
+                QUICK INFORMATION
             ================================================== */}
 
             <div
@@ -1122,22 +2195,11 @@ function ProductPage({
                     sm:p-4
                   "
                 >
-                  <p
-                    className="
-                      text-xs
-                      text-gray-500
-                      mb-1
-                    "
-                  >
+                  <p className="text-xs text-gray-500 mb-1">
                     Material
                   </p>
 
-                  <p
-                    className="
-                      text-sm
-                      font-semibold
-                    "
-                  >
+                  <p className="text-sm font-semibold">
                     {product.material}
                   </p>
                 </div>
@@ -1153,22 +2215,11 @@ function ProductPage({
                     sm:p-4
                   "
                 >
-                  <p
-                    className="
-                      text-xs
-                      text-gray-500
-                      mb-1
-                    "
-                  >
+                  <p className="text-xs text-gray-500 mb-1">
                     Gender
                   </p>
 
-                  <p
-                    className="
-                      text-sm
-                      font-semibold
-                    "
-                  >
+                  <p className="text-sm font-semibold">
                     {product.gender}
                   </p>
                 </div>
@@ -1184,23 +2235,11 @@ function ProductPage({
                     sm:p-4
                   "
                 >
-                  <p
-                    className="
-                      text-xs
-                      text-gray-500
-                      mb-1
-                    "
-                  >
+                  <p className="text-xs text-gray-500 mb-1">
                     SKU
                   </p>
 
-                  <p
-                    className="
-                      text-sm
-                      font-semibold
-                      break-all
-                    "
-                  >
+                  <p className="text-sm font-semibold break-all">
                     {product.sku}
                   </p>
                 </div>
@@ -1216,22 +2255,11 @@ function ProductPage({
                     sm:p-4
                   "
                 >
-                  <p
-                    className="
-                      text-xs
-                      text-gray-500
-                      mb-1
-                    "
-                  >
+                  <p className="text-xs text-gray-500 mb-1">
                     Returns
                   </p>
 
-                  <p
-                    className="
-                      text-sm
-                      font-semibold
-                    "
-                  >
+                  <p className="text-sm font-semibold">
                     Easy returns
                   </p>
                 </div>
@@ -1242,9 +2270,8 @@ function ProductPage({
                 SIZE
             ================================================== */}
 
-            {product.sizes?.length > 0 && (
+            {hasSizeOptions && (
               <div className="mb-6 sm:mb-7">
-
                 <div
                   className="
                     flex
@@ -1257,12 +2284,7 @@ function ProductPage({
                     Select Size
                   </h3>
 
-                  <span
-                    className="
-                      text-xs
-                      text-gray-500
-                    "
-                  >
+                  <span className="text-xs text-gray-500">
                     Required
                   </span>
                 </div>
@@ -1275,35 +2297,25 @@ function ProductPage({
                     sm:gap-3
                   "
                 >
-                  {product.sizes.map(
+                  {sizes.map(
                     (size) => {
-                      const sizeStock =
-                        selectedColor &&
-                        product.variants
-                          ? product
-                              .variants?.[
-                              selectedColor
-                            ]?.[size] ?? 0
-                          : 0;
-
-                      const isSizeOut =
-                        Boolean(
-                          product.variants &&
-                          selectedColor &&
-                          sizeStock <= 0
+                      const isAvailable =
+                        availableSizes.includes(
+                          size
                         );
 
                       return (
                         <button
                           type="button"
                           key={size}
-                          disabled={isSizeOut}
-                          onClick={() => {
-                            setSelectedSize(
+                          disabled={
+                            !isAvailable
+                          }
+                          onClick={() =>
+                            handleSizeChange(
                               size
-                            );
-                            setQuantity(1);
-                          }}
+                            )
+                          }
                           className={`
                             min-w-[52px]
                             px-4
@@ -1317,9 +2329,10 @@ function ProductPage({
                             font-semibold
                             transition
                             ${
-                              selectedSize === size
+                              selectedSize ===
+                              size
                                 ? "bg-orange-600 text-white border-orange-600"
-                                : isSizeOut
+                                : !isAvailable
                                 ? "bg-gray-100 text-gray-400 border-gray-200 line-through cursor-not-allowed"
                                 : "bg-white hover:border-orange-500"
                             }
@@ -1331,6 +2344,17 @@ function ProductPage({
                     }
                   )}
                 </div>
+
+                {selectedColor &&
+                  product.variants &&
+                  availableSizes.length ===
+                    0 && (
+                    <p className="text-sm text-red-600 mt-3 font-semibold">
+                      This color is currently
+                      unavailable in all
+                      sizes.
+                    </p>
+                  )}
               </div>
             )}
 
@@ -1338,9 +2362,8 @@ function ProductPage({
                 COLOR
             ================================================== */}
 
-            {product.colors?.length > 0 && (
+            {hasColorOptions && (
               <div className="mb-6 sm:mb-7">
-
                 <h3 className="font-bold mb-3">
                   Select Color
                 </h3>
@@ -1353,32 +2376,54 @@ function ProductPage({
                     sm:gap-3
                   "
                 >
-                  {product.colors.map(
+                  {colors.map(
                     (color) => {
                       const colorStock =
-                        product.variants?.[
-                          color
-                        ]?.default;
+                        product.variants
+                          ? hasSizeOptions
+                            ? sizes.reduce(
+                                (
+                                  total,
+                                  size
+                                ) =>
+                                  total +
+                                  Number(
+                                    product
+                                      .variants?.[
+                                      color
+                                    ]?.[
+                                      size
+                                    ] ?? 0
+                                  ),
+                                0
+                              )
+                            : Number(
+                                product
+                                  .variants?.[
+                                  color
+                                ]?.default ??
+                                  0
+                              )
+                          : Number(
+                              product.stock ??
+                                0
+                            );
 
                       const isColorOut =
-                        product.sizes?.length ===
-                          0 &&
-                        product.variants &&
-                        colorStock !==
-                          undefined &&
                         colorStock <= 0;
 
                       return (
                         <button
                           type="button"
                           key={color}
-                          disabled={isColorOut}
-                          onClick={() => {
-                            setSelectedColor(
+                          disabled={
+                            isColorOut
+                          }
+                          onClick={() =>
+                            handleColorChange(
                               color
-                            );
-                            setQuantity(1);
-                          }}
+                            )
+                          }
                           className={`
                             px-4
                             sm:px-5
@@ -1391,7 +2436,8 @@ function ProductPage({
                             font-semibold
                             transition
                             ${
-                              selectedColor === color
+                              selectedColor ===
+                              color
                                 ? "bg-gray-900 text-white border-gray-900"
                                 : isColorOut
                                 ? "bg-gray-100 text-gray-400 border-gray-200 line-through cursor-not-allowed"
@@ -1456,11 +2502,19 @@ function ProductPage({
                   onChange={(e) => {
                     setPincode(
                       e.target.value
-                        .replace(/\D/g, "")
-                        .slice(0, 6)
+                        .replace(
+                          /\D/g,
+                          ""
+                        )
+                        .slice(
+                          0,
+                          6
+                        )
                     );
 
-                    setDeliveryMessage("");
+                    setDeliveryMessage(
+                      ""
+                    );
                   }}
                   placeholder="Enter pincode"
                   inputMode="numeric"
@@ -1483,7 +2537,9 @@ function ProductPage({
 
                 <button
                   type="button"
-                  onClick={checkDelivery}
+                  onClick={
+                    checkDelivery
+                  }
                   disabled={
                     isCheckingDelivery
                   }
@@ -1544,18 +2600,103 @@ function ProductPage({
 
                 <p>
                   💰 Free delivery above ₹
-                  {(
+                  {Number(
                     product.delivery
                       ?.freeDeliveryAbove ??
-                    500
-                  ).toLocaleString("en-IN")}
+                      500
+                  ).toLocaleString(
+                    "en-IN"
+                  )}
                 </p>
 
                 {product.returnPolicy && (
                   <p>
-                    ↩ {product.returnPolicy}
+                    ↩{" "}
+                    {
+                      product.returnPolicy
+                    }
                   </p>
                 )}
+              </div>
+            </div>
+
+            {/* ==================================================
+                SHIPPING & RETURNS
+            ================================================== */}
+
+            <div
+              className="
+                grid
+                sm:grid-cols-3
+                gap-3
+                mb-6
+              "
+            >
+              <div
+                className="
+                  border
+                  border-gray-200
+                  rounded-xl
+                  p-4
+                "
+              >
+                <div className="text-xl mb-2">
+                  🚚
+                </div>
+
+                <h4 className="font-bold text-sm mb-1">
+                  Fast Delivery
+                </h4>
+
+                <p className="text-xs text-gray-500">
+                  Reliable delivery to
+                  serviceable locations.
+                </p>
+              </div>
+
+              <div
+                className="
+                  border
+                  border-gray-200
+                  rounded-xl
+                  p-4
+                "
+              >
+                <div className="text-xl mb-2">
+                  ↩️
+                </div>
+
+                <h4 className="font-bold text-sm mb-1">
+                  Easy Returns
+                </h4>
+
+                <p className="text-xs text-gray-500">
+                  {product.returnPolicy ||
+                    "Return policy available on eligible products."}
+                </p>
+              </div>
+
+              <div
+                className="
+                  border
+                  border-gray-200
+                  rounded-xl
+                  p-4
+                "
+              >
+                <div className="text-xl mb-2">
+                  🔒
+                </div>
+
+                <h4 className="font-bold text-sm mb-1">
+                  Secure Checkout
+                </h4>
+
+                <p className="text-xs text-gray-500">
+                  Secure payment processing
+                  will be connected with
+                  the backend.
+                </p>
               </div>
             </div>
 
@@ -1564,6 +2705,22 @@ function ProductPage({
             ================================================== */}
 
             <div className="mb-5">
+              {stockMessage.type ===
+                "select" && (
+                <p
+                  className="
+                    text-gray-600
+                    font-semibold
+                    text-sm
+                    sm:text-base
+                  "
+                >
+                  ⚙{" "}
+                  {
+                    stockMessage.text
+                  }
+                </p>
+              )}
 
               {stockMessage.type ===
                 "available" && (
@@ -1575,11 +2732,15 @@ function ProductPage({
                     sm:text-base
                   "
                 >
-                  ✓ {stockMessage.text}
+                  ✓{" "}
+                  {
+                    stockMessage.text
+                  }
                 </p>
               )}
 
-              {stockMessage.type === "low" && (
+              {stockMessage.type ===
+                "low" && (
                 <p
                   className="
                     text-orange-600
@@ -1588,11 +2749,15 @@ function ProductPage({
                     sm:text-base
                   "
                 >
-                  🔥 {stockMessage.text}
+                  🔥{" "}
+                  {
+                    stockMessage.text
+                  }
                 </p>
               )}
 
-              {stockMessage.type === "out" && (
+              {stockMessage.type ===
+                "out" && (
                 <p
                   className="
                     text-red-600
@@ -1601,7 +2766,10 @@ function ProductPage({
                     sm:text-base
                   "
                 >
-                  ✕ {stockMessage.text}
+                  ✕{" "}
+                  {
+                    stockMessage.text
+                  }
                 </p>
               )}
             </div>
@@ -1620,11 +2788,14 @@ function ProductPage({
             >
               <button
                 type="button"
-                onClick={decreaseQuantity}
+                onClick={
+                  decreaseQuantity
+                }
                 disabled={
                   quantity <= 1 ||
                   stock <= 0
                 }
+                aria-label="Decrease quantity"
                 className="
                   w-11
                   h-11
@@ -1654,11 +2825,14 @@ function ProductPage({
 
               <button
                 type="button"
-                onClick={increaseQuantity}
+                onClick={
+                  increaseQuantity
+                }
                 disabled={
                   stock <= 0 ||
                   quantity >= stock
                 }
+                aria-label="Increase quantity"
                 className="
                   w-11
                   h-11
@@ -1693,8 +2867,12 @@ function ProductPage({
             >
               <button
                 type="button"
-                onClick={handleAddToCart}
-                disabled={stock <= 0}
+                onClick={
+                  handleAddToCart
+                }
+                disabled={
+                  stock <= 0
+                }
                 className="
                   flex-1
                   bg-orange-600
@@ -1718,8 +2896,12 @@ function ProductPage({
 
               <button
                 type="button"
-                onClick={handleBuyNow}
-                disabled={stock <= 0}
+                onClick={
+                  handleBuyNow
+                }
+                disabled={
+                  stock <= 0
+                }
                 className="
                   flex-1
                   bg-gray-900
@@ -1744,12 +2926,17 @@ function ProductPage({
               <button
                 type="button"
                 onClick={() =>
-                  toggleWishlist?.(product)
+                  toggleWishlist?.(
+                    product
+                  )
                 }
                 aria-label={
                   isWishlisted
                     ? "Remove from wishlist"
                     : "Add to wishlist"
+                }
+                aria-pressed={
+                  isWishlisted
                 }
                 className="
                   w-full
@@ -1801,6 +2988,91 @@ function ProductPage({
             Product Information
           </h2>
 
+          {/* SPECIFICATIONS OBJECT */}
+
+          {product.specifications &&
+            typeof product.specifications ===
+              "object" &&
+            !Array.isArray(
+              product.specifications
+            ) && (
+              <div className="mb-10">
+                <h3 className="font-bold text-xl mb-4">
+                  Specifications
+                </h3>
+
+                <div className="border border-gray-200 rounded-xl overflow-hidden">
+                  {Object.entries(
+                    product.specifications
+                  ).map(
+                    ([key, value]) => (
+                      <div
+                        key={key}
+                        className="
+                          grid
+                          sm:grid-cols-2
+                          border-b
+                          last:border-b-0
+                          border-gray-200
+                        "
+                      >
+                        <div className="bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-600">
+                          {key}
+                        </div>
+
+                        <div className="px-4 py-3 text-sm text-gray-800">
+                          {String(
+                            value
+                          )}
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+            )}
+
+          {/* SPECIFICATIONS ARRAY */}
+
+          {Array.isArray(
+            product.specifications
+          ) &&
+            product.specifications
+              .length > 0 && (
+              <div className="mb-10">
+                <h3 className="font-bold text-xl mb-4">
+                  Specifications
+                </h3>
+
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {product.specifications.map(
+                    (
+                      specification,
+                      index
+                    ) => (
+                      <div
+                        key={`${specification}-${index}`}
+                        className="
+                          border
+                          border-gray-200
+                          rounded-xl
+                          p-4
+                        "
+                      >
+                        <p className="text-sm text-gray-700">
+                          {
+                            specification
+                          }
+                        </p>
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+            )}
+
+          {/* BASIC PRODUCT DATA */}
+
           <div
             className="
               grid
@@ -1810,14 +3082,7 @@ function ProductPage({
             "
           >
             {product.brand && (
-              <div
-                className="
-                  border
-                  border-gray-200
-                  rounded-xl
-                  p-4
-                "
-              >
+              <div className="border border-gray-200 rounded-xl p-4">
                 <p className="text-xs text-gray-500 mb-1">
                   Brand
                 </p>
@@ -1829,14 +3094,7 @@ function ProductPage({
             )}
 
             {product.category && (
-              <div
-                className="
-                  border
-                  border-gray-200
-                  rounded-xl
-                  p-4
-                "
-              >
+              <div className="border border-gray-200 rounded-xl p-4">
                 <p className="text-xs text-gray-500 mb-1">
                   Category
                 </p>
@@ -1848,14 +3106,7 @@ function ProductPage({
             )}
 
             {product.subcategory && (
-              <div
-                className="
-                  border
-                  border-gray-200
-                  rounded-xl
-                  p-4
-                "
-              >
+              <div className="border border-gray-200 rounded-xl p-4">
                 <p className="text-xs text-gray-500 mb-1">
                   Subcategory
                 </p>
@@ -1867,14 +3118,7 @@ function ProductPage({
             )}
 
             {product.gender && (
-              <div
-                className="
-                  border
-                  border-gray-200
-                  rounded-xl
-                  p-4
-                "
-              >
+              <div className="border border-gray-200 rounded-xl p-4">
                 <p className="text-xs text-gray-500 mb-1">
                   Gender
                 </p>
@@ -1886,14 +3130,7 @@ function ProductPage({
             )}
 
             {product.material && (
-              <div
-                className="
-                  border
-                  border-gray-200
-                  rounded-xl
-                  p-4
-                "
-              >
+              <div className="border border-gray-200 rounded-xl p-4">
                 <p className="text-xs text-gray-500 mb-1">
                   Material
                 </p>
@@ -1905,14 +3142,7 @@ function ProductPage({
             )}
 
             {product.sku && (
-              <div
-                className="
-                  border
-                  border-gray-200
-                  rounded-xl
-                  p-4
-                "
-              >
+              <div className="border border-gray-200 rounded-xl p-4">
                 <p className="text-xs text-gray-500 mb-1">
                   SKU
                 </p>
@@ -1926,9 +3156,9 @@ function ProductPage({
 
           {/* TAGS */}
 
-          {product.tags?.length > 0 && (
+          {product.tags?.length >
+            0 && (
             <div className="mt-7">
-
               <h3 className="font-bold mb-3">
                 Product Tags
               </h3>
@@ -1960,7 +3190,6 @@ function ProductPage({
           {/* DESCRIPTION */}
 
           <div className="mt-7">
-
             <h3 className="font-bold mb-3">
               Description
             </h3>
@@ -1977,11 +3206,111 @@ function ProductPage({
             </p>
           </div>
 
+          {/* CARE INSTRUCTIONS */}
+
+          {product.careInstructions && (
+            <div className="mt-8">
+              <h3 className="font-bold text-xl mb-4">
+                Care Instructions
+              </h3>
+
+              {Array.isArray(
+                product.careInstructions
+              ) ? (
+                <ul className="space-y-2">
+                  {product.careInstructions.map(
+                    (
+                      instruction,
+                      index
+                    ) => (
+                      <li
+                        key={`${instruction}-${index}`}
+                        className="
+                          flex
+                          items-start
+                          gap-2
+                          text-sm
+                          sm:text-base
+                          text-gray-600
+                        "
+                      >
+                        <span className="text-orange-600 font-bold">
+                          •
+                        </span>
+
+                        <span>
+                          {
+                            instruction
+                          }
+                        </span>
+                      </li>
+                    )
+                  )}
+                </ul>
+              ) : (
+                <p className="text-gray-600 leading-7">
+                  {
+                    product.careInstructions
+                  }
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* WHAT'S INCLUDED */}
+
+          {product.whatsIncluded && (
+            <div className="mt-8">
+              <h3 className="font-bold text-xl mb-4">
+                What's Included
+              </h3>
+
+              {Array.isArray(
+                product.whatsIncluded
+              ) ? (
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {product.whatsIncluded.map(
+                    (
+                      item,
+                      index
+                    ) => (
+                      <div
+                        key={`${item}-${index}`}
+                        className="
+                          flex
+                          items-center
+                          gap-3
+                          border
+                          border-gray-200
+                          rounded-xl
+                          p-4
+                        "
+                      >
+                        <span className="text-green-600 font-bold">
+                          ✓
+                        </span>
+
+                        <span className="text-sm text-gray-700">
+                          {item}
+                        </span>
+                      </div>
+                    )
+                  )}
+                </div>
+              ) : (
+                <p className="text-gray-600">
+                  {
+                    product.whatsIncluded
+                  }
+                </p>
+              )}
+            </div>
+          )}
+
           {/* RETURN POLICY */}
 
           {product.returnPolicy && (
-            <div className="mt-7">
-
+            <div className="mt-8">
               <h3 className="font-bold mb-3">
                 Return & Replacement
               </h3>
@@ -2003,7 +3332,10 @@ function ProductPage({
                     font-medium
                   "
                 >
-                  ↩ {product.returnPolicy}
+                  ↩{" "}
+                  {
+                    product.returnPolicy
+                  }
                 </p>
               </div>
             </div>
@@ -2050,7 +3382,6 @@ function ProductPage({
             {/* RATING SUMMARY */}
 
             <div>
-
               <div
                 className="
                   text-4xl
@@ -2115,7 +3446,9 @@ function ProductPage({
                           text-gray-500
                         "
                       >
-                        {item.count}
+                        {
+                          item.count
+                        }
                       </span>
                     </div>
                   )
@@ -2131,76 +3464,93 @@ function ProductPage({
                 space-y-5
               "
             >
-              {allReviews.length === 0 ? (
+              {allReviews.length ===
+              0 ? (
                 <p className="text-gray-500">
                   No reviews yet.
                 </p>
               ) : (
                 allReviews.map(
-                  (review) => (
-                    <div
-                      key={review.id}
-                      className="
-                        border-b
-                        pb-5
-                      "
-                    >
+                  (review, index) => {
+                    const safeRating =
+                      Math.min(
+                        5,
+                        Math.max(
+                          0,
+                          Number(
+                            review.rating ||
+                              0
+                          )
+                        )
+                      );
+
+                    return (
                       <div
+                        key={
+                          review.id ??
+                          `${review.name}-${index}`
+                        }
                         className="
-                          flex
-                          flex-col
-                          sm:flex-row
-                          sm:items-center
-                          sm:justify-between
-                          gap-2
-                          mb-2
+                          border-b
+                          border-gray-200
+                          pb-5
                         "
                       >
-                        <div>
-                          <strong>
-                            {review.name}
-                          </strong>
+                        <div
+                          className="
+                            flex
+                            flex-col
+                            sm:flex-row
+                            sm:items-center
+                            sm:justify-between
+                            gap-2
+                            mb-2
+                          "
+                        >
+                          <div>
+                            <strong>
+                              {
+                                review.name
+                              }
+                            </strong>
 
-                          {review.verified && (
-                            <span
-                              className="
-                                ml-2
-                                text-xs
-                                text-green-600
-                                font-semibold
-                              "
-                            >
-                              ✓ Verified
-                            </span>
-                          )}
+                            {review.verified && (
+                              <span
+                                className="
+                                  ml-2
+                                  text-xs
+                                  text-green-600
+                                  font-semibold
+                                "
+                              >
+                                ✓ Verified
+                              </span>
+                            )}
+                          </div>
+
+                          <span
+                            aria-label={`${safeRating} out of 5 stars`}
+                          >
+                            {"⭐".repeat(
+                              safeRating
+                            )}
+                          </span>
                         </div>
 
-                        <span>
-                          {"⭐".repeat(
-                            Math.min(
-                              5,
-                              Math.max(
-                                0,
-                                Number(
-                                  review.rating
-                                )
-                              )
-                            )
-                          )}
-                        </span>
+                        <p
+                          className="
+                            text-gray-600
+                            text-sm
+                            sm:text-base
+                          "
+                        >
+                          {
+                            review.comment
+                          }
+                        </p>
                       </div>
-
-                      <p
-                        className="
-                          text-gray-600
-                          text-sm
-                          sm:text-base
-                        "
-                      >
-                        {review.comment}
-                      </p>
-                    </div>
-                  )
+                    );
+                  }
                 )
               )}
             </div>
@@ -2209,11 +3559,14 @@ function ProductPage({
           {/* REVIEW FORM */}
 
           <form
-            onSubmit={handleReviewSubmit}
+            onSubmit={
+              handleReviewSubmit
+            }
             className="
               mt-8
               sm:mt-12
               border-t
+              border-gray-200
               pt-8
               sm:pt-10
             "
@@ -2247,19 +3600,25 @@ function ProductPage({
                   )
                 }
                 placeholder="Your name"
+                maxLength={50}
                 className="
                   w-full
                   border
+                  border-gray-300
                   rounded-lg
                   px-4
                   py-3
                   outline-none
                   focus:border-orange-500
+                  focus:ring-2
+                  focus:ring-orange-100
                 "
               />
 
               <select
-                value={reviewRating}
+                value={
+                  reviewRating
+                }
                 onChange={(e) =>
                   setReviewRating(
                     Number(
@@ -2270,11 +3629,14 @@ function ProductPage({
                 className="
                   w-full
                   border
+                  border-gray-300
                   rounded-lg
                   px-4
                   py-3
                   outline-none
                   focus:border-orange-500
+                  focus:ring-2
+                  focus:ring-orange-100
                   bg-white
                 "
               >
@@ -2301,7 +3663,9 @@ function ProductPage({
             </div>
 
             <textarea
-              value={reviewComment}
+              value={
+                reviewComment
+              }
               onChange={(e) =>
                 setReviewComment(
                   e.target.value
@@ -2309,9 +3673,11 @@ function ProductPage({
               }
               placeholder="Write your review..."
               rows="5"
+              maxLength={1000}
               className="
                 w-full
                 border
+                border-gray-300
                 rounded-lg
                 px-4
                 py-3
@@ -2319,9 +3685,15 @@ function ProductPage({
                 sm:mt-5
                 outline-none
                 focus:border-orange-500
+                focus:ring-2
+                focus:ring-orange-100
                 resize-y
               "
             />
+
+            <div className="text-xs text-gray-400 mt-2">
+              {reviewComment.length}/1000
+            </div>
 
             <button
               type="submit"
@@ -2350,25 +3722,46 @@ function ProductPage({
             RELATED PRODUCTS
         ====================================================== */}
 
-        {relatedProducts.length > 0 && (
+        {relatedProducts.length >
+          0 && (
           <div className="mt-8 sm:mt-12">
+            <div className="flex items-center justify-between mb-6 sm:mb-8">
+              <div>
+                <p className="text-orange-600 text-xs font-bold uppercase tracking-wider mb-1">
+                  Recommended for you
+                </p>
 
-            <h2
-              className="
-                text-2xl
-                sm:text-3xl
-                font-black
-                mb-6
-                sm:mb-8
-              "
-            >
-              YOU MAY ALSO LIKE
-            </h2>
+                <h2
+                  className="
+                    text-2xl
+                    sm:text-3xl
+                    font-black
+                  "
+                >
+                  YOU MAY ALSO LIKE
+                </h2>
+              </div>
+
+              <Link
+                to="/shop"
+                className="
+                  hidden
+                  sm:inline-block
+                  text-sm
+                  font-semibold
+                  text-gray-500
+                  hover:text-orange-600
+                "
+              >
+                View All →
+              </Link>
+            </div>
 
             <div
               className="
                 grid
-                grid-cols-2
+                grid-cols-1
+                min-[380px]:grid-cols-2
                 lg:grid-cols-4
                 gap-3
                 sm:gap-5
@@ -2378,17 +3771,20 @@ function ProductPage({
               {relatedProducts.map(
                 (item) => {
                   const itemDiscountedPrice =
-                    Math.round(
-                      item.price -
-                        (item.price *
-                          (item.discount ||
-                            0)) /
-                          100
+                    getDiscountedPrice(
+                      item
+                    );
+
+                  const itemStock =
+                    getTotalProductStock(
+                      item
                     );
 
                   return (
                     <Link
-                      key={item.id}
+                      key={
+                        item.id
+                      }
                       to={`/product/${item.id}`}
                       className="
                         bg-white
@@ -2403,10 +3799,13 @@ function ProductPage({
                       "
                     >
                       <div className="relative">
-
                         <img
-                          src={item.image}
-                          alt={item.name}
+                          src={
+                            item.image
+                          }
+                          alt={
+                            item.name
+                          }
                           className="
                             w-full
                             h-40
@@ -2420,7 +3819,32 @@ function ProductPage({
                           "
                         />
 
-                        {item.discount > 0 && (
+                        {item.badge && (
+                          <span
+                            className="
+                              absolute
+                              top-2
+                              right-2
+                              bg-gray-900
+                              text-white
+                              text-[10px]
+                              sm:text-xs
+                              px-2
+                              py-1
+                              rounded-full
+                              font-bold
+                            "
+                          >
+                            {
+                              item.badge
+                            }
+                          </span>
+                        )}
+
+                        {Number(
+                          item.discount ||
+                            0
+                        ) > 0 && (
                           <span
                             className="
                               absolute
@@ -2436,7 +3860,30 @@ function ProductPage({
                               font-bold
                             "
                           >
-                            {item.discount}% OFF
+                            {
+                              item.discount
+                            }
+                            % OFF
+                          </span>
+                        )}
+
+                        {itemStock <=
+                          0 && (
+                          <span
+                            className="
+                              absolute
+                              bottom-2
+                              left-2
+                              bg-red-600
+                              text-white
+                              text-[10px]
+                              px-2
+                              py-1
+                              rounded-full
+                              font-bold
+                            "
+                          >
+                            OUT OF STOCK
                           </span>
                         )}
                       </div>
@@ -2449,7 +3896,9 @@ function ProductPage({
                           mb-1
                         "
                       >
-                        {item.category}
+                        {
+                          item.category
+                        }
                       </p>
 
                       <h3
@@ -2460,7 +3909,9 @@ function ProductPage({
                           line-clamp-2
                         "
                       >
-                        {item.name}
+                        {
+                          item.name
+                        }
                       </h3>
 
                       <div
@@ -2478,7 +3929,10 @@ function ProductPage({
                           )}
                         </span>
 
-                        {item.discount > 0 && (
+                        {Number(
+                          item.discount ||
+                            0
+                        ) > 0 && (
                           <span
                             className="
                               text-xs
@@ -2487,7 +3941,10 @@ function ProductPage({
                             "
                           >
                             ₹
-                            {item.price.toLocaleString(
+                            {Number(
+                              item.price ||
+                                0
+                            ).toLocaleString(
                               "en-IN"
                             )}
                           </span>
@@ -2501,7 +3958,10 @@ function ProductPage({
                           mt-2
                         "
                       >
-                        ⭐ {item.rating}
+                        ⭐{" "}
+                        {
+                          item.rating
+                        }
                       </div>
                     </Link>
                   );
@@ -2515,9 +3975,9 @@ function ProductPage({
             RECENTLY VIEWED
         ====================================================== */}
 
-        {recentlyViewedProducts.length > 0 && (
+        {recentlyViewedProducts.length >
+          0 && (
           <div className="mt-8 sm:mt-12">
-
             <div
               className="
                 flex
@@ -2527,25 +3987,27 @@ function ProductPage({
                 sm:mb-8
               "
             >
-              <h2
-                className="
-                  text-2xl
-                  sm:text-3xl
-                  font-black
-                "
-              >
-                RECENTLY VIEWED
-              </h2>
+              <div>
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">
+                  Your browsing history
+                </p>
+
+                <h2
+                  className="
+                    text-2xl
+                    sm:text-3xl
+                    font-black
+                  "
+                >
+                  RECENTLY VIEWED
+                </h2>
+              </div>
 
               <button
                 type="button"
-                onClick={() => {
-                  localStorage.removeItem(
-                    "gymdrobe-recently-viewed"
-                  );
-
-                  window.location.reload();
-                }}
+                onClick={
+                  clearRecentlyViewed
+                }
                 className="
                   text-xs
                   sm:text-sm
@@ -2571,17 +4033,15 @@ function ProductPage({
               {recentlyViewedProducts.map(
                 (item) => {
                   const itemDiscountedPrice =
-                    Math.round(
-                      item.price -
-                        (item.price *
-                          (item.discount ||
-                            0)) /
-                          100
+                    getDiscountedPrice(
+                      item
                     );
 
                   return (
                     <Link
-                      key={item.id}
+                      key={
+                        item.id
+                      }
                       to={`/product/${item.id}`}
                       className="
                         bg-white
@@ -2590,20 +4050,58 @@ function ProductPage({
                         shadow-sm
                         hover:shadow-lg
                         transition
+                        overflow-hidden
                       "
                     >
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="
-                          w-full
-                          h-36
-                          sm:h-48
-                          object-cover
-                          rounded-lg
-                          mb-3
-                        "
-                      />
+                      <div className="relative">
+                        <img
+                          src={
+                            item.image
+                          }
+                          alt={
+                            item.name
+                          }
+                          className="
+                            w-full
+                            h-36
+                            sm:h-48
+                            object-cover
+                            rounded-lg
+                            mb-3
+                          "
+                        />
+
+                        {Number(
+                          item.discount ||
+                            0
+                        ) > 0 && (
+                          <span
+                            className="
+                              absolute
+                              top-2
+                              left-2
+                              bg-orange-600
+                              text-white
+                              text-[10px]
+                              px-2
+                              py-1
+                              rounded-full
+                              font-bold
+                            "
+                          >
+                            {
+                              item.discount
+                            }
+                            % OFF
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-orange-600 font-semibold mb-1">
+                        {
+                          item.category
+                        }
+                      </p>
 
                       <h3
                         className="
@@ -2612,16 +4110,39 @@ function ProductPage({
                           line-clamp-2
                         "
                       >
-                        {item.name}
+                        {
+                          item.name
+                        }
                       </h3>
 
-                      <div className="mt-2">
+                      <div className="mt-2 flex items-center gap-2">
                         <span className="font-bold">
                           ₹
                           {itemDiscountedPrice.toLocaleString(
                             "en-IN"
                           )}
                         </span>
+
+                        {Number(
+                          item.discount ||
+                            0
+                        ) > 0 && (
+                          <span
+                            className="
+                              text-xs
+                              text-gray-400
+                              line-through
+                            "
+                          >
+                            ₹
+                            {Number(
+                              item.price ||
+                                0
+                            ).toLocaleString(
+                              "en-IN"
+                            )}
+                          </span>
+                        )}
                       </div>
                     </Link>
                   );
@@ -2636,4 +4157,3 @@ function ProductPage({
 }
 
 export default ProductPage;
-
