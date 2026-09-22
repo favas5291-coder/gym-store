@@ -1472,7 +1472,7 @@ function ProductSection({
               sm:text-xs
             "
           >
-            GYMDROBE COLLECTION
+            gGYM COLLECTION
           </p>
 
           <div
