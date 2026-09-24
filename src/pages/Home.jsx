@@ -15,9 +15,7 @@ function Home({
 
       <ProductSection
         wishlist={wishlist}
-        toggleWishlist={
-          toggleWishlist
-        }
+        toggleWishlist={toggleWishlist}
       />
 
       <Footer />

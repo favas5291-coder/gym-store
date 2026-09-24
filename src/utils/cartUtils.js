@@ -1,5 +1,7 @@
 import { getDiscountedPrice } from "./productPricing";
 
+export { getDiscountedPrice } from "./productPricing";
+
 /* --------------------------------
    GET VARIANT STOCK
 --------------------------------- */

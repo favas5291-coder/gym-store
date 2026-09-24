@@ -1,59 +1,97 @@
 import { Link } from "react-router-dom";
 
-function CategoryCard({ name, icon }) {
+function CategoryCard({
+  name,
+  icon,
+}) {
   return (
     <Link
-      to={`/shop?category=${encodeURIComponent(name)}`}
+      to={`/shop?category=${encodeURIComponent(
+        name
+      )}`}
       className="
-        block
-        bg-white
-        text-black
-        rounded-xl
-        p-4
-        sm:p-6
-        md:p-8
-        text-center
-        shadow-sm
-        hover:-translate-y-1
-        hover:shadow-lg
-        transition
-        active:scale-[0.98]
+        group
+        flex
+        w-[72px]
+        shrink-0
+        flex-col
+        items-center
+        sm:w-[88px]
+        md:w-[100px]
       "
     >
+      {/* CATEGORY IMAGE */}
 
       <div
         className="
-          mb-3 sm:mb-4
+          h-[64px]
+          w-[64px]
           overflow-hidden
-          rounded-xl
-          bg-gray-50
-          p-2
-          sm:p-3
+          rounded-full
+          border
+          border-gray-200
+          bg-gray-100
+          transition-all
+          duration-300
+          group-hover:border-orange-400
+          group-hover:shadow-md
+
+          sm:h-[76px]
+          sm:w-[76px]
+
+          md:h-[88px]
+          md:w-[88px]
         "
       >
         {icon.includes("/") ? (
           <img
             src={icon}
-            alt=""
-            aria-hidden="true"
-            className="mx-auto h-20 w-full object-cover rounded-lg sm:h-24"
+            alt={name}
+            className="
+              h-full
+              w-full
+              object-cover
+              transition-transform
+              duration-300
+              group-hover:scale-105
+            "
           />
         ) : (
-          <div className="text-4xl sm:text-5xl">{icon}</div>
+          <div
+            className="
+              flex
+              h-full
+              w-full
+              items-center
+              justify-center
+              text-3xl
+            "
+          >
+            {icon}
+          </div>
         )}
       </div>
 
-      <h3
+      {/* CATEGORY NAME */}
+
+      <p
         className="
-          text-sm
-          sm:text-base
+          mt-2
+          line-clamp-2
+          min-h-[30px]
+          text-center
+          text-[11px]
           font-semibold
-          leading-tight
+          leading-[15px]
+          text-gray-800
+          transition
+          group-hover:text-orange-600
+
+          sm:text-xs
         "
       >
         {name}
-      </h3>
-
+      </p>
     </Link>
   );
 }

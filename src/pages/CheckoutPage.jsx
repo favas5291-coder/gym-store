@@ -1,5 +1,4 @@
 
-
 import {
   useEffect,
   useMemo,
@@ -19,17 +18,19 @@ import {
 
 import {
   getCartItemKey,
+  getDiscountedPrice,
   getVariantStock,
   revalidateCart,
+  validateCartItem,
 } from "../utils/cartUtils";
 
 import products from "../data/products";
 
 import { useAuth } from "../context/AuthContext";
 
-// ==========================================
-// CONSTANTS
-// ==========================================
+// ======================================================
+// STORAGE CONSTANTS
+// ======================================================
 
 const ADDRESS_STORAGE_KEY =
   "gymdrobe-addresses";
@@ -49,9 +50,9 @@ const LAST_ORDER_STORAGE_KEY =
 const LAST_ADDRESS_STORAGE_KEY =
   "gymdrobe-last-address";
 
-// ==========================================
-// USER STORAGE KEY
-// ==========================================
+// ======================================================
+// USER-SCOPED STORAGE KEY
+// ======================================================
 
 function getUserStorageKey(baseKey, user) {
   const userId = String(
@@ -69,93 +70,118 @@ function getUserStorageKey(baseKey, user) {
   return `${baseKey}:${userId}`;
 }
 
-// ==========================================
+// ======================================================
 // EMPTY FORM
-// ==========================================
+// ======================================================
 
 const EMPTY_FORM = {
   name: "",
   email: "",
   phone: "",
   address: "",
+  landmark: "",
   city: "",
   state: "",
   pincode: "",
 };
 
-// ==========================================
+// ======================================================
+// SAFE LOCAL STORAGE READ
+// ======================================================
+
+function readStorage(key, fallback = null) {
+  try {
+    const saved =
+      localStorage.getItem(key);
+
+    if (!saved) {
+      return fallback;
+    }
+
+    return JSON.parse(saved);
+  } catch {
+    return fallback;
+  }
+}
+
+// ======================================================
 // GET SAVED ADDRESSES
-// ==========================================
+// ======================================================
 
 function getSavedAddresses(user) {
   if (!user) {
     return [];
   }
 
-  try {
-    const storageKey =
-      getUserStorageKey(
-        ADDRESS_STORAGE_KEY,
-        user
-      );
+  const storageKey =
+    getUserStorageKey(
+      ADDRESS_STORAGE_KEY,
+      user
+    );
 
-    const saved =
-      localStorage.getItem(
-        storageKey
-      );
+  const parsed =
+    readStorage(storageKey, []);
 
-    const parsed = saved
-      ? JSON.parse(saved)
-      : [];
-
-    return Array.isArray(parsed)
-      ? parsed
-      : [];
-  } catch {
-    return [];
-  }
+  return Array.isArray(parsed)
+    ? parsed
+    : [];
 }
 
-// ==========================================
+// ======================================================
 // GET SAVED CHECKOUT DETAILS
-// ==========================================
+// ======================================================
 
 function getSavedCheckoutDetails(user) {
-  try {
-    const storageKey =
-      getUserStorageKey(
-        CHECKOUT_STORAGE_KEY,
-        user
-      );
+  const storageKey =
+    getUserStorageKey(
+      CHECKOUT_STORAGE_KEY,
+      user
+    );
 
-    const saved =
-      localStorage.getItem(
-        storageKey
-      );
+  const parsed =
+    readStorage(storageKey, null);
 
-    if (!saved) {
-      return {
-        ...EMPTY_FORM,
-      };
-    }
-
-    const parsed =
-      JSON.parse(saved);
-
-    return {
-      ...EMPTY_FORM,
-      ...(parsed || {}),
-    };
-  } catch {
+  if (!parsed || typeof parsed !== "object") {
     return {
       ...EMPTY_FORM,
     };
   }
+
+  return {
+    ...EMPTY_FORM,
+    ...parsed,
+  };
 }
 
-// ==========================================
+// ======================================================
+// GET SAVED COUPON
+// ======================================================
+
+function getSavedCoupon(user) {
+  const storageKey =
+    getUserStorageKey(
+      COUPON_STORAGE_KEY,
+      user
+    );
+
+  const parsed =
+    readStorage(storageKey, null);
+
+  if (!parsed?.code) {
+    return null;
+  }
+
+  const code =
+    String(parsed.code)
+      .trim()
+      .toUpperCase();
+
+  return COUPONS[code] || null;
+}
+
+// ======================================================
 // INPUT FIELD
-// ==========================================
+// ======================================================
 
 function InputField({
   label,
@@ -167,6 +193,7 @@ function InputField({
   placeholder,
   inputMode,
   maxLength,
+  disabled = false,
 }) {
   return (
     <div>
@@ -192,6 +219,7 @@ function InputField({
         placeholder={placeholder}
         inputMode={inputMode}
         maxLength={maxLength}
+        disabled={disabled}
         autoComplete={
           name === "name"
             ? "name"
@@ -201,6 +229,8 @@ function InputField({
             ? "tel"
             : name === "address"
             ? "street-address"
+            : name === "landmark"
+            ? "address-line2"
             : name === "city"
             ? "address-level2"
             : name === "state"
@@ -220,6 +250,13 @@ function InputField({
           sm:text-base
           outline-none
           transition
+
+          ${
+            disabled
+              ? "bg-gray-100 text-gray-500 cursor-not-allowed"
+              : "bg-white"
+          }
+
           ${
             error
               ? "border-red-500 focus:ring-2 focus:ring-red-200"
@@ -244,9 +281,9 @@ function InputField({
   );
 }
 
-// ==========================================
+// ======================================================
 // CHECKOUT PAGE
-// ==========================================
+// ======================================================
 
 function CheckoutPage({
   cart,
@@ -261,113 +298,179 @@ function CheckoutPage({
     isAuthenticated,
   } = useAuth();
 
-  // ==========================================
+  // ====================================================
   // CUSTOMER FORM
-  // ==========================================
+  // ====================================================
 
   const [formData, setFormData] =
     useState(() =>
       getSavedCheckoutDetails(user)
     );
 
-  // ==========================================
+  // ====================================================
   // SAVED ADDRESSES
-  // ==========================================
+  // ====================================================
 
   const [savedAddresses, setSavedAddresses] =
     useState(() =>
       getSavedAddresses(user)
     );
 
-  // ==========================================
+  // ====================================================
   // SELECTED ADDRESS
-  // ==========================================
+  // ====================================================
 
   const [selectedAddressId, setSelectedAddressId] =
     useState(null);
 
-  // ==========================================
+  // ====================================================
   // DELIVERY
-  // ==========================================
+  // ====================================================
 
   const [deliveryMethod, setDeliveryMethod] =
     useState("standard");
 
-  // ==========================================
+  // ====================================================
   // PAYMENT
-  // ==========================================
+  // ====================================================
 
   const [paymentMethod, setPaymentMethod] =
     useState("cod");
 
-  // ==========================================
-  // FORM ERRORS
-  // ==========================================
+  // ====================================================
+  // ERRORS
+  // ====================================================
 
   const [errors, setErrors] =
     useState({});
 
-  // ==========================================
-  // CHECKOUT ERROR
-  // ==========================================
-
   const [checkoutError, setCheckoutError] =
     useState("");
 
-  // ==========================================
+  // ====================================================
   // SUBMITTING
-  // ==========================================
+  // ====================================================
 
   const [isSubmitting, setIsSubmitting] =
     useState(false);
 
-  // ==========================================
+  // ====================================================
   // COUPON
-  // ==========================================
+  // ====================================================
 
   const [coupon, setCoupon] =
-    useState(null);
+    useState(() =>
+      getSavedCoupon(user)
+    );
 
-  // ==========================================
-  // CHECKOUT ITEMS
-  // ==========================================
-
-  const checkoutItems = useMemo(() => {
-    if (buyNowItem) {
-      return [buyNowItem];
-    }
-
-    return cart;
-  }, [buyNowItem, cart]);
-
-  // ==========================================
-  // BUY NOW MODE
-  // ==========================================
+  // ====================================================
+  // BUY NOW / CART MODE
+  // ====================================================
 
   const isBuyNowCheckout =
     Boolean(buyNowItem);
 
-  // ==========================================
-  // LOAD USER DATA WHEN USER CHANGES
-  // ==========================================
+  // ====================================================
+  // VALIDATE BUY NOW ITEM AGAINST CURRENT PRODUCT
+  // ====================================================
+
+  const validatedBuyNowItem = useMemo(() => {
+    if (!buyNowItem) {
+      return null;
+    }
+
+    const product =
+      products.find(
+        (productItem) =>
+          String(productItem.id) ===
+          String(buyNowItem.id)
+      );
+
+    if (!product) {
+      return null;
+    }
+
+    const selectedSize =
+      buyNowItem.selectedSize ??
+      null;
+
+    const selectedColor =
+      buyNowItem.selectedColor ??
+      null;
+
+    const quantity =
+      Number(buyNowItem.quantity || 1);
+
+    const validation =
+      validateCartItem(
+        product,
+        quantity,
+        selectedSize,
+        selectedColor
+      );
+
+    if (!validation.valid) {
+      return null;
+    }
+
+    return {
+      ...product,
+      price:
+        getDiscountedPrice(product),
+      quantity,
+      selectedSize,
+      selectedColor,
+    };
+  }, [buyNowItem]);
+
+  // ====================================================
+  // CHECKOUT ITEMS
+  // ====================================================
+
+  const checkoutItems = useMemo(() => {
+    if (isBuyNowCheckout) {
+      return validatedBuyNowItem
+        ? [validatedBuyNowItem]
+        : [];
+    }
+
+    return Array.isArray(cart)
+      ? cart
+      : [];
+  }, [
+    isBuyNowCheckout,
+    validatedBuyNowItem,
+    cart,
+  ]);
+
+  // ====================================================
+  // LOAD USER DATA
+  // ====================================================
 
   useEffect(() => {
     if (!user) {
       setSavedAddresses([]);
       setSelectedAddressId(null);
+
       setFormData({
         ...EMPTY_FORM,
       });
+
+      setCoupon(null);
+
       return;
     }
 
-    const addresses =
-      getSavedAddresses(user);
-
-    setSavedAddresses(addresses);
+    setSavedAddresses(
+      getSavedAddresses(user)
+    );
 
     setFormData(
       getSavedCheckoutDetails(user)
+    );
+
+    setCoupon(
+      getSavedCoupon(user)
     );
 
     setSelectedAddressId(null);
@@ -375,49 +478,99 @@ function CheckoutPage({
     setCheckoutError("");
   }, [user]);
 
-  // ==========================================
-  // LOAD COUPON
-  // ==========================================
+  // ====================================================
+  // SAVE CHECKOUT DETAILS
+  // ====================================================
 
   useEffect(() => {
-    const savedCoupon =
-      localStorage.getItem(
-        COUPON_STORAGE_KEY
-      );
-
-    if (!savedCoupon) {
+    if (!user) {
       return;
     }
 
     try {
-      const parsedCoupon =
-        JSON.parse(savedCoupon);
+      const storageKey =
+        getUserStorageKey(
+          CHECKOUT_STORAGE_KEY,
+          user
+        );
 
-      const code =
-        parsedCoupon?.code?.toUpperCase();
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify(formData)
+      );
+    } catch {
+      // Ignore storage errors.
+    }
+  }, [
+    formData,
+    user,
+  ]);
 
-      const validCoupon =
-        code
-          ? COUPONS[code]
-          : null;
+  // ====================================================
+  // SAVE ADDRESSES
+  // ====================================================
 
-      if (validCoupon) {
-        setCoupon(validCoupon);
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    try {
+      const storageKey =
+        getUserStorageKey(
+          ADDRESS_STORAGE_KEY,
+          user
+        );
+
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify(savedAddresses)
+      );
+    } catch {
+      // Ignore storage errors.
+    }
+  }, [
+    savedAddresses,
+    user,
+  ]);
+
+  // ====================================================
+  // SAVE COUPON
+  // ====================================================
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    const storageKey =
+      getUserStorageKey(
+        COUPON_STORAGE_KEY,
+        user
+      );
+
+    try {
+      if (coupon) {
+        localStorage.setItem(
+          storageKey,
+          JSON.stringify(coupon)
+        );
       } else {
         localStorage.removeItem(
-          COUPON_STORAGE_KEY
+          storageKey
         );
       }
     } catch {
-      localStorage.removeItem(
-        COUPON_STORAGE_KEY
-      );
+      // Ignore storage errors.
     }
-  }, []);
+  }, [
+    coupon,
+    user,
+  ]);
 
-  // ==========================================
+  // ====================================================
   // AUTO SELECT DEFAULT ADDRESS
-  // ==========================================
+  // ====================================================
 
   useEffect(() => {
     if (
@@ -427,14 +580,15 @@ function CheckoutPage({
       return;
     }
 
-    if (
+    const selectedStillExists =
       selectedAddressId &&
       savedAddresses.some(
         (address) =>
           String(address.id) ===
           String(selectedAddressId)
-      )
-    ) {
+      );
+
+    if (selectedStillExists) {
       return;
     }
 
@@ -459,9 +613,9 @@ function CheckoutPage({
     selectedAddressId,
   ]);
 
-  // ==========================================
-  // AUTO FILL LOGGED-IN USER
-  // ==========================================
+  // ====================================================
+  // AUTO FILL USER DETAILS
+  // ====================================================
 
   useEffect(() => {
     if (!user) {
@@ -488,9 +642,9 @@ function CheckoutPage({
     }));
   }, [user]);
 
-  // ==========================================
+  // ====================================================
   // APPLY SELECTED ADDRESS
-  // ==========================================
+  // ====================================================
 
   useEffect(() => {
     if (
@@ -516,23 +670,25 @@ function CheckoutPage({
 
       name:
         selectedAddress.fullName ||
-        current.name ||
         user?.name ||
+        "",
+
+      email:
+        user?.email ||
+        current.email ||
         "",
 
       phone:
         selectedAddress.phone ||
-        current.phone ||
         user?.phone ||
-        "",
-
-      email:
-        current.email ||
-        user?.email ||
         "",
 
       address:
         selectedAddress.addressLine ||
+        "",
+
+      landmark:
+        selectedAddress.landmark ||
         "",
 
       city:
@@ -556,65 +712,16 @@ function CheckoutPage({
     user,
   ]);
 
-  // ==========================================
-  // SAVE CHECKOUT DETAILS
-  // ==========================================
-
-  useEffect(() => {
-    if (!user) {
-      return;
-    }
-
-    try {
-      const storageKey =
-        getUserStorageKey(
-          CHECKOUT_STORAGE_KEY,
-          user
-        );
-
-      localStorage.setItem(
-        storageKey,
-        JSON.stringify(formData)
-      );
-    } catch {
-      // Ignore storage errors.
-    }
-  }, [formData, user]);
-
-  // ==========================================
-  // SAVE ADDRESS STORAGE
-  // ==========================================
-
-  useEffect(() => {
-    if (!user) {
-      return;
-    }
-
-    try {
-      const storageKey =
-        getUserStorageKey(
-          ADDRESS_STORAGE_KEY,
-          user
-        );
-
-      localStorage.setItem(
-        storageKey,
-        JSON.stringify(savedAddresses)
-      );
-    } catch {
-      // Ignore storage errors.
-    }
-  }, [
-    savedAddresses,
-    user,
-  ]);
-
-  // ==========================================
+  // ====================================================
   // REVALIDATE NORMAL CART
-  // ==========================================
+  // ====================================================
 
   useEffect(() => {
-    if (isBuyNowCheckout) {
+    if (
+      isBuyNowCheckout ||
+      !Array.isArray(cart) ||
+      cart.length === 0
+    ) {
       return;
     }
 
@@ -624,10 +731,11 @@ function CheckoutPage({
         products
       );
 
-    if (
+    const changed =
       JSON.stringify(result.cart) !==
-      JSON.stringify(cart)
-    ) {
+      JSON.stringify(cart);
+
+    if (changed) {
       setCart(result.cart);
     }
   }, [
@@ -636,13 +744,24 @@ function CheckoutPage({
     isBuyNowCheckout,
   ]);
 
-  // ==========================================
-  // CHECKOUT ITEMS VALIDATION
-  // ==========================================
+  // ====================================================
+  // CHECKOUT VALIDATION
+  // ====================================================
 
   const checkoutValidation =
     useMemo(() => {
       if (!checkoutItems.length) {
+        if (
+          isBuyNowCheckout &&
+          buyNowItem
+        ) {
+          return {
+            valid: false,
+            message:
+              "This product is no longer available in the selected variant or quantity.",
+          };
+        }
+
         return {
           valid: false,
           message:
@@ -674,9 +793,7 @@ function CheckoutPage({
           );
 
         const quantity =
-          Number(
-            item.quantity || 0
-          );
+          Number(item.quantity || 0);
 
         if (stock <= 0) {
           return {
@@ -711,11 +828,15 @@ function CheckoutPage({
         valid: true,
         message: "",
       };
-    }, [checkoutItems]);
+    }, [
+      checkoutItems,
+      isBuyNowCheckout,
+      buyNowItem,
+    ]);
 
-  // ==========================================
+  // ====================================================
   // ORDER PRICING
-  // ==========================================
+  // ====================================================
 
   const {
     subtotal,
@@ -735,9 +856,9 @@ function CheckoutPage({
     deliveryMethod,
   ]);
 
-  // ==========================================
+  // ====================================================
   // HANDLE FORM CHANGE
-  // ==========================================
+  // ====================================================
 
   function handleChange(e) {
     const {
@@ -747,24 +868,36 @@ function CheckoutPage({
 
     let nextValue = value;
 
-    // PHONE
     if (name === "phone") {
       nextValue = value
         .replace(/\D/g, "")
         .slice(0, 10);
     }
 
-    // PINCODE
     if (name === "pincode") {
       nextValue = value
         .replace(/\D/g, "")
         .slice(0, 6);
     }
 
-    // NAME
     if (name === "name") {
       nextValue =
         value.slice(0, 80);
+    }
+
+    if (name === "city") {
+      nextValue =
+        value.slice(0, 80);
+    }
+
+    if (name === "state") {
+      nextValue =
+        value.slice(0, 80);
+    }
+
+    if (name === "landmark") {
+      nextValue =
+        value.slice(0, 120);
     }
 
     setFormData((current) => ({
@@ -779,13 +912,12 @@ function CheckoutPage({
 
     setCheckoutError("");
 
-    // Manual editing means
-    // no saved address is selected.
     if (
       [
         "name",
         "phone",
         "address",
+        "landmark",
         "city",
         "state",
         "pincode",
@@ -795,9 +927,9 @@ function CheckoutPage({
     }
   }
 
-  // ==========================================
+  // ====================================================
   // SELECT SAVED ADDRESS
-  // ==========================================
+  // ====================================================
 
   function handleSelectAddress(address) {
     if (!address) {
@@ -812,9 +944,9 @@ function CheckoutPage({
     setErrors({});
   }
 
-  // ==========================================
-  // USE MANUAL ADDRESS
-  // ==========================================
+  // ====================================================
+  // MANUAL ADDRESS
+  // ====================================================
 
   function handleUseManualAddress() {
     setSelectedAddressId(null);
@@ -823,14 +955,13 @@ function CheckoutPage({
     setCheckoutError("");
   }
 
-  // ==========================================
+  // ====================================================
   // VALIDATE FORM
-  // ==========================================
+  // ====================================================
 
   function validateForm() {
     const newErrors = {};
 
-    // NAME
     if (!formData.name.trim()) {
       newErrors.name =
         "Please enter your full name.";
@@ -841,7 +972,6 @@ function CheckoutPage({
         "Name must contain at least 3 characters.";
     }
 
-    // EMAIL
     if (!formData.email.trim()) {
       newErrors.email =
         "Please enter your email.";
@@ -854,7 +984,6 @@ function CheckoutPage({
         "Please enter a valid email.";
     }
 
-    // PHONE
     if (!formData.phone.trim()) {
       newErrors.phone =
         "Please enter your phone number.";
@@ -867,7 +996,6 @@ function CheckoutPage({
         "Enter a valid 10-digit Indian phone number.";
     }
 
-    // ADDRESS
     if (!formData.address.trim()) {
       newErrors.address =
         "Please enter your address.";
@@ -878,19 +1006,16 @@ function CheckoutPage({
         "Please enter a more complete address.";
     }
 
-    // CITY
     if (!formData.city.trim()) {
       newErrors.city =
         "Please enter your city.";
     }
 
-    // STATE
     if (!formData.state.trim()) {
       newErrors.state =
         "Please enter your state.";
     }
 
-    // PINCODE
     if (!formData.pincode.trim()) {
       newErrors.pincode =
         "Please enter your pincode.";
@@ -910,12 +1035,15 @@ function CheckoutPage({
     );
   }
 
-  // ==========================================
+  // ====================================================
   // SAVE CURRENT ADDRESS
-  // ==========================================
+  // ====================================================
 
   function saveCurrentAddress() {
-    if (!isAuthenticated || !user) {
+    if (
+      !isAuthenticated ||
+      !user
+    ) {
       return null;
     }
 
@@ -929,6 +1057,9 @@ function CheckoutPage({
       addressLine:
         formData.address.trim(),
 
+      landmark:
+        formData.landmark.trim(),
+
       city:
         formData.city.trim(),
 
@@ -937,8 +1068,6 @@ function CheckoutPage({
 
       pincode:
         formData.pincode.trim(),
-
-      landmark: "",
     };
 
     const matchingAddress =
@@ -950,6 +1079,8 @@ function CheckoutPage({
             addressData.phone &&
           address.addressLine ===
             addressData.addressLine &&
+          address.landmark ===
+            addressData.landmark &&
           address.city ===
             addressData.city &&
           address.state ===
@@ -968,13 +1099,16 @@ function CheckoutPage({
       ...addressData,
 
       userId:
-        user?.id || null,
+        user.id || null,
 
       userEmail:
-        user?.email || "",
+        user.email || "",
 
       isDefault:
         savedAddresses.length === 0,
+
+      createdAt:
+        new Date().toISOString(),
     };
 
     setSavedAddresses((current) => [
@@ -985,21 +1119,41 @@ function CheckoutPage({
     return newAddress;
   }
 
-  // ==========================================
+  // ====================================================
+  // GET ORDER STORAGE
+  // ====================================================
+
+  function getExistingOrders() {
+    const savedOrders =
+      readStorage(
+        ORDERS_STORAGE_KEY,
+        []
+      );
+
+    if (!Array.isArray(savedOrders)) {
+      return [];
+    }
+
+    return savedOrders;
+  }
+
+  // ====================================================
   // PLACE ORDER
-  // ==========================================
+  // ====================================================
 
   function handleSubmit(e) {
     e.preventDefault();
 
-    // PREVENT DOUBLE SUBMISSION
     if (isSubmitting) {
       return;
     }
 
     setCheckoutError("");
 
-    // CHECK ITEMS
+    // -----------------------------------------------
+    // CHECKOUT ITEM VALIDATION
+    // -----------------------------------------------
+
     if (!checkoutValidation.valid) {
       setCheckoutError(
         checkoutValidation.message
@@ -1013,7 +1167,10 @@ function CheckoutPage({
       return;
     }
 
+    // -----------------------------------------------
     // FORM VALIDATION
+    // -----------------------------------------------
+
     if (!validateForm()) {
       window.scrollTo({
         top: 0,
@@ -1023,7 +1180,10 @@ function CheckoutPage({
       return;
     }
 
-    // FINAL CART REVALIDATION
+    // -----------------------------------------------
+    // FINAL CART VALIDATION
+    // -----------------------------------------------
+
     if (!isBuyNowCheckout) {
       const result =
         revalidateCart(
@@ -1031,14 +1191,15 @@ function CheckoutPage({
           products
         );
 
-      if (
+      const changed =
         JSON.stringify(result.cart) !==
-        JSON.stringify(cart)
-      ) {
+        JSON.stringify(cart);
+
+      if (changed) {
         setCart(result.cart);
 
         setCheckoutError(
-          "Some cart items changed because stock was updated. Please review your cart before placing the order."
+          "Some cart items changed because stock or product information was updated. Please review your cart before placing the order."
         );
 
         window.scrollTo({
@@ -1050,12 +1211,57 @@ function CheckoutPage({
       }
     }
 
+    // -----------------------------------------------
+    // FINAL BUY NOW VALIDATION
+    // -----------------------------------------------
+
+    if (isBuyNowCheckout) {
+      const latestProduct =
+        products.find(
+          (product) =>
+            String(product.id) ===
+            String(buyNowItem?.id)
+        );
+
+      if (!latestProduct) {
+        setCheckoutError(
+          "This product is no longer available."
+        );
+
+        return;
+      }
+
+      const latestValidation =
+        validateCartItem(
+          latestProduct,
+          Number(
+            buyNowItem?.quantity || 1
+          ),
+          buyNowItem?.selectedSize ??
+            null,
+          buyNowItem?.selectedColor ??
+            null
+        );
+
+      if (!latestValidation.valid) {
+        setCheckoutError(
+          latestValidation.message
+        );
+
+        return;
+      }
+    }
+
+    // -----------------------------------------------
     // FINAL COUPON VALIDATION
+    // -----------------------------------------------
+
     let validCoupon = null;
 
     if (coupon) {
       const couponCode =
-        coupon.code?.toUpperCase();
+        coupon.code
+          ?.toUpperCase();
 
       validCoupon =
         couponCode
@@ -1064,10 +1270,6 @@ function CheckoutPage({
 
       if (!validCoupon) {
         setCoupon(null);
-
-        localStorage.removeItem(
-          COUPON_STORAGE_KEY
-        );
 
         setCheckoutError(
           "The applied coupon is no longer valid. Please review your order."
@@ -1082,10 +1284,6 @@ function CheckoutPage({
       ) {
         setCoupon(null);
 
-        localStorage.removeItem(
-          COUPON_STORAGE_KEY
-        );
-
         setCheckoutError(
           `Coupon ${validCoupon.code} requires a minimum order value of ₹${validCoupon.minimum.toLocaleString(
             "en-IN"
@@ -1096,45 +1294,90 @@ function CheckoutPage({
       }
     }
 
+    // -----------------------------------------------
     // START SUBMISSION
+    // -----------------------------------------------
+
     setIsSubmitting(true);
 
+    // -----------------------------------------------
     // CREATE ORDER ITEMS
+    // -----------------------------------------------
+
     const orderItems =
-      checkoutItems.map((item) => ({
-        id: item.id,
+      checkoutItems.map((item) => {
+        const product =
+          products.find(
+            (productItem) =>
+              String(productItem.id) ===
+              String(item.id)
+          );
 
-        name: item.name,
+        return {
+          id:
+            product?.id ??
+            item.id,
 
-        image:
-          item.image ||
-          item.images?.[0] ||
-          "",
+          name:
+            product?.name ??
+            item.name,
 
-        category:
-          item.category || "",
+          image:
+            product?.image ||
+            product?.images?.[0] ||
+            item.image ||
+            item.images?.[0] ||
+            "",
 
-        price:
-          Number(item.price || 0),
+          category:
+            product?.category ||
+            item.category ||
+            "",
 
-        quantity:
-          Number(
-            item.quantity || 1
-          ),
+          price:
+            getDiscountedPrice(
+              product || item
+            ),
 
-        selectedSize:
-          item.selectedSize ?? null,
+          originalPrice:
+            Number(
+              product?.price ??
+              item.price ??
+              0
+            ),
 
-        selectedColor:
-          item.selectedColor ?? null,
+          discount:
+            Number(
+              product?.discount ??
+              item.discount ??
+              0
+            ),
 
-        itemKey:
-          getCartItemKey(item),
-      }));
+          quantity:
+            Number(
+              item.quantity || 1
+            ),
 
+          selectedSize:
+            item.selectedSize ??
+            null,
+
+          selectedColor:
+            item.selectedColor ??
+            null,
+
+          itemKey:
+            getCartItemKey(item),
+        };
+      });
+
+    // -----------------------------------------------
     // DELIVERY INFORMATION
+    // -----------------------------------------------
+
     const deliveryInfo = {
-      method: deliveryMethod,
+      method:
+        deliveryMethod,
 
       label:
         deliveryMethod ===
@@ -1148,64 +1391,149 @@ function CheckoutPage({
           ? "1–3 business days"
           : "3–7 business days",
 
-      charge: shipping,
+      charge:
+        shipping,
+
+      status:
+        "pending",
     };
 
+    // -----------------------------------------------
     // PAYMENT INFORMATION
+    // -----------------------------------------------
+
     const paymentInfo = {
-      method: paymentMethod,
+      method:
+        paymentMethod,
 
-      status: "pending",
+      status:
+        paymentMethod === "cod"
+          ? "pending"
+          : "payment-pending",
 
-      transactionId: null,
+      transactionId:
+        null,
+
+      gateway:
+        paymentMethod === "online"
+          ? null
+          : "cod",
+
+      paidAt:
+        null,
     };
 
+    // -----------------------------------------------
     // ORDER STATUS
+    // -----------------------------------------------
+
     const orderStatus =
       paymentMethod === "online"
         ? "payment-pending"
         : "confirmed";
 
+    // -----------------------------------------------
     // SAVE ADDRESS
+    // -----------------------------------------------
+
     const savedAddress =
       saveCurrentAddress();
 
+    // -----------------------------------------------
+    // NORMALIZED SHIPPING ADDRESS
+    // -----------------------------------------------
+
+    const shippingAddress = {
+      id:
+        savedAddress?.id ||
+        selectedAddressId ||
+        null,
+
+      fullName:
+        formData.name.trim(),
+
+      name:
+        formData.name.trim(),
+
+      email:
+        formData.email
+          .trim()
+          .toLowerCase(),
+
+      phone:
+        formData.phone.trim(),
+
+      addressLine:
+        formData.address.trim(),
+
+      address:
+        formData.address.trim(),
+
+      landmark:
+        formData.landmark.trim(),
+
+      city:
+        formData.city.trim(),
+
+      state:
+        formData.state.trim(),
+
+      pincode:
+        formData.pincode.trim(),
+    };
+
+    // -----------------------------------------------
     // CREATE ORDER
+    // -----------------------------------------------
+
+    const now =
+      new Date().toISOString();
+
     const order = {
-      id: `GD-${Date.now()}`,
+      id:
+        `GD-${Date.now()}`,
 
       createdAt:
-        new Date().toISOString(),
+        now,
 
       updatedAt:
-        new Date().toISOString(),
+        now,
 
-      status: orderStatus,
+      status:
+        orderStatus,
 
       source:
         isBuyNowCheckout
           ? "buy-now"
           : "cart",
 
+      // -------------------------------------------
       // USER
-      user: isAuthenticated
-        ? {
-            id:
-              user?.id || null,
+      // -------------------------------------------
 
-            name:
-              user?.name ||
-              formData.name.trim(),
+      user:
+        isAuthenticated
+          ? {
+              id:
+                user?.id ||
+                null,
 
-            email:
-              user?.email ||
-              formData.email
-                .trim()
-                .toLowerCase(),
-          }
-        : null,
+              name:
+                user?.name ||
+                formData.name.trim(),
 
+              email:
+                user?.email ||
+                formData.email
+                  .trim()
+                  .toLowerCase(),
+            }
+          : null,
+
+      // -------------------------------------------
       // CUSTOMER
+      // -------------------------------------------
+
       customer: {
         name:
           formData.name.trim(),
@@ -1219,40 +1547,23 @@ function CheckoutPage({
           formData.phone.trim(),
       },
 
+      // -------------------------------------------
       // SHIPPING ADDRESS
-      shippingAddress: {
-        id:
-          savedAddress?.id ||
-          selectedAddressId ||
-          null,
+      // -------------------------------------------
 
-        name:
-          formData.name.trim(),
+      shippingAddress,
 
-        phone:
-          formData.phone.trim(),
-
-        address:
-          formData.address.trim(),
-
-        city:
-          formData.city.trim(),
-
-        state:
-          formData.state.trim(),
-
-        pincode:
-          formData.pincode.trim(),
-
-        landmark:
-          savedAddress?.landmark ||
-          "",
-      },
-
+      // -------------------------------------------
       // ITEMS
-      items: orderItems,
+      // -------------------------------------------
 
+      items:
+        orderItems,
+
+      // -------------------------------------------
       // PRICING
+      // -------------------------------------------
+
       pricing: {
         subtotal,
 
@@ -1264,76 +1575,154 @@ function CheckoutPage({
 
         finalTotal,
 
-        total: finalTotal,
+        total:
+          finalTotal,
+
+        currency:
+          "INR",
       },
 
+      // -------------------------------------------
       // COUPON
-      coupon: validCoupon
-        ? {
-            code:
-              validCoupon.code,
+      // -------------------------------------------
 
-            type:
-              validCoupon.type,
+      coupon:
+        validCoupon
+          ? {
+              code:
+                validCoupon.code,
 
-            value:
-              validCoupon.value,
+              type:
+                validCoupon.type,
 
-            minimum:
-              validCoupon.minimum,
+              value:
+                validCoupon.value,
 
-            discount:
-              couponDiscount,
-          }
-        : null,
+              minimum:
+                validCoupon.minimum,
 
+              discount:
+                couponDiscount,
+            }
+          : null,
+
+      // -------------------------------------------
       // DELIVERY
+      // -------------------------------------------
+
       delivery:
         deliveryInfo,
 
       deliveryMethod,
 
+      // -------------------------------------------
       // PAYMENT
+      // -------------------------------------------
+
       payment:
         paymentInfo,
 
       paymentMethod,
 
+      // -------------------------------------------
       // REFUND
+      // -------------------------------------------
+
       refund: {
-        status: "not-requested",
+        status:
+          "not-requested",
 
-        amount: 0,
+        amount:
+          0,
 
-        requestedAt: null,
+        requestedAt:
+          null,
 
-        processedAt: null,
+        processedAt:
+          null,
+
+        transactionId:
+          null,
       },
 
+      // -------------------------------------------
       // CANCELLATION
+      // -------------------------------------------
+
       cancellation: {
-        status: "not-cancelled",
+        status:
+          "not-cancelled",
 
-        reason: "",
+        reason:
+          "",
 
-        cancelledAt: null,
+        cancelledAt:
+          null,
       },
 
+      // -------------------------------------------
       // RETURN
+      // -------------------------------------------
+
       returnRequest: {
-        status: "not-requested",
+        status:
+          "not-requested",
 
-        reason: "",
+        reason:
+          "",
 
-        requestedAt: null,
+        requestedAt:
+          null,
 
-        approvedAt: null,
+        approvedAt:
+          null,
 
-        completedAt: null,
+        completedAt:
+          null,
+      },
+
+      // -------------------------------------------
+      // TRACKING
+      // -------------------------------------------
+
+      tracking: {
+        carrier:
+          null,
+
+        trackingNumber:
+          null,
+
+        currentLocation:
+          null,
+
+        estimatedDelivery:
+          null,
+
+        events: [],
+      },
+
+      // -------------------------------------------
+      // FUTURE BACKEND METADATA
+      // -------------------------------------------
+
+      metadata: {
+        version:
+          "1.0",
+
+        platform:
+          "web",
+
+        createdFrom:
+          isBuyNowCheckout
+            ? "buy-now"
+            : "cart",
       },
     };
 
+    // =================================================
     // SAVE LAST ORDER
+    // =================================================
+
     try {
       const lastOrderKey =
         getUserStorageKey(
@@ -1349,32 +1738,21 @@ function CheckoutPage({
       // Ignore storage errors.
     }
 
-    // LOAD EXISTING ORDERS
-    let existingOrders = [];
-
-    try {
-      const savedOrders =
-        localStorage.getItem(
-          ORDERS_STORAGE_KEY
-        );
-
-      existingOrders =
-        savedOrders
-          ? JSON.parse(savedOrders)
-          : [];
-
-      if (
-        !Array.isArray(
-          existingOrders
-        )
-      ) {
-        existingOrders = [];
-      }
-    } catch {
-      existingOrders = [];
-    }
-
+    // =================================================
     // SAVE ORDER HISTORY
+    // =================================================
+
+    let existingOrders =
+      getExistingOrders();
+
+    // Prevent accidental duplicate ID
+    existingOrders =
+      existingOrders.filter(
+        (existingOrder) =>
+          existingOrder?.id !==
+          order.id
+      );
+
     existingOrders.unshift(order);
 
     try {
@@ -1385,10 +1763,19 @@ function CheckoutPage({
         )
       );
     } catch {
-      // Ignore storage errors.
+      setIsSubmitting(false);
+
+      setCheckoutError(
+        "Unable to save your order. Please try again."
+      );
+
+      return;
     }
 
+    // =================================================
     // SAVE LAST ADDRESS
+    // =================================================
+
     try {
       const lastAddressKey =
         getUserStorageKey(
@@ -1398,58 +1785,46 @@ function CheckoutPage({
 
       localStorage.setItem(
         lastAddressKey,
-        JSON.stringify({
-          name:
-            formData.name.trim(),
-
-          email:
-            formData.email
-              .trim()
-              .toLowerCase(),
-
-          phone:
-            formData.phone.trim(),
-
-          address:
-            formData.address.trim(),
-
-          city:
-            formData.city.trim(),
-
-          state:
-            formData.state.trim(),
-
-          pincode:
-            formData.pincode.trim(),
-        })
+        JSON.stringify(
+          shippingAddress
+        )
       );
     } catch {
       // Ignore storage errors.
     }
 
+    // =================================================
     // CLEAR CHECKOUT SOURCE
+    // =================================================
+
     if (isBuyNowCheckout) {
       clearBuyNow?.();
     } else {
       setCart([]);
     }
 
+    // =================================================
     // CLEAR COUPON
-    localStorage.removeItem(
-      COUPON_STORAGE_KEY
-    );
+    // =================================================
 
-    // GO TO SUCCESS PAGE
+    setCoupon(null);
+
+    // =================================================
+    // NAVIGATE TO SUCCESS PAGE
+    // =================================================
+
     setTimeout(() => {
       navigate(
-        "/order-success"
+        `/order-success?orderId=${encodeURIComponent(
+          order.id
+        )}`
       );
     }, 500);
   }
 
-  // ==========================================
+  // ====================================================
   // EMPTY CHECKOUT
-  // ==========================================
+  // ====================================================
 
   if (checkoutItems.length === 0) {
     return (
@@ -1496,7 +1871,9 @@ function CheckoutPage({
               mb-4
             "
           >
-            Your checkout is empty
+            {isBuyNowCheckout
+              ? "Product unavailable"
+              : "Your checkout is empty"}
           </h1>
 
           <p
@@ -1510,8 +1887,9 @@ function CheckoutPage({
               mx-auto
             "
           >
-            Add some products before
-            proceeding to checkout.
+            {isBuyNowCheckout
+              ? "The selected product variant or quantity is no longer available."
+              : "Add some products before proceeding to checkout."}
           </p>
 
           <Link
@@ -1542,9 +1920,9 @@ function CheckoutPage({
     );
   }
 
-  // ==========================================
+  // ====================================================
   // MAIN UI
-  // ==========================================
+  // ====================================================
 
   return (
     <section
@@ -1561,7 +1939,9 @@ function CheckoutPage({
     >
       <div className="max-w-7xl mx-auto">
 
-        {/* HEADER */}
+        {/* ============================================
+            HEADER
+        ============================================ */}
 
         <div className="mb-7 sm:mb-10">
 
@@ -1637,7 +2017,9 @@ function CheckoutPage({
           </p>
         </div>
 
-        {/* CHECKOUT ERROR */}
+        {/* ============================================
+            CHECKOUT ERROR
+        ============================================ */}
 
         {checkoutError && (
           <div
@@ -1657,7 +2039,9 @@ function CheckoutPage({
           </div>
         )}
 
-        {/* FORM */}
+        {/* ============================================
+            FORM
+        ============================================ */}
 
         <form
           onSubmit={handleSubmit}
@@ -1673,7 +2057,9 @@ function CheckoutPage({
             "
           >
 
-            {/* LEFT SIDE */}
+            {/* ========================================
+                LEFT SIDE
+            ======================================== */}
 
             <div
               className="
@@ -1683,7 +2069,9 @@ function CheckoutPage({
               "
             >
 
-              {/* CUSTOMER DETAILS */}
+              {/* ======================================
+                  CUSTOMER DETAILS
+              ====================================== */}
 
               <div
                 className="
@@ -1768,7 +2156,9 @@ function CheckoutPage({
                 </div>
               </div>
 
-              {/* SAVED ADDRESSES */}
+              {/* ======================================
+                  SAVED ADDRESSES
+              ====================================== */}
 
               {isAuthenticated &&
                 savedAddresses.length > 0 && (
@@ -1935,6 +2325,21 @@ function CheckoutPage({
                                 }
                               </p>
 
+                              {address.landmark && (
+                                <p
+                                  className="
+                                    text-xs
+                                    text-gray-500
+                                    mt-1
+                                  "
+                                >
+                                  Landmark:{" "}
+                                  {
+                                    address.landmark
+                                  }
+                                </p>
+                              )}
+
                               <p
                                 className="
                                   text-sm
@@ -1994,7 +2399,9 @@ function CheckoutPage({
                   </div>
                 )}
 
-              {/* DELIVERY ADDRESS */}
+              {/* ======================================
+                  DELIVERY ADDRESS
+              ====================================== */}
 
               <div
                 className="
@@ -2076,6 +2483,21 @@ function CheckoutPage({
                     placeholder="House number, street, area"
                   />
 
+                  <InputField
+                    label="Landmark"
+                    name="landmark"
+                    value={
+                      formData.landmark
+                    }
+                    error={
+                      errors.landmark
+                    }
+                    onChange={
+                      handleChange
+                    }
+                    placeholder="Apartment, building or nearby landmark"
+                  />
+
                   <div
                     className="
                       grid
@@ -2134,7 +2556,9 @@ function CheckoutPage({
                 </div>
               </div>
 
-              {/* DELIVERY METHOD */}
+              {/* ======================================
+                  DELIVERY METHOD
+              ====================================== */}
 
               <div
                 className="
@@ -2180,6 +2604,7 @@ function CheckoutPage({
                       sm:p-4
                       cursor-pointer
                       transition
+
                       ${
                         deliveryMethod ===
                         "standard"
@@ -2266,6 +2691,7 @@ function CheckoutPage({
                       sm:p-4
                       cursor-pointer
                       transition
+
                       ${
                         deliveryMethod ===
                         "express"
@@ -2336,7 +2762,9 @@ function CheckoutPage({
                 </div>
               </div>
 
-              {/* PAYMENT METHOD */}
+              {/* ======================================
+                  PAYMENT METHOD
+              ====================================== */}
 
               <div
                 className="
@@ -2380,6 +2808,7 @@ function CheckoutPage({
                       sm:p-4
                       cursor-pointer
                       transition
+
                       ${
                         paymentMethod ===
                         "cod"
@@ -2445,6 +2874,7 @@ function CheckoutPage({
                       sm:p-4
                       cursor-pointer
                       transition
+
                       ${
                         paymentMethod ===
                         "online"
@@ -2491,10 +2921,10 @@ function CheckoutPage({
                           mt-0.5
                         "
                       >
-                        Secure payment
-                        gateway integration
-                        will be connected
-                        later.
+                        Payment gateway
+                        integration will
+                        be connected in
+                        the backend phase.
                       </p>
                     </div>
                   </label>
@@ -2502,7 +2932,9 @@ function CheckoutPage({
               </div>
             </div>
 
-            {/* RIGHT SIDE */}
+            {/* ========================================
+                RIGHT SIDE
+            ======================================== */}
 
             <div>
               <div
@@ -2552,9 +2984,30 @@ function CheckoutPage({
                       rounded-full
                     "
                   >
-                    {checkoutItems.length}{" "}
-                    {checkoutItems.length ===
-                    1
+                    {checkoutItems.reduce(
+                      (
+                        total,
+                        item
+                      ) =>
+                        total +
+                        Number(
+                          item.quantity ||
+                            0
+                        ),
+                      0
+                    )}{" "}
+                    {checkoutItems.reduce(
+                      (
+                        total,
+                        item
+                      ) =>
+                        total +
+                        Number(
+                          item.quantity ||
+                            0
+                        ),
+                      0
+                    ) === 1
                       ? "ITEM"
                       : "ITEMS"}
                   </span>
@@ -2689,7 +3142,7 @@ function CheckoutPage({
                   )}
                 </div>
 
-                {/* FREE SHIPPING */}
+                {/* FREE SHIPPING MESSAGE */}
 
                 {deliveryMethod ===
                   "standard" &&
@@ -2755,9 +3208,6 @@ function CheckoutPage({
                     sm:text-base
                   "
                 >
-
-                  {/* SUBTOTAL */}
-
                   <div
                     className="
                       flex
@@ -2765,27 +3215,17 @@ function CheckoutPage({
                       gap-4
                     "
                   >
-                    <span
-                      className="
-                        text-gray-500
-                      "
-                    >
+                    <span className="text-gray-500">
                       Subtotal
                     </span>
 
-                    <span
-                      className="
-                        font-semibold
-                      "
-                    >
+                    <span className="font-semibold">
                       ₹
                       {subtotal.toLocaleString(
                         "en-IN"
                       )}
                     </span>
                   </div>
-
-                  {/* COUPON */}
 
                   {couponDiscount > 0 && (
                     <div
@@ -2801,11 +3241,7 @@ function CheckoutPage({
                         {coupon?.code}
                       </span>
 
-                      <span
-                        className="
-                          font-semibold
-                        "
-                      >
+                      <span className="font-semibold">
                         -₹
                         {couponDiscount.toLocaleString(
                           "en-IN"
@@ -2814,8 +3250,6 @@ function CheckoutPage({
                     </div>
                   )}
 
-                  {/* DELIVERY */}
-
                   <div
                     className="
                       flex
@@ -2823,19 +3257,11 @@ function CheckoutPage({
                       gap-4
                     "
                   >
-                    <span
-                      className="
-                        text-gray-500
-                      "
-                    >
+                    <span className="text-gray-500">
                       Delivery
                     </span>
 
-                    <span
-                      className="
-                        font-semibold
-                      "
-                    >
+                    <span className="font-semibold">
                       {shipping === 0
                         ? "FREE"
                         : `₹${shipping}`}
@@ -2919,10 +3345,10 @@ function CheckoutPage({
                       text-gray-600
                     "
                   >
-                    🔒 Online payment will
-                    be securely processed
-                    after the payment gateway
-                    is connected.
+                    🔒 You will continue
+                    to the payment gateway
+                    after the backend
+                    integration is added.
                   </div>
                 )}
 
@@ -2961,6 +3387,30 @@ function CheckoutPage({
                     : "PLACE ORDER"}
                 </button>
 
+                {/* SECURITY */}
+
+                <div
+                  className="
+                    flex
+                    items-center
+                    justify-center
+                    gap-2
+                    mt-4
+                    text-[10px]
+                    sm:text-xs
+                    text-gray-500
+                  "
+                >
+                  <span>🔒</span>
+                  <span>
+                    Secure checkout
+                  </span>
+                  <span>•</span>
+                  <span>
+                    Your details are protected
+                  </span>
+                </div>
+
                 {/* TERMS */}
 
                 <p
@@ -2970,7 +3420,6 @@ function CheckoutPage({
                     text-gray-500
                     text-center
                     mt-3
-                    sm:mt-4
                     leading-5
                   "
                 >
@@ -2978,7 +3427,6 @@ function CheckoutPage({
                   you agree to our terms
                   and conditions.
                 </p>
-
               </div>
             </div>
           </div>
@@ -2989,3 +3437,4 @@ function CheckoutPage({
 }
 
 export default CheckoutPage;
+
