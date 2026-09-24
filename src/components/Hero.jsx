@@ -1,225 +1,356 @@
 import { Link } from "react-router-dom";
+import products from "../data/products";
 
 function Hero() {
+  const heroProducts = products
+    .filter((product) => Number(product.stock || 0) > 0)
+    .slice(0, 3);
+
   return (
-    <section className="bg-white px-4 py-4">
+    <section className="bg-white">
+      {/* =========================================
+          TOP OFFER STRIP
+      ========================================= */}
 
-      {/* Top Offer Banner */}
-
-      <div
+      <Link
+        to="/shop"
         className="
-          bg-gradient-to-r
-          from-orange-500
-          via-orange-600
-          to-red-500
-          text-white
-          rounded-3xl
-          p-5
-          flex
-          items-center
-          justify-between
-          mb-5
-          shadow-lg
+          block
+          border-b
+          border-orange-100
+          bg-[#fff4e8]
+          px-4
+          py-3
+          text-center
         "
       >
-        <div>
-          <p className="text-xs uppercase tracking-[3px] opacity-90">
-            GymDrobe Exclusive
-          </p>
-
-          <h3 className="text-2xl font-bold mt-1">
-            Up To 70% OFF
-          </h3>
-
-          <p className="text-sm opacity-90 mt-1">
-            Premium Gym Wear & Accessories
-          </p>
-        </div>
-
-        <div className="text-5xl animate-pulse">
-          🔥
-        </div>
-      </div>
-
-      {/* Main Banner */}
-
-      <div
-        className="
-          relative
-          overflow-hidden
-          rounded-[32px]
-          h-[500px]
-          shadow-xl
-        "
-      >
-        <img
-          src="https://images.unsplash.com/photo-1517836357463-d25dfeac3438"
-          alt="GymDrobe"
+        <p
           className="
-            absolute
-            inset-0
-            w-full
-            h-full
-            object-cover
-            scale-105
-          "
-        />
-
-        <div
-          className="
-            absolute
-            inset-0
-            bg-gradient-to-r
-            from-black/90
-            via-black/60
-            to-black/20
-          "
-        />
-
-        <div
-          className="
-            relative
-            z-10
-            h-full
-            flex
-            items-center
+            text-[11px]
+            font-semibold
+            uppercase
+            tracking-[0.08em]
+            text-[#282c3f]
+            sm:text-xs
           "
         >
-          <div className="max-w-2xl px-8 md:px-14">
+          GymDrobe Training Sale
+          <span className="mx-2 text-orange-600">•</span>
+          Up To 10% Off
+          <span className="mx-2 text-orange-600">•</span>
+          Shop Now →
+        </p>
+      </Link>
 
-            <span
+      {/* =========================================
+          MAIN HERO
+      ========================================= */}
+
+      <div
+        className="
+          mx-auto
+          max-w-[1600px]
+          px-0
+          pt-4
+          md:px-6
+          md:pt-6
+        "
+      >
+        <div
+          className="
+            grid
+            overflow-hidden
+            bg-[#f2ede7]
+            md:min-h-[430px]
+            md:grid-cols-[0.9fr_1.1fr]
+          "
+        >
+          {/* LEFT */}
+
+          <div
+            className="
+              flex
+              flex-col
+              justify-center
+              px-6
+              py-10
+              sm:px-10
+              md:px-14
+              lg:px-20
+            "
+          >
+            <p
               className="
-                inline-block
-                bg-orange-600
-                px-4
-                py-2
-                rounded-full
                 text-xs
                 font-bold
-                tracking-wider
-                mb-5
+                uppercase
+                tracking-[0.2em]
+                text-orange-600
               "
             >
-              NEW ARRIVALS
-            </span>
+              GymDrobe Training Edit
+            </p>
 
             <h1
               className="
-                text-5xl
-                md:text-7xl
-                font-black
-                text-white
-                leading-tight
+                mt-4
+                max-w-[620px]
+                text-[38px]
+                font-extrabold
+                leading-[1.02]
+                tracking-[-0.04em]
+                text-[#282c3f]
+                sm:text-5xl
+                lg:text-[64px]
               "
             >
-              EVERYTHING
+              GEAR UP.
               <br />
-              YOU NEED
-              <br />
-              FOR EVERY
-              <br />
-              WORKOUT
+              MOVE BETTER.
             </h1>
 
             <p
               className="
-                mt-6
-                text-gray-300
-                text-lg
-                max-w-xl
+                mt-5
+                max-w-[500px]
+                text-sm
+                leading-6
+                text-[#696b79]
+                sm:text-base
               "
             >
-              Discover premium gym clothing,
-              shoes, bottles, towels,
-              accessories and supplements
-              designed for performance.
+              Performance clothing, training shoes
+              and workout essentials built for
+              every session.
             </p>
 
-            <div className="flex flex-wrap gap-4 mt-8">
-
+            <div
+              className="
+                mt-7
+                flex
+                flex-wrap
+                gap-3
+              "
+            >
               <Link
                 to="/shop"
                 className="
+                  inline-flex
+                  min-h-[46px]
+                  items-center
+                  justify-center
                   bg-orange-600
-                  hover:bg-orange-700
-                  px-8
-                  py-4
-                  rounded-xl
+                  px-7
+                  text-xs
                   font-bold
+                  uppercase
+                  tracking-[0.08em]
+                  text-white
                   transition
+                  hover:bg-orange-700
                 "
               >
-                SHOP NOW
+                Shop Collection
               </Link>
 
               <Link
-                to="/wishlist"
+                to="/shop?search=bestseller"
                 className="
-                  border-2
-                  border-white
-                  hover:bg-white
-                  hover:text-black
-                  px-8
-                  py-4
-                  rounded-xl
+                  inline-flex
+                  min-h-[46px]
+                  items-center
+                  justify-center
+                  border
+                  border-[#282c3f]
+                  bg-transparent
+                  px-7
+                  text-xs
                   font-bold
+                  uppercase
+                  tracking-[0.08em]
+                  text-[#282c3f]
                   transition
+                  hover:bg-[#282c3f]
+                  hover:text-white
                 "
               >
-                WISHLIST
+                Bestsellers
               </Link>
-
             </div>
+          </div>
 
+          {/* RIGHT PRODUCT VISUAL */}
+
+          <div
+            className="
+              grid
+              min-h-[320px]
+              grid-cols-3
+              border-t
+              border-white/60
+              md:min-h-full
+              md:border-l
+              md:border-t-0
+            "
+          >
+            {heroProducts.map((product, index) => (
+              <Link
+                key={product.id}
+                to={`/product/${product.id}`}
+                className={`
+                  group
+                  relative
+                  overflow-hidden
+                  ${
+                    index !== heroProducts.length - 1
+                      ? "border-r border-white/70"
+                      : ""
+                  }
+                `}
+              >
+                <img
+                  src={product.image}
+                  alt={product.name}
+                  className="
+                    absolute
+                    inset-0
+                    h-full
+                    w-full
+                    object-cover
+                    transition
+                    duration-700
+                    group-hover:scale-105
+                  "
+                />
+
+                <div
+                  className="
+                    absolute
+                    inset-0
+                    bg-gradient-to-t
+                    from-black/70
+                    via-black/10
+                    to-transparent
+                  "
+                />
+
+                <div
+                  className="
+                    absolute
+                    bottom-0
+                    left-0
+                    right-0
+                    p-3
+                    text-white
+                    sm:p-5
+                  "
+                >
+                  {product.badge && (
+                    <p
+                      className="
+                        text-[8px]
+                        font-bold
+                        uppercase
+                        tracking-wider
+                        text-orange-300
+                        sm:text-[10px]
+                      "
+                    >
+                      {product.badge}
+                    </p>
+                  )}
+
+                  <p
+                    className="
+                      mt-1
+                      line-clamp-2
+                      text-[11px]
+                      font-bold
+                      leading-tight
+                      text-white
+                      sm:text-sm
+                    "
+                  >
+                    {product.name}
+                  </p>
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
 
-        {/* Stats */}
+        {/* DOTS */}
 
         <div
           className="
-            absolute
-            bottom-6
-            left-6
-            right-6
-            bg-white/10
-            backdrop-blur-md
-            rounded-2xl
-            p-4
-            grid
-            grid-cols-3
-            gap-4
-            text-white
+            flex
+            items-center
+            justify-center
+            gap-2
+            py-3
           "
         >
-          <div className="text-center">
-            <h4 className="font-bold text-xl">
-              10K+
-            </h4>
-            <p className="text-xs">
-              Customers
+          <span className="h-1.5 w-5 rounded-full bg-orange-600" />
+          <span className="h-1.5 w-1.5 rounded-full bg-gray-300" />
+          <span className="h-1.5 w-1.5 rounded-full bg-gray-300" />
+          <span className="h-1.5 w-1.5 rounded-full bg-gray-300" />
+        </div>
+      </div>
+
+      {/* =========================================
+          BENEFITS BAR
+      ========================================= */}
+
+      <div
+        className="
+          border-y
+          border-[#eaeaec]
+          bg-white
+        "
+      >
+        <div
+          className="
+            mx-auto
+            grid
+            max-w-[1600px]
+            grid-cols-1
+            divide-y
+            divide-[#eaeaec]
+            sm:grid-cols-3
+            sm:divide-x
+            sm:divide-y-0
+          "
+        >
+          <div className="px-5 py-4 text-center">
+            <p className="text-xs font-bold uppercase text-[#282c3f]">
+              Free Delivery
+            </p>
+
+            <p className="mt-1 text-[11px] text-[#696b79]">
+              On qualifying orders above ₹500
             </p>
           </div>
 
-          <div className="text-center">
-            <h4 className="font-bold text-xl">
-              500+
-            </h4>
-            <p className="text-xs">
-              Products
+          <div className="px-5 py-4 text-center">
+            <p className="text-xs font-bold uppercase text-[#282c3f]">
+              Easy Returns
+            </p>
+
+            <p className="mt-1 text-[11px] text-[#696b79]">
+              Easy 7-day return & replacement
             </p>
           </div>
 
-          <div className="text-center">
-            <h4 className="font-bold text-xl">
-              4.9★
-            </h4>
-            <p className="text-xs">
-              Rating
+          <div className="px-5 py-4 text-center">
+            <p className="text-xs font-bold uppercase text-[#282c3f]">
+              Workout Ready
+            </p>
+
+            <p className="mt-1 text-[11px] text-[#696b79]">
+              Gear selected for gym and training
             </p>
           </div>
         </div>
-
       </div>
     </section>
   );

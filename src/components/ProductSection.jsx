@@ -3,70 +3,28 @@ import {
   useMemo,
   useState,
 } from "react";
+
 import { useSearchParams } from "react-router-dom";
 
 import ProductCard from "./ProductCard";
 import products from "../data/products";
 
-// =====================================================
-// HELPERS
-// =====================================================
+/* =========================================================
+   HELPERS
+========================================================= */
 
-function getProductStock(product) {
-  if (!product) {
-    return 0;
+function getArrayFromParam(searchParams, key) {
+  const value = searchParams.get(key);
+
+  if (!value) {
+    return [];
   }
 
-  // If variants exist, calculate stock from variants.
-  if (
-    product.variants &&
-    typeof product.variants === "object"
-  ) {
-    let totalStock = 0;
-
-    Object.values(product.variants).forEach(
-      (variantGroup) => {
-        if (
-          typeof variantGroup === "number" &&
-          Number.isFinite(variantGroup)
-        ) {
-          totalStock += variantGroup;
-          return;
-        }
-
-        if (
-          variantGroup &&
-          typeof variantGroup === "object"
-        ) {
-          Object.values(
-            variantGroup
-          ).forEach((value) => {
-            if (
-              typeof value === "number" &&
-              Number.isFinite(value)
-            ) {
-              totalStock += value;
-            }
-          });
-        }
-      }
-    );
-
-    return Math.max(0, totalStock);
-  }
-
-  // Fallback to direct stock.
-  if (
-    typeof product.stock === "number" &&
-    Number.isFinite(product.stock)
-  ) {
-    return Math.max(0, product.stock);
-  }
-
-  return 0;
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
-
-// -----------------------------------------------------
 
 function getDiscountedPrice(product) {
   const price = Number(product?.price || 0);
@@ -80,7 +38,7 @@ function getDiscountedPrice(product) {
     !Number.isFinite(discount) ||
     discount <= 0
   ) {
-    return price;
+    return Math.round(price);
   }
 
   return Math.round(
@@ -88,7 +46,74 @@ function getDiscountedPrice(product) {
   );
 }
 
-// -----------------------------------------------------
+/* =========================================================
+   STOCK
+
+   Variant stock is the preferred source because your
+   products can have stock separated by size/color.
+========================================================= */
+
+function getProductStock(product) {
+  if (!product) {
+    return 0;
+  }
+
+  if (
+    product.variants &&
+    typeof product.variants === "object"
+  ) {
+    let totalStock = 0;
+
+    Object.values(
+      product.variants
+    ).forEach((variantGroup) => {
+      if (
+        typeof variantGroup === "number" &&
+        Number.isFinite(variantGroup)
+      ) {
+        totalStock += variantGroup;
+        return;
+      }
+
+      if (
+        variantGroup &&
+        typeof variantGroup === "object"
+      ) {
+        Object.values(
+          variantGroup
+        ).forEach((value) => {
+          const stock =
+            Number(value);
+
+          if (
+            Number.isFinite(stock)
+          ) {
+            totalStock += stock;
+          }
+        });
+      }
+    });
+
+    return Math.max(
+      totalStock,
+      0
+    );
+  }
+
+  const directStock =
+    Number(product.stock);
+
+  if (
+    Number.isFinite(directStock)
+  ) {
+    return Math.max(
+      directStock,
+      0
+    );
+  }
+
+  return 0;
+}
 
 function getSearchableText(product) {
   return [
@@ -96,73 +121,283 @@ function getSearchableText(product) {
     product?.category,
     product?.subcategory,
     product?.brand,
-    product?.description,
     product?.gender,
     product?.material,
+    product?.description,
     product?.sku,
     product?.badge,
+    ...(product?.tags || []),
     ...(product?.colors || []),
     ...(product?.sizes || []),
-    ...(product?.tags || []),
   ]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
 }
 
-// -----------------------------------------------------
-
-function getArrayFromParam(
-  searchParams,
-  key
-) {
-  const value = searchParams.get(key);
-
-  if (!value) {
-    return [];
-  }
-
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
+function uniqueValues(values) {
+  return [
+    ...new Set(
+      values.filter(Boolean)
+    ),
+  ];
 }
 
-// -----------------------------------------------------
+/* =========================================================
+   SIZE SORTING
+========================================================= */
 
-function getSalesValue(product) {
-  return Number(
-    product?.soldCount ??
-      product?.sales ??
-      product?.orders ??
-      product?.popularity ??
-      0
+function sortSizes(values) {
+  const sizeOrder = [
+    "XXS",
+    "XS",
+    "S",
+    "M",
+    "L",
+    "XL",
+    "XXL",
+    "XXXL",
+  ];
+
+  return [...values].sort(
+    (first, second) => {
+      const firstNumber =
+        Number(first);
+
+      const secondNumber =
+        Number(second);
+
+      if (
+        Number.isFinite(firstNumber) &&
+        Number.isFinite(secondNumber)
+      ) {
+        return (
+          firstNumber -
+          secondNumber
+        );
+      }
+
+      const firstIndex =
+        sizeOrder.indexOf(
+          String(first)
+        );
+
+      const secondIndex =
+        sizeOrder.indexOf(
+          String(second)
+        );
+
+      if (
+        firstIndex !== -1 &&
+        secondIndex !== -1
+      ) {
+        return (
+          firstIndex -
+          secondIndex
+        );
+      }
+
+      if (firstIndex !== -1) {
+        return -1;
+      }
+
+      if (secondIndex !== -1) {
+        return 1;
+      }
+
+      return String(
+        first
+      ).localeCompare(
+        String(second)
+      );
+    }
   );
 }
 
-// =====================================================
-// COMPONENT
-// =====================================================
+/* =========================================================
+   COLOR DOTS
+========================================================= */
+
+function getColorHex(color) {
+  const colors = {
+    Black: "#111111",
+    White: "#ffffff",
+    Blue: "#2563eb",
+    Grey: "#9ca3af",
+    Gray: "#9ca3af",
+    Red: "#dc2626",
+    Green: "#16a34a",
+    Orange: "#f97316",
+    Yellow: "#eab308",
+    Pink: "#ec4899",
+    Purple: "#9333ea",
+    Navy: "#172554",
+    Brown: "#78350f",
+    Beige: "#d6c5a8",
+    Graphite: "#374151",
+  };
+
+  return (
+    colors[color] ||
+    "#d1d5db"
+  );
+}
+
+/* =========================================================
+   FILTER SECTION
+========================================================= */
+
+function FilterSection({
+  title,
+  children,
+}) {
+  return (
+    <div
+      className="
+        border-b
+        border-[#eaeaec]
+        px-5
+        py-5
+      "
+    >
+      <h3
+        className="
+          mb-4
+          text-[12px]
+          font-bold
+          uppercase
+          tracking-[0.04em]
+          text-[#282c3f]
+        "
+      >
+        {title}
+      </h3>
+
+      {children}
+    </div>
+  );
+}
+
+/* =========================================================
+   FILTER CHECKBOX
+========================================================= */
+
+function FilterCheckbox({
+  checked,
+  onChange,
+  label,
+  count,
+  color,
+}) {
+  return (
+    <label
+      className="
+        flex
+        cursor-pointer
+        items-center
+        gap-3
+        py-[5px]
+        text-[13px]
+        text-[#282c3f]
+      "
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        className="
+          h-[15px]
+          w-[15px]
+          shrink-0
+          cursor-pointer
+          accent-orange-600
+        "
+      />
+
+      {color && (
+        <span
+          className="
+            h-3
+            w-3
+            shrink-0
+            rounded-full
+            border
+            border-gray-300
+          "
+          style={{
+            backgroundColor:
+              getColorHex(
+                color
+              ),
+          }}
+        />
+      )}
+
+      <span
+        className="
+          min-w-0
+          truncate
+        "
+      >
+        {label}
+      </span>
+
+      {count !== undefined && (
+        <span
+          className="
+            ml-auto
+            text-[10px]
+            text-[#94969f]
+          "
+        >
+          ({count})
+        </span>
+      )}
+    </label>
+  );
+}
+
+/* =========================================================
+   MAIN COMPONENT
+========================================================= */
 
 function ProductSection({
   wishlist = [],
   toggleWishlist,
 }) {
-  const [searchParams, setSearchParams] =
-    useSearchParams();
+  const [
+    searchParams,
+    setSearchParams,
+  ] = useSearchParams();
 
-  // ===================================================
-  // URL VALUES
-  // ===================================================
+  const [
+    isFilterOpen,
+    setIsFilterOpen,
+  ] = useState(false);
 
-  const urlSearch =
-    searchParams.get("search") || "";
+  const [
+    visibleCount,
+    setVisibleCount,
+  ] = useState(15);
+
+  /* =======================================================
+     URL VALUES
+  ======================================================= */
+
+  const search =
+    searchParams.get(
+      "search"
+    ) || "";
 
   const selectedCategory =
-    searchParams.get("category") || "";
+    searchParams.get(
+      "category"
+    ) || "";
 
   const selectedSubcategory =
-    searchParams.get("subcategory") || "";
+    searchParams.get(
+      "subcategory"
+    ) || "";
 
   const selectedBrands =
     getArrayFromParam(
@@ -183,109 +418,55 @@ function ProductSection({
     );
 
   const availability =
-    searchParams.get("availability") || "";
+    searchParams.get(
+      "availability"
+    ) || "";
 
-  const urlSort =
-    searchParams.get("sort") || "default";
+  const sort =
+    searchParams.get(
+      "sort"
+    ) || "default";
 
-  const urlMinPrice =
-    searchParams.get("minPrice") || "";
+  const minPrice =
+    searchParams.get(
+      "minPrice"
+    ) || "";
 
-  const urlMaxPrice =
-    searchParams.get("maxPrice") || "";
+  const maxPrice =
+    searchParams.get(
+      "maxPrice"
+    ) || "";
 
-  const urlMinRating =
-    searchParams.get("rating") || "";
+  const minRating =
+    searchParams.get(
+      "rating"
+    ) || "";
 
-  const urlMinDiscount =
-    searchParams.get("discount") || "";
+  const minDiscount =
+    searchParams.get(
+      "discount"
+    ) || "";
 
-  // ===================================================
-  // STATE
-  // ===================================================
+  /* =======================================================
+     RESET PAGINATION WHEN FILTER CHANGES
+  ======================================================= */
 
-  const [search, setSearch] =
-    useState(urlSearch);
-
-  const [sort, setSort] =
-    useState(urlSort);
-
-  const [minPrice, setMinPrice] =
-    useState(urlMinPrice);
-
-  const [maxPrice, setMaxPrice] =
-    useState(urlMaxPrice);
-
-  const [minRating, setMinRating] =
-    useState(urlMinRating);
-
-  const [minDiscount, setMinDiscount] =
-    useState(urlMinDiscount);
-
-  const [isFilterOpen, setIsFilterOpen] =
-    useState(false);
-
-  const [recentSearches, setRecentSearches] =
-    useState([]);
-
-  const [visibleCount, setVisibleCount] =
-    useState(12);
-
-  // ===================================================
-  // LOAD RECENT SEARCHES
-  // ===================================================
+  const filterKey =
+    searchParams.toString();
 
   useEffect(() => {
-    try {
-      const stored =
-        localStorage.getItem(
-          "gymdrobe-recent-searches"
-        );
+    setVisibleCount(15);
+  }, [filterKey]);
 
-      if (!stored) {
-        return;
-      }
-
-      const parsed =
-        JSON.parse(stored);
-
-      if (Array.isArray(parsed)) {
-        setRecentSearches(parsed);
-      }
-    } catch {
-      setRecentSearches([]);
-    }
-  }, []);
-
-  // ===================================================
-  // SYNC LOCAL STATE WITH URL
-  // ===================================================
-
-  useEffect(() => {
-    setSearch(urlSearch);
-    setSort(urlSort);
-    setMinPrice(urlMinPrice);
-    setMaxPrice(urlMaxPrice);
-    setMinRating(urlMinRating);
-    setMinDiscount(urlMinDiscount);
-  }, [
-    urlSearch,
-    urlSort,
-    urlMinPrice,
-    urlMaxPrice,
-    urlMinRating,
-    urlMinDiscount,
-  ]);
-
-  // ===================================================
-  // URL UPDATE HELPER
-  // ===================================================
+  /* =======================================================
+     URL HELPERS
+  ======================================================= */
 
   function updateParam(
     key,
     value
   ) {
-    const newParams =
+    const next =
       new URLSearchParams(
         searchParams
       );
@@ -295,328 +476,69 @@ function ProductSection({
       value === null ||
       value === undefined
     ) {
-      newParams.delete(key);
+      next.delete(key);
     } else {
-      newParams.set(
+      next.set(
         key,
-        value
+        String(value)
       );
     }
 
-    setSearchParams(newParams);
+    setSearchParams(next);
   }
 
-  // ===================================================
-  // UPDATE MULTIPLE PARAMS
-  // ===================================================
-
-  function updateParams(
+  function updateMultipleParams(
     updates
   ) {
-    const newParams =
+    const next =
       new URLSearchParams(
         searchParams
       );
 
-    Object.entries(updates).forEach(
+    Object.entries(
+      updates
+    ).forEach(
       ([key, value]) => {
         if (
           value === "" ||
           value === null ||
           value === undefined
         ) {
-          newParams.delete(key);
+          next.delete(key);
         } else {
-          newParams.set(
+          next.set(
             key,
-            value
+            String(value)
           );
         }
       }
     );
 
-    setSearchParams(newParams);
+    setSearchParams(next);
   }
 
-  // ===================================================
-  // SEARCH
-  // ===================================================
-
-  function updateSearch(value) {
-    setSearch(value);
-
-    const newParams =
-      new URLSearchParams(
-        searchParams
-      );
-
-    const cleanValue =
-      value.trim();
-
-    if (cleanValue) {
-      newParams.set(
-        "search",
-        cleanValue
-      );
-    } else {
-      newParams.delete("search");
-    }
-
-    setSearchParams(newParams);
-  }
-
-  // ===================================================
-  // SAVE RECENT SEARCH
-  // ===================================================
-
-  function saveRecentSearch(
-    value
-  ) {
-    const cleanValue =
-      value.trim();
-
-    if (!cleanValue) {
-      return;
-    }
-
-    const updated = [
-      cleanValue,
-      ...recentSearches.filter(
-        (item) =>
-          item.toLowerCase() !==
-          cleanValue.toLowerCase()
-      ),
-    ].slice(0, 5);
-
-    setRecentSearches(updated);
-
-    try {
-      localStorage.setItem(
-        "gymdrobe-recent-searches",
-        JSON.stringify(updated)
-      );
-    } catch {
-      // Ignore storage errors.
-    }
-  }
-
-  // ===================================================
-  // REMOVE RECENT SEARCH
-  // ===================================================
-
-  function removeRecentSearch(
-    value
-  ) {
-    const updated =
-      recentSearches.filter(
-        (item) => item !== value
-      );
-
-    setRecentSearches(updated);
-
-    try {
-      localStorage.setItem(
-        "gymdrobe-recent-searches",
-        JSON.stringify(updated)
-      );
-    } catch {
-      // Ignore storage errors.
-    }
-  }
-
-  // ===================================================
-  // CLEAR RECENT SEARCHES
-  // ===================================================
-
-  function clearRecentSearches() {
-    setRecentSearches([]);
-
-    try {
-      localStorage.removeItem(
-        "gymdrobe-recent-searches"
-      );
-    } catch {
-      // Ignore storage errors.
-    }
-  }
-
-  // ===================================================
-  // SEARCH SUBMIT
-  // ===================================================
-
-  function handleSearchSubmit() {
-    if (!search.trim()) {
-      return;
-    }
-
-    saveRecentSearch(search);
-
-    setIsFilterOpen(false);
-  }
-
-  // ===================================================
-  // SEARCH SUGGESTIONS
-  // ===================================================
-
-  const searchSuggestions =
-    useMemo(() => {
-      const text =
-        search.trim().toLowerCase();
-
-      if (!text) {
-        return [];
-      }
-
-      return products
-        .filter((product) =>
-          getSearchableText(
-            product
-          ).includes(text)
-        )
-        .slice(0, 6);
-    }, [search]);
-
-  // ===================================================
-  // CATEGORY OPTIONS
-  // ===================================================
-
-  const categories =
-    useMemo(() => {
-      return [
-        ...new Set(
-          products
-            .map(
-              (product) =>
-                product.category
-            )
-            .filter(Boolean)
-        ),
-      ].sort();
-    }, []);
-
-  // ===================================================
-  // SUBCATEGORY OPTIONS
-  // ===================================================
-
-  const subcategories =
-    useMemo(() => {
-      const source =
-        selectedCategory
-          ? products.filter(
-              (product) =>
-                product.category ===
-                selectedCategory
-            )
-          : products;
-
-      return [
-        ...new Set(
-          source
-            .map(
-              (product) =>
-                product.subcategory
-            )
-            .filter(Boolean)
-        ),
-      ].sort();
-    }, [selectedCategory]);
-
-  // ===================================================
-  // BRAND OPTIONS
-  // ===================================================
-
-  const brands =
-    useMemo(() => {
-      return [
-        ...new Set(
-          products
-            .map(
-              (product) =>
-                product.brand
-            )
-            .filter(Boolean)
-        ),
-      ].sort();
-    }, []);
-
-  // ===================================================
-  // SIZE OPTIONS
-  // ===================================================
-
-  const sizes =
-    useMemo(() => {
-      const sizeSet =
-        new Set();
-
-      products.forEach(
-        (product) => {
-          (
-            product.sizes || []
-          ).forEach((size) => {
-            sizeSet.add(size);
-          });
-        }
-      );
-
-      return [...sizeSet].sort(
-        (a, b) =>
-          String(a).localeCompare(
-            String(b),
-            undefined,
-            {
-              numeric: true,
-            }
-          )
-      );
-    }, []);
-
-  // ===================================================
-  // COLOR OPTIONS
-  // ===================================================
-
-  const colors =
-    useMemo(() => {
-      const colorSet =
-        new Set();
-
-      products.forEach(
-        (product) => {
-          (
-            product.colors || []
-          ).forEach((color) => {
-            colorSet.add(color);
-          });
-        }
-      );
-
-      return [...colorSet].sort();
-    }, []);
-
-  // ===================================================
-  // TOGGLE ARRAY FILTER
-  // ===================================================
-
-  function toggleArrayFilter(
+  function toggleMultiValue(
     key,
-    currentValues,
     value
   ) {
-    let updated;
+    const current =
+      getArrayFromParam(
+        searchParams,
+        key
+      );
 
-    if (
-      currentValues.includes(value)
-    ) {
-      updated =
-        currentValues.filter(
+    const exists =
+      current.includes(value);
+
+    const updated = exists
+      ? current.filter(
           (item) =>
             item !== value
-        );
-    } else {
-      updated = [
-        ...currentValues,
-        value,
-      ];
-    }
+        )
+      : [
+          ...current,
+          value,
+        ];
 
     updateParam(
       key,
@@ -624,16 +546,120 @@ function ProductSection({
     );
   }
 
-  // ===================================================
-  // FILTER PRODUCTS
-  // ===================================================
+  /* =======================================================
+     CLEAR FILTERS
 
-  const filteredProducts =
+     Keep search + sorting because they are not sidebar
+     filters.
+  ======================================================= */
+
+  function clearFilters() {
+    const next =
+      new URLSearchParams();
+
+    if (search) {
+      next.set(
+        "search",
+        search
+      );
+    }
+
+    if (
+      sort &&
+      sort !== "default"
+    ) {
+      next.set(
+        "sort",
+        sort
+      );
+    }
+
+    setSearchParams(next);
+  }
+
+  function selectCategory(
+    category
+  ) {
+    updateMultipleParams({
+      category,
+      subcategory: "",
+      brand: "",
+      size: "",
+      color: "",
+    });
+  }
+
+  /* =======================================================
+     CATEGORY OPTIONS
+  ======================================================= */
+
+  const categories =
     useMemo(() => {
-      let result = [...products];
+      return uniqueValues(
+        products.map(
+          (product) =>
+            product.category
+        )
+      ).sort((a, b) =>
+        String(
+          a
+        ).localeCompare(
+          String(b)
+        )
+      );
+    }, []);
 
-      // CATEGORY
-      if (selectedCategory) {
+  /* =======================================================
+     SUBCATEGORY OPTIONS
+  ======================================================= */
+
+  const subcategories =
+    useMemo(() => {
+      if (
+        !selectedCategory
+      ) {
+        return [];
+      }
+
+      return uniqueValues(
+        products
+          .filter(
+            (product) =>
+              product.category ===
+              selectedCategory
+          )
+          .map(
+            (product) =>
+              product.subcategory
+          )
+      ).sort((a, b) =>
+        String(
+          a
+        ).localeCompare(
+          String(b)
+        )
+      );
+    }, [
+      selectedCategory,
+    ]);
+
+  /* =======================================================
+     FILTER BASE PRODUCTS
+
+     Brand/size/color options now change based on selected
+     category/subcategory instead of showing unrelated
+     options.
+  ======================================================= */
+
+  const filterBaseProducts =
+    useMemo(() => {
+      let result = [
+        ...products,
+      ];
+
+      if (
+        selectedCategory
+      ) {
         result =
           result.filter(
             (product) =>
@@ -642,8 +668,9 @@ function ProductSection({
           );
       }
 
-      // SUBCATEGORY
-      if (selectedSubcategory) {
+      if (
+        selectedSubcategory
+      ) {
         result =
           result.filter(
             (product) =>
@@ -652,9 +679,150 @@ function ProductSection({
           );
       }
 
-      // SEARCH
+      return result;
+    }, [
+      selectedCategory,
+      selectedSubcategory,
+    ]);
+
+  const brands =
+    useMemo(() => {
+      return uniqueValues(
+        filterBaseProducts.map(
+          (product) =>
+            product.brand
+        )
+      ).sort((a, b) =>
+        String(
+          a
+        ).localeCompare(
+          String(b)
+        )
+      );
+    }, [
+      filterBaseProducts,
+    ]);
+
+  const sizes =
+    useMemo(() => {
+      return sortSizes(
+        uniqueValues(
+          filterBaseProducts.flatMap(
+            (product) =>
+              product.sizes || []
+          )
+        )
+      );
+    }, [
+      filterBaseProducts,
+    ]);
+
+  const colors =
+    useMemo(() => {
+      return uniqueValues(
+        filterBaseProducts.flatMap(
+          (product) =>
+            product.colors || []
+        )
+      ).sort((a, b) =>
+        String(
+          a
+        ).localeCompare(
+          String(b)
+        )
+      );
+    }, [
+      filterBaseProducts,
+    ]);
+
+  /* =======================================================
+     COUNTS
+  ======================================================= */
+
+  function countCategory(
+    category
+  ) {
+    return products.filter(
+      (product) =>
+        product.category ===
+        category
+    ).length;
+  }
+
+  function countBrand(
+    brand
+  ) {
+    return filterBaseProducts.filter(
+      (product) =>
+        product.brand ===
+        brand
+    ).length;
+  }
+
+  function countColor(
+    color
+  ) {
+    return filterBaseProducts.filter(
+      (product) =>
+        product.colors?.includes(
+          color
+        )
+    ).length;
+  }
+
+  function countSize(
+    size
+  ) {
+    return filterBaseProducts.filter(
+      (product) =>
+        product.sizes?.includes(
+          size
+        )
+    ).length;
+  }
+
+  /* =======================================================
+     FILTER PRODUCTS
+  ======================================================= */
+
+  const filteredProducts =
+    useMemo(() => {
+      let result = [
+        ...products,
+      ];
+
+      /* CATEGORY */
+
+      if (
+        selectedCategory
+      ) {
+        result =
+          result.filter(
+            (product) =>
+              product.category ===
+              selectedCategory
+          );
+      }
+
+      /* SUBCATEGORY */
+
+      if (
+        selectedSubcategory
+      ) {
+        result =
+          result.filter(
+            (product) =>
+              product.subcategory ===
+              selectedSubcategory
+          );
+      }
+
+      /* SEARCH */
+
       const searchText =
-        search.trim().toLowerCase();
+        search
+          .trim()
+          .toLowerCase();
 
       if (searchText) {
         result =
@@ -662,11 +830,14 @@ function ProductSection({
             (product) =>
               getSearchableText(
                 product
-              ).includes(searchText)
+              ).includes(
+                searchText
+              )
           );
       }
 
-      // BRAND
+      /* BRAND */
+
       if (
         selectedBrands.length >
         0
@@ -680,7 +851,8 @@ function ProductSection({
           );
       }
 
-      // SIZE
+      /* SIZE */
+
       if (
         selectedSizes.length >
         0
@@ -697,7 +869,8 @@ function ProductSection({
           );
       }
 
-      // COLOR
+      /* COLOR */
+
       if (
         selectedColors.length >
         0
@@ -714,7 +887,8 @@ function ProductSection({
           );
       }
 
-      // AVAILABILITY
+      /* AVAILABILITY */
+
       if (
         availability ===
         "in-stock"
@@ -741,94 +915,93 @@ function ProductSection({
           );
       }
 
-      // MIN PRICE
-      if (minPrice !== "") {
-        const minimum =
+      /* MIN PRICE */
+
+      if (
+        minPrice !== ""
+      ) {
+        const value =
           Number(minPrice);
 
         if (
-          Number.isFinite(
-            minimum
-          )
+          Number.isFinite(value)
         ) {
           result =
             result.filter(
               (product) =>
                 getDiscountedPrice(
                   product
-                ) >= minimum
+                ) >= value
             );
         }
       }
 
-      // MAX PRICE
-      if (maxPrice !== "") {
-        const maximum =
+      /* MAX PRICE */
+
+      if (
+        maxPrice !== ""
+      ) {
+        const value =
           Number(maxPrice);
 
         if (
-          Number.isFinite(
-            maximum
-          )
+          Number.isFinite(value)
         ) {
           result =
             result.filter(
               (product) =>
                 getDiscountedPrice(
                   product
-                ) <= maximum
+                ) <= value
             );
         }
       }
 
-      // RATING
-      if (minRating !== "") {
-        const rating =
+      /* RATING */
+
+      if (
+        minRating !== ""
+      ) {
+        const value =
           Number(minRating);
 
-        if (
-          Number.isFinite(
-            rating
-          )
-        ) {
-          result =
-            result.filter(
-              (product) =>
-                Number(
-                  product.rating || 0
-                ) >= rating
-            );
-        }
+        result =
+          result.filter(
+            (product) =>
+              Number(
+                product.rating ||
+                  0
+              ) >= value
+          );
       }
 
-      // DISCOUNT
+      /* DISCOUNT */
+
       if (
         minDiscount !== ""
       ) {
-        const discount =
-          Number(minDiscount);
+        const value =
+          Number(
+            minDiscount
+          );
 
-        if (
-          Number.isFinite(
-            discount
-          )
-        ) {
-          result =
-            result.filter(
-              (product) =>
-                Number(
-                  product.discount || 0
-                ) >= discount
-            );
-        }
+        result =
+          result.filter(
+            (product) =>
+              Number(
+                product.discount ||
+                  0
+              ) >= value
+          );
       }
 
-      // =================================================
-      // SORT
-      // =================================================
+      /* =============================================
+         SORTING
+      ============================================= */
 
       if (
-        sort === "price-low"
+        sort ===
+        "price-low"
       ) {
         result.sort(
           (a, b) =>
@@ -842,7 +1015,8 @@ function ProductSection({
       }
 
       if (
-        sort === "price-high"
+        sort ===
+        "price-high"
       ) {
         result.sort(
           (a, b) =>
@@ -887,46 +1061,17 @@ function ProductSection({
         sort === "newest"
       ) {
         result.sort(
-          (a, b) => {
-            const dateA =
-              new Date(
-                a.createdAt ||
-                  a.dateAdded ||
-                  a.updatedAt ||
-                  0
-              ).getTime();
-
-            const dateB =
-              new Date(
-                b.createdAt ||
-                  b.dateAdded ||
-                  b.updatedAt ||
-                  0
-              ).getTime();
-
-            if (
-              Number.isFinite(
-                dateA
-              ) &&
-              Number.isFinite(
-                dateB
-              ) &&
-              dateA !== dateB
-            ) {
-              return (
-                dateB - dateA
-              );
-            }
-
-            return (
-              Number(
-                b.id || 0
-              ) -
-              Number(
-                a.id || 0
+          (a, b) =>
+            Number(
+              Boolean(
+                b.isNew
               )
-            );
-          }
+            ) -
+            Number(
+              Boolean(
+                a.isNew
+              )
+            )
         );
       }
 
@@ -935,83 +1080,32 @@ function ProductSection({
         "best-selling"
       ) {
         result.sort(
-          (a, b) =>
-            getSalesValue(
-              b
-            ) -
-            getSalesValue(
-              a
-            )
-        );
-      }
-
-      // RECOMMENDED
-      if (
-        sort === "default"
-      ) {
-        result.sort(
           (a, b) => {
-            const featuredA =
-              a.isFeatured
-                ? 1
-                : 0;
-
-            const featuredB =
-              b.isFeatured
-                ? 1
-                : 0;
+            const bestsellerDifference =
+              Number(
+                Boolean(
+                  b.isBestSeller
+                )
+              ) -
+              Number(
+                Boolean(
+                  a.isBestSeller
+                )
+              );
 
             if (
-              featuredA !==
-              featuredB
+              bestsellerDifference !==
+              0
             ) {
-              return (
-                featuredB -
-                featuredA
-              );
+              return bestsellerDifference;
             }
 
-            const bestsellerA =
-              a.isBestSeller
-                ? 1
-                : 0;
-
-            const bestsellerB =
-              b.isBestSeller
-                ? 1
-                : 0;
-
-            if (
-              bestsellerA !==
-              bestsellerB
-            ) {
-              return (
-                bestsellerB -
-                bestsellerA
-              );
-            }
-
-            const ratingDifference =
+            return (
               Number(
                 b.rating || 0
               ) -
               Number(
                 a.rating || 0
-              );
-
-            if (
-              ratingDifference !==
-              0
-            ) {
-              return ratingDifference;
-            }
-
-            return (
-              Number(
-                b.reviewCount || 0
-              ) -
-              Number(
-                a.reviewCount || 0
               )
             );
           }
@@ -1023,9 +1117,9 @@ function ProductSection({
       search,
       selectedCategory,
       selectedSubcategory,
-      selectedBrands.join(","),
-      selectedSizes.join(","),
-      selectedColors.join(","),
+      selectedBrands,
+      selectedSizes,
+      selectedColors,
       availability,
       minPrice,
       maxPrice,
@@ -1034,30 +1128,9 @@ function ProductSection({
       sort,
     ]);
 
-  // ===================================================
-  // RESET PAGINATION
-  // ===================================================
-
-  useEffect(() => {
-    setVisibleCount(12);
-  }, [
-    search,
-    selectedCategory,
-    selectedSubcategory,
-    selectedBrands.join(","),
-    selectedSizes.join(","),
-    selectedColors.join(","),
-    availability,
-    minPrice,
-    maxPrice,
-    minRating,
-    minDiscount,
-    sort,
-  ]);
-
-  // ===================================================
-  // VISIBLE PRODUCTS
-  // ===================================================
+  /* =======================================================
+     PAGINATION
+  ======================================================= */
 
   const visibleProducts =
     filteredProducts.slice(
@@ -1069,2508 +1142,1265 @@ function ProductSection({
     visibleCount <
     filteredProducts.length;
 
-  // ===================================================
-  // LOAD MORE
-  // ===================================================
-
-  function handleLoadMore() {
-    setVisibleCount(
-      (current) =>
-        current + 12
-    );
-  }
-
-  // ===================================================
-  // CLEAR ALL
-  // ===================================================
-
-  function clearFilters() {
-    setSearch("");
-    setSort("default");
-    setMinPrice("");
-    setMaxPrice("");
-    setMinRating("");
-    setMinDiscount("");
-
-    setVisibleCount(12);
-    setIsFilterOpen(false);
-
-    const newParams =
-      new URLSearchParams(
-        searchParams
-      );
-
-    const filterKeys = [
-      "search",
-      "category",
-      "subcategory",
-      "brand",
-      "size",
-      "color",
-      "availability",
-      "sort",
-      "minPrice",
-      "maxPrice",
-      "rating",
-      "discount",
-    ];
-
-    filterKeys.forEach(
-      (key) => {
-        newParams.delete(key);
-      }
-    );
-
-    setSearchParams(
-      newParams
-    );
-  }
-
-  // ===================================================
-  // CATEGORY CHANGE
-  // ===================================================
-
-  function handleCategoryChange(
-    value
-  ) {
-    updateParams({
-      category: value,
-      subcategory: "",
-    });
-  }
-
-  // ===================================================
-  // CLEAR CATEGORY
-  // ===================================================
-
-  function clearCategory() {
-    updateParams({
-      category: "",
-      subcategory: "",
-    });
-  }
-
-  // ===================================================
-  // CLEAR SUBCATEGORY
-  // ===================================================
-
-  function clearSubcategory() {
-    updateParam(
-      "subcategory",
-      ""
-    );
-  }
-
-  // ===================================================
-  // CLEAR SEARCH
-  // ===================================================
-
-  function clearSearch() {
-    setSearch("");
-
-    updateParam(
-      "search",
-      ""
-    );
-  }
-
-  // ===================================================
-  // CLEAR ARRAY FILTER
-  // ===================================================
-
-  function clearArrayFilter(
-    key
-  ) {
-    updateParam(key, "");
-  }
-
-  // ===================================================
-  // PRICE
-  // ===================================================
-
-  function handleMinPriceChange(
-    value
-  ) {
-    if (value === "") {
-      setMinPrice("");
-      updateParam(
-        "minPrice",
-        ""
-      );
-      return;
-    }
-
-    const number =
-      Number(value);
-
-    if (
-      Number.isFinite(
-        number
-      ) &&
-      number >= 0
-    ) {
-      setMinPrice(value);
-      updateParam(
-        "minPrice",
-        value
-      );
-    }
-  }
-
-  function handleMaxPriceChange(
-    value
-  ) {
-    if (value === "") {
-      setMaxPrice("");
-      updateParam(
-        "maxPrice",
-        ""
-      );
-      return;
-    }
-
-    const number =
-      Number(value);
-
-    if (
-      Number.isFinite(
-        number
-      ) &&
-      number >= 0
-    ) {
-      setMaxPrice(value);
-      updateParam(
-        "maxPrice",
-        value
-      );
-    }
-  }
-
-  // ===================================================
-  // RATING
-  // ===================================================
-
-  function handleRatingChange(
-    value
-  ) {
-    setMinRating(value);
-
-    updateParam(
-      "rating",
-      value
-    );
-  }
-
-  // ===================================================
-  // DISCOUNT
-  // ===================================================
-
-  function handleDiscountChange(
-    value
-  ) {
-    setMinDiscount(value);
-
-    updateParam(
-      "discount",
-      value
-    );
-  }
-
-  // ===================================================
-  // SORT
-  // ===================================================
-
-  function handleSortChange(
-    value
-  ) {
-    setSort(value);
-
-    updateParam(
-      "sort",
-      value === "default"
-        ? ""
-        : value
-    );
-  }
-
-  // ===================================================
-  // SEARCH SUGGESTION
-  // ===================================================
-
-  function handleSearchSuggestion(
-    product
-  ) {
-    updateSearch(
-      product.name
-    );
-
-    saveRecentSearch(
-      product.name
-    );
-
-    setIsFilterOpen(false);
-  }
-
-  // ===================================================
-  // RECENT SEARCH
-  // ===================================================
-
-  function handleRecentSearch(
-    value
-  ) {
-    updateSearch(value);
-
-    saveRecentSearch(value);
-
-    setIsFilterOpen(false);
-  }
-
-  // ===================================================
-  // ACTIVE FILTERS
-  // ===================================================
-
-  const hasSearch =
-    search.trim() !== "";
-
-  const hasActiveFilters =
-    hasSearch ||
-    selectedCategory !== "" ||
-    selectedSubcategory !== "" ||
-    selectedBrands.length > 0 ||
-    selectedSizes.length > 0 ||
-    selectedColors.length > 0 ||
-    availability !== "" ||
-    sort !== "default" ||
-    minPrice !== "" ||
-    maxPrice !== "" ||
-    minRating !== "" ||
-    minDiscount !== "";
+  /* =======================================================
+     ACTIVE FILTER COUNT
+  ======================================================= */
 
   const activeFilterCount =
-    (hasSearch ? 1 : 0) +
     (selectedCategory
       ? 1
       : 0) +
     (selectedSubcategory
       ? 1
       : 0) +
-    (selectedBrands.length
-      ? 1
-      : 0) +
-    (selectedSizes.length
-      ? 1
-      : 0) +
-    (selectedColors.length
-      ? 1
-      : 0) +
+    selectedBrands.length +
+    selectedSizes.length +
+    selectedColors.length +
     (availability
       ? 1
       : 0) +
-    (sort !== "default"
+    (minPrice
       ? 1
       : 0) +
-    (minPrice !== ""
+    (maxPrice
       ? 1
       : 0) +
-    (maxPrice !== ""
+    (minRating
       ? 1
       : 0) +
-    (minRating !== ""
-      ? 1
-      : 0) +
-    (minDiscount !== ""
+    (minDiscount
       ? 1
       : 0);
 
-  // ===================================================
-  // SORT LABEL
-  // ===================================================
+  /* =======================================================
+     PAGE TITLE
+  ======================================================= */
 
-  function getSortLabel() {
-    if (
-      sort === "price-low"
-    ) {
-      return "Price: Low → High";
-    }
+  let pageTitle =
+    "All Products";
 
-    if (
-      sort === "price-high"
-    ) {
-      return "Price: High → Low";
-    }
-
-    if (
-      sort === "rating"
-    ) {
-      return "Highest Rated";
-    }
-
-    if (
-      sort === "discount"
-    ) {
-      return "Biggest Discount";
-    }
-
-    if (
-      sort === "newest"
-    ) {
-      return "Newest";
-    }
-
-    if (
-      sort === "best-selling"
-    ) {
-      return "Best Selling";
-    }
-
-    return "";
+  if (
+    selectedCategory
+  ) {
+    pageTitle =
+      selectedCategory;
   }
 
-  // ===================================================
-  // INVALID PRICE RANGE
-  // ===================================================
+  if (
+    selectedSubcategory
+  ) {
+    pageTitle =
+      selectedSubcategory;
+  }
 
-  const invalidPriceRange =
-    minPrice !== "" &&
-    maxPrice !== "" &&
-    Number(minPrice) >
-      Number(maxPrice);
+  if (search) {
+    pageTitle =
+      `Search Results For "${search}"`;
+  }
 
-  // ===================================================
-  // RENDER
-  // ===================================================
+  /* =======================================================
+     FILTER CONTENT
+  ======================================================= */
+
+  function Filters() {
+    return (
+      <>
+        {/* =============================================
+            CATEGORIES
+        ============================================= */}
+
+        <FilterSection title="Categories">
+          <div className="space-y-1">
+            {categories.map(
+              (category) => (
+                <FilterCheckbox
+                  key={category}
+                  checked={
+                    selectedCategory ===
+                    category
+                  }
+                  onChange={() =>
+                    selectCategory(
+                      selectedCategory ===
+                        category
+                        ? ""
+                        : category
+                    )
+                  }
+                  label={category}
+                  count={countCategory(
+                    category
+                  )}
+                />
+              )
+            )}
+          </div>
+        </FilterSection>
+
+        {/* =============================================
+            SUBCATEGORIES
+        ============================================= */}
+
+        {selectedCategory &&
+          subcategories.length >
+            0 && (
+            <FilterSection title="Subcategories">
+              <div className="space-y-1">
+                {subcategories.map(
+                  (
+                    subcategory
+                  ) => (
+                    <FilterCheckbox
+                      key={
+                        subcategory
+                      }
+                      checked={
+                        selectedSubcategory ===
+                        subcategory
+                      }
+                      onChange={() =>
+                        updateParam(
+                          "subcategory",
+                          selectedSubcategory ===
+                            subcategory
+                            ? ""
+                            : subcategory
+                        )
+                      }
+                      label={
+                        subcategory
+                      }
+                    />
+                  )
+                )}
+              </div>
+            </FilterSection>
+          )}
+
+        {/* =============================================
+            BRAND
+        ============================================= */}
+
+        {brands.length > 0 && (
+          <FilterSection title="Brand">
+            <div className="space-y-1">
+              {brands.map(
+                (brand) => (
+                  <FilterCheckbox
+                    key={brand}
+                    checked={
+                      selectedBrands.includes(
+                        brand
+                      )
+                    }
+                    onChange={() =>
+                      toggleMultiValue(
+                        "brand",
+                        brand
+                      )
+                    }
+                    label={brand}
+                    count={countBrand(
+                      brand
+                    )}
+                  />
+                )
+              )}
+            </div>
+          </FilterSection>
+        )}
+
+        {/* =============================================
+            PRICE
+        ============================================= */}
+
+        <FilterSection title="Price">
+          <div
+            className="
+              grid
+              grid-cols-2
+              gap-2
+            "
+          >
+            <input
+              type="number"
+              min="0"
+              value={minPrice}
+              onChange={(event) =>
+                updateParam(
+                  "minPrice",
+                  event.target.value
+                )
+              }
+              placeholder="Min"
+              className="
+                min-w-0
+                border
+                border-[#d4d5d9]
+                bg-white
+                px-3
+                py-2
+                text-xs
+                text-[#282c3f]
+                outline-none
+                focus:border-orange-500
+              "
+            />
+
+            <input
+              type="number"
+              min="0"
+              value={maxPrice}
+              onChange={(event) =>
+                updateParam(
+                  "maxPrice",
+                  event.target.value
+                )
+              }
+              placeholder="Max"
+              className="
+                min-w-0
+                border
+                border-[#d4d5d9]
+                bg-white
+                px-3
+                py-2
+                text-xs
+                text-[#282c3f]
+                outline-none
+                focus:border-orange-500
+              "
+            />
+          </div>
+        </FilterSection>
+
+        {/* =============================================
+            COLOR
+        ============================================= */}
+
+        {colors.length > 0 && (
+          <FilterSection title="Color">
+            <div className="space-y-1">
+              {colors.map(
+                (color) => (
+                  <FilterCheckbox
+                    key={color}
+                    checked={
+                      selectedColors.includes(
+                        color
+                      )
+                    }
+                    onChange={() =>
+                      toggleMultiValue(
+                        "color",
+                        color
+                      )
+                    }
+                    label={color}
+                    color={color}
+                    count={countColor(
+                      color
+                    )}
+                  />
+                )
+              )}
+            </div>
+          </FilterSection>
+        )}
+
+        {/* =============================================
+            SIZE
+        ============================================= */}
+
+        {sizes.length > 0 && (
+          <FilterSection title="Size">
+            <div className="space-y-1">
+              {sizes.map(
+                (size) => (
+                  <FilterCheckbox
+                    key={size}
+                    checked={
+                      selectedSizes.includes(
+                        size
+                      )
+                    }
+                    onChange={() =>
+                      toggleMultiValue(
+                        "size",
+                        size
+                      )
+                    }
+                    label={size}
+                    count={countSize(
+                      size
+                    )}
+                  />
+                )
+              )}
+            </div>
+          </FilterSection>
+        )}
+
+        {/* =============================================
+            CUSTOMER RATING
+        ============================================= */}
+
+        <FilterSection title="Customer Rating">
+          <div className="space-y-1">
+            {[
+              {
+                value: "4.5",
+                label:
+                  "4.5 ★ & above",
+              },
+              {
+                value: "4",
+                label:
+                  "4 ★ & above",
+              },
+            ].map(
+              (option) => (
+                <FilterCheckbox
+                  key={
+                    option.value
+                  }
+                  checked={
+                    minRating ===
+                    option.value
+                  }
+                  onChange={() =>
+                    updateParam(
+                      "rating",
+                      minRating ===
+                        option.value
+                        ? ""
+                        : option.value
+                    )
+                  }
+                  label={
+                    option.label
+                  }
+                />
+              )
+            )}
+          </div>
+        </FilterSection>
+
+        {/* =============================================
+            DISCOUNT
+        ============================================= */}
+
+        <FilterSection title="Discount Range">
+          <div className="space-y-1">
+            {[
+              10,
+              20,
+              30,
+              50,
+            ].map(
+              (discount) => (
+                <FilterCheckbox
+                  key={
+                    discount
+                  }
+                  checked={
+                    minDiscount ===
+                    String(
+                      discount
+                    )
+                  }
+                  onChange={() =>
+                    updateParam(
+                      "discount",
+                      minDiscount ===
+                        String(
+                          discount
+                        )
+                        ? ""
+                        : discount
+                    )
+                  }
+                  label={`${discount}% and above`}
+                />
+              )
+            )}
+          </div>
+        </FilterSection>
+
+        {/* =============================================
+            AVAILABILITY
+        ============================================= */}
+
+        <FilterSection title="Availability">
+          <div className="space-y-1">
+            <FilterCheckbox
+              checked={
+                availability ===
+                "in-stock"
+              }
+              onChange={() =>
+                updateParam(
+                  "availability",
+                  availability ===
+                    "in-stock"
+                    ? ""
+                    : "in-stock"
+                )
+              }
+              label="In Stock"
+            />
+
+            <FilterCheckbox
+              checked={
+                availability ===
+                "out-of-stock"
+              }
+              onChange={() =>
+                updateParam(
+                  "availability",
+                  availability ===
+                    "out-of-stock"
+                    ? ""
+                    : "out-of-stock"
+                )
+              }
+              label="Out Of Stock"
+            />
+          </div>
+        </FilterSection>
+      </>
+    );
+  }
+
+  /* =======================================================
+     RENDER
+  ======================================================= */
 
   return (
     <section
       id="products"
       className="
         shop-page
-        w-full
-        overflow-hidden
-        bg-[#f5f5f6]
-        px-3
-        py-10
-        sm:px-6
-        sm:py-14
-        md:py-20
+        min-h-screen
+        bg-white
+        text-[#282c3f]
       "
     >
-      <div className="mx-auto w-full max-w-7xl">
+      {/* =================================================
+          PAGE HEADER
+      ================================================= */}
 
-        {/* HEADER */}
+      <div
+        className="
+          mx-auto
+          max-w-[1600px]
+          px-4
+          pb-5
+          pt-7
+          sm:px-6
+          lg:px-8
+        "
+      >
+        {/* BREADCRUMB */}
 
-        <div className="mb-6 sm:mb-8">
+        <div
+          className="
+            mb-5
+            flex
+            flex-wrap
+            items-center
+            gap-2
+            text-[11px]
+            text-[#696b79]
+          "
+        >
+          <span>Home</span>
+
+          <span>/</span>
+
+          <span>Shop</span>
+
+          {selectedCategory && (
+            <>
+              <span>/</span>
+
+              <span
+                className="
+                  font-semibold
+                  text-[#282c3f]
+                "
+              >
+                {
+                  selectedCategory
+                }
+              </span>
+            </>
+          )}
+
+          {selectedSubcategory && (
+            <>
+              <span>/</span>
+
+              <span
+                className="
+                  font-semibold
+                  text-[#282c3f]
+                "
+              >
+                {
+                  selectedSubcategory
+                }
+              </span>
+            </>
+          )}
+        </div>
+
+        {/* PAGE TITLE */}
+
+        <div
+          className="
+            flex
+            flex-col
+            gap-1
+            sm:flex-row
+            sm:items-end
+            sm:gap-2
+          "
+        >
+          <h1
+            className="
+              text-[20px]
+              font-bold
+              text-[#282c3f]
+            "
+          >
+            {pageTitle}
+          </h1>
 
           <p
             className="
-              mb-2
-              text-[11px]
-              font-bold
-              uppercase
-              tracking-[0.18em]
-              text-orange-600
-              sm:text-xs
+              pb-[2px]
+              text-[13px]
+              text-[#878b94]
             "
           >
-            gGYM COLLECTION
+            -{" "}
+            {
+              filteredProducts.length
+            }{" "}
+            item
+            {filteredProducts.length !==
+            1
+              ? "s"
+              : ""}
           </p>
-
-          <div
-            className="
-              flex
-              flex-col
-              gap-3
-              sm:flex-row
-              sm:items-end
-              sm:justify-between
-            "
-          >
-            <div className="min-w-0">
-
-              <h2
-                className="
-                  text-2xl
-                  font-bold
-                  tracking-[-0.04em]
-                  text-black
-                  sm:text-3xl
-                  md:text-[2.2rem]
-                "
-              >
-                {selectedSubcategory ||
-                  selectedCategory ||
-                  "Featured Products"}
-              </h2>
-
-              <p
-                className="
-                  mt-2
-                  max-w-xl
-                  text-sm
-                  leading-6
-                  text-gray-500
-                "
-              >
-                Discover performance
-                essentials built for
-                every workout.
-              </p>
-
-            </div>
-
-            <p
-              className="
-                shrink-0
-                text-sm
-                text-gray-500
-              "
-            >
-              {filteredProducts.length}{" "}
-              product
-              {filteredProducts.length !==
-              1
-                ? "s"
-                : ""}
-            </p>
-
-          </div>
         </div>
+      </div>
 
-        {/* SEARCH */}
+      {/* =================================================
+          DESKTOP FILTER / SORT TOOLBAR
+      ================================================= */}
 
-        <div className="mb-4">
+      <div
+        className="
+          border-y
+          border-[#eaeaec]
+          bg-white
+        "
+      >
+        <div
+          className="
+            mx-auto
+            hidden
+            h-[62px]
+            max-w-[1600px]
+            items-center
+            lg:grid
+            lg:grid-cols-[260px_1fr]
+          "
+        >
+          {/* FILTER TITLE */}
 
           <div
             className="
-              relative
               flex
-              w-full
-              flex-col
-              gap-2
-              sm:flex-row
-              sm:gap-3
-            "
-          >
-
-            <div
-              className="
-                relative
-                min-w-0
-                flex-1
-              "
-            >
-
-              <span
-                className="
-                  pointer-events-none
-                  absolute
-                  left-4
-                  top-1/2
-                  z-10
-                  -translate-y-1/2
-                  text-base
-                  text-gray-400
-                "
-              >
-                🔍
-              </span>
-
-              <input
-                type="search"
-                value={search}
-                onChange={(e) =>
-                  updateSearch(
-                    e.target.value
-                  )
-                }
-                onFocus={() =>
-                  setIsFilterOpen(
-                    false
-                  )
-                }
-                onKeyDown={(e) => {
-                  if (
-                    e.key === "Enter"
-                  ) {
-                    handleSearchSubmit();
-                  }
-                }}
-                placeholder="Search products, categories, brands..."
-                aria-label="Search products"
-                className="
-                  w-full
-                  rounded-2xl
-                  border
-                  border-gray-200
-                  bg-white
-                  py-3.5
-                  pl-11
-                  pr-10
-                  text-sm
-                  outline-none
-                  transition
-                  focus:border-gray-400
-                  focus:ring-2
-                  focus:ring-gray-100
-                "
-              />
-
-              {hasSearch && (
-                <button
-                  type="button"
-                  onClick={
-                    clearSearch
-                  }
-                  aria-label="Clear search"
-                  className="
-                    absolute
-                    right-3
-                    top-1/2
-                    flex
-                    h-7
-                    w-7
-                    -translate-y-1/2
-                    items-center
-                    justify-center
-                    rounded-full
-                    bg-gray-100
-                    text-xs
-                    text-gray-500
-                    hover:bg-gray-200
-                  "
-                >
-                  ✕
-                </button>
-              )}
-
-              {/* SEARCH SUGGESTIONS */}
-
-              {search.trim() !== "" &&
-                searchSuggestions.length >
-                  0 && (
-                  <div
-                    className="
-                      absolute
-                      left-0
-                      right-0
-                      top-full
-                      z-50
-                      mt-2
-                      overflow-hidden
-                      rounded-2xl
-                      border
-                      border-gray-100
-                      bg-white
-                      shadow-2xl
-                    "
-                  >
-
-                    <div className="p-3">
-
-                      <p
-                        className="
-                          px-2
-                          pb-2
-                          text-xs
-                          font-bold
-                          uppercase
-                          tracking-wider
-                          text-gray-400
-                        "
-                      >
-                        Products
-                      </p>
-
-                      <div className="space-y-1">
-
-                        {searchSuggestions.map(
-                          (product) => (
-                            <button
-                              key={
-                                product.id
-                              }
-                              type="button"
-                              onClick={() =>
-                                handleSearchSuggestion(
-                                  product
-                                )
-                              }
-                              className="
-                                flex
-                                w-full
-                                items-center
-                                gap-3
-                                rounded-xl
-                                p-2
-                                text-left
-                                transition
-                                hover:bg-gray-50
-                              "
-                            >
-
-                              <img
-                                src={
-                                  product.image
-                                }
-                                alt=""
-                                className="
-                                  h-12
-                                  w-12
-                                  shrink-0
-                                  rounded-lg
-                                  object-cover
-                                "
-                              />
-
-                              <div className="min-w-0">
-
-                                <p
-                                  className="
-                                    truncate
-                                    text-sm
-                                    font-semibold
-                                    text-gray-900
-                                  "
-                                >
-                                  {
-                                    product.name
-                                  }
-                                </p>
-
-                                <p
-                                  className="
-                                    mt-0.5
-                                    text-xs
-                                    text-gray-500
-                                  "
-                                >
-                                  {product.brand
-                                    ? `${product.brand} • `
-                                    : ""}
-                                  {
-                                    product.category
-                                  }
-                                </p>
-
-                              </div>
-
-                            </button>
-                          )
-                        )}
-
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-            </div>
-
-            {/* MOBILE FILTER */}
-
-            <button
-              type="button"
-              onClick={() =>
-                setIsFilterOpen(
-                  true
-                )
-              }
-              className="
-                flex
-                w-full
-                items-center
-                justify-between
-                rounded-xl
-                border
-                border-gray-200
-                bg-white
-                px-4
-                py-3.5
-                text-sm
-                font-semibold
-                sm:hidden
-              "
-            >
-
-              <span className="flex items-center gap-2">
-                ⚙️
-                <span>Filters</span>
-              </span>
-
-              {activeFilterCount >
-                0 && (
-                <span
-                  className="
-                    flex
-                    h-6
-                    min-w-6
-                    items-center
-                    justify-center
-                    rounded-full
-                    bg-orange-600
-                    px-1.5
-                    text-xs
-                    font-bold
-                    text-white
-                  "
-                >
-                  {
-                    activeFilterCount
-                  }
-                </span>
-              )}
-
-            </button>
-
-          </div>
-        </div>
-
-        {/* RECENT SEARCHES */}
-
-        {search === "" &&
-          recentSearches.length >
-            0 && (
-            <div
-              className="
-                mb-5
-                flex
-                items-center
-                gap-2
-                overflow-x-auto
-                pb-1
-              "
-            >
-
-              <span
-                className="
-                  shrink-0
-                  text-xs
-                  font-semibold
-                  text-gray-500
-                "
-              >
-                Recent:
-              </span>
-
-              {recentSearches.map(
-                (item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() =>
-                      handleRecentSearch(
-                        item
-                      )
-                    }
-                    className="
-                      shrink-0
-                      rounded-full
-                      bg-white
-                      px-3
-                      py-1.5
-                      text-xs
-                      text-gray-600
-                      shadow-sm
-                      hover:bg-gray-100
-                    "
-                  >
-                    🕘 {item}
-                  </button>
-                )
-              )}
-
-              <button
-                type="button"
-                onClick={
-                  clearRecentSearches
-                }
-                className="
-                  shrink-0
-                  text-xs
-                  font-semibold
-                  text-orange-600
-                "
-              >
-                Clear
-              </button>
-
-            </div>
-          )}
-
-        {/* ACTIVE FILTER CHIPS */}
-
-        {hasActiveFilters && (
-          <div
-            className="
-              mb-5
-              flex
-              max-w-full
+              h-full
               items-center
-              gap-2
-              overflow-x-auto
-              pb-1
+              justify-between
+              border-r
+              border-[#eaeaec]
+              px-5
             "
           >
-
             <span
               className="
-                shrink-0
-                text-xs
-                font-semibold
-                text-gray-500
+                text-[12px]
+                font-bold
+                uppercase
               "
             >
-              Active:
+              Filters
             </span>
 
-            {selectedCategory && (
-              <button
-                type="button"
-                onClick={
-                  clearCategory
-                }
-                className="
-                  shrink-0
-                  rounded-full
-                  bg-orange-50
-                  px-3
-                  py-1.5
-                  text-xs
-                  font-medium
-                  text-orange-700
-                "
-              >
-                {selectedCategory} ✕
-              </button>
-            )}
-
-            {selectedSubcategory && (
-              <button
-                type="button"
-                onClick={
-                  clearSubcategory
-                }
-                className="
-                  shrink-0
-                  rounded-full
-                  bg-gray-100
-                  px-3
-                  py-1.5
-                  text-xs
-                "
-              >
-                {selectedSubcategory} ✕
-              </button>
-            )}
-
-            {hasSearch && (
-              <button
-                type="button"
-                onClick={
-                  clearSearch
-                }
-                className="
-                  max-w-[220px]
-                  shrink-0
-                  rounded-full
-                  bg-gray-100
-                  px-3
-                  py-1.5
-                  text-xs
-                "
-              >
-                <span className="truncate">
-                  Search: "{search}"
-                </span>{" "}
-                ✕
-              </button>
-            )}
-
-            {selectedBrands.length >
+            {activeFilterCount >
               0 && (
               <button
                 type="button"
-                onClick={() =>
-                  clearArrayFilter(
-                    "brand"
-                  )
+                onClick={
+                  clearFilters
                 }
                 className="
-                  shrink-0
-                  rounded-full
-                  bg-gray-100
-                  px-3
-                  py-1.5
-                  text-xs
+                  text-[10px]
+                  font-bold
+                  uppercase
+                  text-orange-600
+                  hover:text-orange-700
                 "
               >
-                Brand:{" "}
-                {selectedBrands.length} ✕
+                Clear All
               </button>
             )}
+          </div>
 
-            {selectedSizes.length >
-              0 && (
-              <button
-                type="button"
-                onClick={() =>
-                  clearArrayFilter(
-                    "size"
-                  )
-                }
-                className="
-                  shrink-0
-                  rounded-full
-                  bg-gray-100
-                  px-3
-                  py-1.5
-                  text-xs
-                "
-              >
-                Size:{" "}
-                {selectedSizes.length} ✕
-              </button>
-            )}
+          {/* SORT */}
 
-            {selectedColors.length >
-              0 && (
-              <button
-                type="button"
-                onClick={() =>
-                  clearArrayFilter(
-                    "color"
-                  )
-                }
-                className="
-                  shrink-0
-                  rounded-full
-                  bg-gray-100
-                  px-3
-                  py-1.5
-                  text-xs
-                "
-              >
-                Color:{" "}
-                {selectedColors.length} ✕
-              </button>
-            )}
-
-            {availability && (
-              <button
-                type="button"
-                onClick={() =>
-                  updateParam(
-                    "availability",
-                    ""
-                  )
-                }
-                className="
-                  shrink-0
-                  rounded-full
-                  bg-gray-100
-                  px-3
-                  py-1.5
-                  text-xs
-                "
-              >
-                {availability ===
-                "in-stock"
-                  ? "In Stock"
-                  : "Out of Stock"}{" "}
-                ✕
-              </button>
-            )}
-
-            {minPrice !== "" && (
-              <button
-                type="button"
-                onClick={() =>
-                  handleMinPriceChange(
-                    ""
-                  )
-                }
-                className="
-                  shrink-0
-                  rounded-full
-                  bg-gray-100
-                  px-3
-                  py-1.5
-                  text-xs
-                "
-              >
-                Min ₹{minPrice} ✕
-              </button>
-            )}
-
-            {maxPrice !== "" && (
-              <button
-                type="button"
-                onClick={() =>
-                  handleMaxPriceChange(
-                    ""
-                  )
-                }
-                className="
-                  shrink-0
-                  rounded-full
-                  bg-gray-100
-                  px-3
-                  py-1.5
-                  text-xs
-                "
-              >
-                Max ₹{maxPrice} ✕
-              </button>
-            )}
-
-            {minRating !== "" && (
-              <button
-                type="button"
-                onClick={() =>
-                  handleRatingChange(
-                    ""
-                  )
-                }
-                className="
-                  shrink-0
-                  rounded-full
-                  bg-gray-100
-                  px-3
-                  py-1.5
-                  text-xs
-                "
-              >
-                ⭐ {minRating}+ ✕
-              </button>
-            )}
-
-            {minDiscount !== "" && (
-              <button
-                type="button"
-                onClick={() =>
-                  handleDiscountChange(
-                    ""
-                  )
-                }
-                className="
-                  shrink-0
-                  rounded-full
-                  bg-gray-100
-                  px-3
-                  py-1.5
-                  text-xs
-                "
-              >
-                {minDiscount}%+ off ✕
-              </button>
-            )}
-
-            {sort !== "default" && (
-              <button
-                type="button"
-                onClick={() =>
-                  handleSortChange(
-                    "default"
-                  )
-                }
-                className="
-                  shrink-0
-                  rounded-full
-                  bg-gray-100
-                  px-3
-                  py-1.5
-                  text-xs
-                "
-              >
-                {getSortLabel()} ✕
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={
-                clearFilters
-              }
+          <div
+            className="
+              flex
+              h-full
+              items-center
+              justify-end
+              px-6
+            "
+          >
+            <label
               className="
-                shrink-0
+                flex
+                h-[40px]
+                min-w-[250px]
+                items-center
+                border
+                border-[#d4d5d9]
+                bg-white
+                px-3
                 text-xs
-                font-semibold
-                text-orange-600
               "
             >
-              Clear all
-            </button>
+              <span
+                className="
+                  mr-2
+                  shrink-0
+                  text-[#696b79]
+                "
+              >
+                Sort by:
+              </span>
 
+              <select
+                value={sort}
+                onChange={(event) =>
+                  updateParam(
+                    "sort",
+                    event.target
+                      .value ===
+                      "default"
+                      ? ""
+                      : event.target
+                          .value
+                  )
+                }
+                className="
+                  min-w-0
+                  flex-1
+                  cursor-pointer
+                  bg-transparent
+                  font-semibold
+                  text-[#282c3f]
+                  outline-none
+                "
+              >
+                <option value="default">
+                  Recommended
+                </option>
+
+                <option value="best-selling">
+                  Best Selling
+                </option>
+
+                <option value="newest">
+                  Newest
+                </option>
+
+                <option value="rating">
+                  Customer Rating
+                </option>
+
+                <option value="discount">
+                  Better Discount
+                </option>
+
+                <option value="price-low">
+                  Price: Low to High
+                </option>
+
+                <option value="price-high">
+                  Price: High to Low
+                </option>
+              </select>
+            </label>
           </div>
-        )}
+        </div>
 
         {/* =================================================
-            DESKTOP FILTER PANEL
+            MOBILE FILTER/SORT BAR
         ================================================= */}
 
         <div
           className="
-            mb-8
-            hidden
-            rounded-2xl
-            border
-            border-gray-200
-            bg-white
-            p-5
-            shadow-sm
-            sm:block
+            grid
+            grid-cols-2
+            divide-x
+            divide-[#eaeaec]
+            lg:hidden
           "
         >
-
-          {/* ROW 1 */}
-
-          <div
+          <button
+            type="button"
+            onClick={() =>
+              setIsFilterOpen(
+                true
+              )
+            }
             className="
-              grid
-              grid-cols-2
-              gap-3
-              lg:grid-cols-4
-            "
-          >
-
-            {/* SORT */}
-
-            <select
-              value={sort}
-              onChange={(e) =>
-                handleSortChange(
-                  e.target.value
-                )
-              }
-              className="
-                w-full
-                rounded-xl
-                border
-                border-gray-200
-                bg-white
-                px-4
-                py-3
-                text-sm
-                outline-none
-                focus:border-orange-500
-              "
-            >
-              <option value="default">
-                Recommended
-              </option>
-
-              <option value="newest">
-                Newest
-              </option>
-
-              <option value="best-selling">
-                Best Selling
-              </option>
-
-              <option value="price-low">
-                Price: Low to High
-              </option>
-
-              <option value="price-high">
-                Price: High to Low
-              </option>
-
-              <option value="rating">
-                Highest Rated
-              </option>
-
-              <option value="discount">
-                Biggest Discount
-              </option>
-            </select>
-
-            {/* CATEGORY */}
-
-            <select
-              value={
-                selectedCategory
-              }
-              onChange={(e) =>
-                handleCategoryChange(
-                  e.target.value
-                )
-              }
-              className="
-                w-full
-                rounded-xl
-                border
-                border-gray-200
-                bg-white
-                px-4
-                py-3
-                text-sm
-                outline-none
-                focus:border-orange-500
-              "
-            >
-              <option value="">
-                All Categories
-              </option>
-
-              {categories.map(
-                (category) => (
-                  <option
-                    key={category}
-                    value={category}
-                  >
-                    {category}
-                  </option>
-                )
-              )}
-            </select>
-
-            {/* SUBCATEGORY */}
-
-            <select
-              value={
-                selectedSubcategory
-              }
-              onChange={(e) =>
-                updateParam(
-                  "subcategory",
-                  e.target.value
-                )
-              }
-              className="
-                w-full
-                rounded-xl
-                border
-                border-gray-200
-                bg-white
-                px-4
-                py-3
-                text-sm
-                outline-none
-                focus:border-orange-500
-              "
-            >
-              <option value="">
-                All Subcategories
-              </option>
-
-              {subcategories.map(
-                (subcategory) => (
-                  <option
-                    key={subcategory}
-                    value={
-                      subcategory
-                    }
-                  >
-                    {subcategory}
-                  </option>
-                )
-              )}
-            </select>
-
-            {/* BRAND */}
-
-            <select
-              value={
-                selectedBrands[0] ||
-                ""
-              }
-              onChange={(e) =>
-                updateParam(
-                  "brand",
-                  e.target.value
-                )
-              }
-              className="
-                w-full
-                rounded-xl
-                border
-                border-gray-200
-                bg-white
-                px-4
-                py-3
-                text-sm
-                outline-none
-                focus:border-orange-500
-              "
-            >
-              <option value="">
-                All Brands
-              </option>
-
-              {brands.map(
-                (brand) => (
-                  <option
-                    key={brand}
-                    value={brand}
-                  >
-                    {brand}
-                  </option>
-                )
-              )}
-            </select>
-
-          </div>
-
-          {/* ROW 2 */}
-
-          <div
-            className="
-              mt-3
-              grid
-              grid-cols-2
-              gap-3
-              lg:grid-cols-4
-            "
-          >
-
-            {/* MIN PRICE */}
-
-            <input
-              type="number"
-              min="0"
-              value={minPrice}
-              onChange={(e) =>
-                handleMinPriceChange(
-                  e.target.value
-                )
-              }
-              placeholder="Min price"
-              className="
-                w-full
-                rounded-xl
-                border
-                border-gray-200
-                px-4
-                py-3
-                text-sm
-                outline-none
-                focus:border-orange-500
-              "
-            />
-
-            {/* MAX PRICE */}
-
-            <input
-              type="number"
-              min="0"
-              value={maxPrice}
-              onChange={(e) =>
-                handleMaxPriceChange(
-                  e.target.value
-                )
-              }
-              placeholder="Max price"
-              className="
-                w-full
-                rounded-xl
-                border
-                border-gray-200
-                px-4
-                py-3
-                text-sm
-                outline-none
-                focus:border-orange-500
-              "
-            />
-
-            {/* RATING */}
-
-            <select
-              value={minRating}
-              onChange={(e) =>
-                handleRatingChange(
-                  e.target.value
-                )
-              }
-              className="
-                w-full
-                rounded-xl
-                border
-                border-gray-200
-                bg-white
-                px-4
-                py-3
-                text-sm
-              "
-            >
-              <option value="">
-                Minimum Rating
-              </option>
-
-              <option value="4">
-                ⭐ 4+
-              </option>
-
-              <option value="4.5">
-                ⭐ 4.5+
-              </option>
-
-              <option value="4.8">
-                ⭐ 4.8+
-              </option>
-            </select>
-
-            {/* DISCOUNT */}
-
-            <select
-              value={minDiscount}
-              onChange={(e) =>
-                handleDiscountChange(
-                  e.target.value
-                )
-              }
-              className="
-                w-full
-                rounded-xl
-                border
-                border-gray-200
-                bg-white
-                px-4
-                py-3
-                text-sm
-              "
-            >
-              <option value="">
-                Minimum Discount
-              </option>
-
-              <option value="10">
-                10%+ Off
-              </option>
-
-              <option value="20">
-                20%+ Off
-              </option>
-
-              <option value="30">
-                30%+ Off
-              </option>
-
-              <option value="50">
-                50%+ Off
-              </option>
-            </select>
-
-          </div>
-
-          {/* ROW 3 */}
-
-          <div
-            className="
-              mt-3
               flex
-              flex-wrap
+              h-[52px]
               items-center
-              gap-3
+              justify-center
+              gap-2
+              text-xs
+              font-bold
+              uppercase
             "
           >
+            Filters
 
-            {/* AVAILABILITY */}
-
-            <label
-              className="
-                flex
-                cursor-pointer
-                items-center
-                gap-2
-                rounded-xl
-                border
-                border-gray-200
-                px-4
-                py-3
-                text-sm
-              "
-            >
-              <input
-                type="checkbox"
-                checked={
-                  availability ===
-                  "in-stock"
+            {activeFilterCount >
+              0 && (
+              <span
+                className="
+                  flex
+                  h-5
+                  min-w-5
+                  items-center
+                  justify-center
+                  rounded-full
+                  bg-orange-600
+                  px-1
+                  text-[9px]
+                  text-white
+                "
+              >
+                {
+                  activeFilterCount
                 }
-                onChange={(e) =>
-                  updateParam(
-                    "availability",
-                    e.target.checked
-                      ? "in-stock"
-                      : ""
-                  )
-                }
-                className="h-4 w-4 accent-orange-600"
-              />
-
-              <span>
-                In Stock Only
               </span>
-            </label>
+            )}
+          </button>
 
-            <button
-              type="button"
-              onClick={
-                clearFilters
-              }
-              className="
-                rounded-xl
-                border
-                border-gray-200
-                bg-white
-                px-5
-                py-3
-                text-sm
-                font-medium
-                hover:border-orange-600
-                hover:text-orange-600
-              "
-            >
-              Clear Filters
-            </button>
+          <select
+            value={sort}
+            onChange={(event) =>
+              updateParam(
+                "sort",
+                event.target
+                  .value ===
+                  "default"
+                  ? ""
+                  : event.target
+                      .value
+              )
+            }
+            className="
+              h-[52px]
+              w-full
+              cursor-pointer
+              bg-white
+              px-4
+              text-center
+              text-xs
+              font-bold
+              uppercase
+              outline-none
+            "
+          >
+            <option value="default">
+              Recommended
+            </option>
 
-          </div>
+            <option value="best-selling">
+              Best Selling
+            </option>
 
-          {invalidPriceRange && (
-            <p
-              className="
-                mt-3
-                text-xs
-                font-medium
-                text-red-500
-              "
-            >
-              Minimum price cannot
-              be greater than maximum
-              price.
-            </p>
-          )}
+            <option value="newest">
+              Newest
+            </option>
 
+            <option value="rating">
+              Rating
+            </option>
+
+            <option value="discount">
+              Discount
+            </option>
+
+            <option value="price-low">
+              Price Low
+            </option>
+
+            <option value="price-high">
+              Price High
+            </option>
+          </select>
         </div>
+      </div>
 
+      {/* =================================================
+          MAIN SHOP BODY
+      ================================================= */}
+
+      <div
+        className="
+          mx-auto
+          max-w-[1600px]
+          lg:grid
+          lg:grid-cols-[260px_minmax(0,1fr)]
+        "
+      >
         {/* =================================================
-            MOBILE FILTER DRAWER
+            DESKTOP FILTER SIDEBAR
         ================================================= */}
 
-        {isFilterOpen && (
-          <div
-            className="
-              fixed
-              inset-0
-              z-[100]
-              sm:hidden
-            "
-          >
-
-            {/* OVERLAY */}
-
-            <button
-              type="button"
-              aria-label="Close filters"
-              onClick={() =>
-                setIsFilterOpen(
-                  false
-                )
-              }
-              className="
-                absolute
-                inset-0
-                h-full
-                w-full
-                bg-black/40
-              "
-            />
-
-            {/* DRAWER */}
-
-            <div
-              className="
-                absolute
-                bottom-0
-                left-0
-                right-0
-                max-h-[90vh]
-                overflow-y-auto
-                rounded-t-3xl
-                bg-white
-                p-5
-                pb-7
-                shadow-2xl
-              "
-            >
-
-              <div
-                className="
-                  mb-6
-                  flex
-                  items-center
-                  justify-between
-                "
-              >
-
-                <div>
-                  <p
-                    className="
-                      text-xs
-                      font-bold
-                      tracking-wider
-                      text-orange-600
-                    "
-                  >
-                    GYMDROBE
-                  </p>
-
-                  <h3
-                    className="
-                      mt-1
-                      text-xl
-                      font-bold
-                    "
-                  >
-                    Filters & Sort
-                  </h3>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setIsFilterOpen(
-                      false
-                    )
-                  }
-                  className="
-                    flex
-                    h-10
-                    w-10
-                    items-center
-                    justify-center
-                    rounded-full
-                    bg-gray-100
-                  "
-                >
-                  ✕
-                </button>
-
-              </div>
-
-              <div className="space-y-5">
-
-                {/* SORT */}
-
-                <div>
-                  <label
-                    className="
-                      mb-2
-                      block
-                      text-sm
-                      font-semibold
-                    "
-                  >
-                    Sort by
-                  </label>
-
-                  <select
-                    value={sort}
-                    onChange={(e) =>
-                      handleSortChange(
-                        e.target.value
-                      )
-                    }
-                    className="
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-200
-                      px-4
-                      py-3.5
-                      text-sm
-                    "
-                  >
-                    <option value="default">
-                      Recommended
-                    </option>
-
-                    <option value="newest">
-                      Newest
-                    </option>
-
-                    <option value="best-selling">
-                      Best Selling
-                    </option>
-
-                    <option value="price-low">
-                      Price: Low to High
-                    </option>
-
-                    <option value="price-high">
-                      Price: High to Low
-                    </option>
-
-                    <option value="rating">
-                      Highest Rated
-                    </option>
-
-                    <option value="discount">
-                      Biggest Discount
-                    </option>
-                  </select>
-                </div>
-
-                {/* CATEGORY */}
-
-                <div>
-                  <label
-                    className="
-                      mb-2
-                      block
-                      text-sm
-                      font-semibold
-                    "
-                  >
-                    Category
-                  </label>
-
-                  <select
-                    value={
-                      selectedCategory
-                    }
-                    onChange={(e) =>
-                      handleCategoryChange(
-                        e.target.value
-                      )
-                    }
-                    className="
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-200
-                      px-4
-                      py-3.5
-                      text-sm
-                    "
-                  >
-                    <option value="">
-                      All Categories
-                    </option>
-
-                    {categories.map(
-                      (category) => (
-                        <option
-                          key={category}
-                          value={
-                            category
-                          }
-                        >
-                          {category}
-                        </option>
-                      )
-                    )}
-                  </select>
-                </div>
-
-                {/* SUBCATEGORY */}
-
-                <div>
-                  <label
-                    className="
-                      mb-2
-                      block
-                      text-sm
-                      font-semibold
-                    "
-                  >
-                    Subcategory
-                  </label>
-
-                  <select
-                    value={
-                      selectedSubcategory
-                    }
-                    onChange={(e) =>
-                      updateParam(
-                        "subcategory",
-                        e.target.value
-                      )
-                    }
-                    className="
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-200
-                      px-4
-                      py-3.5
-                      text-sm
-                    "
-                  >
-                    <option value="">
-                      All Subcategories
-                    </option>
-
-                    {subcategories.map(
-                      (subcategory) => (
-                        <option
-                          key={
-                            subcategory
-                          }
-                          value={
-                            subcategory
-                          }
-                        >
-                          {
-                            subcategory
-                          }
-                        </option>
-                      )
-                    )}
-                  </select>
-                </div>
-
-                {/* BRAND */}
-
-                <div>
-                  <label
-                    className="
-                      mb-2
-                      block
-                      text-sm
-                      font-semibold
-                    "
-                  >
-                    Brand
-                  </label>
-
-                  <select
-                    value={
-                      selectedBrands[0] ||
-                      ""
-                    }
-                    onChange={(e) =>
-                      updateParam(
-                        "brand",
-                        e.target.value
-                      )
-                    }
-                    className="
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-200
-                      px-4
-                      py-3.5
-                      text-sm
-                    "
-                  >
-                    <option value="">
-                      All Brands
-                    </option>
-
-                    {brands.map(
-                      (brand) => (
-                        <option
-                          key={brand}
-                          value={brand}
-                        >
-                          {brand}
-                        </option>
-                      )
-                    )}
-                  </select>
-                </div>
-
-                {/* SIZE */}
-
-                <div>
-                  <p
-                    className="
-                      mb-2
-                      text-sm
-                      font-semibold
-                    "
-                  >
-                    Size
-                  </p>
-
-                  <div className="flex flex-wrap gap-2">
-
-                    {sizes.map(
-                      (size) => {
-                        const active =
-                          selectedSizes.includes(
-                            size
-                          );
-
-                        return (
-                          <button
-                            key={size}
-                            type="button"
-                            onClick={() =>
-                              toggleArrayFilter(
-                                "size",
-                                selectedSizes,
-                                size
-                              )
-                            }
-                            className={`
-                              rounded-lg
-                              border
-                              px-4
-                              py-2
-                              text-sm
-                              ${
-                                active
-                                  ? "border-black bg-black text-white"
-                                  : "border-gray-200 bg-white text-gray-700"
-                              }
-                            `}
-                          >
-                            {size}
-                          </button>
-                        );
-                      }
-                    )}
-
-                  </div>
-                </div>
-
-                {/* COLOR */}
-
-                <div>
-                  <p
-                    className="
-                      mb-2
-                      text-sm
-                      font-semibold
-                    "
-                  >
-                    Color
-                  </p>
-
-                  <div className="flex flex-wrap gap-2">
-
-                    {colors.map(
-                      (color) => {
-                        const active =
-                          selectedColors.includes(
-                            color
-                          );
-
-                        return (
-                          <button
-                            key={color}
-                            type="button"
-                            onClick={() =>
-                              toggleArrayFilter(
-                                "color",
-                                selectedColors,
-                                color
-                              )
-                            }
-                            className={`
-                              rounded-lg
-                              border
-                              px-3
-                              py-2
-                              text-xs
-                              ${
-                                active
-                                  ? "border-black bg-black text-white"
-                                  : "border-gray-200 bg-white text-gray-700"
-                              }
-                            `}
-                          >
-                            {color}
-                          </button>
-                        );
-                      }
-                    )}
-
-                  </div>
-                </div>
-
-                {/* PRICE */}
-
-                <div>
-                  <label
-                    className="
-                      mb-2
-                      block
-                      text-sm
-                      font-semibold
-                    "
-                  >
-                    Price Range
-                  </label>
-
-                  <div className="grid grid-cols-2 gap-3">
-
-                    <input
-                      type="number"
-                      min="0"
-                      value={minPrice}
-                      onChange={(e) =>
-                        handleMinPriceChange(
-                          e.target.value
-                        )
-                      }
-                      placeholder="Min ₹"
-                      className="
-                        w-full
-                        rounded-xl
-                        border
-                        border-gray-200
-                        px-4
-                        py-3.5
-                        text-sm
-                      "
-                    />
-
-                    <input
-                      type="number"
-                      min="0"
-                      value={maxPrice}
-                      onChange={(e) =>
-                        handleMaxPriceChange(
-                          e.target.value
-                        )
-                      }
-                      placeholder="Max ₹"
-                      className="
-                        w-full
-                        rounded-xl
-                        border
-                        border-gray-200
-                        px-4
-                        py-3.5
-                        text-sm
-                      "
-                    />
-
-                  </div>
-
-                  {invalidPriceRange && (
-                    <p className="mt-2 text-xs font-medium text-red-500">
-                      Minimum price cannot
-                      be greater than maximum
-                      price.
-                    </p>
-                  )}
-
-                </div>
-
-                {/* RATING */}
-
-                <div>
-                  <label
-                    className="
-                      mb-2
-                      block
-                      text-sm
-                      font-semibold
-                    "
-                  >
-                    Minimum Rating
-                  </label>
-
-                  <select
-                    value={minRating}
-                    onChange={(e) =>
-                      handleRatingChange(
-                        e.target.value
-                      )
-                    }
-                    className="
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-200
-                      px-4
-                      py-3.5
-                      text-sm
-                    "
-                  >
-                    <option value="">
-                      Any Rating
-                    </option>
-
-                    <option value="4">
-                      ⭐ 4+
-                    </option>
-
-                    <option value="4.5">
-                      ⭐ 4.5+
-                    </option>
-
-                    <option value="4.8">
-                      ⭐ 4.8+
-                    </option>
-                  </select>
-                </div>
-
-                {/* DISCOUNT */}
-
-                <div>
-                  <label
-                    className="
-                      mb-2
-                      block
-                      text-sm
-                      font-semibold
-                    "
-                  >
-                    Minimum Discount
-                  </label>
-
-                  <select
-                    value={minDiscount}
-                    onChange={(e) =>
-                      handleDiscountChange(
-                        e.target.value
-                      )
-                    }
-                    className="
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-200
-                      px-4
-                      py-3.5
-                      text-sm
-                    "
-                  >
-                    <option value="">
-                      Any Discount
-                    </option>
-
-                    <option value="10">
-                      10%+ Off
-                    </option>
-
-                    <option value="20">
-                      20%+ Off
-                    </option>
-
-                    <option value="30">
-                      30%+ Off
-                    </option>
-
-                    <option value="50">
-                      50%+ Off
-                    </option>
-                  </select>
-                </div>
-
-                {/* AVAILABILITY */}
-
-                <label
-                  className="
-                    flex
-                    cursor-pointer
-                    items-center
-                    gap-3
-                    rounded-xl
-                    border
-                    border-gray-200
-                    p-4
-                  "
-                >
-                  <input
-                    type="checkbox"
-                    checked={
-                      availability ===
-                      "in-stock"
-                    }
-                    onChange={(e) =>
-                      updateParam(
-                        "availability",
-                        e.target.checked
-                          ? "in-stock"
-                          : ""
-                      )
-                    }
-                    className="h-5 w-5 accent-orange-600"
-                  />
-
-                  <span className="text-sm font-semibold">
-                    Show In-Stock Products Only
-                  </span>
-                </label>
-
-              </div>
-
-              {/* BUTTONS */}
-
-              <div
-                className="
-                  mt-7
-                  grid
-                  grid-cols-2
-                  gap-3
-                "
-              >
-
-                <button
-                  type="button"
-                  onClick={
-                    clearFilters
-                  }
-                  className="
-                    rounded-xl
-                    border
-                    border-gray-200
-                    py-3.5
-                    text-sm
-                    font-semibold
-                  "
-                >
-                  Reset
-                </button>
-
-                <button
-                  type="button"
-                  disabled={
-                    invalidPriceRange
-                  }
-                  onClick={() =>
-                    setIsFilterOpen(
-                      false
-                    )
-                  }
-                  className="
-                    rounded-xl
-                    bg-orange-600
-                    py-3.5
-                    text-sm
-                    font-semibold
-                    text-white
-                    hover:bg-orange-700
-                    disabled:cursor-not-allowed
-                    disabled:bg-gray-300
-                  "
-                >
-                  Show{" "}
-                  {
-                    filteredProducts.length
-                  }{" "}
-                  Products
-                </button>
-
-              </div>
-
-            </div>
-          </div>
-        )}
+        <aside
+          className="
+            hidden
+            border-r
+            border-[#eaeaec]
+            bg-white
+            lg:block
+          "
+        >
+          <Filters />
+        </aside>
 
         {/* =================================================
             PRODUCTS
         ================================================= */}
 
-        {visibleProducts.length >
-        0 ? (
-          <>
+        <main
+          className="
+            min-w-0
+            bg-white
+            px-3
+            py-6
+            sm:px-5
+            lg:px-6
+          "
+        >
+          {visibleProducts.length >
+          0 ? (
+            <>
+              {/* PRODUCT GRID */}
+
+              <div
+                className="
+                  grid
+                  grid-cols-2
+                  gap-x-2
+                  gap-y-8
+
+                  sm:gap-x-4
+
+                  md:grid-cols-3
+
+                  lg:grid-cols-4
+                  lg:gap-x-4
+
+                  xl:grid-cols-5
+                  xl:gap-x-5
+                "
+              >
+                {visibleProducts.map(
+                  (product) => {
+                    const isWishlisted =
+                      wishlist.some(
+                        (item) =>
+                          String(
+                            item.id
+                          ) ===
+                          String(
+                            product.id
+                          )
+                      );
+
+                    return (
+                      <ProductCard
+                        key={
+                          product.id
+                        }
+                        id={
+                          product.id
+                        }
+                        name={
+                          product.name
+                        }
+                        category={
+                          product.category
+                        }
+                        brand={
+                          product.brand
+                        }
+                        price={
+                          product.price
+                        }
+                        rating={
+                          product.rating
+                        }
+                        reviewCount={
+                          product.reviewCount
+                        }
+                        discount={
+                          product.discount
+                        }
+                        image={
+                          product.image
+                        }
+                        badge={
+                          product.badge
+                        }
+                        stock={getProductStock(
+                          product
+                        )}
+                        wishlist={
+                          isWishlisted
+                        }
+                        onWishlist={() =>
+                          toggleWishlist?.(
+                            product
+                          )
+                        }
+                      />
+                    );
+                  }
+                )}
+              </div>
+
+              {/* LOAD MORE */}
+
+              {hasMoreProducts && (
+                <div
+                  className="
+                    mt-12
+                    flex
+                    flex-col
+                    items-center
+                  "
+                >
+                  <p
+                    className="
+                      mb-3
+                      text-[11px]
+                      text-[#696b79]
+                    "
+                  >
+                    Showing{" "}
+                    {
+                      visibleProducts.length
+                    }{" "}
+                    of{" "}
+                    {
+                      filteredProducts.length
+                    }{" "}
+                    products
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setVisibleCount(
+                        (
+                          current
+                        ) =>
+                          current +
+                          15
+                      )
+                    }
+                    className="
+                      border
+                      border-[#282c3f]
+                      bg-white
+                      px-8
+                      py-3
+                      text-xs
+                      font-bold
+                      uppercase
+                      tracking-wide
+                      text-[#282c3f]
+                      transition
+                      hover:bg-[#282c3f]
+                      hover:text-white
+                    "
+                  >
+                    Load More
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            /* ===========================================
+               EMPTY STATE
+            =========================================== */
 
             <div
               className="
-                grid
-                grid-cols-1
-                gap-3
-                min-[380px]:grid-cols-2
-                sm:grid-cols-2
-                sm:gap-5
-                lg:grid-cols-3
-                lg:gap-6
-                xl:grid-cols-4
+                flex
+                min-h-[430px]
+                flex-col
+                items-center
+                justify-center
+                px-5
+                text-center
               "
             >
+              <div className="text-4xl">
+                🔍
+              </div>
 
-              {visibleProducts.map(
-                (product) => {
-                  const isWishlisted =
-                    wishlist.some(
-                      (item) =>
-                        item.id ===
-                        product.id
-                    );
-
-                  return (
-                    <ProductCard
-                      key={
-                        product.id
-                      }
-                      id={
-                        product.id
-                      }
-                      name={
-                        product.name
-                      }
-                      category={
-                        product.category
-                      }
-                      price={
-                        product.price
-                      }
-                      rating={
-                        product.rating
-                      }
-                      discount={
-                        product.discount
-                      }
-                      image={
-                        product.image
-                      }
-                      wishlist={
-                        isWishlisted
-                      }
-                      onWishlist={() =>
-                        toggleWishlist?.(
-                          product
-                        )
-                      }
-                    />
-                  );
-                }
-              )}
-
-            </div>
-
-            {/* LOAD MORE */}
-
-            {hasMoreProducts && (
-              <div
+              <h2
                 className="
-                  mt-10
-                  flex
-                  flex-col
-                  items-center
+                  mt-4
+                  text-lg
+                  font-bold
+                  text-[#282c3f]
                 "
               >
+                No products found
+              </h2>
 
-                <p
-                  className="
-                    mb-3
-                    text-xs
-                    text-gray-500
-                  "
-                >
-                  Showing{" "}
-                  {
-                    visibleProducts.length
-                  }{" "}
-                  of{" "}
-                  {
-                    filteredProducts.length
-                  }{" "}
-                  products
-                </p>
+              <p
+                className="
+                  mt-2
+                  max-w-sm
+                  text-sm
+                  leading-6
+                  text-[#696b79]
+                "
+              >
+                Try changing or
+                removing some of your
+                filters.
+              </p>
 
-                <button
-                  type="button"
-                  onClick={
-                    handleLoadMore
-                  }
-                  className="
-                    rounded-xl
-                    border
-                    border-gray-900
-                    bg-black
-                    px-7
-                    py-3
-                    text-sm
-                    font-semibold
-                    text-white
-                    hover:bg-gray-800
-                  "
-                >
-                  Load More
-                </button>
+              <button
+                type="button"
+                onClick={
+                  clearFilters
+                }
+                className="
+                  mt-5
+                  border
+                  border-orange-600
+                  px-5
+                  py-2.5
+                  text-xs
+                  font-bold
+                  uppercase
+                  text-orange-600
+                  transition
+                  hover:bg-orange-600
+                  hover:text-white
+                "
+              >
+                Clear Filters
+              </button>
+            </div>
+          )}
+        </main>
+      </div>
 
-              </div>
-            )}
+      {/* =================================================
+          MOBILE FILTER DRAWER
+      ================================================= */}
 
-            {!hasMoreProducts &&
-              filteredProducts.length >
-                12 && (
-                <p
-                  className="
-                    mt-10
-                    text-center
-                    text-xs
-                    text-gray-400
-                  "
-                >
-                  You've reached the
-                  end of the collection.
-                </p>
-              )}
+      {isFilterOpen && (
+        <div
+          className="
+            fixed
+            inset-0
+            z-[250]
+            lg:hidden
+          "
+        >
+          {/* OVERLAY */}
 
-          </>
-        ) : (
+          <button
+            type="button"
+            aria-label="Close filters"
+            onClick={() =>
+              setIsFilterOpen(
+                false
+              )
+            }
+            className="
+              absolute
+              inset-0
+              bg-black/50
+            "
+          />
 
-          /* NO PRODUCTS */
+          {/* DRAWER */}
 
           <div
             className="
-              rounded-2xl
-              border
-              border-dashed
-              border-gray-200
+              absolute
+              bottom-0
+              left-0
+              top-0
+              w-[88%]
+              max-w-[360px]
+              overflow-y-auto
               bg-white
-              px-4
-              py-14
-              text-center
-              sm:py-16
             "
           >
+            {/* DRAWER HEADER */}
 
-            <div className="mb-4 text-4xl">
-              🔍
+            <div
+              className="
+                sticky
+                top-0
+                z-20
+                flex
+                h-[64px]
+                items-center
+                justify-between
+                border-b
+                border-[#eaeaec]
+                bg-white
+                px-5
+              "
+            >
+              <div>
+                <p
+                  className="
+                    text-sm
+                    font-bold
+                    uppercase
+                    text-[#282c3f]
+                  "
+                >
+                  Filters
+                </p>
+
+                <p
+                  className="
+                    mt-0.5
+                    text-[10px]
+                    text-[#696b79]
+                  "
+                >
+                  {
+                    filteredProducts.length
+                  }{" "}
+                  product
+                  {filteredProducts.length !==
+                  1
+                    ? "s"
+                    : ""}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() =>
+                  setIsFilterOpen(
+                    false
+                  )
+                }
+                className="
+                  flex
+                  h-9
+                  w-9
+                  items-center
+                  justify-center
+                  text-2xl
+                  text-[#282c3f]
+                "
+              >
+                ×
+              </button>
             </div>
 
-            <h3
+            {/* FILTER CONTENT */}
+
+            <Filters />
+
+            {/* FILTER ACTIONS */}
+
+            <div
               className="
-                mb-2
-                text-lg
-                font-bold
-                sm:text-xl
+                sticky
+                bottom-0
+                z-20
+                grid
+                grid-cols-2
+                border-t
+                border-[#eaeaec]
+                bg-white
               "
             >
-              No products found
-            </h3>
+              <button
+                type="button"
+                onClick={
+                  clearFilters
+                }
+                className="
+                  h-[56px]
+                  text-xs
+                  font-bold
+                  uppercase
+                  text-[#282c3f]
+                "
+              >
+                Clear
+              </button>
 
-            <p
-              className="
-                mx-auto
-                mb-5
-                max-w-md
-                text-sm
-                leading-6
-                text-gray-500
-              "
-            >
-              We couldn't find products
-              matching your current search
-              or filters.
-            </p>
-
-            <button
-              type="button"
-              onClick={
-                clearFilters
-              }
-              className="
-                rounded-xl
-                bg-orange-600
-                px-5
-                py-3
-                text-sm
-                font-semibold
-                text-white
-                hover:bg-orange-700
-              "
-            >
-              Reset Filters
-            </button>
-
+              <button
+                type="button"
+                onClick={() =>
+                  setIsFilterOpen(
+                    false
+                  )
+                }
+                className="
+                  h-[56px]
+                  bg-orange-600
+                  text-xs
+                  font-bold
+                  uppercase
+                  text-white
+                "
+              >
+                Apply (
+                {
+                  filteredProducts.length
+                })
+              </button>
+            </div>
           </div>
-        )}
-
-      </div>
+        </div>
+      )}
     </section>
   );
 }
 
 export default ProductSection;
-  

@@ -1,25 +1,30 @@
 import Hero from "../components/Hero";
+
 import CategorySection from "../components/CategorySection";
-import ProductSection from "../components/ProductSection";
+
+import HomeProductSections from "../components/HomeProductSections";
+
 import Footer from "../components/Footer";
 
 function Home({
-  wishlist,
+  wishlist = [],
   toggleWishlist,
 }) {
   return (
-    <>
+    <main className="bg-white">
       <Hero />
 
       <CategorySection />
 
-      <ProductSection
+      <HomeProductSections
         wishlist={wishlist}
-        toggleWishlist={toggleWishlist}
+        toggleWishlist={
+          toggleWishlist
+        }
       />
 
       <Footer />
-    </>
+    </main>
   );
 }
 

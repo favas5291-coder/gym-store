@@ -1,6 +1,13 @@
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
-import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+} from "react-router-dom";
 
 import {
   calculateOrderPricing,
@@ -16,38 +23,122 @@ import {
   revalidateCart,
 } from "../utils/cartUtils";
 
-function Cart({ cart, setCart }) {
-  const navigate = useNavigate();
+/* =========================================================
+   ICONS
+========================================================= */
 
-  // ==========================================
-  // COUPON STATE
-  // ==========================================
+function SecureIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      className="h-5 w-5"
+      aria-hidden="true"
+    >
+      <path d="M12 3 4.5 6v5.2c0 4.7 3.1 8.9 7.5 9.8 4.4-.9 7.5-5.1 7.5-9.8V6L12 3Z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
 
-  const [couponCode, setCouponCode] =
-    useState("");
+function TagIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="h-5 w-5"
+      aria-hidden="true"
+    >
+      <path d="M20 13 11 22l-9-9V4h9l9 9Z" />
+      <circle cx="7" cy="9" r="1" />
+    </svg>
+  );
+}
 
-  const [appliedCoupon, setAppliedCoupon] =
-    useState(null);
+function DeliveryIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="h-5 w-5"
+      aria-hidden="true"
+    >
+      <path d="M3 5h11v11H3z" />
+      <path d="M14 9h4l3 3v4h-7z" />
+      <circle cx="7" cy="18" r="2" />
+      <circle cx="18" cy="18" r="2" />
+    </svg>
+  );
+}
 
-  const [couponMessage, setCouponMessage] =
-    useState("");
+/* =========================================================
+   CART
+========================================================= */
 
+function Cart({
+  cart,
+  setCart,
+}) {
+  const navigate =
+    useNavigate();
 
-  // ==========================================
-  // REVALIDATE CART
-  // ==========================================
+  /* =======================================================
+     COUPON STATE
+  ======================================================= */
+
+  const [
+    couponCode,
+    setCouponCode,
+  ] = useState("");
+
+  const [
+    appliedCoupon,
+    setAppliedCoupon,
+  ] = useState(null);
+
+  const [
+    couponMessage,
+    setCouponMessage,
+  ] = useState("");
+
+  /* =======================================================
+     DELIVERY CHECK
+  ======================================================= */
+
+  const [
+    pincode,
+    setPincode,
+  ] = useState("");
+
+  const [
+    deliveryMessage,
+    setDeliveryMessage,
+  ] = useState("");
+
+  /* =======================================================
+     REVALIDATE CART
+  ======================================================= */
 
   useEffect(() => {
-    const result = revalidateCart(
-      cart,
-      products
-    );
+    const result =
+      revalidateCart(
+        cart,
+        products
+      );
 
     const currentCartJSON =
       JSON.stringify(cart);
 
     const updatedCartJSON =
-      JSON.stringify(result.cart);
+      JSON.stringify(
+        result.cart
+      );
 
     if (
       currentCartJSON !==
@@ -55,12 +146,14 @@ function Cart({ cart, setCart }) {
     ) {
       setCart(result.cart);
     }
-  }, [cart, setCart]);
+  }, [
+    cart,
+    setCart,
+  ]);
 
-
-  // ==========================================
-  // LOAD SAVED COUPON
-  // ==========================================
+  /* =======================================================
+     LOAD SAVED COUPON
+  ======================================================= */
 
   useEffect(() => {
     const savedCoupon =
@@ -74,19 +167,27 @@ function Cart({ cart, setCart }) {
 
     try {
       const savedCouponData =
-        JSON.parse(savedCoupon);
+        JSON.parse(
+          savedCoupon
+        );
 
       const code =
         savedCouponData?.code
           ?.toUpperCase();
 
-      const coupon = code
-        ? COUPONS[code]
-        : null;
+      const coupon =
+        code
+          ? COUPONS[code]
+          : null;
 
       if (coupon) {
-        setAppliedCoupon(coupon);
-        setCouponCode(coupon.code);
+        setAppliedCoupon(
+          coupon
+        );
+
+        setCouponCode(
+          coupon.code
+        );
       } else {
         localStorage.removeItem(
           "gymdrobe-coupon"
@@ -99,17 +200,29 @@ function Cart({ cart, setCart }) {
     }
   }, []);
 
+  /* =======================================================
+     GET PRODUCT
+  ======================================================= */
 
-  // ==========================================
-  // GET STOCK
-  // ==========================================
+  function getProduct(item) {
+    return products.find(
+      (productItem) =>
+        String(
+          productItem.id
+        ) ===
+        String(
+          item.id
+        )
+    );
+  }
+
+  /* =======================================================
+     STOCK
+  ======================================================= */
 
   function getItemStock(item) {
-    const product = products.find(
-      (productItem) =>
-        String(productItem.id) ===
-        String(item.id)
-    );
+    const product =
+      getProduct(item);
 
     if (!product) {
       return 0;
@@ -117,170 +230,193 @@ function Cart({ cart, setCart }) {
 
     return getVariantStock(
       product,
-      item.selectedSize ?? null,
-      item.selectedColor ?? null
+      item.selectedSize ??
+        null,
+      item.selectedColor ??
+        null
     );
   }
 
+  /* =======================================================
+     REMOVE ITEM
+  ======================================================= */
 
-  // ==========================================
-  // REMOVE ITEM
-  // ==========================================
-
-  function removeItem(itemToRemove) {
+  function removeItem(
+    itemToRemove
+  ) {
     const itemKey =
-      getCartItemKey(itemToRemove);
+      getCartItemKey(
+        itemToRemove
+      );
 
-    setCart((currentCart) =>
-      currentCart.filter(
-        (item) =>
-          getCartItemKey(item) !==
-          itemKey
-      )
+    setCart(
+      (currentCart) =>
+        currentCart.filter(
+          (item) =>
+            getCartItemKey(
+              item
+            ) !== itemKey
+        )
     );
   }
 
-
-  // ==========================================
-  // DECREASE QUANTITY
-  // ==========================================
+  /* =======================================================
+     QUANTITY
+  ======================================================= */
 
   function decreaseQuantity(
     itemToDecrease
   ) {
     const itemKey =
-      getCartItemKey(itemToDecrease);
+      getCartItemKey(
+        itemToDecrease
+      );
 
-    setCart((currentCart) =>
-      currentCart
-        .map((item) => {
-          if (
-            getCartItemKey(item) !==
-            itemKey
-          ) {
-            return item;
-          }
+    setCart(
+      (currentCart) =>
+        currentCart
+          .map(
+            (item) => {
+              if (
+                getCartItemKey(
+                  item
+                ) !== itemKey
+              ) {
+                return item;
+              }
 
-          const newQuantity =
-            Number(item.quantity || 1) -
-            1;
+              const newQuantity =
+                Number(
+                  item.quantity ||
+                    1
+                ) - 1;
 
-          return {
-            ...item,
-            quantity: newQuantity,
-          };
-        })
-        .filter(
-          (item) =>
-            Number(item.quantity) > 0
-        )
+              return {
+                ...item,
+                quantity:
+                  newQuantity,
+              };
+            }
+          )
+          .filter(
+            (item) =>
+              Number(
+                item.quantity
+              ) > 0
+          )
     );
   }
-
-
-  // ==========================================
-  // INCREASE QUANTITY
-  // ==========================================
 
   function increaseQuantity(
     itemToIncrease
   ) {
     const itemKey =
-      getCartItemKey(itemToIncrease);
+      getCartItemKey(
+        itemToIncrease
+      );
 
     const stock =
-      getItemStock(itemToIncrease);
+      getItemStock(
+        itemToIncrease
+      );
 
-    setCart((currentCart) =>
-      currentCart.map((item) => {
-        if (
-          getCartItemKey(item) !==
-          itemKey
-        ) {
-          return item;
-        }
+    setCart(
+      (currentCart) =>
+        currentCart.map(
+          (item) => {
+            if (
+              getCartItemKey(
+                item
+              ) !== itemKey
+            ) {
+              return item;
+            }
 
-        const currentQuantity =
-          Number(item.quantity || 0);
+            const currentQuantity =
+              Number(
+                item.quantity ||
+                  0
+              );
 
-        // --------------------------------------
-        // STOCK LIMIT
-        // --------------------------------------
+            if (
+              currentQuantity >=
+              stock
+            ) {
+              return item;
+            }
 
-        if (
-          currentQuantity >= stock
-        ) {
-          return item;
-        }
+            return {
+              ...item,
 
-        return {
-          ...item,
-          quantity:
-            currentQuantity + 1,
-        };
-      })
+              quantity:
+                currentQuantity +
+                1,
+            };
+          }
+        )
     );
   }
 
-
-  // ==========================================
-  // ORDER PRICING
-  // ==========================================
+  /* =======================================================
+     PRICING
+  ======================================================= */
 
   const {
     subtotal,
     couponDiscount,
     totalAfterCoupon,
-    shipping: standardShipping,
+    shipping:
+      standardShipping,
     finalTotal,
   } = useMemo(() => {
     return calculateOrderPricing({
       cart,
-      coupon: appliedCoupon,
-      deliveryMethod: "standard",
+
+      coupon:
+        appliedCoupon,
+
+      deliveryMethod:
+        "standard",
     });
-  }, [cart, appliedCoupon]);
+  }, [
+    cart,
+    appliedCoupon,
+  ]);
 
+  /* =======================================================
+     APPLY COUPON
+  ======================================================= */
 
-  // ==========================================
-  // APPLY COUPON
-  // ==========================================
-
-  function applyCoupon() {
+  function applyCoupon(
+    requestedCode = null
+  ) {
     const code =
-      couponCode
+      (
+        requestedCode ??
+        couponCode
+      )
         .trim()
         .toUpperCase();
 
-    // ------------------------------------------
-    // EMPTY COUPON
-    // ------------------------------------------
-
     if (!code) {
       setCouponMessage(
-        "❌ Please enter a coupon code."
+        "Please enter a coupon code."
       );
 
       return;
     }
 
-    // ------------------------------------------
-    // FIND COUPON
-    // ------------------------------------------
-
     const coupon =
       COUPONS[code];
 
-    // ------------------------------------------
-    // INVALID COUPON
-    // ------------------------------------------
-
     if (!coupon) {
       setCouponMessage(
-        "❌ Invalid coupon code."
+        "Invalid coupon code."
       );
 
-      setAppliedCoupon(null);
+      setAppliedCoupon(
+        null
+      );
 
       localStorage.removeItem(
         "gymdrobe-coupon"
@@ -288,22 +424,20 @@ function Cart({ cart, setCart }) {
 
       return;
     }
-
-    // ------------------------------------------
-    // MINIMUM ORDER CHECK
-    // ------------------------------------------
 
     if (
       subtotal <
       coupon.minimum
     ) {
       setCouponMessage(
-        `❌ Minimum order value is ₹${coupon.minimum.toLocaleString(
+        `Minimum order value is ₹${coupon.minimum.toLocaleString(
           "en-IN"
         )}.`
       );
 
-      setAppliedCoupon(null);
+      setAppliedCoupon(
+        null
+      );
 
       localStorage.removeItem(
         "gymdrobe-coupon"
@@ -312,33 +446,35 @@ function Cart({ cart, setCart }) {
       return;
     }
 
-    // ------------------------------------------
-    // APPLY COUPON
-    // ------------------------------------------
+    setAppliedCoupon(
+      coupon
+    );
 
-    setAppliedCoupon(coupon);
-
-    setCouponCode(coupon.code);
+    setCouponCode(
+      coupon.code
+    );
 
     localStorage.setItem(
       "gymdrobe-coupon",
       JSON.stringify({
-        code: coupon.code,
+        code:
+          coupon.code,
       })
     );
 
     setCouponMessage(
-      `✅ Coupon ${coupon.code} applied!`
+      `Coupon ${coupon.code} applied successfully.`
     );
   }
 
-
-  // ==========================================
-  // REMOVE COUPON
-  // ==========================================
+  /* =======================================================
+     REMOVE COUPON
+  ======================================================= */
 
   function removeCoupon() {
-    setAppliedCoupon(null);
+    setAppliedCoupon(
+      null
+    );
 
     setCouponCode("");
 
@@ -351,10 +487,9 @@ function Cart({ cart, setCart }) {
     );
   }
 
-
-  // ==========================================
-  // REVALIDATE COUPON
-  // ==========================================
+  /* =======================================================
+     COUPON REVALIDATION
+  ======================================================= */
 
   useEffect(() => {
     if (!appliedCoupon) {
@@ -365,12 +500,14 @@ function Cart({ cart, setCart }) {
       subtotal <
       appliedCoupon.minimum
     ) {
-      setAppliedCoupon(null);
+      setAppliedCoupon(
+        null
+      );
 
       setCouponCode("");
 
       setCouponMessage(
-        `❌ Coupon removed. Minimum order value is ₹${appliedCoupon.minimum.toLocaleString(
+        `Coupon removed. Minimum order value is ₹${appliedCoupon.minimum.toLocaleString(
           "en-IN"
         )}.`
       );
@@ -379,35 +516,41 @@ function Cart({ cart, setCart }) {
         "gymdrobe-coupon"
       );
     }
-  }, [subtotal, appliedCoupon]);
+  }, [
+    subtotal,
+    appliedCoupon,
+  ]);
 
+  /* =======================================================
+     TOTAL ITEMS
+  ======================================================= */
 
-  // ==========================================
-  // TOTAL ITEMS
-  // ==========================================
+  const totalItems =
+    cart.reduce(
+      (
+        total,
+        item
+      ) =>
+        total +
+        Number(
+          item.quantity ||
+            0
+        ),
+      0
+    );
 
-  const totalItems = cart.reduce(
-    (total, item) =>
-      total +
-      Number(item.quantity || 0),
-    0
-  );
-
-
-  // ==========================================
-  // TOTAL SAVINGS
-  // ==========================================
+  /* =======================================================
+     PRODUCT SAVINGS
+  ======================================================= */
 
   const productSavings =
     cart.reduce(
-      (total, item) => {
+      (
+        total,
+        item
+      ) => {
         const product =
-          products.find(
-            (productItem) =>
-              String(
-                productItem.id
-              ) === String(item.id)
-          );
+          getProduct(item);
 
         if (!product) {
           return total;
@@ -415,15 +558,17 @@ function Cart({ cart, setCart }) {
 
         const originalPrice =
           Number(
-            product.price || 0
+            product.price ||
+              0
           );
 
         const sellingPrice =
           Number(
-            item.price || 0
+            item.price ||
+              0
           );
 
-        const savings =
+        const saving =
           Math.max(
             originalPrice -
               sellingPrice,
@@ -432,9 +577,10 @@ function Cart({ cart, setCart }) {
 
         return (
           total +
-          savings *
+          saving *
             Number(
-              item.quantity || 0
+              item.quantity ||
+                0
             )
         );
       },
@@ -445,19 +591,91 @@ function Cart({ cart, setCart }) {
     productSavings +
     couponDiscount;
 
+  /* =======================================================
+     TOTAL MRP
+  ======================================================= */
 
-  // ==========================================
-  // CHECKOUT
-  // ==========================================
+  const totalMrp =
+    cart.reduce(
+      (
+        total,
+        item
+      ) => {
+        const product =
+          getProduct(item);
+
+        const originalPrice =
+          Number(
+            product?.price ??
+              item.price ??
+              0
+          );
+
+        return (
+          total +
+          originalPrice *
+            Number(
+              item.quantity ||
+                0
+            )
+        );
+      },
+      0
+    );
+
+  /* =======================================================
+     PRODUCT DISCOUNT
+  ======================================================= */
+
+  const productDiscount =
+    Math.max(
+      totalMrp -
+        subtotal,
+      0
+    );
+
+  /* =======================================================
+     AVAILABLE COUPONS
+  ======================================================= */
+
+  const availableCoupons =
+    Object.values(
+      COUPONS
+    );
+
+  /* =======================================================
+     DELIVERY PINCODE
+  ======================================================= */
+
+  function checkPincode() {
+    const value =
+      pincode.trim();
+
+    if (
+      !/^\d{6}$/.test(
+        value
+      )
+    ) {
+      setDeliveryMessage(
+        "Enter a valid 6-digit pincode."
+      );
+
+      return;
+    }
+
+    setDeliveryMessage(
+      "Pincode saved. Final delivery date will be confirmed at checkout."
+    );
+  }
+
+  /* =======================================================
+     CHECKOUT
+  ======================================================= */
 
   function handleCheckout() {
     if (!cart.length) {
       return;
     }
-
-    // ------------------------------------------
-    // FINAL CART VALIDATION
-    // ------------------------------------------
 
     const result =
       revalidateCart(
@@ -465,1024 +683,1462 @@ function Cart({ cart, setCart }) {
         products
       );
 
-    // ------------------------------------------
-    // CART CHANGED
-    // ------------------------------------------
-
     if (
-      JSON.stringify(result.cart) !==
-      JSON.stringify(cart)
+      JSON.stringify(
+        result.cart
+      ) !==
+      JSON.stringify(
+        cart
+      )
     ) {
-      setCart(result.cart);
+      setCart(
+        result.cart
+      );
 
       return;
     }
 
-    // ------------------------------------------
-    // GO TO CHECKOUT
-    // ------------------------------------------
-
-    navigate("/checkout");
+    navigate(
+      "/checkout"
+    );
   }
 
+  /* =======================================================
+     EMPTY BAG
+  ======================================================= */
 
-  // ==========================================
-  // EMPTY CART
-  // ==========================================
-
-  if (cart.length === 0) {
+  if (
+    cart.length === 0
+  ) {
     return (
-      <section
+      <main
         className="
-          min-h-screen
-          bg-gray-100
-          text-black
-          px-3
-          sm:px-6
-          py-10
-          sm:py-20
+          min-h-[75vh]
+          bg-white
+          text-[#282c3f]
+        "
+      >
+        {/* CHECKOUT HEADER */}
+
+        <div
+          className="
+            border-b
+            border-[#eaeaec]
+          "
+        >
+          <div
+            className="
+              mx-auto
+              flex
+              min-h-[76px]
+              max-w-[1200px]
+              items-center
+              justify-center
+              px-4
+            "
+          >
+            <div
+              className="
+                flex
+                items-center
+                gap-2
+                text-[11px]
+                font-bold
+                uppercase
+                tracking-[0.18em]
+              "
+            >
+              <span
+                className="
+                  border-b-2
+                  border-orange-600
+                  pb-2
+                  text-orange-600
+                "
+              >
+                Bag
+              </span>
+
+              <span
+                className="
+                  text-[#d4d5d9]
+                "
+              >
+                ─────
+              </span>
+
+              <span>
+                Address
+              </span>
+
+              <span
+                className="
+                  text-[#d4d5d9]
+                "
+              >
+                ─────
+              </span>
+
+              <span>
+                Payment
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div
+          className="
+            flex
+            min-h-[560px]
+            items-center
+            justify-center
+            px-5
+          "
+        >
+          <div
+            className="
+              max-w-[460px]
+              text-center
+            "
+          >
+            <div
+              className="
+                mx-auto
+                flex
+                h-20
+                w-20
+                items-center
+                justify-center
+                rounded-full
+                bg-[#fff4ed]
+                text-4xl
+              "
+            >
+              🛍️
+            </div>
+
+            <h1
+              className="
+                mt-6
+                text-2xl
+                font-bold
+              "
+            >
+              Your Bag Is Empty
+            </h1>
+
+            <p
+              className="
+                mt-3
+                text-sm
+                leading-6
+                text-[#696b79]
+              "
+            >
+              Add your favourite
+              workout essentials to
+              your bag and they will
+              appear here.
+            </p>
+
+            <Link
+              to="/shop"
+              className="
+                mt-7
+                inline-flex
+                min-h-[48px]
+                items-center
+                justify-center
+                bg-orange-600
+                px-8
+                text-xs
+                font-bold
+                uppercase
+                tracking-wide
+                text-white
+                transition
+                hover:bg-orange-700
+              "
+            >
+              Continue Shopping
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  /* =======================================================
+     CART
+  ======================================================= */
+
+  return (
+    <main
+      className="
+        min-h-screen
+        bg-white
+        text-[#282c3f]
+      "
+    >
+      {/* =================================================
+          CHECKOUT PROGRESS
+      ================================================= */}
+
+      <div
+        className="
+          border-b
+          border-[#eaeaec]
+          bg-white
         "
       >
         <div
           className="
-            max-w-4xl
             mx-auto
-            text-center
-            bg-white
-            rounded-2xl
-            sm:rounded-3xl
-            p-6
-            sm:p-12
-            shadow-sm
+            flex
+            min-h-[76px]
+            max-w-[1200px]
+            items-center
+            justify-between
+            gap-4
+            px-4
+            sm:px-6
           "
         >
           <div
             className="
-              text-5xl
-              sm:text-6xl
-              mb-5
-              sm:mb-6
+              hidden
+              w-[150px]
+              sm:block
+            "
+          />
+
+          <div
+            className="
+              flex
+              items-center
+              gap-2
+              text-[10px]
+              font-bold
+              uppercase
+              tracking-[0.18em]
+              sm:text-[11px]
             "
           >
-            🛒
+            <span
+              className="
+                border-b-2
+                border-orange-600
+                pb-2
+                text-orange-600
+              "
+            >
+              Bag
+            </span>
+
+            <span
+              className="
+                text-[#c7c8cc]
+              "
+            >
+              ─────
+            </span>
+
+            <span>
+              Address
+            </span>
+
+            <span
+              className="
+                text-[#c7c8cc]
+              "
+            >
+              ─────
+            </span>
+
+            <span>
+              Payment
+            </span>
           </div>
 
-          <h1
+          <div
             className="
-              text-2xl
-              sm:text-3xl
-              font-bold
-              mb-4
-            "
-          >
-            Your cart is empty
-          </h1>
-
-          <p
-            className="
-              text-sm
-              sm:text-base
-              text-gray-500
-              mb-7
-              sm:mb-8
-              max-w-md
-              mx-auto
-            "
-          >
-            Looks like you haven't added
-            anything to your cart yet.
-          </p>
-
-          <Link
-            to="/shop"
-            className="
-              inline-flex
+              hidden
+              w-[150px]
               items-center
-              justify-center
-              w-full
-              sm:w-auto
-              bg-orange-600
-              hover:bg-orange-700
-              text-white
-              px-7
-              sm:px-8
-              py-3.5
-              sm:py-4
-              rounded-xl
-              font-semibold
-              transition
-              active:scale-[0.98]
-            "
-          >
-            CONTINUE SHOPPING
-          </Link>
-        </div>
-      </section>
-    );
-  }
-
-
-  // ==========================================
-  // CART
-  // ==========================================
-
-  return (
-    <section
-      className="
-        min-h-screen
-        bg-gray-100
-        text-black
-        px-3
-        sm:px-6
-        py-7
-        sm:py-10
-        md:py-16
-      "
-    >
-      <div className="max-w-7xl mx-auto">
-
-        {/* ====================================
-            HEADER
-        ==================================== */}
-
-        <div className="mb-7 sm:mb-10">
-          <h1
-            className="
-              text-3xl
-              sm:text-4xl
+              justify-end
+              gap-2
+              text-[10px]
               font-bold
+              uppercase
+              tracking-[0.12em]
+              text-[#696b79]
+              sm:flex
             "
           >
-            Shopping Cart
-          </h1>
+            <span
+              className="
+                text-green-600
+              "
+            >
+              <SecureIcon />
+            </span>
 
-          <p
-            className="
-              text-sm
-              sm:text-base
-              text-gray-500
-              mt-2
-            "
-          >
-            {totalItems}{" "}
-            {totalItems === 1
-              ? "item"
-              : "items"}{" "}
-            in your cart
-          </p>
+            100% Secure
+          </div>
         </div>
+      </div>
 
+      {/* =================================================
+          MAIN CART
+      ================================================= */}
 
-        {/* ====================================
-            MAIN GRID
-        ==================================== */}
-
+      <div
+        className="
+          mx-auto
+          max-w-[1000px]
+          px-4
+          py-6
+          sm:px-6
+          lg:py-8
+        "
+      >
         <div
           className="
             grid
-            lg:grid-cols-3
-            gap-6
-            lg:gap-8
+            gap-8
+            lg:grid-cols-[minmax(0,1fr)_360px]
           "
         >
+          {/* =================================================
+              LEFT
+          ================================================= */}
 
-          {/* ==================================
-              CART ITEMS
-          ================================== */}
-
-          <div
+          <section
             className="
-              lg:col-span-2
-              space-y-4
-              sm:space-y-5
+              min-w-0
+              lg:border-r
+              lg:border-[#eaeaec]
+              lg:pr-8
             "
           >
+            {/* =============================================
+                DELIVERY CHECK
+            ============================================= */}
 
-            {cart.map((item) => {
-              const stock =
-                getItemStock(item);
-
-              const quantity =
-                Number(
-                  item.quantity || 0
-                );
-
-              const isAtStockLimit =
-                stock > 0 &&
-                quantity >= stock;
-
-              return (
+            <div
+              className="
+                border
+                border-[#eaeaec]
+                bg-[#fff8f5]
+                px-4
+                py-4
+              "
+            >
+              <div
+                className="
+                  flex
+                  flex-col
+                  gap-4
+                  sm:flex-row
+                  sm:items-center
+                  sm:justify-between
+                "
+              >
                 <div
-                  key={getCartItemKey(item)}
                   className="
-                    bg-white
-                    rounded-xl
-                    sm:rounded-2xl
-                    p-3
-                    sm:p-5
-                    md:p-6
-                    shadow-sm
+                    flex
+                    items-center
+                    gap-3
                   "
                 >
+                  <DeliveryIcon />
 
-                  <div
+                  <span
                     className="
-                      flex
-                      gap-3
-                      sm:gap-5
+                      text-sm
+                      font-bold
                     "
                   >
+                    Check delivery
+                    time & services
+                  </span>
+                </div>
 
-                    {/* ======================
-                        IMAGE
-                    ======================= */}
+                <div
+                  className="
+                    flex
+                    border
+                    border-orange-500
+                    bg-white
+                  "
+                >
+                  <input
+                    type="text"
+                    value={
+                      pincode
+                    }
+                    maxLength={6}
+                    inputMode="numeric"
+                    onChange={(
+                      event
+                    ) => {
+                      setPincode(
+                        event.target.value
+                          .replace(
+                            /\D/g,
+                            ""
+                          )
+                          .slice(
+                            0,
+                            6
+                          )
+                      );
 
-                    <Link
-                      to={`/product/${item.id}`}
+                      setDeliveryMessage(
+                        ""
+                      );
+                    }}
+                    placeholder="PIN CODE"
+                    className="
+                      w-[120px]
+                      px-3
+                      py-2
+                      text-xs
+                      outline-none
+                    "
+                  />
+
+                  <button
+                    type="button"
+                    onClick={
+                      checkPincode
+                    }
+                    className="
+                      border-l
+                      border-orange-500
+                      px-4
+                      text-[10px]
+                      font-bold
+                      uppercase
+                      text-orange-600
+                    "
+                  >
+                    Check
+                  </button>
+                </div>
+              </div>
+
+              {deliveryMessage && (
+                <p
+                  className="
+                    mt-3
+                    text-xs
+                    text-[#696b79]
+                  "
+                >
+                  {
+                    deliveryMessage
+                  }
+                </p>
+              )}
+            </div>
+
+            {/* =============================================
+                AVAILABLE OFFERS
+            ============================================= */}
+
+            <div
+              className="
+                mt-3
+                border
+                border-[#eaeaec]
+                bg-white
+                p-4
+              "
+            >
+              <div
+                className="
+                  flex
+                  items-center
+                  gap-3
+                "
+              >
+                <TagIcon />
+
+                <h2
+                  className="
+                    text-sm
+                    font-bold
+                  "
+                >
+                  Available Offers
+                </h2>
+              </div>
+
+              <p
+                className="
+                  mt-3
+                  text-xs
+                  leading-5
+                  text-[#696b79]
+                "
+              >
+                Apply an eligible
+                GymDrobe coupon to
+                save more on your
+                order.
+              </p>
+
+              <div
+                className="
+                  mt-3
+                  flex
+                  flex-wrap
+                  gap-x-4
+                  gap-y-2
+                "
+              >
+                {availableCoupons.map(
+                  (coupon) => (
+                    <button
+                      key={
+                        coupon.code
+                      }
+                      type="button"
+                      onClick={() => {
+                        setCouponCode(
+                          coupon.code
+                        );
+
+                        applyCoupon(
+                          coupon.code
+                        );
+                      }}
                       className="
-                        w-24
-                        h-24
-                        sm:w-32
-                        sm:h-32
-                        shrink-0
-                        bg-gray-100
-                        rounded-lg
-                        sm:rounded-xl
-                        overflow-hidden
+                        text-[11px]
+                        font-bold
+                        text-orange-600
+                        hover:underline
                       "
                     >
-                      <img
-                        src={
-                          item.image ||
-                          item.images?.[0]
-                        }
-                        alt={item.name}
-                        className="
-                          w-full
-                          h-full
-                          object-cover
-                        "
-                      />
-                    </Link>
+                      {
+                        coupon.code
+                      }
+                    </button>
+                  )
+                )}
+              </div>
+            </div>
 
+            {/* =============================================
+                ITEMS HEADER
+            ============================================= */}
 
-                    {/* ======================
-                        DETAILS
-                    ======================= */}
+            <div
+              className="
+                mt-6
+                flex
+                items-center
+                justify-between
+                border-b
+                border-[#eaeaec]
+                pb-4
+              "
+            >
+              <h1
+                className="
+                  text-sm
+                  font-bold
+                  uppercase
+                "
+              >
+                {totalItems}{" "}
+                {totalItems === 1
+                  ? "Item"
+                  : "Items"}{" "}
+                In Your Bag
+              </h1>
 
-                    <div
+              <Link
+                to="/wishlist"
+                className="
+                  text-[10px]
+                  font-bold
+                  uppercase
+                  text-[#696b79]
+                  hover:text-orange-600
+                "
+              >
+                Wishlist
+              </Link>
+            </div>
+
+            {/* =============================================
+                CART ITEMS
+            ============================================= */}
+
+            <div
+              className="
+                divide-y
+                divide-[#eaeaec]
+              "
+            >
+              {cart.map(
+                (item) => {
+                  const product =
+                    getProduct(
+                      item
+                    );
+
+                  const stock =
+                    getItemStock(
+                      item
+                    );
+
+                  const quantity =
+                    Number(
+                      item.quantity ||
+                        0
+                    );
+
+                  const isAtStockLimit =
+                    stock > 0 &&
+                    quantity >=
+                      stock;
+
+                  const originalPrice =
+                    Number(
+                      product?.price ??
+                        item.price ??
+                        0
+                    );
+
+                  const sellingPrice =
+                    Number(
+                      item.price ||
+                        0
+                    );
+
+                  const discount =
+                    originalPrice >
+                    0
+                      ? Math.round(
+                          ((originalPrice -
+                            sellingPrice) /
+                            originalPrice) *
+                            100
+                        )
+                      : 0;
+
+                  return (
+                    <article
+                      key={getCartItemKey(
+                        item
+                      )}
                       className="
-                        flex-1
-                        min-w-0
+                        py-5
                       "
                     >
-
                       <div
                         className="
                           flex
-                          justify-between
-                          gap-2
+                          gap-4
                         "
                       >
+                        {/* IMAGE */}
+
+                        <Link
+                          to={`/product/${item.id}`}
+                          className="
+                            h-[150px]
+                            w-[112px]
+                            shrink-0
+                            overflow-hidden
+                            bg-[#f5f5f6]
+                            sm:h-[170px]
+                            sm:w-[128px]
+                          "
+                        >
+                          <img
+                            src={
+                              item.image ||
+                              item.images?.[
+                                0
+                              ]
+                            }
+                            alt={
+                              item.name
+                            }
+                            className="
+                              h-full
+                              w-full
+                              object-cover
+                            "
+                          />
+                        </Link>
+
+                        {/* DETAILS */}
 
                         <div
                           className="
                             min-w-0
+                            flex-1
                           "
                         >
-
-                          <Link
-                            to={`/product/${item.id}`}
+                          <div
                             className="
-                              block
-                              text-sm
-                              sm:text-lg
-                              md:text-xl
-                              font-bold
-                              leading-tight
-                              hover:text-orange-600
-                              transition
-                              line-clamp-2
+                              flex
+                              items-start
+                              justify-between
+                              gap-3
                             "
                           >
-                            {item.name}
-                          </Link>
-
-                          <p
-                            className="
-                              text-gray-500
-                              text-xs
-                              sm:text-sm
-                              mt-1
-                              truncate
-                            "
-                          >
-                            {item.category}
-                          </p>
-
-                        </div>
-
-
-                        {/* REMOVE */}
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            removeItem(item)
-                          }
-                          aria-label={`Remove ${item.name}`}
-                          className="
-                            shrink-0
-                            w-8
-                            h-8
-                            sm:w-9
-                            sm:h-9
-                            flex
-                            items-center
-                            justify-center
-                            rounded-full
-                            text-gray-400
-                            hover:text-red-500
-                            hover:bg-red-50
-                            transition
-                            text-base
-                            sm:text-lg
-                          "
-                        >
-                          🗑️
-                        </button>
-
-                      </div>
-
-
-                      {/* ======================
-                          VARIANTS
-                      ======================= */}
-
-                      {(item.selectedSize ||
-                        item.selectedColor) && (
-                        <div
-                          className="
-                            flex
-                            flex-wrap
-                            gap-1.5
-                            sm:gap-2
-                            mt-2
-                            sm:mt-3
-                          "
-                        >
-
-                          {item.selectedSize && (
-                            <span
+                            <div
                               className="
-                                bg-gray-100
-                                px-2
-                                sm:px-3
-                                py-1
-                                rounded-full
-                                text-[10px]
-                                sm:text-sm
+                                min-w-0
                               "
                             >
-                              Size:{" "}
-                              <strong>
+                              <p
+                                className="
+                                  text-sm
+                                  font-bold
+                                  text-[#282c3f]
+                                "
+                              >
+                                {product?.brand ||
+                                  "GymDrobe"}
+                              </p>
+
+                              <Link
+                                to={`/product/${item.id}`}
+                                className="
+                                  mt-1
+                                  block
+                                  truncate
+                                  text-[13px]
+                                  text-[#696b79]
+                                  hover:text-orange-600
+                                "
+                              >
+                                {
+                                  item.name
+                                }
+                              </Link>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                removeItem(
+                                  item
+                                )
+                              }
+                              aria-label={`Remove ${item.name}`}
+                              className="
+                                flex
+                                h-8
+                                w-8
+                                shrink-0
+                                items-center
+                                justify-center
+                                text-xl
+                                text-[#696b79]
+                                hover:text-red-600
+                              "
+                            >
+                              ×
+                            </button>
+                          </div>
+
+                          {/* VARIANTS */}
+
+                          <div
+                            className="
+                              mt-3
+                              flex
+                              flex-wrap
+                              gap-2
+                            "
+                          >
+                            {item.selectedSize && (
+                              <span
+                                className="
+                                  bg-[#f5f5f6]
+                                  px-2.5
+                                  py-1.5
+                                  text-[11px]
+                                  font-semibold
+                                "
+                              >
+                                Size:{" "}
                                 {
                                   item.selectedSize
                                 }
-                              </strong>
-                            </span>
-                          )}
+                              </span>
+                            )}
 
-                          {item.selectedColor && (
-                            <span
-                              className="
-                                bg-gray-100
-                                px-2
-                                sm:px-3
-                                py-1
-                                rounded-full
-                                text-[10px]
-                                sm:text-sm
-                              "
-                            >
-                              Color:{" "}
-                              <strong>
+                            {item.selectedColor && (
+                              <span
+                                className="
+                                  bg-[#f5f5f6]
+                                  px-2.5
+                                  py-1.5
+                                  text-[11px]
+                                  font-semibold
+                                "
+                              >
+                                Color:{" "}
                                 {
                                   item.selectedColor
                                 }
-                              </strong>
+                              </span>
+                            )}
+                          </div>
+
+                          {/* QUANTITY */}
+
+                          <div
+                            className="
+                              mt-3
+                              flex
+                              flex-wrap
+                              items-center
+                              gap-3
+                            "
+                          >
+                            <span
+                              className="
+                                text-[11px]
+                                font-semibold
+                              "
+                            >
+                              Qty:
                             </span>
-                          )}
 
-                        </div>
-                      )}
+                            <div
+                              className="
+                                flex
+                                h-8
+                                items-center
+                                border
+                                border-[#d4d5d9]
+                              "
+                            >
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  decreaseQuantity(
+                                    item
+                                  )
+                                }
+                                disabled={
+                                  quantity <=
+                                  1
+                                }
+                                className="
+                                  flex
+                                  h-full
+                                  w-8
+                                  items-center
+                                  justify-center
+                                  disabled:text-gray-300
+                                "
+                              >
+                                −
+                              </button>
 
+                              <span
+                                className="
+                                  flex
+                                  h-full
+                                  min-w-8
+                                  items-center
+                                  justify-center
+                                  border-x
+                                  border-[#eaeaec]
+                                  px-2
+                                  text-xs
+                                  font-bold
+                                "
+                              >
+                                {quantity}
+                              </span>
 
-                      {/* ======================
-                          PRICE
-                      ======================= */}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  increaseQuantity(
+                                    item
+                                  )
+                                }
+                                disabled={
+                                  isAtStockLimit
+                                }
+                                className="
+                                  flex
+                                  h-full
+                                  w-8
+                                  items-center
+                                  justify-center
+                                  disabled:text-gray-300
+                                "
+                              >
+                                +
+                              </button>
+                            </div>
 
-                      <div
-                        className="
-                          mt-2
-                          sm:mt-4
-                        "
-                      >
+                            <span
+                              className={`
+                                text-[10px]
+                                ${
+                                  stock <=
+                                  3
+                                    ? "font-semibold text-orange-600"
+                                    : "text-[#696b79]"
+                                }
+                              `}
+                            >
+                              {stock <= 0
+                                ? "Out of stock"
+                                : stock <=
+                                  3
+                                ? `Only ${stock} left`
+                                : `${stock} available`}
+                            </span>
+                          </div>
 
-                        <span
-                          className="
-                            text-base
-                            sm:text-xl
-                            font-bold
-                          "
-                        >
-                          ₹
-                          {Number(
-                            item.price || 0
-                          ).toLocaleString(
-                            "en-IN"
-                          )}
-                        </span>
+                          {/* PRICE */}
 
-                        {quantity > 1 && (
-                          <span
+                          <div
                             className="
-                              text-xs
-                              sm:text-sm
-                              text-gray-500
-                              ml-2
+                              mt-4
+                              flex
+                              flex-wrap
+                              items-center
+                              gap-2
                             "
                           >
-                            × {quantity}
-                          </span>
-                        )}
+                            <span
+                              className="
+                                text-sm
+                                font-bold
+                              "
+                            >
+                              ₹
+                              {sellingPrice.toLocaleString(
+                                "en-IN"
+                              )}
+                            </span>
 
-                      </div>
+                            {discount >
+                              0 && (
+                              <>
+                                <span
+                                  className="
+                                    text-[11px]
+                                    text-[#94969f]
+                                    line-through
+                                  "
+                                >
+                                  ₹
+                                  {originalPrice.toLocaleString(
+                                    "en-IN"
+                                  )}
+                                </span>
 
+                                <span
+                                  className="
+                                    text-[11px]
+                                    text-[#ff905a]
+                                  "
+                                >
+                                  {
+                                    discount
+                                  }
+                                  % OFF
+                                </span>
+                              </>
+                            )}
+                          </div>
 
-                      {/* ======================
-                          QUANTITY + STOCK
-                      ======================= */}
+                          {/* RETURN INFO */}
 
-                      <div
-                        className="
-                          flex
-                          flex-wrap
-                          items-center
-                          justify-between
-                          gap-3
-                          mt-3
-                          sm:mt-4
-                        "
-                      >
-
-                        {/* QUANTITY */}
-
-                        <div
-                          className="
-                            flex
-                            items-center
-                            border
-                            border-gray-200
-                            rounded-lg
-                            overflow-hidden
-                          "
-                        >
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              decreaseQuantity(
-                                item
-                              )
-                            }
-                            disabled={
-                              quantity <= 1
-                            }
-                            aria-label="Decrease quantity"
-                            className={`
-                              w-9
-                              h-9
-                              sm:w-10
-                              sm:h-10
-                              font-bold
-                              text-lg
-                              transition
-                              ${
-                                quantity <= 1
-                                  ? "text-gray-300 cursor-not-allowed"
-                                  : "hover:bg-gray-100 active:bg-gray-200"
-                              }
-                            `}
-                          >
-                            −
-                          </button>
-
-
-                          <span
+                          <p
                             className="
-                              w-10
-                              sm:w-12
-                              text-center
-                              text-sm
-                              sm:text-base
-                              font-semibold
+                              mt-3
+                              text-[10px]
+                              text-[#696b79]
                             "
                           >
-                            {quantity}
-                          </span>
+                            ✓ Easy
+                            returns on
+                            eligible
+                            products
+                          </p>
 
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              increaseQuantity(
-                                item
-                              )
-                            }
-                            disabled={
-                              isAtStockLimit
-                            }
-                            aria-label="Increase quantity"
-                            className={`
-                              w-9
-                              h-9
-                              sm:w-10
-                              sm:h-10
-                              font-bold
-                              text-lg
-                              transition
-                              ${
-                                isAtStockLimit
-                                  ? "text-gray-300 cursor-not-allowed"
-                                  : "hover:bg-gray-100 active:bg-gray-200"
-                              }
-                            `}
-                          >
-                            +
-                          </button>
-
+                          {quantity >
+                            1 && (
+                            <p
+                              className="
+                                mt-2
+                                text-[10px]
+                                text-[#94969f]
+                              "
+                            >
+                              Item total:
+                              ₹
+                              {(
+                                sellingPrice *
+                                quantity
+                              ).toLocaleString(
+                                "en-IN"
+                              )}
+                            </p>
+                          )}
                         </div>
-
-
-                        {/* STOCK */}
-
-                        <p
-                          className={`
-                            text-[10px]
-                            sm:text-xs
-                            md:text-sm
-                            ${
-                              stock <= 3
-                                ? "text-red-500"
-                                : "text-gray-500"
-                            }
-                          `}
-                        >
-                          {stock <= 0
-                            ? "Out of stock"
-                            : stock <= 3
-                            ? `Only ${stock} left`
-                            : `${stock} available`}
-                        </p>
-
                       </div>
+                    </article>
+                  );
+                }
+              )}
+            </div>
+          </section>
 
-                    </div>
+          {/* =================================================
+              RIGHT SIDE
+          ================================================= */}
 
-                  </div>
-
-                </div>
-              );
-            })}
-
-          </div>
-
-
-          {/* ==================================
-              ORDER SUMMARY
-          ================================== */}
-
-          <div
+          <aside
             className="
-              lg:col-span-1
+              min-w-0
+              lg:sticky
+              lg:top-[100px]
+              lg:self-start
             "
           >
+            {/* =============================================
+                OFFERS & COUPONS
+            ============================================= */}
 
             <div
               className="
-                bg-white
-                rounded-xl
-                sm:rounded-2xl
-                p-4
-                sm:p-6
-                shadow-sm
-                lg:sticky
-                lg:top-24
+                border-b
+                border-[#eaeaec]
+                pb-6
               "
             >
-
               <h2
                 className="
-                  text-lg
-                  sm:text-xl
+                  text-[12px]
                   font-bold
-                  mb-5
-                  sm:mb-6
+                  uppercase
+                  tracking-[0.04em]
                 "
               >
-                Order Summary
+                Offers & Coupons
               </h2>
 
-
-              {/* ============================
-                  SUBTOTAL
-              ============================= */}
-
-              <div
-                className="
-                  flex
-                  justify-between
-                  gap-4
-                  mb-4
-                  text-sm
-                  sm:text-base
-                "
-              >
-                <span
+              {appliedCoupon ? (
+                <div
                   className="
-                    text-gray-500
+                    mt-4
+                    flex
+                    items-center
+                    justify-between
+                    gap-4
+                    bg-green-50
+                    px-4
+                    py-3
                   "
                 >
-                  Subtotal
-                </span>
-
-                <span
-                  className="
-                    font-semibold
-                  "
-                >
-                  ₹
-                  {subtotal.toLocaleString(
-                    "en-IN"
-                  )}
-                </span>
-              </div>
-
-
-              {/* ============================
-                  COUPON
-              ============================= */}
-
-              <div
-                className="
-                  border-t
-                  border-gray-100
-                  pt-5
-                  mt-5
-                "
-              >
-
-                <p
-                  className="
-                    font-semibold
-                    text-sm
-                    sm:text-base
-                    mb-3
-                  "
-                >
-                  Have a coupon?
-                </p>
-
-
-                {appliedCoupon ? (
-                  <div
-                    className="
-                      flex
-                      items-center
-                      justify-between
-                      gap-3
-                      bg-green-50
-                      border
-                      border-green-200
-                      rounded-lg
-                      px-3
-                      py-2.5
-                    "
-                  >
-
-                    <div>
-
-                      <p
-                        className="
-                          text-sm
-                          font-bold
-                          text-green-700
-                        "
-                      >
-                        {
-                          appliedCoupon.code
-                        }
-                      </p>
-
-                      <p
-                        className="
-                          text-xs
-                          text-green-600
-                        "
-                      >
-                        Coupon applied
-                      </p>
-
-                    </div>
-
-
-                    <button
-                      type="button"
-                      onClick={
-                        removeCoupon
-                      }
+                  <div>
+                    <p
                       className="
                         text-xs
-                        font-semibold
-                        text-red-500
-                        hover:text-red-700
+                        font-bold
+                        text-green-700
                       "
                     >
-                      Remove
-                    </button>
+                      {
+                        appliedCoupon.code
+                      }
+                    </p>
 
+                    <p
+                      className="
+                        mt-1
+                        text-[10px]
+                        text-green-600
+                      "
+                    >
+                      Coupon
+                      applied
+                    </p>
                   </div>
-                ) : (
-                  <div
+
+                  <button
+                    type="button"
+                    onClick={
+                      removeCoupon
+                    }
                     className="
-                      flex
-                      gap-2
+                      text-[10px]
+                      font-bold
+                      uppercase
+                      text-red-600
                     "
                   >
-
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div
+                    className="
+                      mt-4
+                      flex
+                      items-center
+                      border
+                      border-[#d4d5d9]
+                    "
+                  >
                     <input
                       type="text"
-                      value={couponCode}
-                      onChange={(e) =>
+                      value={
+                        couponCode
+                      }
+                      onChange={(
+                        event
+                      ) =>
                         setCouponCode(
-                          e.target.value
+                          event.target
+                            .value
+                            .toUpperCase()
                         )
                       }
-                      onKeyDown={(e) => {
+                      onKeyDown={(
+                        event
+                      ) => {
                         if (
-                          e.key === "Enter"
+                          event.key ===
+                          "Enter"
                         ) {
                           applyCoupon();
                         }
                       }}
-                      placeholder="Enter coupon"
+                      placeholder="Enter coupon code"
                       className="
-                        flex-1
                         min-w-0
-                        border
-                        border-gray-300
-                        rounded-lg
+                        flex-1
                         px-3
-                        py-2.5
-                        text-sm
+                        py-3
+                        text-xs
+                        uppercase
                         outline-none
-                        focus:ring-2
-                        focus:ring-orange-500
                       "
                     />
 
                     <button
                       type="button"
-                      onClick={
-                        applyCoupon
+                      onClick={() =>
+                        applyCoupon()
                       }
                       className="
-                        shrink-0
-                        bg-gray-900
-                        hover:bg-black
-                        text-white
-                        px-3
-                        sm:px-4
-                        rounded-lg
-                        font-semibold
-                        text-sm
-                        transition
+                        px-4
+                        text-[10px]
+                        font-bold
+                        uppercase
+                        text-orange-600
                       "
                     >
                       Apply
                     </button>
-
                   </div>
-                )}
 
+                  <div
+                    className="
+                      mt-3
+                      flex
+                      flex-wrap
+                      gap-2
+                    "
+                  >
+                    {availableCoupons.map(
+                      (
+                        coupon
+                      ) => (
+                        <button
+                          key={
+                            coupon.code
+                          }
+                          type="button"
+                          onClick={() => {
+                            setCouponCode(
+                              coupon.code
+                            );
 
-                {couponMessage && (
+                            applyCoupon(
+                              coupon.code
+                            );
+                          }}
+                          className="
+                            border
+                            border-dashed
+                            border-orange-300
+                            px-2.5
+                            py-1.5
+                            text-[10px]
+                            font-bold
+                            text-orange-600
+                          "
+                        >
+                          {
+                            coupon.code
+                          }
+                        </button>
+                      )
+                    )}
+                  </div>
+                </>
+              )}
+
+              {couponMessage && (
+                <p
+                  className="
+                    mt-3
+                    text-[11px]
+                    leading-5
+                    text-[#696b79]
+                  "
+                >
+                  {
+                    couponMessage
+                  }
+                </p>
+              )}
+            </div>
+
+            {/* =============================================
+                PRICE DETAILS
+            ============================================= */}
+
+            <div
+              className="
+                pt-6
+              "
+            >
+              <h2
+                className="
+                  text-[12px]
+                  font-bold
+                  uppercase
+                  tracking-[0.04em]
+                "
+              >
+                Price Details (
+                {totalItems}{" "}
+                {totalItems ===
+                1
+                  ? "Item"
+                  : "Items"}
+                )
+              </h2>
+
+              <div
+                className="
+                  mt-5
+                  space-y-4
+                  text-[13px]
+                "
+              >
+                {/* TOTAL MRP */}
+
+                <div
+                  className="
+                    flex
+                    justify-between
+                    gap-4
+                  "
+                >
+                  <span>
+                    Total MRP
+                  </span>
+
+                  <span>
+                    ₹
+                    {totalMrp.toLocaleString(
+                      "en-IN"
+                    )}
+                  </span>
+                </div>
+
+                {/* PRODUCT DISCOUNT */}
+
+                <div
+                  className="
+                    flex
+                    justify-between
+                    gap-4
+                  "
+                >
+                  <span>
+                    Discount on
+                    MRP
+                  </span>
+
+                  <span
+                    className="
+                      font-medium
+                      text-green-600
+                    "
+                  >
+                    {productDiscount >
+                    0
+                      ? `- ₹${productDiscount.toLocaleString(
+                          "en-IN"
+                        )}`
+                      : "₹0"}
+                  </span>
+                </div>
+
+                {/* COUPON */}
+
+                <div
+                  className="
+                    flex
+                    justify-between
+                    gap-4
+                  "
+                >
+                  <span>
+                    Coupon
+                    Discount
+                  </span>
+
+                  {couponDiscount >
+                  0 ? (
+                    <span
+                      className="
+                        font-medium
+                        text-green-600
+                      "
+                    >
+                      - ₹
+                      {couponDiscount.toLocaleString(
+                        "en-IN"
+                      )}
+                    </span>
+                  ) : (
+                    <span
+                      className="
+                        text-orange-600
+                      "
+                    >
+                      Apply Coupon
+                    </span>
+                  )}
+                </div>
+
+                {/* DELIVERY */}
+
+                <div
+                  className="
+                    flex
+                    justify-between
+                    gap-4
+                  "
+                >
+                  <span>
+                    Delivery
+                    Charges
+                  </span>
+
+                  <span
+                    className={
+                      standardShipping ===
+                      0
+                        ? "font-medium text-green-600"
+                        : ""
+                    }
+                  >
+                    {standardShipping ===
+                    0
+                      ? "FREE"
+                      : `₹${standardShipping.toLocaleString(
+                          "en-IN"
+                        )}`}
+                  </span>
+                </div>
+
+                {/* SHIPPING MESSAGE */}
+
+                {totalAfterCoupon <
+                FREE_SHIPPING_LIMIT ? (
                   <p
                     className="
-                      text-xs
-                      sm:text-sm
-                      mt-2
+                      text-[10px]
+                      leading-5
+                      text-[#696b79]
                     "
                   >
-                    {couponMessage}
+                    Add ₹
+                    {(
+                      FREE_SHIPPING_LIMIT -
+                      totalAfterCoupon
+                    ).toLocaleString(
+                      "en-IN"
+                    )}{" "}
+                    more for free
+                    standard
+                    delivery.
+                  </p>
+                ) : (
+                  <p
+                    className="
+                      text-[10px]
+                      font-medium
+                      text-green-600
+                    "
+                  >
+                    You unlocked
+                    free standard
+                    delivery.
                   </p>
                 )}
-
               </div>
 
-
-              {/* ============================
-                  COUPON DISCOUNT
-              ============================= */}
-
-              {couponDiscount > 0 && (
-                <div
-                  className="
-                    flex
-                    justify-between
-                    gap-4
-                    mt-5
-                    text-green-600
-                    text-sm
-                  "
-                >
-
-                  <span>
-                    Coupon Discount
-                  </span>
-
-                  <span
-                    className="
-                      font-semibold
-                    "
-                  >
-                    -₹
-                    {couponDiscount.toLocaleString(
-                      "en-IN"
-                    )}
-                  </span>
-
-                </div>
-              )}
-
-
-              {/* ============================
-                  SHIPPING
-              ============================= */}
-
-              <div
-                className="
-                  flex
-                  justify-between
-                  gap-4
-                  mt-5
-                  text-sm
-                  sm:text-base
-                "
-              >
-
-                <span
-                  className="
-                    text-gray-500
-                  "
-                >
-                  Standard Delivery
-                </span>
-
-                <span
-                  className="
-                    font-semibold
-                  "
-                >
-                  {standardShipping ===
-                  0
-                    ? "FREE"
-                    : `₹${standardShipping}`}
-                </span>
-
-              </div>
-
-
-              {/* ============================
-                  FREE SHIPPING MESSAGE
-              ============================= */}
-
-              {totalAfterCoupon <
-                FREE_SHIPPING_LIMIT && (
-                <p
-                  className="
-                    text-xs
-                    sm:text-sm
-                    text-gray-500
-                    mt-3
-                    leading-5
-                  "
-                >
-                  Add ₹
-                  {(
-                    FREE_SHIPPING_LIMIT -
-                    totalAfterCoupon
-                  ).toLocaleString(
-                    "en-IN"
-                  )}{" "}
-                  more for free shipping.
-                </p>
-              )}
-
-
-              {/* ============================
-                  FREE SHIPPING SUCCESS
-              ============================= */}
-
-              {totalAfterCoupon >=
-                FREE_SHIPPING_LIMIT && (
-                <p
-                  className="
-                    text-xs
-                    sm:text-sm
-                    text-green-600
-                    mt-3
-                  "
-                >
-                  🎉 You unlocked free
-                  standard delivery!
-                </p>
-              )}
-
-
-              {/* ============================
-                  SAVINGS
-              ============================= */}
-
-              {totalSavings > 0 && (
-                <div
-                  className="
-                    flex
-                    justify-between
-                    gap-4
-                    mt-4
-                    text-sm
-                    text-green-600
-                  "
-                >
-
-                  <span>
-                    You Save
-                  </span>
-
-                  <span
-                    className="
-                      font-semibold
-                    "
-                  >
-                    ₹
-                    {totalSavings.toLocaleString(
-                      "en-IN"
-                    )}
-                  </span>
-
-                </div>
-              )}
-
-
-              {/* ============================
+              {/* ===========================================
                   TOTAL
-              ============================= */}
+              =========================================== */}
 
               <div
                 className="
-                  border-t
-                  border-gray-200
                   mt-6
+                  border-t
+                  border-[#eaeaec]
                   pt-5
-                  sm:pt-6
                 "
               >
-
                 <div
                   className="
                     flex
-                    justify-between
                     items-center
+                    justify-between
                     gap-4
                   "
                 >
-
                   <span
                     className="
-                      text-base
-                      sm:text-lg
+                      text-sm
                       font-bold
                     "
                   >
-                    Total
+                    Total Amount
                   </span>
 
                   <span
                     className="
-                      text-xl
-                      sm:text-2xl
+                      text-lg
                       font-bold
                     "
                   >
@@ -1491,15 +2147,30 @@ function Cart({ cart, setCart }) {
                       "en-IN"
                     )}
                   </span>
-
                 </div>
 
+                {totalSavings >
+                  0 && (
+                  <p
+                    className="
+                      mt-2
+                      text-[11px]
+                      font-medium
+                      text-green-600
+                    "
+                  >
+                    You save ₹
+                    {totalSavings.toLocaleString(
+                      "en-IN"
+                    )}{" "}
+                    on this order.
+                  </p>
+                )}
               </div>
 
-
-              {/* ============================
+              {/* ===========================================
                   CHECKOUT
-              ============================= */}
+              =========================================== */}
 
               <button
                 type="button"
@@ -1507,56 +2178,73 @@ function Cart({ cart, setCart }) {
                   handleCheckout
                 }
                 className="
+                  mt-6
+                  min-h-[48px]
                   w-full
                   bg-orange-600
-                  hover:bg-orange-700
-                  text-white
-                  py-3.5
-                  sm:py-4
-                  rounded-xl
+                  px-5
+                  text-xs
                   font-bold
-                  text-sm
-                  sm:text-base
-                  mt-5
-                  sm:mt-6
+                  uppercase
+                  tracking-[0.05em]
+                  text-white
                   transition
-                  active:scale-[0.98]
+                  hover:bg-orange-700
                 "
               >
-                PROCEED TO CHECKOUT
+                Place Order
               </button>
-
-
-              {/* ============================
-                  CONTINUE SHOPPING
-              ============================= */}
 
               <Link
                 to="/shop"
                 className="
+                  mt-4
                   block
                   text-center
-                  mt-4
-                  text-sm
-                  sm:text-base
-                  text-gray-600
+                  text-[11px]
+                  font-semibold
+                  text-[#696b79]
                   hover:text-orange-600
-                  transition
                 "
               >
                 ← Continue Shopping
               </Link>
 
+              {/* SECURE */}
+
+              <div
+                className="
+                  mt-6
+                  flex
+                  items-center
+                  justify-center
+                  gap-2
+                  border-t
+                  border-[#eaeaec]
+                  pt-5
+                  text-[10px]
+                  font-bold
+                  uppercase
+                  tracking-[0.08em]
+                  text-[#696b79]
+                "
+              >
+                <span
+                  className="
+                    text-green-600
+                  "
+                >
+                  <SecureIcon />
+                </span>
+
+                Secure Checkout
+              </div>
             </div>
-
-          </div>
-
+          </aside>
         </div>
-
       </div>
-    </section>
+    </main>
   );
 }
 
 export default Cart;
-

@@ -4,27 +4,34 @@ function ProductCard({
   id,
   name,
   category,
-  brand,
+  brand = "GymDrobe",
   price,
-  rating = 0,
+  rating,
   reviewCount = 0,
   discount = 0,
   image,
   badge,
+  stock = 0,
   wishlist = false,
   onWishlist,
 }) {
-  const originalPrice = Number(price || 0);
-  const discountPercentage = Number(discount || 0);
+  const sellingPrice =
+    Math.round(
+      Number(price || 0) -
+        (Number(price || 0) *
+          Number(discount || 0)) /
+          100
+    );
 
-  const discountedPrice = Math.round(
-    originalPrice -
-      (originalPrice * discountPercentage) / 100
-  );
+  const outOfStock =
+    Number(stock || 0) <= 0;
 
-  function handleWishlist(event) {
+  function handleWishlist(
+    event
+  ) {
     event.preventDefault();
     event.stopPropagation();
+
     onWishlist?.();
   }
 
@@ -35,112 +42,80 @@ function ProductCard({
         relative
         min-w-0
         bg-white
-        text-gray-900
       "
     >
       {/* =========================================
-          PRODUCT IMAGE
+          IMAGE
       ========================================= */}
 
       <div
         className="
           relative
-          overflow-hidden
-          bg-[#f5f5f5]
           aspect-[3/4]
+          overflow-hidden
+          bg-[#f5f5f6]
         "
       >
         <Link
           to={`/product/${id}`}
-          aria-label={`View ${name}`}
-          className="block h-full w-full"
+          className="
+            block
+            h-full
+            w-full
+          "
         >
           <img
             src={image}
             alt={name}
-            loading="lazy"
             className="
               h-full
               w-full
               object-cover
               transition-transform
-              duration-500
-              ease-out
-              group-hover:scale-[1.04]
+              duration-300
+              group-hover:scale-[1.02]
             "
           />
         </Link>
 
-        {/* =========================================
-            TOP LEFT BADGES
-        ========================================= */}
+        {/* BADGE */}
 
-        <div
-          className="
-            absolute
-            left-2
-            top-2
-            z-10
-            flex
-            flex-col
-            items-start
-            gap-1.5
-          "
-        >
-          {badge && (
-            <span
-              className="
-                rounded-sm
-                bg-black
-                px-2
-                py-1
-                text-[9px]
-                font-bold
-                uppercase
-                tracking-wide
-                text-white
-                sm:text-[10px]
-              "
-            >
-              {badge}
-            </span>
-          )}
+        {badge && (
+          <span
+            className="
+              absolute
+              left-2
+              top-2
+              bg-white/95
+              px-2
+              py-1
+              text-[8px]
+              font-bold
+              uppercase
+              tracking-wide
+              text-[#282c3f]
+            "
+          >
+            {badge}
+          </span>
+        )}
 
-          {discountPercentage > 0 && (
-            <span
-              className="
-                rounded-sm
-                bg-orange-600
-                px-2
-                py-1
-                text-[9px]
-                font-bold
-                text-white
-                sm:text-[10px]
-              "
-            >
-              {discountPercentage}% OFF
-            </span>
-          )}
-        </div>
-
-        {/* =========================================
-            WISHLIST
-        ========================================= */}
+        {/* HEART */}
 
         <button
           type="button"
-          onClick={handleWishlist}
+          onClick={
+            handleWishlist
+          }
           aria-label={
             wishlist
-              ? `Remove ${name} from wishlist`
-              : `Add ${name} to wishlist`
+              ? "Remove from wishlist"
+              : "Add to wishlist"
           }
           className="
             absolute
-            right-2
-            top-2
-            z-20
+            right-3
+            top-3
             flex
             h-9
             w-9
@@ -149,256 +124,239 @@ function ProductCard({
             rounded-full
             bg-white
             text-[20px]
+            text-[#282c3f]
             shadow-sm
-            transition-all
-            duration-200
-            hover:scale-110
-            hover:shadow-md
-            active:scale-95
+            transition
+            hover:scale-105
           "
         >
-          <span
-            aria-hidden="true"
-            className={
-              wishlist
-                ? "text-red-500"
-                : "text-gray-800"
-            }
-          >
-            {wishlist ? "♥" : "♡"}
-          </span>
+          {wishlist
+            ? "♥"
+            : "♡"}
         </button>
 
-        {/* =========================================
-            RATING BADGE
-        ========================================= */}
-
-        {Number(rating) > 0 && (
-          <div
-            className="
-              absolute
-              bottom-2
-              left-2
-              z-10
-              flex
-              items-center
-              gap-1
-              rounded-sm
-              bg-white/95
-              px-2
-              py-1
-              text-[10px]
-              font-semibold
-              shadow-sm
-              backdrop-blur
-              sm:text-xs
-            "
-          >
-            <span>{Number(rating).toFixed(1)}</span>
-
-            <span className="text-green-600">
-              ★
-            </span>
-
-            {Number(reviewCount) > 0 && (
-              <>
-                <span className="text-gray-300">
-                  |
-                </span>
-
-                <span className="text-gray-500">
-                  {reviewCount}
-                </span>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* =========================================
-            DESKTOP QUICK ACTION
-        ========================================= */}
+        {/* RATING */}
 
         <div
           className="
             absolute
-            bottom-0
-            left-0
-            right-0
-            hidden
-            translate-y-full
-            bg-white
-            p-3
-            opacity-0
-            transition-all
-            duration-300
-            group-hover:translate-y-0
-            group-hover:opacity-100
-            md:block
+            bottom-2
+            left-2
+            flex
+            items-center
+            gap-1
+            bg-white/95
+            px-2
+            py-1
+            text-[10px]
+            font-semibold
+            text-[#282c3f]
           "
         >
-          <Link
-            to={`/product/${id}`}
+          <span>
+            {rating} ★
+          </span>
+
+          {Number(
+            reviewCount
+          ) > 0 && (
+            <>
+              <span
+                className="
+                  text-[#d4d5d9]
+                "
+              >
+                |
+              </span>
+
+              <span>
+                {
+                  reviewCount
+                }
+              </span>
+            </>
+          )}
+        </div>
+
+        {/* OUT OF STOCK */}
+
+        {outOfStock && (
+          <div
             className="
-              flex
-              w-full
-              items-center
-              justify-center
-              border
-              border-gray-900
-              bg-white
-              px-4
-              py-2.5
-              text-xs
+              absolute
+              inset-x-0
+              bottom-0
+              bg-white/95
+              py-2
+              text-center
+              text-[10px]
               font-bold
               uppercase
-              tracking-wide
-              text-gray-900
-              transition
-              hover:bg-gray-900
-              hover:text-white
+              tracking-[0.08em]
+              text-red-600
             "
           >
-            View Product
-          </Link>
-        </div>
+            Out Of Stock
+          </div>
+        )}
+
+        {/* DESKTOP HOVER WISHLIST */}
+
+        {!outOfStock && (
+          <div
+            className="
+              absolute
+              inset-x-0
+              bottom-0
+              hidden
+              translate-y-full
+              bg-white
+              p-3
+              opacity-0
+              transition-all
+              duration-200
+              group-hover:translate-y-0
+              group-hover:opacity-100
+              md:block
+            "
+          >
+            <button
+              type="button"
+              onClick={
+                handleWishlist
+              }
+              className="
+                flex
+                w-full
+                items-center
+                justify-center
+                gap-2
+                border
+                border-[#d4d5d9]
+                py-2
+                text-[11px]
+                font-bold
+                uppercase
+                text-[#282c3f]
+                hover:border-[#282c3f]
+              "
+            >
+              <span>
+                {wishlist
+                  ? "♥"
+                  : "♡"}
+              </span>
+
+              Wishlist
+            </button>
+          </div>
+        )}
       </div>
 
       {/* =========================================
-          PRODUCT INFORMATION
+          INFORMATION
       ========================================= */}
 
-      <div className="px-1 pb-4 pt-3 sm:px-2">
-        {/* Brand */}
-
-        {brand && (
-          <p
-            className="
-              mb-0.5
-              truncate
-              text-sm
-              font-bold
-              text-gray-900
-              sm:text-[15px]
-            "
-          >
-            {brand}
-          </p>
-        )}
-
-        {/* Product Name */}
-
-        <Link to={`/product/${id}`}>
+      <div
+        className="
+          px-1
+          pb-5
+          pt-3
+        "
+      >
+        <Link
+          to={`/product/${id}`}
+        >
           <h3
             className="
               truncate
-              text-xs
-              font-normal
-              text-gray-600
-              transition
-              hover:text-orange-600
-              sm:text-sm
+              text-[14px]
+              font-bold
+              text-[#282c3f]
             "
-            title={name}
           >
-            {name}
+            {brand}
           </h3>
-        </Link>
 
-        {/* Category */}
-
-        {!brand && category && (
           <p
             className="
-              mt-0.5
+              mt-1
               truncate
-              text-[11px]
-              text-gray-400
+              text-[13px]
+              font-normal
+              text-[#696b79]
             "
           >
-            {category}
+            {name}
           </p>
-        )}
-
-        {/* =========================================
-            PRICE
-        ========================================= */}
+        </Link>
 
         <div
           className="
             mt-2
             flex
             flex-wrap
-            items-baseline
-            gap-x-1.5
+            items-center
+            gap-x-2
             gap-y-1
           "
         >
           <span
             className="
-              text-sm
+              text-[13px]
               font-bold
-              text-gray-900
-              sm:text-base
+              text-[#282c3f]
             "
           >
-            ₹{discountedPrice.toLocaleString("en-IN")}
+            ₹{sellingPrice.toLocaleString(
+              "en-IN"
+            )}
           </span>
 
-          {discountPercentage > 0 && (
+          {Number(discount) >
+            0 && (
             <>
               <span
                 className="
                   text-[11px]
-                  text-gray-400
+                  text-[#7e818c]
                   line-through
-                  sm:text-xs
                 "
               >
-                ₹{originalPrice.toLocaleString("en-IN")}
+                ₹
+                {Number(
+                  price
+                ).toLocaleString(
+                  "en-IN"
+                )}
               </span>
 
               <span
                 className="
                   text-[11px]
                   font-medium
-                  text-orange-600
-                  sm:text-xs
+                  text-[#ff905a]
                 "
               >
-                ({discountPercentage}% OFF)
+                (
+                {discount}% OFF)
               </span>
             </>
           )}
         </div>
 
-        {/* =========================================
-            MOBILE ACTION
-        ========================================= */}
-
-        <Link
-          to={`/product/${id}`}
+        <p
           className="
-            mt-3
-            flex
-            w-full
-            items-center
-            justify-center
-            rounded-md
-            border
-            border-gray-200
-            py-2
-            text-[11px]
-            font-bold
+            mt-1.5
+            truncate
+            text-[10px]
             uppercase
             tracking-wide
-            text-gray-800
-            transition
-            hover:border-gray-900
-            md:hidden
+            text-[#94969f]
           "
         >
-          View Product
-        </Link>
+          {category}
+        </p>
       </div>
     </article>
   );

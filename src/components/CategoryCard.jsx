@@ -3,95 +3,98 @@ import { Link } from "react-router-dom";
 function CategoryCard({
   name,
   icon,
+  offer,
+  comingSoon = false,
 }) {
   return (
     <Link
-      to={`/shop?category=${encodeURIComponent(
-        name
-      )}`}
+      to={`/shop?category=${encodeURIComponent(name)}`}
       className="
         group
-        flex
-        w-[72px]
-        shrink-0
-        flex-col
-        items-center
-        sm:w-[88px]
-        md:w-[100px]
+        block
+        overflow-hidden
+        bg-white
       "
     >
-      {/* CATEGORY IMAGE */}
-
       <div
         className="
-          h-[64px]
-          w-[64px]
+          relative
+          aspect-[3/4]
           overflow-hidden
-          rounded-full
-          border
-          border-gray-200
-          bg-gray-100
-          transition-all
-          duration-300
-          group-hover:border-orange-400
-          group-hover:shadow-md
-
-          sm:h-[76px]
-          sm:w-[76px]
-
-          md:h-[88px]
-          md:w-[88px]
+          bg-[#f5f5f6]
         "
       >
-        {icon.includes("/") ? (
-          <img
-            src={icon}
-            alt={name}
+        <img
+          src={icon}
+          alt={name}
+          className="
+            h-full
+            w-full
+            object-cover
+            transition
+            duration-500
+            group-hover:scale-[1.04]
+          "
+        />
+
+        <div
+          className="
+            absolute
+            inset-x-0
+            bottom-0
+            bg-gradient-to-t
+            from-black/85
+            via-black/45
+            to-transparent
+            px-3
+            pb-4
+            pt-16
+            text-center
+          "
+        >
+          <h3
             className="
-              h-full
-              w-full
-              object-cover
-              transition-transform
-              duration-300
-              group-hover:scale-105
-            "
-          />
-        ) : (
-          <div
-            className="
-              flex
-              h-full
-              w-full
-              items-center
-              justify-center
-              text-3xl
+              text-sm
+              font-bold
+              uppercase
+              leading-tight
+              text-white
+              sm:text-base
             "
           >
-            {icon}
-          </div>
-        )}
+            {name}
+          </h3>
+
+          <p
+            className="
+              mt-1
+              text-[10px]
+              font-bold
+              uppercase
+              tracking-[0.08em]
+              text-orange-300
+              sm:text-xs
+            "
+          >
+            {comingSoon ? "Coming Soon" : offer}
+          </p>
+
+          {!comingSoon && (
+            <p
+              className="
+                mt-2
+                text-[9px]
+                font-semibold
+                uppercase
+                tracking-[0.12em]
+                text-white
+              "
+            >
+              Shop Now →
+            </p>
+          )}
+        </div>
       </div>
-
-      {/* CATEGORY NAME */}
-
-      <p
-        className="
-          mt-2
-          line-clamp-2
-          min-h-[30px]
-          text-center
-          text-[11px]
-          font-semibold
-          leading-[15px]
-          text-gray-800
-          transition
-          group-hover:text-orange-600
-
-          sm:text-xs
-        "
-      >
-        {name}
-      </p>
     </Link>
   );
 }

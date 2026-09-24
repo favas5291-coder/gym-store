@@ -14,13 +14,268 @@ import {
 
 import logoImage from "../assets/logo.png";
 import products from "../data/products";
-import categoriesData from "../data/categories";
 import { useAuth } from "../context/AuthContext";
 
 const RECENT_SEARCH_KEY =
   "gymdrobe-recent-searches";
 
 const MAX_RECENT_SEARCHES = 6;
+
+/* =========================================================
+   NAVIGATION CONFIG
+========================================================= */
+
+const navigationGroups = [
+  {
+    id: "workout",
+    label: "WORKOUT",
+    accent: "#f97316",
+
+    columns: [
+      {
+        title: "Workout Clothing",
+        links: [
+          {
+            label: "All Workout Clothes",
+            category: "Workout Clothes",
+          },
+          {
+            label: "T-Shirts",
+            category: "Workout Clothes",
+            subcategory: "T-Shirts",
+          },
+        ],
+      },
+
+      {
+        title: "Workout Essentials",
+        links: [
+          {
+            label: "Training Socks",
+            category: "Socks",
+          },
+          {
+            label: "Gym Towels",
+            category: "Gym Towels",
+          },
+        ],
+      },
+
+      {
+        title: "Shop By",
+        links: [
+          {
+            label: "Bestsellers",
+            query: "bestseller",
+          },
+          {
+            label: "New Arrivals",
+            query: "new",
+          },
+          {
+            label: "Top Rated",
+            query: "top rated",
+          },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "shoes",
+    label: "SHOES",
+    accent: "#2563eb",
+
+    columns: [
+      {
+        title: "Gym Shoes",
+        links: [
+          {
+            label: "All Gym Shoes",
+            category: "Gym Shoes",
+          },
+          {
+            label: "Training Shoes",
+            category: "Gym Shoes",
+            subcategory: "Training Shoes",
+          },
+        ],
+      },
+
+      {
+        title: "Shop By Activity",
+        links: [
+          {
+            label: "Training",
+            query: "training shoes",
+          },
+          {
+            label: "Running",
+            query: "running shoes",
+          },
+          {
+            label: "Sports",
+            query: "sports shoes",
+          },
+        ],
+      },
+
+      {
+        title: "Popular",
+        links: [
+          {
+            label: "Top Rated Shoes",
+            query: "top rated shoes",
+          },
+          {
+            label: "GymDrobe Shoes",
+            query: "gymdrobe shoes",
+          },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "accessories",
+    label: "ACCESSORIES",
+    accent: "#9333ea",
+
+    columns: [
+      {
+        title: "Gym Accessories",
+        links: [
+          {
+            label: "Gym Towels",
+            category: "Gym Towels",
+          },
+          {
+            label: "Training Socks",
+            category: "Socks",
+          },
+          {
+            label: "Headphones",
+            category: "Headphones",
+          },
+        ],
+      },
+
+      {
+        title: "Workout Gear",
+        links: [
+          {
+            label: "Workout Towels",
+            category: "Gym Towels",
+            subcategory: "Workout Towels",
+          },
+          {
+            label: "Sports Socks",
+            category: "Socks",
+            subcategory: "Sports Socks",
+          },
+        ],
+      },
+
+      {
+        title: "Discover",
+        links: [
+          {
+            label: "Trending Gear",
+            query: "trending",
+          },
+          {
+            label: "Popular Accessories",
+            query: "popular",
+          },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "hydration",
+    label: "HYDRATION",
+    accent: "#0891b2",
+
+    columns: [
+      {
+        title: "Water Bottles",
+        links: [
+          {
+            label: "All Water Bottles",
+            category: "Water Bottles",
+          },
+          {
+            label: "Sports Bottles",
+            category: "Water Bottles",
+            subcategory: "Sports Bottles",
+          },
+        ],
+      },
+
+      {
+        title: "Shaker Bottles",
+        links: [
+          {
+            label: "All Shakers",
+            category: "Shaker Bottles",
+          },
+          {
+            label: "Protein Shakers",
+            category: "Shaker Bottles",
+            subcategory: "Protein Shakers",
+          },
+        ],
+      },
+
+      {
+        title: "Popular Searches",
+        links: [
+          {
+            label: "Gym Bottles",
+            query: "gym bottle",
+          },
+          {
+            label: "Protein Shakers",
+            query: "protein shaker",
+          },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "supplements",
+    label: "SUPPLEMENTS",
+    accent: "#16a34a",
+
+    columns: [
+      {
+        title: "Protein",
+        links: [
+          {
+            label: "Shop Protein",
+            category: "Protein",
+          },
+        ],
+      },
+
+      {
+        title: "Fitness Nutrition",
+        links: [
+          {
+            label: "Protein Products",
+            query: "protein",
+          },
+          {
+            label: "Workout Nutrition",
+            query: "workout nutrition",
+          },
+        ],
+      },
+    ],
+  },
+];
 
 /* =========================================================
    HELPERS
@@ -164,6 +419,7 @@ function BagIcon() {
       aria-hidden="true"
     >
       <path d="M6 8h12l1 13H5L6 8Z" />
+
       <path d="M9 8V6a3 3 0 0 1 6 0v2" />
     </svg>
   );
@@ -240,7 +496,10 @@ function Navbar({
   const [searchParams] =
     useSearchParams();
 
-  const searchRef =
+  const desktopSearchRef =
+    useRef(null);
+
+  const mobileSearchRef =
     useRef(null);
 
   const {
@@ -268,9 +527,14 @@ function Navbar({
   ] = useState(false);
 
   const [
-    isCategoryMenuOpen,
-    setIsCategoryMenuOpen,
-  ] = useState(false);
+    activeMegaMenu,
+    setActiveMegaMenu,
+  ] = useState(null);
+
+  const [
+    mobileCategoryOpen,
+    setMobileCategoryOpen,
+  ] = useState(null);
 
   const [
     recentSearches,
@@ -280,43 +544,29 @@ function Navbar({
   );
 
   /* =======================================================
-     CATEGORY DATA
+     SEARCH SUGGESTIONS
   ======================================================= */
 
-  const categoryDetails =
+  const searchSuggestions =
     useMemo(() => {
-      return categoriesData.map(
-        (category) => {
-          const categoryProducts =
-            products.filter(
-              (product) =>
-                product.category ===
-                category.name
-            );
+      const value =
+        normalizeText(search);
 
-          const subcategories = [
-            ...new Set(
-              categoryProducts
-                .map(
-                  (product) =>
-                    product.subcategory
-                )
-                .filter(Boolean)
-            ),
-          ];
+      if (!value) {
+        return [];
+      }
 
-          return {
-            ...category,
-            count:
-              categoryProducts.length,
-            subcategories,
-          };
-        }
-      );
-    }, []);
+      return products
+        .filter((product) =>
+          getSearchableText(
+            product
+          ).includes(value)
+        )
+        .slice(0, 6);
+    }, [search]);
 
   /* =======================================================
-     SEARCH SYNC
+     SEARCH PARAM SYNC
   ======================================================= */
 
   useEffect(() => {
@@ -328,18 +578,26 @@ function Navbar({
   }, [searchParams]);
 
   /* =======================================================
-     OUTSIDE CLICK
+     OUTSIDE SEARCH CLICK
   ======================================================= */
 
   useEffect(() => {
     function handleClickOutside(
       event
     ) {
-      if (
-        searchRef.current &&
-        !searchRef.current.contains(
+      const clickedDesktop =
+        desktopSearchRef.current?.contains(
           event.target
-        )
+        );
+
+      const clickedMobile =
+        mobileSearchRef.current?.contains(
+          event.target
+        );
+
+      if (
+        !clickedDesktop &&
+        !clickedMobile
       ) {
         setIsSearchFocused(
           false
@@ -361,40 +619,42 @@ function Navbar({
   }, []);
 
   /* =======================================================
-     CLOSE MENUS ON ROUTE CHANGE
+     ROUTE CHANGE
   ======================================================= */
 
   useEffect(() => {
     setIsMenuOpen(false);
-    setIsCategoryMenuOpen(
-      false
+    setActiveMegaMenu(null);
+    setMobileCategoryOpen(
+      null
     );
-    setIsSearchFocused(
-      false
-    );
+    setIsSearchFocused(false);
   }, [location.pathname]);
+
+  /* =======================================================
+     MOBILE BODY LOCK
+  ======================================================= */
+
+  useEffect(() => {
+    if (!isMenuOpen) {
+      document.body.style.overflow =
+        "";
+
+      return;
+    }
+
+    document.body.style.overflow =
+      "hidden";
+
+    return () => {
+      document.body.style.overflow =
+        "";
+    };
+  }, [isMenuOpen]);
 
   /* =======================================================
      SEARCH
   ======================================================= */
-
-  const searchSuggestions =
-    useMemo(() => {
-      const value =
-        normalizeText(search);
-
-      if (!value) {
-        return [];
-      }
-
-      return products
-        .filter((product) =>
-          getSearchableText(
-            product
-          ).includes(value)
-        )
-        .slice(0, 6);
-    }, [search]);
 
   function performSearch(
     value = search
@@ -463,15 +723,50 @@ function Navbar({
     }
   }
 
-  function openCategory(
-    category
-  ) {
-    navigate(
-      `/shop?category=${encodeURIComponent(
-        category
-      )}`
-    );
+  /* =======================================================
+     SHOP NAVIGATION
+  ======================================================= */
+
+  function openShopLink(link) {
+    if (link.category) {
+      const params =
+        new URLSearchParams();
+
+      params.set(
+        "category",
+        link.category
+      );
+
+      if (link.subcategory) {
+        params.set(
+          "subcategory",
+          link.subcategory
+        );
+      }
+
+      navigate(
+        `/shop?${params.toString()}`
+      );
+
+      return;
+    }
+
+    if (link.query) {
+      navigate(
+        `/shop?search=${encodeURIComponent(
+          link.query
+        )}`
+      );
+
+      return;
+    }
+
+    navigate("/shop");
   }
+
+  /* =======================================================
+     LOGOUT
+  ======================================================= */
 
   function handleLogout() {
     logout();
@@ -482,57 +777,30 @@ function Navbar({
   }
 
   /* =======================================================
-     ACTIVE ROUTES
-  ======================================================= */
-
-  const isHome =
-    location.pathname === "/";
-
-  const isShop =
-    location.pathname ===
-    "/shop";
-
-  const isWishlist =
-    location.pathname ===
-    "/wishlist";
-
-  const isCart =
-    location.pathname ===
-    "/cart";
-
-  /* =======================================================
      SEARCH BOX
   ======================================================= */
 
   function SearchBox({
-    mobile = false,
+    wrapperRef,
   }) {
     return (
       <div
-        ref={
-          mobile
-            ? undefined
-            : searchRef
-        }
+        ref={wrapperRef}
         className="relative w-full"
       >
         <div
           className={`
             flex
+            h-[44px]
             w-full
             items-center
+            rounded-[4px]
             border
-            bg-[#f5f5f6]
             transition
             ${
-              mobile
-                ? "h-11 rounded-lg"
-                : "h-11 rounded-md"
-            }
-            ${
               isSearchFocused
-                ? "border-gray-400 bg-white"
-                : "border-transparent"
+                ? "border-gray-300 bg-white"
+                : "border-transparent bg-[#f5f5f6]"
             }
           `}
         >
@@ -545,11 +813,11 @@ function Navbar({
             className="
               flex
               h-full
-              w-11
+              w-12
               shrink-0
               items-center
               justify-center
-              text-gray-500
+              text-[#696b79]
             "
           >
             <SearchIcon />
@@ -577,31 +845,23 @@ function Navbar({
               flex-1
               bg-transparent
               pr-3
-              text-sm
-              text-gray-800
+              text-[13px]
+              text-[#282c3f]
               outline-none
-              placeholder:text-gray-500
+              placeholder:text-[#696b79]
             "
           />
 
           {search && (
             <button
               type="button"
-              onClick={
-                clearSearch
-              }
+              onClick={clearSearch}
               aria-label="Clear search"
               className="
-                mr-2
-                flex
-                h-7
-                w-7
-                items-center
-                justify-center
-                rounded-full
-                text-lg
+                mr-3
+                text-xl
                 text-gray-400
-                hover:bg-gray-200
+                hover:text-gray-700
               "
             >
               ×
@@ -617,14 +877,14 @@ function Navbar({
               absolute
               left-0
               right-0
-              top-[calc(100%+6px)]
-              z-[100]
-              max-h-[420px]
+              top-[50px]
+              z-[120]
+              max-h-[430px]
               overflow-y-auto
               border
-              border-gray-100
+              border-[#eaeaec]
               bg-white
-              shadow-xl
+              shadow-[0_8px_25px_rgba(40,44,63,0.12)]
             "
           >
             {!search.trim() &&
@@ -641,11 +901,11 @@ function Navbar({
                   >
                     <p
                       className="
-                        text-xs
+                        text-[11px]
                         font-bold
                         uppercase
-                        tracking-wide
-                        text-gray-500
+                        tracking-[0.08em]
+                        text-[#696b79]
                       "
                     >
                       Recent Searches
@@ -663,8 +923,9 @@ function Navbar({
                         );
                       }}
                       className="
-                        text-xs
-                        font-semibold
+                        text-[11px]
+                        font-bold
+                        uppercase
                         text-orange-600
                       "
                     >
@@ -691,20 +952,26 @@ function Navbar({
                           w-full
                           items-center
                           gap-3
-                          px-2
-                          py-2.5
+                          border-b
+                          border-gray-50
+                          px-1
+                          py-3
                           text-left
                           text-sm
-                          hover:bg-gray-50
+                          text-[#282c3f]
+                          last:border-b-0
+                          hover:bg-[#f5f5f6]
                         "
                       >
-                        <span>
+                        <span
+                          className="
+                            text-gray-400
+                          "
+                        >
                           ↻
                         </span>
 
-                        <span>
-                          {item}
-                        </span>
+                        {item}
                       </button>
                     )
                   )}
@@ -716,21 +983,6 @@ function Navbar({
                 {searchSuggestions.length >
                 0 ? (
                   <div className="p-2">
-                    <p
-                      className="
-                        px-2
-                        pb-2
-                        pt-1
-                        text-[10px]
-                        font-bold
-                        uppercase
-                        tracking-wider
-                        text-gray-400
-                      "
-                    >
-                      Products
-                    </p>
-
                     {searchSuggestions.map(
                       (product) => (
                         <button
@@ -739,8 +991,8 @@ function Navbar({
                           }
                           type="button"
                           onClick={() =>
-                            performSearch(
-                              product.name
+                            navigate(
+                              `/product/${product.id}`
                             )
                           }
                           className="
@@ -750,17 +1002,19 @@ function Navbar({
                             gap-3
                             p-2
                             text-left
-                            hover:bg-gray-50
+                            hover:bg-[#f5f5f6]
                           "
                         >
                           <img
                             src={
                               product.image
                             }
-                            alt=""
+                            alt={
+                              product.name
+                            }
                             className="
-                              h-12
-                              w-10
+                              h-14
+                              w-11
                               shrink-0
                               object-cover
                             "
@@ -772,6 +1026,7 @@ function Navbar({
                                 truncate
                                 text-sm
                                 font-semibold
+                                text-[#282c3f]
                               "
                             >
                               {
@@ -781,9 +1036,10 @@ function Navbar({
 
                             <p
                               className="
+                                mt-0.5
                                 truncate
                                 text-xs
-                                text-gray-500
+                                text-[#696b79]
                               "
                             >
                               {
@@ -808,12 +1064,14 @@ function Navbar({
                         mt-2
                         w-full
                         border-t
-                        border-gray-100
+                        border-[#eaeaec]
                         px-3
                         py-3
                         text-left
-                        text-sm
+                        text-xs
                         font-bold
+                        uppercase
+                        tracking-wide
                         text-orange-600
                       "
                     >
@@ -823,14 +1081,25 @@ function Navbar({
                   </div>
                 ) : (
                   <div className="p-6 text-center">
-                    <p className="text-sm font-semibold">
+                    <p
+                      className="
+                        text-sm
+                        font-semibold
+                        text-[#282c3f]
+                      "
+                    >
                       No products found
                     </p>
 
-                    <p className="mt-1 text-xs text-gray-500">
-                      Try another
-                      product or
-                      category.
+                    <p
+                      className="
+                        mt-1
+                        text-xs
+                        text-[#696b79]
+                      "
+                    >
+                      Try another product,
+                      brand or category.
                     </p>
                   </div>
                 )}
@@ -855,30 +1124,33 @@ function Navbar({
           z-50
           w-full
           bg-white
-          text-gray-900
-          shadow-[0_1px_8px_rgba(0,0,0,0.08)]
+          text-[#282c3f]
+          shadow-[0_2px_12px_rgba(40,44,63,0.08)]
         "
       >
         {/* =================================================
-            DESKTOP NAVBAR
+            DESKTOP
         ================================================= */}
 
         <div
           className="
             hidden
-            h-[72px]
-            items-center
-            lg:flex
+            lg:block
           "
+          onMouseLeave={() =>
+            setActiveMegaMenu(
+              null
+            )
+          }
         >
           <div
             className="
               mx-auto
               flex
+              h-[80px]
               w-full
-              max-w-[1440px]
+              max-w-[1600px]
               items-center
-              gap-7
               px-8
             "
           >
@@ -887,6 +1159,7 @@ function Navbar({
             <Link
               to="/"
               className="
+                mr-8
                 flex
                 shrink-0
                 items-center
@@ -896,8 +1169,8 @@ function Navbar({
                 src={logoImage}
                 alt="GymDrobe"
                 className="
-                  h-12
-                  w-24
+                  h-[52px]
+                  w-[112px]
                   object-contain
                   object-left
                   invert
@@ -905,197 +1178,114 @@ function Navbar({
               />
             </Link>
 
-            {/* DESKTOP LINKS */}
+            {/* NAVIGATION */}
 
             <nav
               className="
                 flex
+                h-full
                 shrink-0
                 items-center
-                gap-1
               "
             >
-              <Link
-                to="/"
-                className={`
-                  border-b-4
-                  px-3
-                  py-6
-                  text-xs
-                  font-bold
-                  uppercase
-                  tracking-wide
-                  transition
-                  ${
-                    isHome
-                      ? "border-orange-500 text-orange-600"
-                      : "border-transparent hover:border-orange-500"
-                  }
-                `}
-              >
-                Home
-              </Link>
-
-              <Link
-                to="/shop"
-                className={`
-                  border-b-4
-                  px-3
-                  py-6
-                  text-xs
-                  font-bold
-                  uppercase
-                  tracking-wide
-                  transition
-                  ${
-                    isShop
-                      ? "border-orange-500 text-orange-600"
-                      : "border-transparent hover:border-orange-500"
-                  }
-                `}
-              >
-                Shop
-              </Link>
-
-              {/* CATEGORY MENU */}
-
-              <div
-                className="
-                  relative
-                  h-[72px]
-                  flex
-                  items-center
-                "
-                onMouseEnter={() =>
-                  setIsCategoryMenuOpen(
-                    true
-                  )
-                }
-                onMouseLeave={() =>
-                  setIsCategoryMenuOpen(
-                    false
-                  )
-                }
-              >
-                <button
-                  type="button"
-                  className="
-                    h-full
-                    border-b-4
-                    border-transparent
-                    px-3
-                    text-xs
-                    font-bold
-                    uppercase
-                    tracking-wide
-                    hover:border-orange-500
-                  "
-                >
-                  Categories
-                </button>
-
-                {isCategoryMenuOpen && (
-                  <div
-                    className="
-                      absolute
-                      left-0
-                      top-full
-                      w-[720px]
-                      border-t
-                      border-gray-100
-                      bg-white
-                      p-6
-                      shadow-2xl
-                    "
+              {navigationGroups.map(
+                (group) => (
+                  <button
+                    key={group.id}
+                    type="button"
+                    onMouseEnter={() =>
+                      setActiveMegaMenu(
+                        group.id
+                      )
+                    }
+                    className={`
+                      relative
+                      flex
+                      h-full
+                      items-center
+                      px-[13px]
+                      text-[12px]
+                      font-bold
+                      tracking-[0.03em]
+                      transition
+                      after:absolute
+                      after:bottom-0
+                      after:left-0
+                      after:right-0
+                      after:h-[4px]
+                      after:origin-center
+                      after:scale-x-0
+                      after:transition-transform
+                      hover:after:scale-x-100
+                      ${
+                        activeMegaMenu ===
+                        group.id
+                          ? "after:scale-x-100"
+                          : ""
+                      }
+                    `}
+                    style={{
+                      "--nav-accent":
+                        group.accent,
+                    }}
                   >
-                    <div
-                      className="
-                        grid
-                        grid-cols-4
-                        gap-5
-                      "
-                    >
-                      {categoryDetails.map(
-                        (
-                          category
-                        ) => (
-                          <button
-                            key={
-                              category.name
-                            }
-                            type="button"
-                            onClick={() =>
-                              openCategory(
-                                category.name
-                              )
-                            }
-                            className="
-                              group
-                              text-left
-                            "
-                          >
-                            <div
-                              className="
-                                aspect-square
-                                overflow-hidden
-                                rounded-full
-                                bg-gray-100
-                              "
-                            >
-                              <img
-                                src={
-                                  category.icon
-                                }
-                                alt={
-                                  category.name
-                                }
-                                className="
-                                  h-full
-                                  w-full
-                                  object-cover
-                                  transition
-                                  duration-300
-                                  group-hover:scale-105
-                                "
-                              />
-                            </div>
+                    <span>
+                      {group.label}
+                    </span>
 
-                            <p
-                              className="
-                                mt-2
-                                text-center
-                                text-xs
-                                font-semibold
-                                group-hover:text-orange-600
-                              "
-                            >
-                              {
-                                category.name
-                              }
-                            </p>
-                          </button>
-                        )
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
+                    <span
+                      className="
+                        absolute
+                        bottom-0
+                        left-0
+                        right-0
+                        h-[4px]
+                      "
+                      style={{
+                        background:
+                          activeMegaMenu ===
+                          group.id
+                            ? group.accent
+                            : "transparent",
+                      }}
+                    />
+                  </button>
+                )
+              )}
 
               <Link
                 to="/shop?discount=10"
+                onMouseEnter={() =>
+                  setActiveMegaMenu(
+                    null
+                  )
+                }
                 className="
-                  border-b-4
-                  border-transparent
-                  px-3
-                  py-6
-                  text-xs
+                  relative
+                  flex
+                  h-full
+                  items-center
+                  px-[13px]
+                  text-[12px]
                   font-bold
-                  uppercase
-                  tracking-wide
-                  hover:border-orange-500
+                  tracking-[0.03em]
+                  text-orange-600
                 "
               >
-                Offers
+                OFFERS
+
+                <span
+                  className="
+                    absolute
+                    right-0
+                    top-[20px]
+                    text-[8px]
+                    font-bold
+                    text-red-500
+                  "
+                >
+                  NEW
+                </span>
               </Link>
             </nav>
 
@@ -1106,20 +1296,35 @@ function Navbar({
                 ml-auto
                 w-full
                 max-w-[420px]
+                px-5
               "
+              onMouseEnter={() =>
+                setActiveMegaMenu(
+                  null
+                )
+              }
             >
-              <SearchBox />
+              <SearchBox
+                wrapperRef={
+                  desktopSearchRef
+                }
+              />
             </div>
 
-            {/* DESKTOP ACTIONS */}
+            {/* ACTIONS */}
 
             <div
               className="
                 flex
                 shrink-0
                 items-center
-                gap-5
+                gap-6
               "
+              onMouseEnter={() =>
+                setActiveMegaMenu(
+                  null
+                )
+              }
             >
               <Link
                 to={
@@ -1129,11 +1334,14 @@ function Navbar({
                 }
                 className="
                   flex
+                  min-w-[48px]
                   flex-col
                   items-center
-                  gap-0.5
+                  justify-center
+                  gap-1
                   text-[11px]
                   font-semibold
+                  hover:text-orange-600
                 "
               >
                 <UserIcon />
@@ -1141,9 +1349,7 @@ function Navbar({
                 <span>
                   {isAuthenticated
                     ? user?.name
-                        ?.split(
-                          " "
-                        )[0] ||
+                        ?.split(" ")[0] ||
                       "Profile"
                     : "Profile"}
                 </span>
@@ -1154,11 +1360,14 @@ function Navbar({
                 className="
                   relative
                   flex
+                  min-w-[48px]
                   flex-col
                   items-center
-                  gap-0.5
+                  justify-center
+                  gap-1
                   text-[11px]
                   font-semibold
+                  hover:text-orange-600
                 "
               >
                 <HeartIcon />
@@ -1175,8 +1384,8 @@ function Navbar({
                       -right-1
                       -top-2
                       flex
-                      h-4
-                      min-w-4
+                      h-[17px]
+                      min-w-[17px]
                       items-center
                       justify-center
                       rounded-full
@@ -1199,11 +1408,14 @@ function Navbar({
                 className="
                   relative
                   flex
+                  min-w-[48px]
                   flex-col
                   items-center
-                  gap-0.5
+                  justify-center
+                  gap-1
                   text-[11px]
                   font-semibold
+                  hover:text-orange-600
                 "
               >
                 <BagIcon />
@@ -1217,8 +1429,8 @@ function Navbar({
                       -right-1
                       -top-2
                       flex
-                      h-4
-                      min-w-4
+                      h-[17px]
+                      min-w-[17px]
                       items-center
                       justify-center
                       rounded-full
@@ -1235,14 +1447,219 @@ function Navbar({
               </Link>
             </div>
           </div>
+
+          {/* ===============================================
+              DESKTOP MEGA MENU
+          =============================================== */}
+
+          {activeMegaMenu && (
+            <div
+              className="
+                absolute
+                left-0
+                right-0
+                top-[80px]
+                z-[80]
+                border-t
+                border-[#eaeaec]
+                bg-white
+                shadow-[0_10px_30px_rgba(40,44,63,0.12)]
+              "
+            >
+              <div
+                className="
+                  mx-auto
+                  grid
+                  min-h-[330px]
+                  max-w-[1120px]
+                  grid-cols-4
+                  bg-white
+                "
+              >
+                {navigationGroups
+                  .find(
+                    (group) =>
+                      group.id ===
+                      activeMegaMenu
+                  )
+                  ?.columns.map(
+                    (
+                      column,
+                      index
+                    ) => {
+                      const activeGroup =
+                        navigationGroups.find(
+                          (
+                            group
+                          ) =>
+                            group.id ===
+                            activeMegaMenu
+                        );
+
+                      return (
+                        <div
+                          key={
+                            column.title
+                          }
+                          className={`
+                            px-7
+                            py-7
+                            ${
+                              index % 2 ===
+                              1
+                                ? "bg-[#fafafa]"
+                                : "bg-white"
+                            }
+                          `}
+                        >
+                          <h3
+                            className="
+                              mb-4
+                              text-[13px]
+                              font-bold
+                            "
+                            style={{
+                              color:
+                                activeGroup?.accent,
+                            }}
+                          >
+                            {
+                              column.title
+                            }
+                          </h3>
+
+                          <div
+                            className="
+                              space-y-2.5
+                            "
+                          >
+                            {column.links.map(
+                              (
+                                link
+                              ) => (
+                                <button
+                                  key={
+                                    link.label
+                                  }
+                                  type="button"
+                                  onClick={() => {
+                                    openShopLink(
+                                      link
+                                    );
+
+                                    setActiveMegaMenu(
+                                      null
+                                    );
+                                  }}
+                                  className="
+                                    block
+                                    w-full
+                                    text-left
+                                    text-[13px]
+                                    font-normal
+                                    text-[#282c3f]
+                                    transition
+                                    hover:font-semibold
+                                  "
+                                >
+                                  {
+                                    link.label
+                                  }
+                                </button>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+                  )}
+
+                {/* PROMO COLUMN */}
+
+                <div
+                  className="
+                    flex
+                    flex-col
+                    justify-between
+                    bg-[#fff7ed]
+                    px-7
+                    py-7
+                  "
+                >
+                  <div>
+                    <p
+                      className="
+                        text-[11px]
+                        font-bold
+                        uppercase
+                        tracking-[0.1em]
+                        text-orange-600
+                      "
+                    >
+                      GymDrobe
+                    </p>
+
+                    <h3
+                      className="
+                        mt-3
+                        text-[22px]
+                        font-bold
+                        leading-tight
+                        text-[#282c3f]
+                      "
+                    >
+                      Built for
+                      <br />
+                      Every Workout
+                    </h3>
+
+                    <p
+                      className="
+                        mt-3
+                        text-[13px]
+                        leading-5
+                        text-[#696b79]
+                      "
+                    >
+                      Discover gym wear,
+                      footwear and workout
+                      essentials.
+                    </p>
+                  </div>
+
+                  <Link
+                    to="/shop"
+                    onClick={() =>
+                      setActiveMegaMenu(
+                        null
+                      )
+                    }
+                    className="
+                      mt-8
+                      inline-flex
+                      w-fit
+                      items-center
+                      text-xs
+                      font-bold
+                      uppercase
+                      tracking-wide
+                      text-orange-600
+                    "
+                  >
+                    Shop All →
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* =================================================
-            MOBILE HEADER
+            MOBILE
         ================================================= */}
 
         <div className="lg:hidden">
-          {/* TOP ROW */}
+          {/* TOP BAR */}
 
           <div
             className="
@@ -1255,19 +1672,17 @@ function Navbar({
             <button
               type="button"
               onClick={() =>
-                setIsMenuOpen(
-                  true
-                )
+                setIsMenuOpen(true)
               }
-              aria-label="Open menu"
               className="
-                mr-2
                 flex
                 h-10
                 w-10
+                shrink-0
                 items-center
                 justify-center
               "
+              aria-label="Open menu"
             >
               <MenuIcon />
             </button>
@@ -1275,8 +1690,8 @@ function Navbar({
             <Link
               to="/"
               className="
+                ml-1
                 flex
-                min-w-0
                 flex-1
                 items-center
               "
@@ -1286,7 +1701,7 @@ function Navbar({
                 alt="GymDrobe"
                 className="
                   h-10
-                  w-[88px]
+                  w-[92px]
                   object-contain
                   object-left
                   invert
@@ -1294,172 +1709,168 @@ function Navbar({
               />
             </Link>
 
-            <div
+            <Link
+              to="/wishlist"
               className="
+                relative
                 flex
+                h-10
+                w-10
                 items-center
-                gap-1
+                justify-center
               "
+              aria-label="Wishlist"
             >
-              <Link
-                to="/wishlist"
-                aria-label="Wishlist"
-                className="
-                  relative
-                  flex
-                  h-10
-                  w-10
-                  items-center
-                  justify-center
-                "
-              >
-                <HeartIcon />
+              <HeartIcon />
 
-                {wishlistCount >
-                  0 && (
-                  <span
-                    className="
-                      absolute
-                      right-0
-                      top-0
-                      flex
-                      h-4
-                      min-w-4
-                      items-center
-                      justify-center
-                      rounded-full
-                      bg-orange-600
-                      px-1
-                      text-[9px]
-                      font-bold
-                      text-white
-                    "
-                  >
-                    {
-                      wishlistCount
-                    }
-                  </span>
-                )}
-              </Link>
+              {wishlistCount > 0 && (
+                <span
+                  className="
+                    absolute
+                    right-0
+                    top-0
+                    flex
+                    h-4
+                    min-w-4
+                    items-center
+                    justify-center
+                    rounded-full
+                    bg-orange-600
+                    px-1
+                    text-[8px]
+                    font-bold
+                    text-white
+                  "
+                >
+                  {wishlistCount}
+                </span>
+              )}
+            </Link>
 
-              <Link
-                to="/cart"
-                aria-label="Shopping bag"
-                className="
-                  relative
-                  flex
-                  h-10
-                  w-10
-                  items-center
-                  justify-center
-                "
-              >
-                <BagIcon />
+            <Link
+              to="/cart"
+              className="
+                relative
+                flex
+                h-10
+                w-10
+                items-center
+                justify-center
+              "
+              aria-label="Bag"
+            >
+              <BagIcon />
 
-                {cartCount > 0 && (
-                  <span
-                    className="
-                      absolute
-                      right-0
-                      top-0
-                      flex
-                      h-4
-                      min-w-4
-                      items-center
-                      justify-center
-                      rounded-full
-                      bg-orange-600
-                      px-1
-                      text-[9px]
-                      font-bold
-                      text-white
-                    "
-                  >
-                    {cartCount}
-                  </span>
-                )}
-              </Link>
-            </div>
+              {cartCount > 0 && (
+                <span
+                  className="
+                    absolute
+                    right-0
+                    top-0
+                    flex
+                    h-4
+                    min-w-4
+                    items-center
+                    justify-center
+                    rounded-full
+                    bg-orange-600
+                    px-1
+                    text-[8px]
+                    font-bold
+                    text-white
+                  "
+                >
+                  {cartCount}
+                </span>
+              )}
+            </Link>
           </div>
 
           {/* MOBILE SEARCH */}
 
           <div
-            ref={searchRef}
             className="
               px-3
               pb-3
             "
           >
-            <SearchBox mobile />
+            <SearchBox
+              wrapperRef={
+                mobileSearchRef
+              }
+            />
           </div>
 
-          {/* MOBILE QUICK CATEGORY BAR */}
+          {/* MOBILE QUICK NAV */}
 
           <div
             className="
+              hide-scrollbar
+              flex
+              items-center
+              gap-6
+              overflow-x-auto
               border-t
-              border-gray-100
-              bg-white
+              border-[#eaeaec]
+              px-4
+              py-3
             "
           >
-            <div
+            <Link
+              to="/shop"
               className="
-                flex
-                items-center
-                gap-6
-                overflow-x-auto
-                px-4
-                py-3
-                [scrollbar-width:none]
-                [&::-webkit-scrollbar]:hidden
+                shrink-0
+                text-[11px]
+                font-bold
+                uppercase
+                text-orange-600
               "
             >
-              <Link
-                to="/shop"
-                className="
-                  shrink-0
-                  text-xs
-                  font-bold
-                  uppercase
-                  text-orange-600
-                "
-              >
-                All
-              </Link>
+              All
+            </Link>
 
-              {categoryDetails.map(
-                (category) => (
-                  <button
-                    key={
-                      category.name
-                    }
-                    type="button"
-                    onClick={() =>
-                      openCategory(
-                        category.name
-                      )
-                    }
-                    className="
-                      shrink-0
-                      whitespace-nowrap
-                      text-xs
-                      font-semibold
-                      uppercase
-                      text-gray-700
-                    "
-                  >
-                    {category.name}
-                  </button>
-                )
-              )}
-            </div>
+            {navigationGroups.map(
+              (group) => (
+                <button
+                  key={group.id}
+                  type="button"
+                  onClick={() =>
+                    setIsMenuOpen(
+                      true
+                    )
+                  }
+                  className="
+                    shrink-0
+                    whitespace-nowrap
+                    text-[11px]
+                    font-bold
+                    uppercase
+                    text-[#282c3f]
+                  "
+                >
+                  {group.label}
+                </button>
+              )
+            )}
+
+            <Link
+              to="/shop?discount=10"
+              className="
+                shrink-0
+                text-[11px]
+                font-bold
+                uppercase
+                text-orange-600
+              "
+            >
+              Offers
+            </Link>
           </div>
         </div>
       </header>
 
       {/* ===================================================
-          MOBILE SIDE MENU
+          MOBILE DRAWER
       =================================================== */}
 
       {isMenuOpen && (
@@ -1467,12 +1878,10 @@ function Navbar({
           className="
             fixed
             inset-0
-            z-[100]
+            z-[200]
             lg:hidden
           "
         >
-          {/* OVERLAY */}
-
           <button
             type="button"
             aria-label="Close menu"
@@ -1482,24 +1891,19 @@ function Navbar({
             className="
               absolute
               inset-0
-              h-full
-              w-full
               bg-black/50
             "
           />
-
-          {/* DRAWER */}
 
           <aside
             className="
               relative
               z-10
               h-full
-              w-[85%]
-              max-w-[340px]
+              w-[88%]
+              max-w-[360px]
               overflow-y-auto
               bg-white
-              shadow-2xl
             "
           >
             {/* DRAWER HEADER */}
@@ -1507,11 +1911,12 @@ function Navbar({
             <div
               className="
                 flex
+                h-[64px]
                 items-center
                 justify-between
                 border-b
-                border-gray-100
-                p-4
+                border-[#eaeaec]
+                px-4
               "
             >
               <Link
@@ -1527,7 +1932,7 @@ function Navbar({
                   alt="GymDrobe"
                   className="
                     h-10
-                    w-24
+                    w-[100px]
                     object-contain
                     object-left
                     invert
@@ -1555,12 +1960,14 @@ function Navbar({
               </button>
             </div>
 
-            {/* ACCOUNT */}
+            {/* ACCOUNT AREA */}
 
             <div
               className="
-                bg-gray-50
-                p-4
+                border-b
+                border-[#eaeaec]
+                bg-[#fafafa]
+                p-5
               "
             >
               {isAuthenticated ? (
@@ -1568,7 +1975,7 @@ function Navbar({
                   <p
                     className="
                       text-xs
-                      text-gray-500
+                      text-[#696b79]
                     "
                   >
                     Welcome back
@@ -1578,6 +1985,7 @@ function Navbar({
                     className="
                       mt-1
                       font-bold
+                      text-[#282c3f]
                     "
                   >
                     {user?.name ||
@@ -1605,7 +2013,12 @@ function Navbar({
                 </>
               ) : (
                 <>
-                  <p className="font-bold">
+                  <p
+                    className="
+                      font-bold
+                      text-[#282c3f]
+                    "
+                  >
                     Welcome to
                     GymDrobe
                   </p>
@@ -1614,17 +2027,17 @@ function Navbar({
                     className="
                       mt-1
                       text-xs
-                      text-gray-500
+                      text-[#696b79]
                     "
                   >
-                    Login to manage
-                    your orders and
+                    Login to view
+                    orders, addresses and
                     wishlist.
                   </p>
 
                   <div
                     className="
-                      mt-3
+                      mt-4
                       flex
                       gap-2
                     "
@@ -1638,12 +2051,13 @@ function Navbar({
                       }
                       className="
                         border
-                        border-gray-900
+                        border-orange-600
                         px-4
                         py-2
                         text-xs
                         font-bold
                         uppercase
+                        text-orange-600
                       "
                     >
                       Login
@@ -1657,7 +2071,7 @@ function Navbar({
                         )
                       }
                       className="
-                        bg-gray-900
+                        bg-orange-600
                         px-4
                         py-2
                         text-xs
@@ -1673,166 +2087,156 @@ function Navbar({
               )}
             </div>
 
-            {/* MAIN LINKS */}
+            {/* NAVIGATION GROUPS */}
 
-            <div className="p-3">
-              <Link
-                to="/"
-                onClick={() =>
-                  setIsMenuOpen(
-                    false
-                  )
-                }
-                className="
-                  flex
-                  items-center
-                  justify-between
-                  border-b
-                  border-gray-100
-                  px-2
-                  py-4
-                  text-sm
-                  font-bold
-                "
-              >
-                Home
-                <span>›</span>
-              </Link>
-
-              <Link
-                to="/shop"
-                onClick={() =>
-                  setIsMenuOpen(
-                    false
-                  )
-                }
-                className="
-                  flex
-                  items-center
-                  justify-between
-                  border-b
-                  border-gray-100
-                  px-2
-                  py-4
-                  text-sm
-                  font-bold
-                "
-              >
-                Shop All
-                <span>›</span>
-              </Link>
-
-              {/* CATEGORIES */}
-
-              <div
-                className="
-                  border-b
-                  border-gray-100
-                "
-              >
-                <button
-                  type="button"
-                  onClick={() =>
-                    setIsCategoryMenuOpen(
-                      (
-                        current
-                      ) =>
-                        !current
-                    )
-                  }
-                  className="
-                    flex
-                    w-full
-                    items-center
-                    justify-between
-                    px-2
-                    py-4
-                    text-left
-                    text-sm
-                    font-bold
-                  "
-                >
-                  Categories
-
-                  <span>
-                    {isCategoryMenuOpen
-                      ? "−"
-                      : "+"}
-                  </span>
-                </button>
-
-                {isCategoryMenuOpen && (
+            <div>
+              {navigationGroups.map(
+                (group) => (
                   <div
+                    key={group.id}
                     className="
-                      grid
-                      grid-cols-2
-                      gap-3
-                      pb-4
+                      border-b
+                      border-[#eaeaec]
                     "
                   >
-                    {categoryDetails.map(
-                      (
-                        category
-                      ) => (
-                        <button
-                          key={
-                            category.name
-                          }
-                          type="button"
-                          onClick={() => {
-                            openCategory(
-                              category.name
-                            );
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setMobileCategoryOpen(
+                          (
+                            current
+                          ) =>
+                            current ===
+                            group.id
+                              ? null
+                              : group.id
+                        )
+                      }
+                      className="
+                        flex
+                        w-full
+                        items-center
+                        justify-between
+                        px-5
+                        py-4
+                        text-left
+                        text-sm
+                        font-bold
+                        text-[#282c3f]
+                      "
+                    >
+                      {group.label}
 
-                            setIsMenuOpen(
-                              false
-                            );
-                          }}
-                          className="
-                            text-left
-                          "
-                        >
-                          <div
-                            className="
-                              aspect-square
-                              overflow-hidden
-                              rounded-lg
-                              bg-gray-100
-                            "
-                          >
-                            <img
-                              src={
-                                category.icon
-                              }
-                              alt={
-                                category.name
+                      <span
+                        className="
+                          text-xl
+                          font-light
+                        "
+                      >
+                        {mobileCategoryOpen ===
+                        group.id
+                          ? "−"
+                          : "+"}
+                      </span>
+                    </button>
+
+                    {mobileCategoryOpen ===
+                      group.id && (
+                      <div
+                        className="
+                          bg-[#fafafa]
+                          px-5
+                          pb-5
+                        "
+                      >
+                        {group.columns.map(
+                          (
+                            column
+                          ) => (
+                            <div
+                              key={
+                                column.title
                               }
                               className="
-                                h-full
-                                w-full
-                                object-cover
+                                border-b
+                                border-gray-200
+                                py-4
+                                last:border-b-0
                               "
-                            />
-                          </div>
+                            >
+                              <p
+                                className="
+                                  mb-3
+                                  text-xs
+                                  font-bold
+                                "
+                                style={{
+                                  color:
+                                    group.accent,
+                                }}
+                              >
+                                {
+                                  column.title
+                                }
+                              </p>
 
-                          <p
-                            className="
-                              mt-1.5
-                              text-xs
-                              font-semibold
-                            "
-                          >
-                            {
-                              category.name
-                            }
-                          </p>
-                        </button>
-                      )
+                              <div
+                                className="
+                                  space-y-3
+                                "
+                              >
+                                {column.links.map(
+                                  (
+                                    link
+                                  ) => (
+                                    <button
+                                      key={
+                                        link.label
+                                      }
+                                      type="button"
+                                      onClick={() => {
+                                        openShopLink(
+                                          link
+                                        );
+
+                                        setIsMenuOpen(
+                                          false
+                                        );
+                                      }}
+                                      className="
+                                        block
+                                        w-full
+                                        text-left
+                                        text-[13px]
+                                        text-[#282c3f]
+                                      "
+                                    >
+                                      {
+                                        link.label
+                                      }
+                                    </button>
+                                  )
+                                )}
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
+                )
+              )}
+            </div>
 
+            {/* BASIC LINKS */}
+
+            <div
+              className="
+                border-b
+                border-[#eaeaec]
+                p-5
+              "
+            >
               <Link
                 to="/shop?discount=10"
                 onClick={() =>
@@ -1841,20 +2245,14 @@ function Navbar({
                   )
                 }
                 className="
-                  flex
-                  items-center
-                  justify-between
-                  border-b
-                  border-gray-100
-                  px-2
-                  py-4
+                  block
+                  py-2
                   text-sm
                   font-bold
                   text-orange-600
                 "
               >
                 Offers
-                <span>›</span>
               </Link>
 
               <Link
@@ -1868,20 +2266,15 @@ function Navbar({
                   flex
                   items-center
                   justify-between
-                  border-b
-                  border-gray-100
-                  px-2
-                  py-4
+                  py-2
                   text-sm
-                  font-semibold
+                  text-[#282c3f]
                 "
               >
                 Wishlist
 
                 <span>
-                  {
-                    wishlistCount
-                  }
+                  {wishlistCount}
                 </span>
               </Link>
 
@@ -1896,12 +2289,9 @@ function Navbar({
                   flex
                   items-center
                   justify-between
-                  border-b
-                  border-gray-100
-                  px-2
-                  py-4
+                  py-2
                   text-sm
-                  font-semibold
+                  text-[#282c3f]
                 "
               >
                 Shopping Bag
@@ -1910,75 +2300,80 @@ function Navbar({
                   {cartCount}
                 </span>
               </Link>
-
-              {isAuthenticated && (
-                <>
-                  <Link
-                    to="/orders"
-                    onClick={() =>
-                      setIsMenuOpen(
-                        false
-                      )
-                    }
-                    className="
-                      flex
-                      items-center
-                      justify-between
-                      border-b
-                      border-gray-100
-                      px-2
-                      py-4
-                      text-sm
-                      font-semibold
-                    "
-                  >
-                    My Orders
-                    <span>›</span>
-                  </Link>
-
-                  <Link
-                    to="/addresses"
-                    onClick={() =>
-                      setIsMenuOpen(
-                        false
-                      )
-                    }
-                    className="
-                      flex
-                      items-center
-                      justify-between
-                      border-b
-                      border-gray-100
-                      px-2
-                      py-4
-                      text-sm
-                      font-semibold
-                    "
-                  >
-                    My Addresses
-                    <span>›</span>
-                  </Link>
-
-                  <button
-                    type="button"
-                    onClick={
-                      handleLogout
-                    }
-                    className="
-                      w-full
-                      px-2
-                      py-4
-                      text-left
-                      text-sm
-                      font-bold
-                      text-red-600
-                    "
-                  >
-                    Logout
-                  </button>
-                </>
-              )}
             </div>
+
+            {/* ACCOUNT LINKS */}
+
+            {isAuthenticated && (
+              <div className="p-5">
+                <Link
+                  to="/account"
+                  onClick={() =>
+                    setIsMenuOpen(
+                      false
+                    )
+                  }
+                  className="
+                    block
+                    py-2
+                    text-sm
+                    text-[#282c3f]
+                  "
+                >
+                  My Account
+                </Link>
+
+                <Link
+                  to="/orders"
+                  onClick={() =>
+                    setIsMenuOpen(
+                      false
+                    )
+                  }
+                  className="
+                    block
+                    py-2
+                    text-sm
+                    text-[#282c3f]
+                  "
+                >
+                  My Orders
+                </Link>
+
+                <Link
+                  to="/addresses"
+                  onClick={() =>
+                    setIsMenuOpen(
+                      false
+                    )
+                  }
+                  className="
+                    block
+                    py-2
+                    text-sm
+                    text-[#282c3f]
+                  "
+                >
+                  My Addresses
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={
+                    handleLogout
+                  }
+                  className="
+                    mt-3
+                    block
+                    text-sm
+                    font-bold
+                    text-red-600
+                  "
+                >
+                  Logout
+                </button>
+              </div>
+            )}
           </aside>
         </div>
       )}
