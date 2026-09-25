@@ -12,7 +12,7 @@ import {
   useSearchParams,
 } from "react-router-dom";
 
-import logoImage from "../assets/logo.png";
+import logoImage from "../assets/new logo.png";
 import products from "../data/products";
 import { useAuth } from "../context/AuthContext";
 

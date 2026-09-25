@@ -1,97 +1,463 @@
-import { Link } from "react-router-dom";
+import {
+  Link,
+  useSearchParams,
+} from "react-router-dom";
+
+import { useAuth } from "../context/AuthContext";
+
+/* =========================================================
+   STORAGE KEYS
+========================================================= */
+
+const ORDERS_STORAGE_KEY =
+  "gymdrobe-orders";
+
+const LAST_ORDER_STORAGE_KEY =
+  "gymdrobe-last-order";
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function readStorage(
+  key,
+  fallback = null
+) {
+  try {
+    const saved =
+      localStorage.getItem(
+        key
+      );
+
+    if (!saved) {
+      return fallback;
+    }
+
+    return JSON.parse(
+      saved
+    );
+  } catch {
+    return fallback;
+  }
+}
+
+function getUserStorageKey(
+  baseKey,
+  user
+) {
+  const userId = String(
+    user?.id ||
+      user?.email ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+
+  if (!userId) {
+    return `${baseKey}:guest`;
+  }
+
+  return `${baseKey}:${userId}`;
+}
+
+function formatDate(value) {
+  if (!value) {
+    return "—";
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "—";
+  }
+
+  return date.toLocaleDateString(
+    "en-IN",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }
+  );
+}
+
+function formatTime(value) {
+  if (!value) {
+    return "—";
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "—";
+  }
+
+  return date.toLocaleTimeString(
+    "en-IN",
+    {
+      hour: "2-digit",
+      minute: "2-digit",
+    }
+  );
+}
+
+function formatCurrency(
+  value
+) {
+  return Number(
+    value || 0
+  ).toLocaleString(
+    "en-IN",
+    {
+      maximumFractionDigits: 2,
+    }
+  );
+}
+
+/* =========================================================
+   ICONS
+========================================================= */
+
+function SuccessIcon() {
+  return (
+    <div
+      className="
+        flex
+        h-20
+        w-20
+        items-center
+        justify-center
+        rounded-full
+        bg-green-100
+        text-4xl
+        text-green-700
+      "
+    >
+      ✓
+    </div>
+  );
+}
+
+function DeliveryIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="h-6 w-6"
+      aria-hidden="true"
+    >
+      <path d="M3 5h11v11H3z" />
+      <path d="M14 9h4l3 3v4h-7z" />
+      <circle
+        cx="7"
+        cy="18"
+        r="2"
+      />
+      <circle
+        cx="18"
+        cy="18"
+        r="2"
+      />
+    </svg>
+  );
+}
+
+function PaymentIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="h-6 w-6"
+      aria-hidden="true"
+    >
+      <rect
+        x="3"
+        y="5"
+        width="18"
+        height="14"
+        rx="2"
+      />
+
+      <path d="M3 10h18" />
+    </svg>
+  );
+}
+
+/* =========================================================
+   PAGE
+========================================================= */
 
 function OrderSuccessPage() {
-  const savedOrder = localStorage.getItem(
-    "gymdrobe-last-order"
-  );
+  const [
+    searchParams,
+  ] = useSearchParams();
+
+  const { user } =
+    useAuth();
+
+  const requestedOrderId =
+    searchParams
+      .get("orderId")
+      ?.trim() || "";
+
+  /* =======================================================
+     FIND THE CORRECT ORDER
+  ======================================================= */
+
+  const allOrders =
+    readStorage(
+      ORDERS_STORAGE_KEY,
+      []
+    );
 
   let order = null;
 
-  if (savedOrder) {
-    try {
-      order = JSON.parse(savedOrder);
-    } catch {
-      order = null;
+  /*
+    1. FIRST PRIORITY:
+       Find the exact order requested in the URL.
+
+       Example:
+       /order-success?orderId=GD-123
+  */
+
+  if (
+    requestedOrderId &&
+    Array.isArray(
+      allOrders
+    )
+  ) {
+    order =
+      allOrders.find(
+        (item) =>
+          String(
+            item?.id
+          ) ===
+          String(
+            requestedOrderId
+          )
+      ) || null;
+  }
+
+  /*
+    2. SECOND PRIORITY:
+       User-scoped last order.
+  */
+
+  if (
+    !order &&
+    !requestedOrderId
+  ) {
+    const scopedLastOrder =
+      readStorage(
+        getUserStorageKey(
+          LAST_ORDER_STORAGE_KEY,
+          user
+        ),
+        null
+      );
+
+    if (
+      scopedLastOrder
+    ) {
+      order =
+        scopedLastOrder;
     }
   }
 
+  /*
+    3. LEGACY FALLBACK:
+       Old projects stored one global last order.
+
+       IMPORTANT:
+       We only use this when there is NO orderId
+       in the URL so an old order cannot replace
+       the requested order.
+  */
+
+  if (
+    !order &&
+    !requestedOrderId
+  ) {
+    order =
+      readStorage(
+        LAST_ORDER_STORAGE_KEY,
+        null
+      );
+  }
+
+  /* =======================================================
+     ORDER NOT FOUND
+  ======================================================= */
+
   if (!order) {
     return (
-      <section className="min-h-screen bg-gray-100 text-black flex items-center justify-center px-6">
-        <div className="w-full max-w-lg rounded-3xl bg-white p-8 text-center shadow-sm sm:p-10">
-          <div className="mb-5 text-6xl">📦</div>
+      <main
+        className="
+          flex
+          min-h-[75vh]
+          items-center
+          justify-center
+          bg-[#f5f5f6]
+          px-5
+          text-[#282c3f]
+        "
+      >
+        <div
+          className="
+            w-full
+            max-w-[520px]
+            border
+            border-[#eaeaec]
+            bg-white
+            px-6
+            py-12
+            text-center
+            sm:px-10
+          "
+        >
+          <div
+            className="
+              mx-auto
+              flex
+              h-20
+              w-20
+              items-center
+              justify-center
+              rounded-full
+              bg-orange-50
+              text-4xl
+            "
+          >
+            📦
+          </div>
 
-          <h1 className="mb-3 text-3xl font-black">
-            No Order Found
+          <h1
+            className="
+              mt-6
+              text-2xl
+              font-bold
+            "
+          >
+            Order Not Found
           </h1>
 
-          <p className="mb-6 text-gray-500">
-            We couldn't find your recent order.
+          <p
+            className="
+              mt-3
+              text-sm
+              leading-6
+              text-[#696b79]
+            "
+          >
+            {requestedOrderId
+              ? `We couldn't find order ${requestedOrderId}.`
+              : "We couldn't find your recent order."}
           </p>
 
-          <Link
-            to="/shop"
-            className="inline-block rounded-lg bg-orange-600 px-6 py-3 font-bold text-white transition hover:bg-orange-700"
+          <div
+            className="
+              mt-7
+              flex
+              flex-col
+              gap-3
+              sm:flex-row
+              sm:justify-center
+            "
           >
-            Continue Shopping
-          </Link>
+            <Link
+              to="/orders"
+              className="
+                bg-[#282c3f]
+                px-6
+                py-3
+                text-xs
+                font-bold
+                uppercase
+                text-white
+              "
+            >
+              View My Orders
+            </Link>
+
+            <Link
+              to="/shop"
+              className="
+                border
+                border-[#d4d5d9]
+                bg-white
+                px-6
+                py-3
+                text-xs
+                font-bold
+                uppercase
+              "
+            >
+              Continue Shopping
+            </Link>
+          </div>
         </div>
-      </section>
+      </main>
     );
   }
 
-  const pricing = order.pricing || {};
+  /* =======================================================
+     ORDER DATA
+  ======================================================= */
 
-  const customer = order.customer || {};
+  const pricing =
+    order.pricing || {};
+
+  const customer =
+    order.customer || {};
 
   const shippingAddress =
-    order.shippingAddress || {};
+    order.shippingAddress ||
+    {};
 
-  const delivery = order.delivery || {};
+  const delivery =
+    order.delivery || {};
 
-  const payment = order.payment || {};
+  const payment =
+    order.payment || {};
 
-  const items = Array.isArray(order.items)
-    ? order.items
-    : [];
+  const items =
+    Array.isArray(
+      order.items
+    )
+      ? order.items
+      : [];
 
-  const orderDate = order.createdAt
-    ? new Date(order.createdAt)
-    : null;
+  /* =======================================================
+     DATE
+  ======================================================= */
 
   const formattedDate =
-    orderDate && !Number.isNaN(orderDate.getTime())
-      ? orderDate.toLocaleDateString(
-          "en-IN",
-          {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          }
-        )
-      : "—";
+    formatDate(
+      order.createdAt
+    );
 
   const formattedTime =
-    orderDate && !Number.isNaN(orderDate.getTime())
-      ? orderDate.toLocaleTimeString(
-          "en-IN",
-          {
-            hour: "2-digit",
-            minute: "2-digit",
-          }
-        )
-      : "—";
+    formatTime(
+      order.createdAt
+    );
 
-  const paymentMethod =
-    payment.method ||
-    order.paymentMethod ||
-    "cod";
-
-  const paymentStatus =
-    payment.status ||
-    (paymentMethod === "cod"
-      ? "pending"
-      : "paid");
+  /* =======================================================
+     DELIVERY
+  ======================================================= */
 
   const deliveryMethod =
     delivery.method ||
@@ -100,15 +466,98 @@ function OrderSuccessPage() {
 
   const deliveryLabel =
     delivery.label ||
-    (deliveryMethod === "express"
+    (deliveryMethod ===
+    "express"
       ? "Express Delivery"
       : "Standard Delivery");
 
   const deliveryTime =
     delivery.estimatedTime ||
-    (deliveryMethod === "express"
-      ? "1–2 business days"
-      : "3–5 business days");
+    (deliveryMethod ===
+    "express"
+      ? "1–3 business days"
+      : "3–7 business days");
+
+  /* =======================================================
+     PAYMENT
+  ======================================================= */
+
+  const paymentMethod =
+    payment.method ||
+    order.paymentMethod ||
+    "cod";
+
+  const paymentStatus =
+    payment.status ||
+    (paymentMethod ===
+    "cod"
+      ? "pending"
+      : "payment-pending");
+
+  function getPaymentLabel() {
+    if (
+      paymentMethod ===
+      "cod"
+    ) {
+      return "Cash on Delivery";
+    }
+
+    if (
+      paymentMethod ===
+      "card"
+    ) {
+      return "Card Payment";
+    }
+
+    if (
+      paymentMethod ===
+      "upi"
+    ) {
+      return "UPI Payment";
+    }
+
+    return "Online Payment";
+  }
+
+  function getPaymentStatusLabel() {
+    if (
+      paymentStatus ===
+      "paid"
+    ) {
+      return "Paid";
+    }
+
+    if (
+      paymentStatus ===
+      "payment-pending"
+    ) {
+      return "Payment Pending";
+    }
+
+    return "Pay On Delivery";
+  }
+
+  /* =======================================================
+     PRICING
+  ======================================================= */
+
+  const subtotal =
+    Number(
+      pricing.subtotal ??
+        0
+    );
+
+  const couponDiscount =
+    Number(
+      pricing.couponDiscount ??
+        0
+    );
+
+  const shipping =
+    Number(
+      pricing.shipping ??
+        0
+    );
 
   const total =
     Number(
@@ -117,486 +566,1220 @@ function OrderSuccessPage() {
         0
     );
 
-  const subtotal =
-    Number(pricing.subtotal ?? 0);
+  const totalMrp =
+    items.reduce(
+      (
+        totalAmount,
+        item
+      ) => {
+        const price =
+          Number(
+            item.originalPrice ??
+              item.price ??
+              0
+          );
 
-  const couponDiscount =
-    Number(
-      pricing.couponDiscount ?? 0
+        const quantity =
+          Number(
+            item.quantity ||
+              1
+          );
+
+        return (
+          totalAmount +
+          price *
+            quantity
+        );
+      },
+      0
     );
 
-  const shipping =
-    Number(pricing.shipping ?? 0);
+  const productDiscount =
+    Math.max(
+      totalMrp -
+        subtotal,
+      0
+    );
 
-  const getPaymentLabel = () => {
-    if (paymentMethod === "cod") {
-      return "Cash on Delivery";
-    }
+  const totalItems =
+    items.reduce(
+      (
+        totalCount,
+        item
+      ) =>
+        totalCount +
+        Number(
+          item.quantity ||
+            0
+        ),
+      0
+    );
 
-    if (paymentMethod === "card") {
-      return "Card Payment";
-    }
+  /* =======================================================
+     ADDRESS
+  ======================================================= */
 
-    if (paymentMethod === "upi") {
-      return "UPI Payment";
-    }
+  const addressName =
+    shippingAddress.fullName ||
+    shippingAddress.name ||
+    customer.name ||
+    "—";
 
-    return "Online Payment";
-  };
+  const addressLine =
+    shippingAddress.addressLine ||
+    shippingAddress.address ||
+    customer.address ||
+    "";
 
-  const getPaymentStatusLabel = () => {
-    if (paymentStatus === "paid") {
-      return "Paid";
-    }
+  const addressLandmark =
+    shippingAddress.landmark ||
+    "";
 
-    if (paymentStatus === "payment-pending") {
-      return "Payment Pending";
-    }
+  const addressCity =
+    shippingAddress.city ||
+    customer.city ||
+    "";
 
-    return "Pay on Delivery";
-  };
+  const addressState =
+    shippingAddress.state ||
+    customer.state ||
+    "";
+
+  const addressPincode =
+    shippingAddress.pincode ||
+    customer.pincode ||
+    "";
+
+  const addressPhone =
+    shippingAddress.phone ||
+    customer.phone ||
+    "";
+
+  /* =======================================================
+     RENDER
+  ======================================================= */
 
   return (
-    <section className="min-h-screen bg-gray-100 px-4 py-10 text-black sm:px-6 sm:py-14">
-      <div className="mx-auto max-w-5xl">
+    <main
+      className="
+        min-h-screen
+        bg-[#f5f5f6]
+        py-8
+        text-[#282c3f]
+        sm:py-10
+      "
+    >
+      <div
+        className="
+          mx-auto
+          max-w-[1050px]
+          px-4
+          sm:px-6
+        "
+      >
+        {/* =================================================
+            SUCCESS HEADER
+        ================================================= */}
 
-        {/* SUCCESS HEADER */}
-
-        <div className="mb-8 rounded-3xl bg-white p-6 text-center shadow-sm sm:p-10">
-          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-green-100 text-4xl">
-            ✓
+        <section
+          className="
+            border
+            border-[#eaeaec]
+            bg-white
+            px-5
+            py-10
+            text-center
+            sm:px-10
+            sm:py-12
+          "
+        >
+          <div
+            className="
+              flex
+              justify-center
+            "
+          >
+            <SuccessIcon />
           </div>
 
-          <h1 className="mb-3 text-3xl font-black sm:text-4xl">
+          <p
+            className="
+              mt-6
+              text-[10px]
+              font-bold
+              uppercase
+              tracking-[0.18em]
+              text-green-600
+            "
+          >
+            Order Placed
+          </p>
+
+          <h1
+            className="
+              mt-2
+              text-3xl
+              font-bold
+              sm:text-4xl
+            "
+          >
             Order Confirmed!
           </h1>
 
-          <p className="mx-auto max-w-xl text-gray-500">
-            Thank you for shopping with GymDrobe.
-            Your order has been successfully placed.
+          <p
+            className="
+              mx-auto
+              mt-3
+              max-w-xl
+              text-sm
+              leading-6
+              text-[#696b79]
+            "
+          >
+            Thank you
+            {customer.name
+              ? `, ${customer.name}`
+              : ""}
+            . Your GymDrobe
+            order has been
+            successfully placed.
           </p>
 
           {/* ORDER ID */}
 
-          <div className="mt-6 inline-flex max-w-full flex-col items-center rounded-xl bg-gray-100 px-5 py-3 sm:flex-row sm:gap-2">
-            <span className="text-sm text-gray-500">
+          <div
+            className="
+              mx-auto
+              mt-6
+              flex
+              max-w-[420px]
+              flex-col
+              border
+              border-[#eaeaec]
+              bg-[#fafafa]
+              px-5
+              py-4
+              sm:flex-row
+              sm:items-center
+              sm:justify-center
+              sm:gap-2
+            "
+          >
+            <span
+              className="
+                text-xs
+                text-[#696b79]
+              "
+            >
               Order ID
             </span>
 
-            <strong className="break-all text-sm sm:text-base">
-              {order.id || "—"}
+            <strong
+              className="
+                mt-1
+                break-all
+                text-sm
+                sm:mt-0
+              "
+            >
+              {order.id}
             </strong>
           </div>
 
-          {/* DATE */}
-
-          <div className="mt-4 flex flex-col justify-center gap-1 text-sm text-gray-500 sm:flex-row sm:gap-4">
+          <div
+            className="
+              mt-4
+              flex
+              flex-col
+              justify-center
+              gap-1
+              text-xs
+              text-[#696b79]
+              sm:flex-row
+              sm:gap-4
+            "
+          >
             <span>
-              Date: {formattedDate}
+              {formattedDate}
             </span>
 
-            <span className="hidden sm:block">
+            <span
+              className="
+                hidden
+                sm:block
+              "
+            >
               •
             </span>
 
             <span>
-              Time: {formattedTime}
+              {formattedTime}
             </span>
           </div>
-        </div>
+        </section>
 
-        {/* ORDER STATUS */}
+        {/* =================================================
+            STATUS
+        ================================================= */}
 
-        <div className="mb-8 rounded-2xl bg-white p-5 shadow-sm sm:p-6">
-          <h2 className="mb-6 text-xl font-black">
+        <section
+          className="
+            mt-5
+            border
+            border-[#eaeaec]
+            bg-white
+            p-5
+            sm:p-6
+          "
+        >
+          <h2
+            className="
+              text-sm
+              font-bold
+              uppercase
+              tracking-[0.04em]
+            "
+          >
             Order Status
           </h2>
 
-          <div className="grid gap-4 sm:grid-cols-3">
-
+          <div
+            className="
+              mt-5
+              grid
+              gap-0
+              border
+              border-[#eaeaec]
+              sm:grid-cols-3
+            "
+          >
             {/* CONFIRMED */}
 
-            <div className="rounded-xl border border-green-200 bg-green-50 p-4">
-              <div className="mb-2 text-2xl">
+            <div
+              className="
+                border-b
+                border-[#eaeaec]
+                bg-green-50
+                p-5
+                sm:border-b-0
+                sm:border-r
+              "
+            >
+              <div
+                className="
+                  flex
+                  h-10
+                  w-10
+                  items-center
+                  justify-center
+                  rounded-full
+                  bg-green-100
+                  font-bold
+                  text-green-700
+                "
+              >
                 ✓
               </div>
 
-              <p className="font-bold text-green-700">
+              <p
+                className="
+                  mt-4
+                  text-sm
+                  font-bold
+                  text-green-700
+                "
+              >
                 Order Confirmed
               </p>
 
-              <p className="mt-1 text-sm text-gray-500">
-                Your order has been received.
+              <p
+                className="
+                  mt-1
+                  text-[11px]
+                  leading-5
+                  text-[#696b79]
+                "
+              >
+                Your order has
+                been received.
               </p>
             </div>
 
             {/* DELIVERY */}
 
-            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-              <div className="mb-2 text-2xl">
-                🚚
+            <div
+              className="
+                border-b
+                border-[#eaeaec]
+                p-5
+                sm:border-b-0
+                sm:border-r
+              "
+            >
+              <div
+                className="
+                  text-[#282c3f]
+                "
+              >
+                <DeliveryIcon />
               </div>
 
-              <p className="font-bold text-blue-700">
+              <p
+                className="
+                  mt-4
+                  text-sm
+                  font-bold
+                "
+              >
                 {deliveryLabel}
               </p>
 
-              <p className="mt-1 text-sm text-gray-500">
-                Estimated: {deliveryTime}
+              <p
+                className="
+                  mt-1
+                  text-[11px]
+                  leading-5
+                  text-[#696b79]
+                "
+              >
+                Estimated:{" "}
+                {
+                  deliveryTime
+                }
               </p>
             </div>
 
             {/* PAYMENT */}
 
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <div className="mb-2 text-2xl">
-                💳
+            <div
+              className="
+                p-5
+              "
+            >
+              <div>
+                <PaymentIcon />
               </div>
 
-              <p className="font-bold">
-                {getPaymentStatusLabel()}
+              <p
+                className="
+                  mt-4
+                  text-sm
+                  font-bold
+                "
+              >
+                {
+                  getPaymentStatusLabel()
+                }
               </p>
 
-              <p className="mt-1 text-sm text-gray-500">
-                {getPaymentLabel()}
+              <p
+                className="
+                  mt-1
+                  text-[11px]
+                  leading-5
+                  text-[#696b79]
+                "
+              >
+                {
+                  getPaymentLabel()
+                }
               </p>
             </div>
-
           </div>
-        </div>
+        </section>
 
-        {/* DELIVERY INFORMATION */}
+        {/* =================================================
+            MAIN DETAILS
+        ================================================= */}
 
-        <div className="mb-8 rounded-2xl bg-white p-5 shadow-sm sm:p-6">
-          <h2 className="mb-6 text-2xl font-black">
-            Delivery Information
-          </h2>
+        <div
+          className="
+            mt-5
+            grid
+            gap-5
+            lg:grid-cols-[minmax(0,1fr)_330px]
+          "
+        >
+          {/* =================================================
+              LEFT
+          ================================================= */}
 
-          <div className="grid gap-6 md:grid-cols-2">
+          <div
+            className="
+              space-y-5
+            "
+          >
+            {/* ORDER ITEMS */}
 
-            {/* CUSTOMER */}
+            <section
+              className="
+                border
+                border-[#eaeaec]
+                bg-white
+                p-5
+                sm:p-6
+              "
+            >
+              <div
+                className="
+                  flex
+                  items-center
+                  justify-between
+                  gap-3
+                  border-b
+                  border-[#eaeaec]
+                  pb-4
+                "
+              >
+                <h2
+                  className="
+                    text-sm
+                    font-bold
+                    uppercase
+                    tracking-[0.04em]
+                  "
+                >
+                  Order Items
+                </h2>
 
-            <div>
-              <h3 className="mb-3 font-bold">
-                Customer
-              </h3>
-
-              <div className="space-y-2 text-sm text-gray-600">
-                <p>
-                  <strong className="text-black">
-                    Name:
-                  </strong>{" "}
-                  {customer.name || "—"}
-                </p>
-
-                <p className="break-words">
-                  <strong className="text-black">
-                    Email:
-                  </strong>{" "}
-                  {customer.email || "—"}
-                </p>
-
-                <p>
-                  <strong className="text-black">
-                    Phone:
-                  </strong>{" "}
-                  {customer.phone || "—"}
-                </p>
+                <span
+                  className="
+                    text-[11px]
+                    text-[#696b79]
+                  "
+                >
+                  {totalItems}{" "}
+                  {totalItems ===
+                  1
+                    ? "item"
+                    : "items"}
+                </span>
               </div>
-            </div>
 
-            {/* ADDRESS */}
+              {items.length ===
+              0 ? (
+                <p
+                  className="
+                    py-8
+                    text-sm
+                    text-[#696b79]
+                  "
+                >
+                  No products
+                  found for this
+                  order.
+                </p>
+              ) : (
+                <div
+                  className="
+                    divide-y
+                    divide-[#eaeaec]
+                  "
+                >
+                  {items.map(
+                    (
+                      item,
+                      index
+                    ) => {
+                      const itemPrice =
+                        Number(
+                          item.price ||
+                            0
+                        );
 
-            <div>
-              <h3 className="mb-3 font-bold">
-                Shipping Address
-              </h3>
+                      const quantity =
+                        Number(
+                          item.quantity ||
+                            1
+                        );
 
-              <div className="text-sm leading-6 text-gray-600">
-                {shippingAddress.name ||
-                shippingAddress.address ||
-                customer.address ? (
-                  <>
-                    <p>
-                      {shippingAddress.name ||
-                        customer.name}
-                    </p>
+                      const itemTotal =
+                        itemPrice *
+                        quantity;
 
-                    <p>
-                      {shippingAddress.address ||
-                        customer.address}
-                    </p>
+                      return (
+                        <article
+                          key={
+                            item.itemKey ||
+                            `${item.id}-${item.selectedSize}-${item.selectedColor}-${index}`
+                          }
+                          className="
+                            flex
+                            gap-4
+                            py-5
+                            first:pt-5
+                          "
+                        >
+                          {/* IMAGE */}
 
-                    <p>
-                      {shippingAddress.city ||
-                        customer.city}
-                      ,{" "}
-                      {shippingAddress.state ||
-                        customer.state}
-                    </p>
+                          <Link
+                            to={`/product/${item.id}`}
+                            className="
+                              h-[120px]
+                              w-[90px]
+                              shrink-0
+                              overflow-hidden
+                              bg-[#f5f5f6]
+                            "
+                          >
+                            {item.image ? (
+                              <img
+                                src={
+                                  item.image
+                                }
+                                alt={
+                                  item.name ||
+                                  "Product"
+                                }
+                                className="
+                                  h-full
+                                  w-full
+                                  object-cover
+                                "
+                              />
+                            ) : (
+                              <div
+                                className="
+                                  flex
+                                  h-full
+                                  items-center
+                                  justify-center
+                                  text-2xl
+                                "
+                              >
+                                📦
+                              </div>
+                            )}
+                          </Link>
 
-                    <p>
-                      {shippingAddress.pincode ||
-                        customer.pincode}
-                    </p>
+                          {/* INFO */}
 
-                    {(shippingAddress.phone ||
-                      customer.phone) && (
-                      <p className="mt-2">
-                        Phone:{" "}
-                        {shippingAddress.phone ||
-                          customer.phone}
-                      </p>
-                    )}
-                  </>
-                ) : (
+                          <div
+                            className="
+                              min-w-0
+                              flex-1
+                            "
+                          >
+                            <p
+                              className="
+                                text-sm
+                                font-bold
+                              "
+                            >
+                              {item.brand ||
+                                "GymDrobe"}
+                            </p>
+
+                            <Link
+                              to={`/product/${item.id}`}
+                              className="
+                                mt-1
+                                block
+                                text-[13px]
+                                text-[#696b79]
+                                hover:text-orange-600
+                              "
+                            >
+                              {item.name ||
+                                "Product"}
+                            </Link>
+
+                            <div
+                              className="
+                                mt-3
+                                flex
+                                flex-wrap
+                                gap-x-4
+                                gap-y-1
+                                text-[11px]
+                                text-[#696b79]
+                              "
+                            >
+                              {item.selectedSize && (
+                                <span>
+                                  Size:{" "}
+                                  {
+                                    item.selectedSize
+                                  }
+                                </span>
+                              )}
+
+                              {item.selectedColor && (
+                                <span>
+                                  Color:{" "}
+                                  {
+                                    item.selectedColor
+                                  }
+                                </span>
+                              )}
+
+                              <span>
+                                Qty:{" "}
+                                {
+                                  quantity
+                                }
+                              </span>
+                            </div>
+
+                            <p
+                              className="
+                                mt-4
+                                text-sm
+                                font-bold
+                              "
+                            >
+                              ₹
+                              {formatCurrency(
+                                itemPrice
+                              )}
+                            </p>
+                          </div>
+
+                          {/* TOTAL */}
+
+                          <div
+                            className="
+                              hidden
+                              shrink-0
+                              text-right
+                              sm:block
+                            "
+                          >
+                            <p
+                              className="
+                                text-sm
+                                font-bold
+                              "
+                            >
+                              ₹
+                              {formatCurrency(
+                                itemTotal
+                              )}
+                            </p>
+                          </div>
+                        </article>
+                      );
+                    }
+                  )}
+                </div>
+              )}
+            </section>
+
+            {/* DELIVERY ADDRESS */}
+
+            <section
+              className="
+                border
+                border-[#eaeaec]
+                bg-white
+                p-5
+                sm:p-6
+              "
+            >
+              <h2
+                className="
+                  text-sm
+                  font-bold
+                  uppercase
+                  tracking-[0.04em]
+                "
+              >
+                Delivery Address
+              </h2>
+
+              <div
+                className="
+                  mt-5
+                  text-[13px]
+                  leading-6
+                  text-[#696b79]
+                "
+              >
+                <p
+                  className="
+                    font-bold
+                    text-[#282c3f]
+                  "
+                >
+                  {addressName}
+                </p>
+
+                {addressLine && (
+                  <p className="mt-2">
+                    {addressLine}
+
+                    {addressLandmark
+                      ? `, ${addressLandmark}`
+                      : ""}
+                  </p>
+                )}
+
+                {(addressCity ||
+                  addressState ||
+                  addressPincode) && (
                   <p>
-                    Shipping address unavailable.
+                    {addressCity}
+
+                    {addressCity &&
+                    addressState
+                      ? ", "
+                      : ""}
+
+                    {addressState}
+
+                    {addressPincode
+                      ? ` - ${addressPincode}`
+                      : ""}
+                  </p>
+                )}
+
+                {addressPhone && (
+                  <p className="mt-2">
+                    Mobile:{" "}
+                    <span
+                      className="
+                        font-semibold
+                        text-[#282c3f]
+                      "
+                    >
+                      {
+                        addressPhone
+                      }
+                    </span>
+                  </p>
+                )}
+
+                {customer.email && (
+                  <p>
+                    Email:{" "}
+                    {
+                      customer.email
+                    }
                   </p>
                 )}
               </div>
-            </div>
 
-          </div>
+              {/* DELIVERY TYPE */}
 
-          {/* DELIVERY METHOD */}
-
-          <div className="mt-6 border-t pt-6">
-            <div className="flex flex-col justify-between gap-2 sm:flex-row">
-              <div>
-                <p className="font-bold">
-                  {deliveryLabel}
-                </p>
-
-                <p className="text-sm text-gray-500">
-                  Estimated delivery:{" "}
-                  {deliveryTime}
-                </p>
-              </div>
-
-              <div className="font-bold">
-                {shipping === 0
-                  ? "FREE"
-                  : `₹${shipping.toLocaleString(
-                      "en-IN"
-                    )}`}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ORDER ITEMS */}
-
-        <div className="mb-8 rounded-2xl bg-white p-5 shadow-sm sm:p-6">
-          <h2 className="mb-6 text-2xl font-black">
-            Order Items
-          </h2>
-
-          {items.length === 0 ? (
-            <p className="text-gray-500">
-              No items found for this order.
-            </p>
-          ) : (
-            <div className="space-y-5">
-
-              {items.map((item, index) => {
-                const itemPrice =
-                  Number(item.price || 0);
-
-                const quantity =
-                  Number(item.quantity || 0);
-
-                const itemTotal =
-                  itemPrice * quantity;
-
-                return (
-                  <div
-                    key={
-                      item.itemKey ||
-                      `${item.id}-${item.selectedSize}-${item.selectedColor}-${index}`
-                    }
-                    className="flex min-w-0 gap-3 border-b pb-5 last:border-b-0 last:pb-0 sm:gap-4"
+              <div
+                className="
+                  mt-5
+                  flex
+                  flex-col
+                  justify-between
+                  gap-3
+                  border-t
+                  border-[#eaeaec]
+                  pt-5
+                  sm:flex-row
+                "
+              >
+                <div>
+                  <p
+                    className="
+                      text-sm
+                      font-bold
+                    "
                   >
+                    {deliveryLabel}
+                  </p>
 
-                    {/* IMAGE */}
+                  <p
+                    className="
+                      mt-1
+                      text-[11px]
+                      text-[#696b79]
+                    "
+                  >
+                    Expected in{" "}
+                    {
+                      deliveryTime
+                    }
+                  </p>
+                </div>
 
-                    <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100 sm:h-24 sm:w-24">
-                      {item.image ? (
-                        <img
-                          src={item.image}
-                          alt={item.name || "Product"}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full items-center justify-center text-2xl">
-                          📦
-                        </div>
-                      )}
-                    </div>
-
-                    {/* DETAILS */}
-
-                    <div className="min-w-0 flex-1">
-                      <h3 className="break-words font-bold">
-                        {item.name ||
-                          "Product"}
-                      </h3>
-
-                      <p className="mt-1 text-sm text-gray-500">
-                        Quantity: {quantity}
-                      </p>
-
-                      {item.selectedSize && (
-                        <p className="text-sm text-gray-500">
-                          Size:{" "}
-                          {item.selectedSize}
-                        </p>
-                      )}
-
-                      {item.selectedColor && (
-                        <p className="text-sm text-gray-500">
-                          Color:{" "}
-                          {item.selectedColor}
-                        </p>
-                      )}
-
-                      <p className="mt-2 text-sm text-gray-500">
-                        ₹
-                        {itemPrice.toLocaleString(
-                          "en-IN"
-                        )}{" "}
-                        × {quantity}
-                      </p>
-                    </div>
-
-                    {/* ITEM TOTAL */}
-
-                    <div className="shrink-0 text-right">
-                      <p className="font-bold">
-                        ₹
-                        {itemTotal.toLocaleString(
-                          "en-IN"
-                        )}
-                      </p>
-                    </div>
-
-                  </div>
-                );
-              })}
-
-            </div>
-          )}
-        </div>
-
-        {/* PRICE SUMMARY */}
-
-        <div className="mb-8 rounded-2xl bg-white p-5 shadow-sm sm:p-6">
-          <h2 className="mb-5 text-2xl font-black">
-            Payment Summary
-          </h2>
-
-          <div className="space-y-3">
-
-            <div className="flex justify-between gap-4">
-              <span className="text-gray-600">
-                Subtotal
-              </span>
-
-              <span className="font-medium">
-                ₹
-                {subtotal.toLocaleString(
-                  "en-IN"
-                )}
-              </span>
-            </div>
-
-            {couponDiscount > 0 && (
-              <div className="flex justify-between gap-4 text-green-600">
-                <span>
-                  Coupon Discount
-                </span>
-
-                <span>
-                  −₹
-                  {couponDiscount.toLocaleString(
-                    "en-IN"
-                  )}
+                <span
+                  className="
+                    text-sm
+                    font-bold
+                  "
+                >
+                  {shipping === 0
+                    ? "FREE"
+                    : `₹${formatCurrency(
+                        shipping
+                      )}`}
                 </span>
               </div>
-            )}
-
-            <div className="flex justify-between gap-4">
-              <span className="text-gray-600">
-                Shipping
-              </span>
-
-              <span>
-                {shipping === 0
-                  ? "FREE"
-                  : `₹${shipping.toLocaleString(
-                      "en-IN"
-                    )}`}
-              </span>
-            </div>
-
-            <div className="border-t pt-4">
-              <div className="flex justify-between gap-4 text-2xl font-black">
-                <span>
-                  Total
-                </span>
-
-                <span>
-                  ₹
-                  {total.toLocaleString(
-                    "en-IN"
-                  )}
-                </span>
-              </div>
-            </div>
-
+            </section>
           </div>
 
-          {/* COUPON */}
+          {/* =================================================
+              RIGHT
+          ================================================= */}
 
-          {order.coupon?.code && (
-            <div className="mt-5 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">
-              Coupon applied:{" "}
-              <strong>
-                {order.coupon.code}
-              </strong>
-            </div>
-          )}
+          <aside
+            className="
+              space-y-5
+              lg:sticky
+              lg:top-[100px]
+              lg:self-start
+            "
+          >
+            {/* PRICE DETAILS */}
+
+            <section
+              className="
+                border
+                border-[#eaeaec]
+                bg-white
+                p-5
+              "
+            >
+              <h2
+                className="
+                  text-[12px]
+                  font-bold
+                  uppercase
+                  tracking-[0.04em]
+                "
+              >
+                Price Details
+              </h2>
+
+              <div
+                className="
+                  mt-5
+                  space-y-4
+                  text-[13px]
+                "
+              >
+                <div
+                  className="
+                    flex
+                    justify-between
+                    gap-4
+                  "
+                >
+                  <span>
+                    Total MRP
+                  </span>
+
+                  <span>
+                    ₹
+                    {formatCurrency(
+                      totalMrp
+                    )}
+                  </span>
+                </div>
+
+                <div
+                  className="
+                    flex
+                    justify-between
+                    gap-4
+                  "
+                >
+                  <span>
+                    Discount on
+                    MRP
+                  </span>
+
+                  <span
+                    className="
+                      text-green-600
+                    "
+                  >
+                    {productDiscount >
+                    0
+                      ? `- ₹${formatCurrency(
+                          productDiscount
+                        )}`
+                      : "₹0"}
+                  </span>
+                </div>
+
+                <div
+                  className="
+                    flex
+                    justify-between
+                    gap-4
+                  "
+                >
+                  <span>
+                    Coupon Discount
+                  </span>
+
+                  <span
+                    className={
+                      couponDiscount >
+                      0
+                        ? "text-green-600"
+                        : ""
+                    }
+                  >
+                    {couponDiscount >
+                    0
+                      ? `- ₹${formatCurrency(
+                          couponDiscount
+                        )}`
+                      : "₹0"}
+                  </span>
+                </div>
+
+                <div
+                  className="
+                    flex
+                    justify-between
+                    gap-4
+                  "
+                >
+                  <span>
+                    Delivery Charges
+                  </span>
+
+                  <span
+                    className={
+                      shipping ===
+                      0
+                        ? "text-green-600"
+                        : ""
+                    }
+                  >
+                    {shipping === 0
+                      ? "FREE"
+                      : `₹${formatCurrency(
+                          shipping
+                        )}`}
+                  </span>
+                </div>
+              </div>
+
+              {/* TOTAL */}
+
+              <div
+                className="
+                  mt-6
+                  border-t
+                  border-[#eaeaec]
+                  pt-5
+                "
+              >
+                <div
+                  className="
+                    flex
+                    items-center
+                    justify-between
+                    gap-4
+                  "
+                >
+                  <span
+                    className="
+                      text-sm
+                      font-bold
+                    "
+                  >
+                    Total Amount
+                  </span>
+
+                  <span
+                    className="
+                      text-xl
+                      font-bold
+                    "
+                  >
+                    ₹
+                    {formatCurrency(
+                      total
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              {/* COUPON */}
+
+              {order.coupon?.code && (
+                <div
+                  className="
+                    mt-5
+                    bg-green-50
+                    px-3
+                    py-3
+                    text-[11px]
+                    text-green-700
+                  "
+                >
+                  Coupon{" "}
+                  <strong>
+                    {
+                      order
+                        .coupon
+                        .code
+                    }
+                  </strong>{" "}
+                  applied successfully.
+                </div>
+              )}
+            </section>
+
+            {/* PAYMENT */}
+
+            <section
+              className="
+                border
+                border-[#eaeaec]
+                bg-white
+                p-5
+              "
+            >
+              <h2
+                className="
+                  text-[12px]
+                  font-bold
+                  uppercase
+                  tracking-[0.04em]
+                "
+              >
+                Payment
+              </h2>
+
+              <p
+                className="
+                  mt-4
+                  text-sm
+                  font-bold
+                "
+              >
+                {
+                  getPaymentLabel()
+                }
+              </p>
+
+              <p
+                className="
+                  mt-1
+                  text-[11px]
+                  text-[#696b79]
+                "
+              >
+                Status:{" "}
+                {
+                  getPaymentStatusLabel()
+                }
+              </p>
+            </section>
+          </aside>
         </div>
 
-        {/* ACTION BUTTONS */}
+        {/* =================================================
+            ACTIONS
+        ================================================= */}
 
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row">
+        <section
+          className="
+            mt-5
+            grid
+            gap-3
+            sm:grid-cols-2
+            lg:grid-cols-3
+          "
+        >
+          <Link
+            to={`/orders/${encodeURIComponent(
+              order.id
+            )}`}
+            className="
+              flex
+              min-h-[50px]
+              items-center
+              justify-center
+              bg-orange-600
+              px-5
+              text-xs
+              font-bold
+              uppercase
+              tracking-[0.04em]
+              text-white
+              transition
+              hover:bg-orange-700
+            "
+          >
+            View Order
+          </Link>
 
           <Link
-            to="/orders"
-            className="flex-1 rounded-xl bg-orange-600 px-6 py-4 text-center font-bold text-white transition hover:bg-orange-700"
+            to={`/orders/${encodeURIComponent(
+              order.id
+            )}/track`}
+            className="
+              flex
+              min-h-[50px]
+              items-center
+              justify-center
+              border
+              border-[#282c3f]
+              bg-white
+              px-5
+              text-xs
+              font-bold
+              uppercase
+              tracking-[0.04em]
+              text-[#282c3f]
+              transition
+              hover:bg-[#282c3f]
+              hover:text-white
+            "
           >
-            VIEW MY ORDERS
+            Track Order
           </Link>
 
           <Link
             to="/shop"
-            className="flex-1 rounded-xl border border-gray-300 bg-white px-6 py-4 text-center font-bold transition hover:bg-gray-50"
+            className="
+              flex
+              min-h-[50px]
+              items-center
+              justify-center
+              border
+              border-[#d4d5d9]
+              bg-white
+              px-5
+              text-xs
+              font-bold
+              uppercase
+              tracking-[0.04em]
+              text-[#282c3f]
+              transition
+              hover:border-[#282c3f]
+            "
           >
-            CONTINUE SHOPPING
+            Continue Shopping
           </Link>
+        </section>
 
+        {/* ALL ORDERS */}
+
+        <div
+          className="
+            mt-5
+            text-center
+          "
+        >
           <Link
-            to="/"
-            className="flex-1 rounded-xl bg-gray-900 px-6 py-4 text-center font-bold text-white transition hover:bg-gray-800"
+            to="/orders"
+            className="
+              text-[11px]
+              font-bold
+              uppercase
+              tracking-wide
+              text-orange-600
+            "
           >
-            BACK TO HOME
+            View All My Orders →
           </Link>
-
         </div>
-
       </div>
-    </section>
+    </main>
   );
 }
 
