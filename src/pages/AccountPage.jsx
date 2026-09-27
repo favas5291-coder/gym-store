@@ -1,153 +1,99 @@
+import { getOrders, getAddresses } from "../utils/customerData.js";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-
-function AccountPage() {
-  const navigate = useNavigate();
-
-  const {
-    user,
-    logout,
-    isAuthenticated,
-  } = useAuth();
-
-  if (!isAuthenticated) {
-    navigate("/login");
-    return null;
+import { useAuth } from "../context/AuthContext.jsx";
+import { useStore } from "../context/StoreContext.jsx";
+import AccountLayout from "../components/AccountLayout.jsx";
+export default function AccountPage() {
+  const { user, updateProfile, logout } = useAuth(),
+    { notify } = useStore(),
+    navigate = useNavigate();
+  const [data, setData] = useState({
+      name: user.name,
+      phone: user.phone || "",
+    }),
+    [error, setError] = useState("");
+  function save(event) {
+    event.preventDefault();
+    if (data.phone && !/^[6-9]\d{9}$/.test(data.phone)) {
+      setError("Enter a valid 10-digit mobile number.");
+      return;
+    }
+    if (updateProfile(data)) {
+      setError("");
+      notify("Profile updated.");
+    } else
+      setError(
+        "Unable to save your profile. Check your name and browser storage.",
+      );
   }
-
-  function handleLogout() {
-    logout();
-    navigate("/");
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-10 text-black">
-      <div className="max-w-6xl mx-auto">
-
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">
-            My Account
-          </h1>
-
-          <p className="text-gray-500 mt-2">
-            Welcome back, {user?.name}
-          </p>
-        </div>
-
-        {/* Account Options */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-
-          {/* Orders */}
-          <Link
-            to="/orders"
-            className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition"
-          >
-            <div className="text-2xl mb-3">
-              📦
-            </div>
-
-            <h2 className="text-xl font-semibold">
-              My Orders
-            </h2>
-
-            <p className="text-gray-500 mt-2">
-              View your orders and track deliveries.
-            </p>
-          </Link>
-
-          {/* Wishlist */}
-          <Link
-            to="/wishlist"
-            className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition"
-          >
-            <div className="text-2xl mb-3">
-              ❤️
-            </div>
-
-            <h2 className="text-xl font-semibold">
-              Wishlist
-            </h2>
-
-            <p className="text-gray-500 mt-2">
-              View your saved products.
-            </p>
-          </Link>
-
-          {/* Addresses */}
-          <Link
-            to="/addresses"
-            className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition"
-          >
-            <div className="text-2xl mb-3">
-              📍
-            </div>
-
-            <h2 className="text-xl font-semibold">
-              Addresses
-            </h2>
-
-            <p className="text-gray-500 mt-2">
-              Manage your delivery addresses.
-            </p>
-          </Link>
-
-        </div>
-
-        {/* Profile */}
-        <div className="mt-8 bg-white rounded-2xl p-6 shadow-sm">
-
-          <h2 className="text-xl font-semibold mb-5">
-            Profile
-          </h2>
-
-          <div className="space-y-4 text-gray-700">
-
-            <div>
-              <p className="text-sm text-gray-500">
-                Full Name
-              </p>
-
-              <p className="font-medium">
-                {user?.name}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-sm text-gray-500">
-                Email
-              </p>
-
-              <p className="font-medium">
-                {user?.email}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-sm text-gray-500">
-                Phone
-              </p>
-
-              <p className="font-medium">
-                {user?.phone || "Not added"}
-              </p>
-            </div>
-
-          </div>
-
-        </div>
-
-        {/* Logout */}
-        <button
-          onClick={handleLogout}
-          className="mt-6 bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition"
-        >
-          LOGOUT
-        </button>
-
+    <AccountLayout title="Profile details">
+      <div className="account-stats">
+        <Link to="/orders">
+          <strong>{getOrders(user).length}</strong>
+          <span>Orders</span>
+        </Link>
+        <Link to="/addresses">
+          <strong>{getAddresses(user).length}</strong>
+          <span>Addresses</span>
+        </Link>
+        <Link to="/account/security">
+          <strong>Account</strong>
+          <span>Password & data</span>
+        </Link>
       </div>
-    </div>
+      <form onSubmit={save} className="profile-form">
+        <div className="field">
+          <label htmlFor="profile-name">Full name</label>
+          <input
+            id="profile-name"
+            required
+            minLength="2"
+            value={data.name}
+            onChange={(e) => setData({ ...data, name: e.target.value })}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="profile-email">Email</label>
+          <input id="profile-email" value={user.email} readOnly />
+        </div>
+        <div className="field">
+          <label htmlFor="profile-phone">Mobile number (optional)</label>
+          <input
+            id="profile-phone"
+            type="tel"
+            maxLength="10"
+            value={data.phone}
+            onChange={(e) =>
+              setData({ ...data, phone: e.target.value.replace(/\D/g, "") })
+            }
+          />
+        </div>
+        {error && (
+          <p className="field-error" role="alert">
+            {error}
+          </p>
+        )}
+        <button type="submit" className="button">
+          Save changes
+        </button>
+      </form>
+      <button
+        className="button secondary signout"
+        type="button"
+        onClick={() => {
+          try {
+            logout();
+            navigate("/login");
+          } catch (e) {
+            setError(e.message);
+          }
+        }}
+      >
+        Sign out
+      </button>
+      <p className="muted">This preview account is stored on this device.</p>
+    </AccountLayout>
   );
 }
-
-export default AccountPage;

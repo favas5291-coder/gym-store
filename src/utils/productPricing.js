@@ -1,63 +1,29 @@
-// ==========================================
-// PRODUCT PRICING UTILITIES
-// ==========================================
-
-// ------------------------------------------
-// GET DISCOUNTED / SELLING PRICE
-// ------------------------------------------
-
-export function getDiscountedPrice(product) {
-  const price = Number(product?.price || 0);
-  const discount = Number(product?.discount || 0);
-
-  if (price <= 0) {
-    return 0;
-  }
-
-  if (discount <= 0) {
-    return Math.round(price);
-  }
-
-  const discountedPrice =
-    price - (price * discount) / 100;
-
-  return Math.round(discountedPrice);
+export function number(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
 }
-
-// ------------------------------------------
-// GET ORIGINAL PRICE
-// ------------------------------------------
-
+export function roundMoney(value) {
+  return Math.round((number(value) + Number.EPSILON) * 100) / 100;
+}
 export function getOriginalPrice(product) {
-  return Math.round(
-    Number(product?.price || 0)
-  );
+  return Math.max(0, Math.round(number(product?.price)));
 }
-
-// ------------------------------------------
-// GET DISCOUNT AMOUNT
-// ------------------------------------------
-
-export function getDiscountAmount(product) {
-  const originalPrice =
-    getOriginalPrice(product);
-
-  const sellingPrice =
-    getDiscountedPrice(product);
-
-  return Math.max(
-    originalPrice - sellingPrice,
-    0
-  );
-}
-
-// ------------------------------------------
-// GET DISCOUNT PERCENTAGE
-// ------------------------------------------
-
 export function getDiscountPercentage(product) {
-  return Math.max(
-    Number(product?.discount || 0),
-    0
+  return Math.min(100, Math.max(0, number(product?.discount)));
+}
+// Product prices round to whole rupees, preserving your existing catalogue pricing.
+export function getDiscountedPrice(product) {
+  return Math.round(
+    getOriginalPrice(product) * (1 - getDiscountPercentage(product) / 100),
   );
+}
+export function getDiscountAmount(product) {
+  return getOriginalPrice(product) - getDiscountedPrice(product);
+}
+export function money(value) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 2,
+  }).format(number(value));
 }

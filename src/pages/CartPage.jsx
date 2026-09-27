@@ -1,15 +1,4 @@
-import Cart from "../components/Cart";
-
-function CartPage({
-  cart,
-  setCart,
-}) {
-  return (
-    <Cart
-      cart={cart}
-      setCart={setCart}
-    />
-  );
+import Cart from "../components/Cart.jsx";
+export default function CartPage() {
+  return <Cart />;
 }
-
-export default CartPage;

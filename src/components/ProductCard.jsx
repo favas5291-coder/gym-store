@@ -1,365 +1,90 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-
-function ProductCard({
-  id,
-  name,
-  category,
-  brand = "GymDrobe",
-  price,
-  rating,
-  reviewCount = 0,
-  discount = 0,
-  image,
-  badge,
-  stock = 0,
-  wishlist = false,
-  onWishlist,
-}) {
-  const sellingPrice =
-    Math.round(
-      Number(price || 0) -
-        (Number(price || 0) *
-          Number(discount || 0)) /
-          100
-    );
-
-  const outOfStock =
-    Number(stock || 0) <= 0;
-
-  function handleWishlist(
-    event
-  ) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    onWishlist?.();
-  }
-
+import { useStore } from "../context/StoreContext.jsx";
+import {
+  Heart,
+  ProductImage,
+  productPath,
+  priceDetails,
+  inStock,
+  money,
+} from "./StorefrontShared.jsx";
+import Modal from "./Modal.jsx";
+import ProductOptions from "./ProductOptions.jsx";
+import useProductReviews from "../hooks/useProductReviews.js";
+export default function ProductCard({ product, ...legacy }) {
+  const item = product || legacy,
+    { wishlist, toggleWishlist } = useStore();
+  const [quick, setQuick] = useState(false),
+    saved = wishlist.some((p) => String(p.id) === String(item.id));
+  const price = priceDetails(item),
+    { rating, count } = useProductReviews(item);
   return (
-    <article
-      className="
-        group
-        relative
-        min-w-0
-        bg-white
-      "
-    >
-      {/* =========================================
-          IMAGE
-      ========================================= */}
-
-      <div
-        className="
-          relative
-          aspect-[3/4]
-          overflow-hidden
-          bg-[#f5f5f6]
-        "
-      >
-        <Link
-          to={`/product/${id}`}
-          className="
-            block
-            h-full
-            w-full
-          "
-        >
-          <img
-            src={image}
-            alt={name}
-            className="
-              h-full
-              w-full
-              object-cover
-              transition-transform
-              duration-300
-              group-hover:scale-[1.02]
-            "
-          />
+    <article className="gm-product-card">
+      <div className="gm-product-visual">
+        <Link className="gm-product-image" to={productPath(item.id)}>
+          <ProductImage product={item} />
         </Link>
-
-        {/* BADGE */}
-
-        {badge && (
-          <span
-            className="
-              absolute
-              left-2
-              top-2
-              bg-white/95
-              px-2
-              py-1
-              text-[8px]
-              font-bold
-              uppercase
-              tracking-wide
-              text-[#282c3f]
-            "
-          >
-            {badge}
-          </span>
-        )}
-
-        {/* HEART */}
-
+        {item.badge && <span className="gm-product-badge">{item.badge}</span>}
         <button
           type="button"
-          onClick={
-            handleWishlist
-          }
-          aria-label={
-            wishlist
-              ? "Remove from wishlist"
-              : "Add to wishlist"
-          }
-          className="
-            absolute
-            right-3
-            top-3
-            flex
-            h-9
-            w-9
-            items-center
-            justify-center
-            rounded-full
-            bg-white
-            text-[20px]
-            text-[#282c3f]
-            shadow-sm
-            transition
-            hover:scale-105
-          "
+          className={`card-heart ${saved ? "saved" : ""}`}
+          aria-label={`${saved ? "Remove" : "Save"} ${item.name} ${saved ? "from" : "to"} wishlist`}
+          aria-pressed={saved}
+          onClick={() => toggleWishlist(item)}
         >
-          {wishlist
-            ? "♥"
-            : "♡"}
+          <Heart filled={saved} />
         </button>
-
-        {/* RATING */}
-
-        <div
-          className="
-            absolute
-            bottom-2
-            left-2
-            flex
-            items-center
-            gap-1
-            bg-white/95
-            px-2
-            py-1
-            text-[10px]
-            font-semibold
-            text-[#282c3f]
-          "
-        >
-          <span>
-            {rating} ★
-          </span>
-
-          {Number(
-            reviewCount
-          ) > 0 && (
-            <>
-              <span
-                className="
-                  text-[#d4d5d9]
-                "
-              >
-                |
-              </span>
-
-              <span>
-                {
-                  reviewCount
-                }
-              </span>
-            </>
-          )}
-        </div>
-
-        {/* OUT OF STOCK */}
-
-        {outOfStock && (
-          <div
-            className="
-              absolute
-              inset-x-0
-              bottom-0
-              bg-white/95
-              py-2
-              text-center
-              text-[10px]
-              font-bold
-              uppercase
-              tracking-[0.08em]
-              text-red-600
-            "
-          >
-            Out Of Stock
-          </div>
-        )}
-
-        {/* DESKTOP HOVER WISHLIST */}
-
-        {!outOfStock && (
-          <div
-            className="
-              absolute
-              inset-x-0
-              bottom-0
-              hidden
-              translate-y-full
-              bg-white
-              p-3
-              opacity-0
-              transition-all
-              duration-200
-              group-hover:translate-y-0
-              group-hover:opacity-100
-              md:block
-            "
-          >
-            <button
-              type="button"
-              onClick={
-                handleWishlist
-              }
-              className="
-                flex
-                w-full
-                items-center
-                justify-center
-                gap-2
-                border
-                border-[#d4d5d9]
-                py-2
-                text-[11px]
-                font-bold
-                uppercase
-                text-[#282c3f]
-                hover:border-[#282c3f]
-              "
-            >
-              <span>
-                {wishlist
-                  ? "♥"
-                  : "♡"}
-              </span>
-
-              Wishlist
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* =========================================
-          INFORMATION
-      ========================================= */}
-
-      <div
-        className="
-          px-1
-          pb-5
-          pt-3
-        "
-      >
-        <Link
-          to={`/product/${id}`}
-        >
-          <h3
-            className="
-              truncate
-              text-[14px]
-              font-bold
-              text-[#282c3f]
-            "
-          >
-            {brand}
-          </h3>
-
-          <p
-            className="
-              mt-1
-              truncate
-              text-[13px]
-              font-normal
-              text-[#696b79]
-            "
-          >
-            {name}
-          </p>
-        </Link>
-
-        <div
-          className="
-            mt-2
-            flex
-            flex-wrap
-            items-center
-            gap-x-2
-            gap-y-1
-          "
-        >
+        {count > 0 && (
           <span
-            className="
-              text-[13px]
-              font-bold
-              text-[#282c3f]
-            "
+            className="gm-rating"
+            aria-label={`${rating} out of 5 from ${count} reviews`}
           >
-            ₹{sellingPrice.toLocaleString(
-              "en-IN"
-            )}
+            {rating} <span aria-hidden="true">★</span>
+            <i />
+            {count}
           </span>
-
-          {Number(discount) >
-            0 && (
+        )}
+        {!inStock(item) && <span className="gm-stock-label">OUT OF STOCK</span>}
+        <div className="gm-card-action">
+          <button type="button" onClick={() => setQuick(true)}>
+            QUICK VIEW
+          </button>
+        </div>
+      </div>
+      <div className="gm-product-copy">
+        <Link to={productPath(item.id)}>
+          <p className="gm-product-brand">{item.brand || "GymDrobe"}</p>
+          <h3>{item.name}</h3>
+        </Link>
+        <p className="gm-product-price">
+          <strong>{money(price.selling)}</strong>
+          {price.discount > 0 && (
             <>
-              <span
-                className="
-                  text-[11px]
-                  text-[#7e818c]
-                  line-through
-                "
-              >
-                ₹
-                {Number(
-                  price
-                ).toLocaleString(
-                  "en-IN"
-                )}
-              </span>
-
-              <span
-                className="
-                  text-[11px]
-                  font-medium
-                  text-[#ff905a]
-                "
-              >
-                (
-                {discount}% OFF)
-              </span>
+              <del>{money(price.price)}</del>
+              <span>({price.discount}% OFF)</span>
             </>
           )}
-        </div>
-
-        <p
-          className="
-            mt-1.5
-            truncate
-            text-[10px]
-            uppercase
-            tracking-wide
-            text-[#94969f]
-          "
-        >
-          {category}
         </p>
       </div>
+      {quick && (
+        <Modal
+          title={item.name}
+          onClose={() => setQuick(false)}
+          className="quick-modal"
+        >
+          <div className="quick-layout">
+            <ProductImage product={item} eager />
+            <div>
+              <p className="eyebrow">{item.brand}</p>
+              <ProductOptions key={item.id} product={item} />
+              <Link className="text-link" to={productPath(item.id)}>
+                View full product details →
+              </Link>
+            </div>
+          </div>
+        </Modal>
+      )}
     </article>
   );
 }
-
-export default ProductCard;

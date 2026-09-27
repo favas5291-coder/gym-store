@@ -1,17 +1,4 @@
-import ProductSection from "../components/ProductSection";
-
-function Shop({
-  wishlist,
-  toggleWishlist,
-}) {
-  return (
-    <ProductSection
-      wishlist={wishlist}
-      toggleWishlist={
-        toggleWishlist
-      }
-    />
-  );
+import ProductSection from "../components/ProductSection.jsx";
+export default function Shop() {
+  return <ProductSection />;
 }
-
-export default Shop;

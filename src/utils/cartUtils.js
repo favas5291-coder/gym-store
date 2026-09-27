@@ -1,273 +1,154 @@
-import { getDiscountedPrice } from "./productPricing";
-
-export { getDiscountedPrice } from "./productPricing";
-
-/* --------------------------------
-   GET VARIANT STOCK
---------------------------------- */
-
+import {
+  getDiscountedPrice,
+  getOriginalPrice,
+  number,
+} from "./productPricing.js";
+export { getDiscountedPrice } from "./productPricing.js";
+const count = (value) => Math.max(0, Math.floor(number(value)));
+const own = (object, key) =>
+  Object.prototype.hasOwnProperty.call(object || {}, key);
+export function getTotalStock(product) {
+  if (!product || product.stockStatus === "out-of-stock") return 0;
+  const sum = (value) =>
+    value && typeof value === "object"
+      ? Object.values(value).reduce((n, child) => n + sum(child), 0)
+      : count(value);
+  return product.variants ? sum(product.variants) : count(product.stock);
+}
 export function getVariantStock(
   product,
   selectedSize = null,
-  selectedColor = null
+  selectedColor = null,
 ) {
-  if (!product) {
+  if (!product || product.stockStatus === "out-of-stock") return 0;
+  const sizes = (product.sizes || []).map(String),
+    colors = (product.colors || []).map(String);
+  if (sizes.length && (!selectedSize || !sizes.includes(String(selectedSize))))
     return 0;
+  if (
+    colors.length &&
+    (!selectedColor || !colors.includes(String(selectedColor)))
+  )
+    return 0;
+  if (!product.variants) return count(product.stock);
+  let group = product.variants;
+  if (colors.length) {
+    if (!own(group, selectedColor)) return 0;
+    group = group[selectedColor];
   }
-
-  // Product without variants
-  if (!product.variants) {
-    return Math.max(
-      Number(product.stock ?? 0),
-      0
-    );
-  }
-
-  // Product with color + size
-  if (selectedColor && selectedSize) {
-    return Math.max(
-      Number(
-        product.variants?.[
-          selectedColor
-        ]?.[selectedSize] ?? 0
-      ),
-      0
-    );
-  }
-
-  // Product with color only
-  if (selectedColor) {
-    return Math.max(
-      Number(
-        product.variants?.[
-          selectedColor
-        ]?.default ?? 0
-      ),
-      0
-    );
-  }
-
-  return 0;
+  if (sizes.length)
+    return own(group, selectedSize) ? count(group[selectedSize]) : 0;
+  return typeof group === "object" ? count(group?.default) : count(group);
 }
-
-
-/* --------------------------------
-   CREATE UNIQUE CART ITEM KEY
---------------------------------- */
-
+export function firstOptions(product) {
+  for (const color of product?.colors?.length ? product.colors : [null]) {
+    for (const size of product?.sizes?.length ? product.sizes : [null]) {
+      if (getVariantStock(product, size, color) > 0)
+        return { selectedColor: color, selectedSize: size };
+    }
+  }
+  return {
+    selectedColor: product?.colors?.[0] || null,
+    selectedSize: product?.sizes?.[0] || null,
+  };
+}
 export function getCartItemKey(item) {
-  return [
-    item?.id ?? "",
-    item?.selectedSize ?? "",
-    item?.selectedColor ?? "",
-  ].join("::");
+  return JSON.stringify([
+    String(item?.id ?? ""),
+    item?.selectedSize == null ? null : String(item.selectedSize),
+    item?.selectedColor == null ? null : String(item.selectedColor),
+  ]);
 }
-
-
-/* --------------------------------
-   CHECK IF TWO CART ITEMS
-   ARE THE SAME
---------------------------------- */
-
-export function isSameCartItem(
-  firstItem,
-  secondItem
-) {
-  return (
-    getCartItemKey(firstItem) ===
-    getCartItemKey(secondItem)
-  );
+export function isSameCartItem(a, b) {
+  return getCartItemKey(a) === getCartItemKey(b);
 }
-
-
-/* --------------------------------
-   CREATE NORMALIZED CART ITEM
---------------------------------- */
-
 export function normalizeCartItem(
   product,
   quantity = 1,
   selectedSize = null,
-  selectedColor = null
+  selectedColor = null,
 ) {
   return {
     ...product,
-
-    // Always store the actual selling price
+    originalPrice: getOriginalPrice(product),
     price: getDiscountedPrice(product),
-
-    quantity: Math.max(
-      Number(quantity) || 1,
-      1
-    ),
-
+    quantity: Math.max(1, Math.floor(number(quantity, 1))),
     selectedSize,
     selectedColor,
   };
 }
-
-
-/* --------------------------------
-   VALIDATE CART ITEM
---------------------------------- */
-
-export function validateCartItem(
-  product,
-  quantity,
-  selectedSize = null,
-  selectedColor = null
-) {
-  const stock = getVariantStock(
-    product,
-    selectedSize,
-    selectedColor
-  );
-
-  const requestedQuantity =
-    Number(quantity) || 0;
-
-  // Out of stock
-  if (stock <= 0) {
+export function validateCartItem(product, quantity, size = null, color = null) {
+  const stock = getVariantStock(product, size, color),
+    qty = Number(quantity);
+  if (!Number.isSafeInteger(qty) || qty < 1)
+    return {
+      valid: false,
+      stock,
+      message: "Choose a whole-number quantity of at least 1.",
+    };
+  if (!stock)
     return {
       valid: false,
       stock,
       message:
-        "This product is out of stock.",
+        "Choose an available size and colour. This selection is out of stock.",
     };
-  }
-
-  // Invalid quantity
-  if (requestedQuantity <= 0) {
+  if (qty > stock)
     return {
       valid: false,
       stock,
-      message: "Invalid quantity.",
+      message: `Only ${stock} available for this selection.`,
     };
-  }
-
-  // Quantity greater than stock
-  if (requestedQuantity > stock) {
-    return {
-      valid: false,
-      stock,
-      message: `Only ${stock} item${
-        stock > 1 ? "s" : ""
-      } available.`,
-    };
-  }
-
-  return {
-    valid: true,
-    stock,
-    message: "",
-  };
+  return { valid: true, stock, message: "" };
 }
-
-
-/* --------------------------------
-   REVALIDATE ENTIRE CART
---------------------------------- */
-
-export function revalidateCart(
-  cart,
-  products
-) {
-  if (!Array.isArray(cart)) {
-    return {
-      cart: [],
-      changes: [],
-    };
-  }
-
-  if (!Array.isArray(products)) {
-    return {
-      cart,
-      changes: [],
-    };
-  }
-
-  const productMap = new Map(
-    products.map((product) => [
-      String(product.id),
-      product,
-    ])
+export function revalidateCart(cart, products) {
+  const catalogue = new Map(
+    (Array.isArray(products) ? products : [])
+      .filter(Boolean)
+      .map((p) => [String(p.id), p]),
   );
-
-  const changes = [];
-  const validCart = [];
-
-  cart.forEach((item) => {
-    const product =
-      productMap.get(String(item.id));
-
-    // Product no longer exists
-    if (!product) {
-      changes.push({
-        type: "removed",
-        item,
-        reason:
-          "Product is no longer available.",
-      });
-
-      return;
+  const rows = new Map(),
+    changes = [];
+  for (const item of Array.isArray(cart) ? cart : []) {
+    if (!item || typeof item !== "object") {
+      changes.push({ type: "removed", reason: "Invalid bag item." });
+      continue;
     }
-
+    const product = catalogue.get(String(item.id));
     const stock = getVariantStock(
       product,
-      item.selectedSize ?? null,
-      item.selectedColor ?? null
+      item.selectedSize,
+      item.selectedColor,
     );
-
-    // Variant/product is out of stock
-    if (stock <= 0) {
+    if (!product || !stock) {
       changes.push({
         type: "removed",
         item,
-        reason:
-          "Product is out of stock.",
+        reason: "This selection is no longer available.",
       });
-
-      return;
+      continue;
     }
-
-    const oldQuantity =
-      Number(item.quantity) || 1;
-
-    const newQuantity = Math.min(
-      Math.max(oldQuantity, 1),
-      stock
+    const qty = Number(item.quantity);
+    if (!Number.isSafeInteger(qty) || qty < 1) {
+      changes.push({ type: "removed", item, reason: "Invalid quantity." });
+      continue;
+    }
+    const key = getCartItemKey(item),
+      previous = rows.get(key);
+    const quantity = Math.min(stock, qty + (previous?.quantity || 0));
+    const normalized = normalizeCartItem(
+      product,
+      quantity,
+      item.selectedSize ?? null,
+      item.selectedColor ?? null,
     );
-
-    // Quantity was reduced because stock changed
-    if (newQuantity !== oldQuantity) {
+    if (previous || quantity !== qty || normalized.price !== item.price)
       changes.push({
-        type: "quantity-adjusted",
+        type: "updated",
         item,
-        oldQuantity,
-        newQuantity,
-        reason:
-          "Cart quantity was adjusted to available stock.",
+        reason: "Bag updated to current price and available stock.",
       });
-    }
-
-    validCart.push({
-      ...product,
-
-      // Always use current selling price
-      price: getDiscountedPrice(product),
-
-      quantity: newQuantity,
-
-      selectedSize:
-        item.selectedSize ?? null,
-
-      selectedColor:
-        item.selectedColor ?? null,
-    });
-  });
-
-  return {
-    cart: validCart,
-    changes,
-  };
+    rows.set(key, normalized);
+  }
+  return { cart: [...rows.values()], changes };
 }

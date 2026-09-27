@@ -1,800 +1,204 @@
-
-import {
-  useEffect,
-  useState,
-} from "react";
-
+import { lazy, Suspense, useEffect } from "react";
 import {
   BrowserRouter,
+  Navigate,
   Route,
   Routes,
+  useLocation,
 } from "react-router-dom";
-
-// ==========================================
-// DATA
-// ==========================================
-
-import products from "./data/products";
-
-// ==========================================
-// UTILITIES
-// ==========================================
-
-import {
-  getCartItemKey,
-  normalizeCartItem,
-  revalidateCart,
-  validateCartItem,
-} from "./utils/cartUtils";
-
-// ==========================================
-// COMPONENTS
-// ==========================================
-
-import Toast from "./components/Toast";
-import Navbar from "./components/Navbar";
-
-// ==========================================
-// PAGES
-// ==========================================
-
-import Home from "./pages/Home";
-import Shop from "./pages/Shop";
-import CartPage from "./pages/CartPage";
-import ProductPage from "./pages/ProductPage";
-import WishlistPage from "./pages/WishlistPage";
-import CheckoutPage from "./pages/CheckoutPage";
-import OrderSuccessPage from "./pages/OrderSuccessPage";
-import OrdersPage from "./pages/OrdersPage";
-import OrderDetailsPage from "./pages/OrderDetailsPage";
-import OrderTrackingPage from "./pages/OrderTrackingPage";
-
-import LoginPage from "./pages/LoginPage";
-import SignupPage from "./pages/SignupPage";
-import AccountPage from "./pages/AccountPage";
-import AddressesPage from "./pages/AddressesPage";
-
-// ==========================================
-// APP
-// ==========================================
-
-function App() {
-  // ==========================================
-  // TOAST
-  // ==========================================
-
-  const [toast, setToast] = useState({
-    message: "",
-    type: "success",
-  });
-
-  function showToast(
-    message,
-    type = "success"
-  ) {
-    setToast({
-      message,
-      type,
-    });
-  }
-
-  function closeToast() {
-    setToast({
-      message: "",
-      type: "success",
-    });
-  }
-
-  // ==========================================
-  // AUTO CLEAR TOAST
-  // ==========================================
-
+import { useAuth } from "./context/AuthContext.jsx";
+import StoreProvider, { useStore } from "./context/StoreContext.jsx";
+import Navbar from "./components/Navbar.jsx";
+import Footer from "./components/Footer.jsx";
+import Toast from "./components/Toast.jsx";
+import EmptyState from "./components/EmptyState.jsx";
+import ErrorBoundary from "./components/ErrorBoundary.jsx";
+import Home from "./pages/Home.jsx";
+import CatalogProvider from "./context/CatalogContext.jsx";
+import ShoppingToolsProvider from "./context/ShoppingToolsContext.jsx";
+import StoreUtilityBar from "./components/StoreUtilityBar.jsx";
+const Shop = lazy(() => import("./pages/Shop.jsx"));
+const ProductPage = lazy(() => import("./pages/ProductPage.jsx"));
+const CartPage = lazy(() => import("./pages/CartPage.jsx"));
+const WishlistPage = lazy(() => import("./pages/WishlistPage.jsx"));
+const CheckoutPage = lazy(() => import("./pages/CheckoutPage.jsx"));
+const LoginPage = lazy(() => import("./pages/LoginPage.jsx"));
+const SignupPage = lazy(() => import("./pages/SignupPage.jsx"));
+const AccountPage = lazy(() => import("./pages/AccountPage.jsx"));
+const AddressesPage = lazy(() => import("./pages/AddressesPage.jsx"));
+const OrderSuccessPage = lazy(() => import("./pages/OrderSuccessPage.jsx"));
+const OrdersPage = lazy(() => import("./pages/OrdersPage.jsx"));
+const OrderDetailsPage = lazy(() => import("./pages/OrderDetailsPage.jsx"));
+const OrderTrackingPage = lazy(() => import("./pages/OrderTrackingPage.jsx"));
+const ComparePage = lazy(() => import("./pages/ComparePage.jsx"));
+const SavedPage = lazy(() => import("./pages/SavedPage.jsx"));
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage.jsx"));
+const OffersPage = lazy(() => import("./pages/OffersPage.jsx"));
+const HelpPage = lazy(() => import("./pages/HelpPage.jsx"));
+const ReceiptPage = lazy(() => import("./pages/ReceiptPage.jsx"));
+const ReturnPage = lazy(() => import("./pages/ReturnPage.jsx"));
+const SecurityPage = lazy(() => import("./pages/SecurityPage.jsx"));
+const StoreConsolePage = import.meta.env.DEV
+  ? lazy(() => import("./pages/StoreConsolePage.jsx"))
+  : null;
+function AccountRequired({ children }) {
+  const { user } = useAuth(),
+    location = useLocation();
+  return user ? (
+    children
+  ) : (
+    <Navigate
+      to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`}
+      replace
+    />
+  );
+}
+function ScrollAndTitle() {
+  const { pathname } = useLocation();
   useEffect(() => {
-    if (!toast.message) {
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setToast({
-        message: "",
-        type: "success",
-      });
-    }, 3000);
-
-    return () => {
-      clearTimeout(timer);
+    window.scrollTo({ top: 0, behavior: "instant" });
+    const names = {
+      "/": "Everything for Every Workout",
+      "/shop": "Shop",
+      "/cart": "Shopping bag",
+      "/wishlist": "Wishlist",
+      "/checkout": "Checkout",
+      "/login": "Login",
+      "/signup": "Create account",
+      "/account": "My account",
+      "/orders": "My orders",
+      "/addresses": "Saved addresses",
+      "/offers": "Offers & coupons",
+      "/compare": "Compare products",
+      "/saved": "Saved for later",
+      "/help": "Shopping help",
+      "/notifications": "Price & stock watches",
+      "/account/security": "Password & account data",
+      "/dev/store": "Development store console",
     };
-  }, [toast.message]);
-
-  // ==========================================
-  // CART
-  // ==========================================
-
-  const [cart, setCart] = useState(() => {
-    try {
-      const savedCart =
-        localStorage.getItem(
-          "gymdrobe-cart"
-        );
-
-      const parsedCart = savedCart
-        ? JSON.parse(savedCart)
-        : [];
-
-      // Revalidate cart against
-      // current product and stock data.
-      return revalidateCart(
-        parsedCart,
-        products
-      ).cart;
-    } catch {
-      return [];
-    }
-  });
-
-  // ==========================================
-  // WISHLIST
-  // ==========================================
-
-  const [wishlist, setWishlist] = useState(
-    () => {
-      try {
-        const savedWishlist =
-          localStorage.getItem(
-            "gymdrobe-wishlist"
-          );
-
-        return savedWishlist
-          ? JSON.parse(savedWishlist)
-          : [];
-      } catch {
-        return [];
-      }
-    }
-  );
-
-  // ==========================================
-  // BUY NOW ITEM
-  // ==========================================
-
-  const [buyNowItem, setBuyNowItem] =
-    useState(null);
-
-  // ==========================================
-  // CART REVALIDATION
-  // ==========================================
-
-  useEffect(() => {
-    setCart((currentCart) => {
-      const result = revalidateCart(
-        currentCart,
-        products
-      );
-
-      return result.cart;
-    });
-  }, []);
-
-  // ==========================================
-  // CART COUNT
-  // ==========================================
-
-  const cartCount = cart.reduce(
-    (total, item) => {
-      return (
-        total +
-        Number(item.quantity || 0)
-      );
-    },
-    0
-  );
-
-  // ==========================================
-  // WISHLIST COUNT
-  // ==========================================
-
-  const wishlistCount =
-    wishlist.length;
-
-  // ==========================================
-  // SAVE CART
-  // ==========================================
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        "gymdrobe-cart",
-        JSON.stringify(cart)
-      );
-    } catch (error) {
-      console.error(
-        "Unable to save cart:",
-        error
-      );
-    }
-  }, [cart]);
-
-  // ==========================================
-  // SAVE WISHLIST
-  // ==========================================
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        "gymdrobe-wishlist",
-        JSON.stringify(wishlist)
-      );
-    } catch (error) {
-      console.error(
-        "Unable to save wishlist:",
-        error
-      );
-    }
-  }, [wishlist]);
-
-  // ==========================================
-  // BUY NOW
-  // ==========================================
-
-  function buyNow(
-    product,
-    quantity = 1,
-    selectedSize = null,
-    selectedColor = null
-  ) {
-    // ------------------------------------------
-    // VALIDATE PRODUCT
-    // ------------------------------------------
-
-    const validation =
-      validateCartItem(
-        product,
-        quantity,
-        selectedSize,
-        selectedColor
-      );
-
-    // ------------------------------------------
-    // VALIDATION FAILED
-    // ------------------------------------------
-
-    if (!validation.valid) {
-      showToast(
-        validation.message,
-        validation.stock <= 0
-          ? "error"
-          : "warning"
-      );
-
-      return false;
-    }
-
-    // ------------------------------------------
-    // CREATE BUY NOW ITEM
-    // ------------------------------------------
-
-    const item =
-      normalizeCartItem(
-        product,
-        quantity,
-        selectedSize,
-        selectedColor
-      );
-
-    // ------------------------------------------
-    // SAVE BUY NOW ITEM
-    // ------------------------------------------
-
-    setBuyNowItem(item);
-
-    return true;
-  }
-
-  // ==========================================
-  // CLEAR BUY NOW
-  // ==========================================
-
-  function clearBuyNow() {
-    setBuyNowItem(null);
-  }
-
-  // ==========================================
-  // ADD TO CART
-  // ==========================================
-
-  function addToCart(
-    product,
-    quantity = 1,
-    selectedSize = null,
-    selectedColor = null
-  ) {
-    // ------------------------------------------
-    // VALIDATE PRODUCT
-    // ------------------------------------------
-
-    const validation =
-      validateCartItem(
-        product,
-        quantity,
-        selectedSize,
-        selectedColor
-      );
-
-    // ------------------------------------------
-    // VALIDATION FAILED
-    // ------------------------------------------
-
-    if (!validation.valid) {
-      showToast(
-        validation.message,
-        validation.stock <= 0
-          ? "error"
-          : "warning"
-      );
-
-      return false;
-    }
-
-    // ------------------------------------------
-    // UPDATE CART
-    // ------------------------------------------
-
-    let operationSuccessful = true;
-
-    setCart((currentCart) => {
-      // ----------------------------------------
-      // TEMPORARY ITEM
-      // ----------------------------------------
-
-      const newItem = {
-        ...product,
-        selectedSize,
-        selectedColor,
-      };
-
-      // ----------------------------------------
-      // FIND SAME PRODUCT + VARIANT
-      // ----------------------------------------
-
-      const existingIndex =
-        currentCart.findIndex(
-          (item) =>
-            getCartItemKey(item) ===
-            getCartItemKey(newItem)
-        );
-
-      // ----------------------------------------
-      // EXISTING ITEM
-      // ----------------------------------------
-
-      if (existingIndex !== -1) {
-        const existingItem =
-          currentCart[existingIndex];
-
-        const currentQuantity =
-          Number(
-            existingItem.quantity || 0
-          );
-
-        const requestedQuantity =
-          Number(quantity) || 0;
-
-        const newQuantity =
-          currentQuantity +
-          requestedQuantity;
-
-        // --------------------------------------
-        // STOCK CHECK
-        // --------------------------------------
-
-        if (
-          newQuantity >
-          validation.stock
-        ) {
-          operationSuccessful = false;
-
-          showToast(
-            `Only ${validation.stock} item${
-              validation.stock > 1
-                ? "s"
-                : ""
-            } available.`,
-            "warning"
-          );
-
-          return currentCart;
-        }
-
-        // --------------------------------------
-        // UPDATE ITEM
-        // --------------------------------------
-
-        showToast(
-          "Cart quantity updated.",
-          "success"
-        );
-
-        return currentCart.map(
-          (item, index) => {
-            if (
-              index !== existingIndex
-            ) {
-              return item;
+    document.title = `GymDrobe | ${names[pathname] || "Your workout essentials"}`;
+  }, [pathname]);
+  return null;
+}
+function Layout() {
+  const { cart, wishlist, toast, closeToast } = useStore(),
+    { user } = useAuth(),
+    location = useLocation();
+  return (
+    <>
+      <a className="skip-link" href="#main-content">
+        Skip to content
+      </a>
+      <ScrollAndTitle />
+      <Navbar
+        cartCount={cart.reduce((n, i) => n + i.quantity, 0)}
+        wishlistCount={wishlist.length}
+      />
+      <StoreUtilityBar />
+      <main id="main-content" className="gd-storefront" tabIndex="-1">
+        <ErrorBoundary key={location.pathname}>
+          <Suspense
+            fallback={
+              <div className="page-loading" role="status">
+                Loading your next favourites…
+              </div>
             }
+          >
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/compare" element={<ComparePage />} />
+              <Route path="/saved" element={<SavedPage />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
+              <Route path="/offers" element={<OffersPage />} />
+              <Route
+                path="/help"
+                element={<HelpPage key={user?.id || "guest"} />}
+              />
+              <Route
+                path="/account/security"
+                element={
+                  <AccountRequired>
+                    <SecurityPage key={user?.id} />
+                  </AccountRequired>
+                }
+              />
+              <Route
+                path="/orders/:orderId/receipt"
+                element={<ReceiptPage />}
+              />
+              <Route
+                path="/orders/:orderId/return"
+                element={<ReturnPage key={user?.id || "guest"} />}
+              />
+              {import.meta.env.DEV && (
+                <Route path="/dev/store" element={<StoreConsolePage />} />
+              )}
 
-            return normalizeCartItem(
-              product,
-              newQuantity,
-              selectedSize,
-              selectedColor
-            );
-          }
-        );
-      }
-
-      // ----------------------------------------
-      // NEW ITEM
-      // ----------------------------------------
-
-      showToast(
-        "Product added to cart.",
-        "success"
-      );
-
-      return [
-        ...currentCart,
-        normalizeCartItem(
-          product,
-          quantity,
-          selectedSize,
-          selectedColor
-        ),
-      ];
-    });
-
-    return operationSuccessful;
-  }
-
-  // ==========================================
-  // TOGGLE WISHLIST
-  // ==========================================
-
-  function toggleWishlist(product) {
-    if (!product) {
-      return;
-    }
-
-    setWishlist((currentWishlist) => {
-      // ----------------------------------------
-      // CHECK EXISTING
-      // ----------------------------------------
-
-      const exists =
-        currentWishlist.some(
-          (item) =>
-            String(item.id) ===
-            String(product.id)
-        );
-
-      // ----------------------------------------
-      // REMOVE
-      // ----------------------------------------
-
-      if (exists) {
-        showToast(
-          "Removed from wishlist.",
-          "info"
-        );
-
-        return currentWishlist.filter(
-          (item) =>
-            String(item.id) !==
-            String(product.id)
-        );
-      }
-
-      // ----------------------------------------
-      // ADD
-      // ----------------------------------------
-
-      showToast(
-        "Added to wishlist.",
-        "success"
-      );
-
-      return [
-        ...currentWishlist,
-        product,
-      ];
-    });
-  }
-
-  // ==========================================
-  // RENDER
-  // ==========================================
-
+              <Route path="/shop" element={<Shop />} />
+              <Route path="/product/:id" element={<ProductPage />} />
+              <Route path="/cart" element={<CartPage />} />
+              <Route path="/wishlist" element={<WishlistPage />} />
+              <Route
+                path="/checkout"
+                element={<CheckoutPage key={user?.id || "guest"} />}
+              />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} />
+              <Route
+                path="/account"
+                element={
+                  <AccountRequired>
+                    <AccountPage key={user?.id} />
+                  </AccountRequired>
+                }
+              />
+              <Route
+                path="/addresses"
+                element={
+                  <AccountRequired>
+                    <AddressesPage key={user?.id} />
+                  </AccountRequired>
+                }
+              />
+              <Route path="/order-success" element={<OrderSuccessPage />} />
+              <Route path="/orders" element={<OrdersPage />} />
+              <Route path="/orders/:orderId" element={<OrderDetailsPage />} />
+              <Route
+                path="/orders/:orderId/track"
+                element={<OrderTrackingPage />}
+              />
+              <Route
+                path="*"
+                element={
+                  <EmptyState
+                    title="This page isn’t in your wardrobe"
+                    to="/"
+                    label="Back to home"
+                  >
+                    The link may have changed. Explore GymDrobe from the
+                    homepage.
+                  </EmptyState>
+                }
+              />
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
+      </main>
+      <Footer />
+      <Toast message={toast?.message} type={toast?.type} onClose={closeToast} />
+    </>
+  );
+}
+export default function App() {
   return (
     <BrowserRouter>
-
-      {/* ======================================
-          NAVBAR
-      ====================================== */}
-
-      <Navbar
-        cartCount={cartCount}
-        wishlistCount={wishlistCount}
-      />
-
-      {/* ======================================
-          TOAST
-      ====================================== */}
-
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        onClose={closeToast}
-      />
-
-      {/* ======================================
-          ROUTES
-      ====================================== */}
-
-      <Routes>
-
-        {/* ====================================
-            HOME
-        ==================================== */}
-
-        <Route
-          path="/"
-          element={
-            <Home
-              addToCart={addToCart}
-              wishlist={wishlist}
-              toggleWishlist={
-                toggleWishlist
-              }
-            />
-          }
-        />
-
-        {/* ====================================
-            SHOP
-        ==================================== */}
-
-        <Route
-          path="/shop"
-          element={
-            <Shop
-              addToCart={addToCart}
-              wishlist={wishlist}
-              toggleWishlist={
-                toggleWishlist
-              }
-            />
-          }
-        />
-
-        {/* ====================================
-            CART
-        ==================================== */}
-
-        <Route
-          path="/cart"
-          element={
-            <CartPage
-              cart={cart}
-              setCart={setCart}
-            />
-          }
-        />
-
-        {/* ====================================
-            PRODUCT DETAILS
-        ==================================== */}
-
-        <Route
-          path="/product/:id"
-          element={
-            <ProductPage
-              addToCart={addToCart}
-              buyNow={buyNow}
-              wishlist={wishlist}
-              toggleWishlist={
-                toggleWishlist
-              }
-            />
-          }
-        />
-
-        {/* ====================================
-            WISHLIST
-        ==================================== */}
-
-        <Route
-          path="/wishlist"
-          element={
-            <WishlistPage
-              wishlist={wishlist}
-              toggleWishlist={
-                toggleWishlist
-              }
-            />
-          }
-        />
-
-        {/* ====================================
-            CHECKOUT
-        ==================================== */}
-
-        <Route
-          path="/checkout"
-          element={
-            <CheckoutPage
-              cart={cart}
-              setCart={setCart}
-              buyNowItem={buyNowItem}
-              setBuyNowItem={
-                setBuyNowItem
-              }
-              clearBuyNow={
-                clearBuyNow
-              }
-            />
-          }
-        />
-
-        {/* ====================================
-            ORDER SUCCESS
-        ==================================== */}
-
-        <Route
-          path="/order-success"
-          element={
-            <OrderSuccessPage />
-          }
-        />
-
-        {/* ====================================
-            ORDERS
-        ==================================== */}
-
-        <Route
-          path="/orders"
-          element={
-            <OrdersPage />
-          }
-        />
-
-        {/* ====================================
-            ORDER TRACKING
-            IMPORTANT:
-            Keep this before /orders/:orderId
-        ==================================== */}
-
-        <Route
-          path="/orders/:orderId/track"
-          element={
-            <OrderTrackingPage />
-          }
-        />
-
-        {/* ====================================
-            ORDER DETAILS
-        ==================================== */}
-
-        <Route
-          path="/orders/:orderId"
-          element={
-            <OrderDetailsPage />
-          }
-        />
-
-        {/* ====================================
-            LOGIN
-        ==================================== */}
-
-        <Route
-          path="/login"
-          element={
-            <LoginPage />
-          }
-        />
-
-        {/* ====================================
-            SIGNUP
-        ==================================== */}
-
-        <Route
-          path="/signup"
-          element={
-            <SignupPage />
-          }
-        />
-
-        {/* ====================================
-            ACCOUNT
-        ==================================== */}
-
-        <Route
-          path="/account"
-          element={
-            <AccountPage />
-          }
-        />
-
-        {/* ====================================
-            ADDRESSES
-        ==================================== */}
-
-        <Route
-          path="/addresses"
-          element={
-            <AddressesPage />
-          }
-        />
-
-        {/* ====================================
-            404 / PAGE NOT FOUND
-        ==================================== */}
-
-        <Route
-          path="*"
-          element={
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6">
-              <div className="text-center">
-
-                <p className="text-sm font-semibold uppercase tracking-widest text-orange-500 mb-3">
-                  GymDrobe
-                </p>
-
-                <h1 className="text-6xl font-bold text-gray-900 mb-4">
-                  404
-                </h1>
-
-                <h2 className="text-2xl font-semibold text-gray-800 mb-3">
-                  Page Not Found
-                </h2>
-
-                <p className="text-gray-500 max-w-md mx-auto mb-8">
-                  The page you're looking for
-                  doesn't exist or may have
-                  been moved.
-                </p>
-
-                <a
-                  href="/"
-                  className="
-                    inline-flex
-                    items-center
-                    justify-center
-                    px-6
-                    py-3
-                    rounded-xl
-                    bg-black
-                    text-white
-                    font-semibold
-                    hover:bg-gray-800
-                    transition
-                  "
-                >
-                  Back to Home
-                </a>
-
-              </div>
-            </div>
-          }
-        />
-
-      </Routes>
-
+      <CatalogProvider>
+        <StoreProvider>
+          <ShoppingToolsProvider>
+            <Layout />
+          </ShoppingToolsProvider>
+        </StoreProvider>
+      </CatalogProvider>
     </BrowserRouter>
   );
 }
-
-// ==========================================
-// EXPORT
-// ==========================================
-
-export default App;
-

@@ -1,31 +1,12 @@
-import Hero from "../components/Hero";
-
-import CategorySection from "../components/CategorySection";
-
-import HomeProductSections from "../components/HomeProductSections";
-
-import Footer from "../components/Footer";
-
-function Home({
-  wishlist = [],
-  toggleWishlist,
-}) {
+import Hero from "../components/Hero.jsx";
+import CategorySection from "../components/CategorySection.jsx";
+import HomeProductSections from "../components/HomeProductSections.jsx";
+export default function Home() {
   return (
-    <main className="bg-white">
+    <>
       <Hero />
-
       <CategorySection />
-
-      <HomeProductSections
-        wishlist={wishlist}
-        toggleWishlist={
-          toggleWishlist
-        }
-      />
-
-      <Footer />
-    </main>
+      <HomeProductSections />
+    </>
   );
 }
-
-export default Home;
