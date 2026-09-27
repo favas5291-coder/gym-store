@@ -1,3 +1,4 @@
+import { matchesSearch } from "../utils/catalog.js";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { asset } from "../data/assets.js";
@@ -428,7 +429,7 @@ function SearchBox({
         (product) =>
           product &&
           product.id != null &&
-          terms.every((term) => searchableText(product).includes(term)),
+          matchesSearch(product, value),
       )
       .slice(0, 6);
   }, [value, products]);

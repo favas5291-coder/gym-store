@@ -1,5 +1,7 @@
+import { useShoppingTools } from "../context/ShoppingToolsContext.jsx";
+import FitGuide from "./FitGuide.jsx";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useStore } from "../context/StoreContext.jsx";
 import {
   firstOptions,
@@ -14,6 +16,9 @@ import {
 } from "../utils/productPricing.js";
 import { Heart } from "./StorefrontShared.jsx";
 export default function ProductOptions({ product, onAdded }) {
+  const { watches, watchProduct } = useShoppingTools();
+  const [guide, setGuide] = useState(false);
+  const [added, setAdded] = useState(false);
   const initial = firstOptions(product),
     navigate = useNavigate();
   const [size, setSize] = useState(initial.selectedSize),
@@ -24,6 +29,7 @@ export default function ProductOptions({ product, onAdded }) {
     available = getTotalStock(product) > 0;
   const saved = wishlist.some((p) => String(p.id) === String(product.id));
   function chooseColor(next) {
+    setAdded(false);
     setColor(next);
     setQuantity(1);
     if (product.sizes?.length && !getVariantStock(product, size, next))
@@ -67,6 +73,13 @@ export default function ProductOptions({ product, onAdded }) {
       {Boolean(product.sizes?.length) && (
         <fieldset>
           <legend>SELECT SIZE</legend>
+          <button
+            className="text-link fit-guide-link"
+            type="button"
+            onClick={() => setGuide(true)}
+          >
+            Size & fit guide
+          </button>
           <div className="option-list sizes">
             {product.sizes.map((option) => (
               <button
@@ -75,6 +88,7 @@ export default function ProductOptions({ product, onAdded }) {
                 disabled={!getVariantStock(product, option, color)}
                 aria-pressed={String(size) === String(option)}
                 onClick={() => {
+                  setAdded(false);
                   setSize(option);
                   setQuantity(1);
                 }}
@@ -115,7 +129,10 @@ export default function ProductOptions({ product, onAdded }) {
           className="button"
           disabled={!stock}
           onClick={() => {
-            if (addToCart(product, quantity, size, color)) onAdded?.();
+            if (addToCart(product, quantity, size, color)) {
+              setAdded(true);
+              onAdded?.();
+            }
           }}
         >
           {available ? "Add to bag" : "Out of stock"}
@@ -130,6 +147,10 @@ export default function ProductOptions({ product, onAdded }) {
           {saved ? "Wishlisted" : "Wishlist"}
         </button>
       </div>
+      {added && <div className="purchase-feedback" role="status">
+        <span>✓ Added to your bag</span>
+        <Link to="/cart">View bag & checkout →</Link>
+      </div>}
       {stock > 0 && (
         <button
           type="button"
@@ -142,6 +163,17 @@ export default function ProductOptions({ product, onAdded }) {
           Buy now
         </button>
       )}
+      <button
+        className="text-link watch-button"
+        type="button"
+        aria-pressed={watches.some((w) => String(w.id) === String(product.id))}
+        onClick={() => watchProduct(product)}
+      >
+        {watches.some((w) => String(w.id) === String(product.id))
+          ? "Watching this product ✓"
+          : "Watch price & availability"}
+      </button>
+      {guide && <FitGuide product={product} onClose={() => setGuide(false)} />}
     </div>
   );
 }

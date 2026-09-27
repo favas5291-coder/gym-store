@@ -1,3 +1,4 @@
+import useOrderUpdates from "../hooks/useOrderUpdates.js";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { getOrder, orderTotal } from "../utils/customerData.js";
@@ -5,6 +6,7 @@ import { money } from "../utils/productPricing.js";
 import { csvCell, downloadText } from "../utils/commerce.js";
 import EmptyState from "../components/EmptyState.jsx";
 export default function ReceiptPage() {
+  useOrderUpdates();
   const { user } = useAuth(),
     { orderId } = useParams(),
     order = getOrder(orderId, user);

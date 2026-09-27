@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useStore } from "../context/StoreContext.jsx";
 import {
@@ -7,7 +7,7 @@ import {
   getAddresses,
   saveAddresses,
 } from "../utils/customerData.js";
-import { makeId } from "../utils/storage.js";
+import { makeId, userKey } from "../utils/storage.js";
 import AccountLayout from "../components/AccountLayout.jsx";
 import AddressForm from "../components/AddressForm.jsx";
 import Modal from "../components/Modal.jsx";
@@ -18,6 +18,11 @@ export default function AddressesPage() {
     [editing, setEditing] = useState(null),
     [errors, setErrors] = useState({}),
     [error, setError] = useState("");
+  useEffect(() => {
+    const sync = event => { if (event.key === userKey("gymdrobe-addresses", user) || event.key === null) setAddresses(getAddresses(user)); };
+    window.addEventListener("storage", sync);
+    return () => window.removeEventListener("storage", sync);
+  }, [user?.id]);
   function commit(next) {
     if (!saveAddresses(user, next)) {
       setError("Could not save addresses. Check browser storage.");

@@ -1,4 +1,5 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import { importGuestShopping } from "../utils/shopperStorage.js";
 import {
   makeId,
   readStorage,
@@ -60,6 +61,14 @@ async function hashPassword(password, salt) {
 // Device-local account preview. Production authentication belongs on a server.
 export default function AuthProvider({ children }) {
   const [user, setUser] = useState(() => profile(readStorage(SESSION, null)));
+  useEffect(() => {
+    const sync = (event) => {
+      if (event.key === SESSION || event.key === null)
+        setUser(profile(readStorage(SESSION, null)));
+    };
+    window.addEventListener("storage", sync);
+    return () => window.removeEventListener("storage", sync);
+  }, []);
   async function signup(data) {
     const email = cleanEmail(data.email),
       name = String(data.name || "").trim(),
@@ -107,6 +116,7 @@ export default function AuthProvider({ children }) {
           "Browser storage is unavailable. Enable storage to save an account.",
         );
       const next = profile(record);
+      importGuestShopping(next);
       if (!writeStorage(SESSION, next))
         throw new Error(
           "Account saved, but sign-in could not be saved. Please try signing in.",
@@ -130,6 +140,7 @@ export default function AuthProvider({ children }) {
       )
         return { success: false, message: "Email or password is incorrect." };
       const next = profile(record);
+      importGuestShopping(next);
       if (!writeStorage(SESSION, next))
         throw new Error(
           "Browser storage is unavailable. Enable storage to sign in.",

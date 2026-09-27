@@ -46,8 +46,8 @@ export default function CatalogProvider({ children }) {
   );
   useEffect(() => {
     const sync = (event) => {
-      if (event.key === KEY) setProducts(restore());
-      if (event.key === "gymdrobe-orders") setRevision((n) => n + 1);
+      if (event.key === KEY || event.key === null) setProducts(restore());
+      if (event.key === "gymdrobe-orders" || event.key === null) setRevision((n) => n + 1);
     };
     const update = () => setRevision((n) => n + 1);
     window.addEventListener("gymdrobe-orders-updated", update);
@@ -107,7 +107,7 @@ export default function CatalogProvider({ children }) {
     return true;
   }
   return (
-    <CatalogContext.Provider value={{ products, saveProduct }}>
+    <CatalogContext.Provider value={{ products, saveProduct, getLatestProducts: () => applyReservations(restore(), allOrders()) }}>
       {children}
     </CatalogContext.Provider>
   );

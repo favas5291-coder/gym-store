@@ -11,6 +11,7 @@ import {
   validProducts,
 } from "./StorefrontShared";
 import "./GymDrobeStorefront.css";
+import ProductArtwork from "./ProductArtwork.jsx";
 
 function highestDiscount(items) {
   return Math.max(
@@ -42,14 +43,20 @@ function CampaignPhoto({ slide }) {
           style={{ objectPosition: slide.bannerPosition || "center" }}
           onError={() => setFailedBanner(slide.bannerImage)}
         />
-      ) : slide.product ? (
+      ) : slide.product?.image ? (
         <ProductImage product={slide.product} eager decorative />
       ) : (
-        <span className="gm-campaign-placeholder" aria-hidden="true">
-          GYM
-          <br />
-          DROBE
-        </span>
+        <div className="campaign-art" aria-hidden="true">
+          <div className="campaign-art-copy">
+            <span>THE GYMDROBE TRAINING EDIT</span>
+            <strong>MAKE<br />YOUR<br /><em>MOVE.</em></strong>
+            <p>Your next session starts here.</p>
+          </div>
+          <div className="campaign-art-product">
+            <ProductArtwork category={slide.title} name={slide.product?.name} />
+            <small>Collection illustration</small>
+          </div>
+        </div>
       )}
       <span className="gm-campaign-brand">
         {slide.product?.brand || "GymDrobe"}

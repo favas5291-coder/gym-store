@@ -1,0 +1,17 @@
+{
+  "passed": [
+    "homepage carousel and search aliases",
+    "multiple categories, individual filter chips, sorting and quick view",
+    "bag and wishlist synchronize between two open tabs",
+    "guest bag transfers on sign-in; separate accounts keep separate bags",
+    "coupon validation, selected checkout, address errors and exact totals",
+    "receipts, order ownership, cancellation and inventory restoration",
+    "save for later, restore variant, compare, and saved address editing",
+    "Buy now recovers from a catalogue price change",
+    "account password changes and login with the new password",
+    "reviews persist and update rating without reload",
+    "mobile menu and filters work with touch and keyboard",
+    "responsive layouts and missing-route recovery"
+  ],
+  "errors": []
+}

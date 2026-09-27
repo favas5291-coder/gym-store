@@ -1,3 +1,4 @@
+import useOrderUpdates from "../hooks/useOrderUpdates.js";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { getOrder, orderStatus } from "../utils/customerData.js";
@@ -10,6 +11,7 @@ const stages = [
   "delivered",
 ];
 export default function OrderTrackingPage() {
+  useOrderUpdates();
   const { orderId } = useParams(),
     { user } = useAuth(),
     order = getOrder(orderId, user);

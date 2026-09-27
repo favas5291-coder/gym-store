@@ -1,3 +1,5 @@
+import { checkoutSignature, commitCheckout } from "../utils/checkout.js";
+import { readSession, writeSession } from "../utils/shopperStorage.js";
 import { useShoppingTools } from "../context/ShoppingToolsContext.jsx";
 import { selectedBag } from "../utils/commerce.js";
 import { useEffect, useRef, useState } from "react";
@@ -16,7 +18,6 @@ import {
   getAddresses,
   normalizeAddress,
   ownerKey,
-  persistOrder,
   saveAddresses,
 } from "../utils/customerData.js";
 import {
@@ -30,7 +31,7 @@ import CouponBox from "../components/CouponBox.jsx";
 import PriceSummary from "../components/PriceSummary.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 export default function CheckoutPage() {
-  const { products } = useCatalog();
+  const { products, getLatestProducts } = useCatalog();
   const tools = useShoppingTools();
   const { user } = useAuth(),
     store = useStore(),
@@ -68,7 +69,7 @@ export default function CheckoutPage() {
         fullName: draft?.fullName || draft?.name || user?.name || "",
         email: user?.email || draft?.email || "",
         phone: draft?.phone || user?.phone || "",
-        pincode: draft?.pincode || readStorage("gymdrobe-delivery-pincode", ""),
+        pincode: draft?.pincode || readStorage(store.shoppingKey("gymdrobe-delivery-pincode"), ""),
       },
     );
   });
@@ -80,7 +81,10 @@ export default function CheckoutPage() {
     [errors, setErrors] = useState({}),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
-  const submitting = useRef(false);
+  const submitting = useRef(false), reviewed = useRef(null);
+  const attemptKey = store.shoppingKey(`gymdrobe-checkout-attempt-${checkoutMode}`);
+  const [attempt] = useState(() => readSession(attemptKey, null) || makeId("checkout"));
+  useEffect(() => { writeSession(attemptKey, attempt); }, [attemptKey, attempt]);
   const pricing = calculateOrderPricing({
     cart: items,
     coupon: store.coupon,
@@ -95,30 +99,43 @@ export default function CheckoutPage() {
         orderNote,
       });
     }, 300);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      writeStorage(userKey("gymdrobe-checkout-details", user), address);
+    };
   }, [address, method, giftMessage, orderNote, user?.id]);
   function validate() {
     const invalid = addressErrors(address);
     setErrors(invalid);
     if (Object.keys(invalid).length) {
       setStep("address");
+      requestAnimationFrame(() => document.querySelector('[aria-invalid="true"]')?.focus());
       return false;
     }
     return true;
   }
-  function submit(event) {
+  async function submit(event) {
     event.preventDefault();
     if (submitting.current) return;
     setError("");
     if (!validate()) return;
     if (step === "address") {
       writeStorage(userKey("gymdrobe-checkout-details", user), address);
+      reviewed.current = checkoutSignature(items, store.coupon, method);
       setStep("review");
+      window.scrollTo({top: 0, behavior: "instant"});
       return;
     }
-    const checked = revalidateCart(items, products);
+    const signature = checkoutSignature(items, store.coupon, method);
+    if (reviewed.current !== signature) {
+      reviewed.current = signature;
+      setError("Your selection or total has changed. Review the current items and total, then place your order again.");
+      return;
+    }
+    const checked = revalidateCart(items, getLatestProducts());
     if (!checked.cart.length || checked.changes.length) {
-      if (!isBuyNow) {
+      if (isBuyNow) store.refreshBuyNow(checked.cart[0]);
+      else {
         const selectedKeys = items.map(getCartItemKey);
         store.setCart([
           ...store.cart.filter(
@@ -206,13 +223,19 @@ export default function CheckoutPage() {
       cancellation: { status: "not-cancelled" },
       returnRequest: { status: "not-requested" },
       refund: { status: "not-requested", amount: 0 },
-      metadata: { version: "3.0", demo: true, inventoryReserved: true },
+      metadata: { version: "4.0", demo: true, inventoryReserved: true, checkoutToken: attempt },
     };
     try {
-      if (!persistOrder(order))
-        throw new Error(
-          "Your order could not be saved. Your bag has been kept. Enable browser storage and try again.",
-        );
+      const result = await commitCheckout(order, getLatestProducts);
+      if (result.error) {
+        if (isBuyNow) store.refreshBuyNow(result.cart[0]);
+        else store.setCart(current => revalidateCart(current, getLatestProducts()).cart);
+        throw new Error(result.error);
+      }
+      if (result.existing) {
+        navigate(`/order-success?orderId=${encodeURIComponent(result.order.id)}`, {replace: true});
+        return;
+      }
       if (user && saveAddress) {
         const existing = getAddresses(user),
           duplicate = existing.some(
@@ -237,14 +260,16 @@ export default function CheckoutPage() {
       if (isBuyNow) store.clearBuyNow();
       else {
         const orderedKeys = items.map(getCartItemKey);
-        store.setCart(
-          store.cart.filter(
+        store.setCart(current =>
+          current.filter(
             (item) => !orderedKeys.includes(getCartItemKey(item)),
           ),
         );
         tools.startSelection([]);
         store.setCoupon(null);
       }
+      writeSession(attemptKey, null);
+      writeStorage(userKey("gymdrobe-checkout-options", user), {method: "standard", giftMessage: "", orderNote: ""});
       navigate(`/order-success?orderId=${encodeURIComponent(order.id)}`, {
         replace: true,
       });

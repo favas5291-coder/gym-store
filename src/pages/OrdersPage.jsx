@@ -1,3 +1,4 @@
+import useOrderUpdates from "../hooks/useOrderUpdates.js";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -6,6 +7,7 @@ import { money } from "../utils/productPricing.js";
 import { ProductImage } from "../components/StorefrontShared.jsx";
 import AccountLayout from "../components/AccountLayout.jsx";
 export default function OrdersPage() {
+  useOrderUpdates();
   const { user } = useAuth(),
     orders = getOrders(user),
     [query, setQuery] = useState(""),

@@ -1,3 +1,4 @@
+import useOrderUpdates from "../hooks/useOrderUpdates.js";
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { returnEligibility } from "../utils/commerce.js";
 import {
@@ -5,7 +6,7 @@ import {
   normalizeCartItem,
   validateCartItem,
 } from "../utils/cartUtils.js";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useStore } from "../context/StoreContext.jsx";
@@ -20,6 +21,7 @@ import { ProductImage, productPath } from "../components/StorefrontShared.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import Modal from "../components/Modal.jsx";
 function OrderDetail({ id }) {
+  const revision = useOrderUpdates();
   const { products } = useCatalog();
   const store = useStore();
   const { user } = useAuth(),
@@ -28,6 +30,7 @@ function OrderDetail({ id }) {
     [action, setAction] = useState(null),
     [reason, setReason] = useState(""),
     [error, setError] = useState("");
+  useEffect(() => { setOrder(getOrder(id, user)); }, [id, user?.id, revision]);
   if (!order)
     return (
       <EmptyState title="Order not found" to="/orders" label="View my orders">

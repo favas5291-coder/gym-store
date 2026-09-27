@@ -17,6 +17,7 @@ import Home from "./pages/Home.jsx";
 import CatalogProvider from "./context/CatalogContext.jsx";
 import ShoppingToolsProvider from "./context/ShoppingToolsContext.jsx";
 import StoreUtilityBar from "./components/StoreUtilityBar.jsx";
+import PageLoading from "./components/PageLoading.jsx";
 const Shop = lazy(() => import("./pages/Shop.jsx"));
 const ProductPage = lazy(() => import("./pages/ProductPage.jsx"));
 const CartPage = lazy(() => import("./pages/CartPage.jsx"));
@@ -99,9 +100,7 @@ function Layout() {
         <ErrorBoundary key={location.pathname}>
           <Suspense
             fallback={
-              <div className="page-loading" role="status">
-                Loading your next favourites…
-              </div>
+              <PageLoading />
             }
           >
             <Routes>
@@ -190,10 +189,11 @@ function Layout() {
   );
 }
 export default function App() {
+  const { user } = useAuth();
   return (
     <BrowserRouter>
       <CatalogProvider>
-        <StoreProvider>
+        <StoreProvider key={user?.id || "guest"}>
           <ShoppingToolsProvider>
             <Layout />
           </ShoppingToolsProvider>

@@ -1,9 +1,11 @@
+import useOrderUpdates from "../hooks/useOrderUpdates.js";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { getOrder, orderTotal } from "../utils/customerData.js";
 import { money } from "../utils/productPricing.js";
 import EmptyState from "../components/EmptyState.jsx";
 export default function OrderSuccessPage() {
+  useOrderUpdates();
   const [params] = useSearchParams(),
     { user } = useAuth();
   const order = getOrder(params.get("orderId"), user);

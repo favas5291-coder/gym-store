@@ -16,7 +16,7 @@ import useProductReviews from "../hooks/useProductReviews.js";
 function ProductDetail({ product }) {
   const { products } = useCatalog();
   const { compared, toggleCompare } = useShoppingTools();
-  const { notify } = useStore(),
+  const { notify, shoppingKey } = useStore(),
     { rating, count } = useProductReviews(product);
   const images = [
     ...new Set([product.image, ...(product.images || [])].filter(Boolean)),
@@ -24,16 +24,17 @@ function ProductDetail({ product }) {
   const [photo, setPhoto] = useState(images[0] || ""),
     [zoom, setZoom] = useState(false),
     [pincode, setPincode] = useState(
-      readStorage("gymdrobe-delivery-pincode", ""),
+      readStorage(shoppingKey("gymdrobe-delivery-pincode"), ""),
     ),
     [delivery, setDelivery] = useState("");
   const [recentIds] = useState(() => {
-    const ids = readStorage("gymdrobe-recently-viewed", []);
+    const ids = readStorage(shoppingKey("gymdrobe-recently-viewed"), []);
     return Array.isArray(ids) ? ids.map(String) : [];
   });
+  useEffect(() => { document.title = `${product.name} | GymDrobe`; }, [product.name]);
   useEffect(() => {
     writeStorage(
-      "gymdrobe-recently-viewed",
+      shoppingKey("gymdrobe-recently-viewed"),
       [
         String(product.id),
         ...recentIds.filter((id) => id !== String(product.id)),
@@ -47,7 +48,7 @@ function ProductDetail({ product }) {
       setDelivery("Enter a valid 6-digit pincode.");
       return;
     }
-    writeStorage("gymdrobe-delivery-pincode", pincode);
+    writeStorage(shoppingKey("gymdrobe-delivery-pincode"), pincode);
     setDelivery(
       product.delivery?.available === false
         ? "This product is currently unavailable for delivery."

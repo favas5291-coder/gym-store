@@ -8,6 +8,7 @@ import {
 } from "../utils/cartUtils.js";
 import { readStorage, writeStorage } from "../utils/storage.js";
 import { resolveCoupon } from "../utils/orderCalculations.js";
+import { shoppingKey as makeShoppingKey } from "../utils/shopperStorage.js";
 const StoreContext = createContext(null);
 const initial = (products) =>
   revalidateCart(readStorage("gymdrobe-cart", []), products);
@@ -207,6 +208,9 @@ export default function StoreProvider({ children }) {
       /* No persisted item. */
     }
   }
+  function latestCart() {
+    return cartRef.current;
+  }
   return (
     <StoreContext.Provider
       value={{
@@ -225,6 +229,8 @@ export default function StoreProvider({ children }) {
         notify,
         toast,
         closeToast: () => setToast(null),
+        shoppingKey: makeShoppingKey,
+        latestCart,
       }}
     >
       {children}

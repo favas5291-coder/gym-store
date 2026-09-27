@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ProductArtwork from "./ProductArtwork.jsx";
 import {
   getDiscountPercentage,
   getDiscountedPrice,
@@ -46,20 +47,9 @@ export function ProductImage({
       className={`gm-image-fallback ${className}`}
       aria-hidden={decorative || undefined}
     >
-      <svg
-        width="42"
-        height="42"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        aria-hidden="true"
-      >
-        <path d="M6 8h12l1 13H5L6 8Z" />
-        <path d="M9 8V6a3 3 0 0 1 6 0v2" />
-      </svg>
-      <span>{product?.name || "GymDrobe"}</span>
-      <small>Image coming soon</small>
+      <ProductArtwork category={product?.category} name={product?.name} />
+      <span className="sr-only">{product?.name || "GymDrobe"}</span>
+      <small>Illustration · photo unavailable</small>
     </span>
   );
 }

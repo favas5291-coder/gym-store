@@ -1,11 +1,13 @@
+import { useStore } from "../context/StoreContext.jsx";
 import { useState } from "react";
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { readStorage, writeStorage } from "../utils/storage.js";
 import ProductRow from "./ProductRow.jsx";
 export default function RecentlyViewed({ exclude }) {
+  const { shoppingKey } = useStore();
   const { products } = useCatalog();
   const [ids, setIds] = useState(() => {
-    const saved = readStorage("gymdrobe-recently-viewed", []);
+    const saved = readStorage(shoppingKey("gymdrobe-recently-viewed"), []);
     return Array.isArray(saved) ? saved.map(String) : [];
   });
   const items = ids
@@ -20,7 +22,7 @@ export default function RecentlyViewed({ exclude }) {
           type="button"
           className="text-link"
           onClick={() => {
-            if (writeStorage("gymdrobe-recently-viewed", [])) setIds([]);
+            if (writeStorage(shoppingKey("gymdrobe-recently-viewed"), [])) setIds([]);
           }}
         >
           Clear recently viewed

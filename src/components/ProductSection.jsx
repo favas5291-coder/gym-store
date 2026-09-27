@@ -16,7 +16,7 @@ function Filters({ params, change, reset }) {
     setMax(params.get("maxPrice") || "");
   }, [params.get("minPrice"), params.get("maxPrice")]);
   const scoped = products.filter(
-    (p) => !params.get("category") || p.category === params.get("category"),
+    (p) => !params.get("category") || params.get("category").split(",").includes(p.category),
   );
   function toggle(key, value) {
     const list = (params.get(key) || "").split(",").filter(Boolean);
@@ -40,10 +40,12 @@ function Filters({ params, change, reset }) {
           <label className="check" key={cat.name}>
             <input
               type="checkbox"
-              checked={params.get("category") === cat.name}
+              checked={(params.get("category") || "").split(",").includes(cat.name)}
               onChange={() =>
                 change({
-                  category: params.get("category") === cat.name ? "" : cat.name,
+                  category: (params.get("category") || "").split(",").filter(Boolean).includes(cat.name)
+                    ? params.get("category").split(",").filter(name => name !== cat.name).join(",")
+                    : [...(params.get("category") || "").split(",").filter(Boolean), cat.name].join(","),
                   subcategory: "",
                   size: "",
                   color: "",
@@ -230,9 +232,10 @@ export default function ProductSection() {
     for (const [key, value] of Object.entries(values))
       value ? next.set(key, value) : next.delete(key);
     setParams(next);
+    if (values.page) document.getElementById("shop-results")?.scrollIntoView({block: "start"});
   }
-  const reset = () => setParams({});
-  const chips = [...params.entries()].filter(
+  const reset = () => setParams(params.get("search") ? {search: params.get("search")} : {});
+  const chips = [...params.entries()].flatMap(([key, value]) => ["category", "size", "color", "brand", "gender"].includes(key) ? value.split(",").filter(Boolean).map(item => [key, item]) : [[key, value]]).filter(
     ([key]) => !["page", "sort"].includes(key),
   );
   const filters = { params, change, reset };
@@ -247,7 +250,7 @@ export default function ProductSection() {
         <h1>
           {params.get("search")
             ? `Results for “${params.get("search")}”`
-            : params.get("category") || "All workout essentials"}
+            : params.get("category")?.replaceAll(",", " & ") || "All workout essentials"}
         </h1>
         <span>
           {result.length} {result.length === 1 ? "item" : "items"}
@@ -286,16 +289,16 @@ export default function ProductSection() {
         <aside className="desktop-filters" aria-label="Product filters">
           <Filters {...filters} />
         </aside>
-        <div className="shop-results">
+        <div className="shop-results" id="shop-results">
           {chips.length > 0 && (
             <div className="filter-chips">
               {chips.map(([key, value]) => (
                 <button
                   type="button"
-                  key={key}
+                  key={`${key}-${value}`}
                   onClick={() =>
                     change({
-                      [key]: "",
+                      [key]: ["category", "size", "color", "brand", "gender"].includes(key) ? (params.get(key) || "").split(",").filter(item => item !== value).join(",") : "",
                       ...(key === "category"
                         ? { subcategory: "", size: "", color: "" }
                         : {}),
@@ -347,6 +350,7 @@ export default function ProductSection() {
               <button type="button" className="button" onClick={reset}>
                 Clear all filters
               </button>
+              {params.get("search") && <p><Link className="text-link" to="/shop">Browse all products</Link></p>}
             </div>
           )}
         </div>

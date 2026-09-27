@@ -5,42 +5,74 @@ import {
   number,
 } from "./productPricing.js";
 import { getTotalStock, getVariantStock } from "./cartUtils.js";
+
+const normalize = (value) =>
+  String(value ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+const SEARCH_ALIASES = {
+  tee: ["tee", "t-shirt", "t shirt", "tshirt", "shirt"],
+  trainer: ["trainer", "trainers", "shoe", "shoes", "sneaker", "sneakers"],
+};
+
+function searchVariants(query) {
+  const text = normalize(query);
+  if (!text) return [""];
+
+  const variants = new Set([text, text.replace(/\s+/g, ""), text.replace(/\s+/g, "-")]);
+  for (const term of text.split(/\s+/)) {
+    variants.add(term);
+    for (const [key, values] of Object.entries(SEARCH_ALIASES)) {
+      if (key === term || values.includes(term)) {
+        values.forEach((value) => variants.add(value));
+      }
+    }
+  }
+  return [...variants];
+}
+
 export function matchesSearch(product, query) {
-  const text = String(query || "")
-    .trim()
-    .toLowerCase();
+  const text = normalize(query);
   if (!text) return true;
   if (["bestseller", "bestsellers"].includes(text))
     return Boolean(product.isBestSeller);
   if (["new", "new arrivals"].includes(text)) return Boolean(product.isNew);
   if (text === "top rated") return reviewStats(product).rating >= 4;
-  const haystack = [
-    product.name,
-    product.category,
-    product.subcategory,
-    product.brand,
-    product.description,
-    product.material,
-    product.gender,
-    product.badge,
-    ...(product.tags || []),
-    ...(product.colors || []),
-    ...(product.sizes || []),
-  ]
-    .join(" ")
-    .toLowerCase();
-  return text.split(/\s+/).every((word) => haystack.includes(word));
+
+  const haystack = normalize(
+    [
+      product.name,
+      product.category,
+      product.subcategory,
+      product.brand,
+      product.description,
+      product.material,
+      product.gender,
+      product.badge,
+      ...(product.tags || []),
+      ...(product.colors || []),
+      ...(product.sizes || []),
+    ].join(" "),
+  );
+
+  return searchVariants(text).every((term) => {
+    if (!term) return true;
+    const matches = [term, ...SEARCH_ALIASES[term] || []];
+    return matches.some((variant) => haystack.includes(variant));
+  });
 }
 export function filterProducts(catalogue, params) {
   const selected = (key) => (params.get(key) || "").split(",").filter(Boolean);
   const collection = params.get("collection"),
-    category = params.get("category"),
+    category = selected("category"),
     sub = params.get("subcategory");
   let result = catalogue.filter((product) => {
     const price = getDiscountedPrice(product);
     return (
       matchesSearch(product, params.get("search")) &&
-      (!category || product.category === category) &&
+      (!category.length || category.includes(product.category)) &&
       (!sub || product.subcategory === sub) &&
       (!collection ||
         (collection === "featured" && product.isFeatured) ||
