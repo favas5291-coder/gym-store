@@ -27,5 +27,9 @@ const expected = ['tshirt.jpg','tshirt2.jpg','tshirt3.jpg','shoes.jpg','shoes2.j
 const absent = expected.filter(name=>!filenames.has(name.toLowerCase().replace(/\s+/g,'')));
 if(absent.length) console.warn('PHOTOS: Copy these original photos to src/assets. Until then, labelled illustrations appear:\n'+absent.join(', '));
 else console.log('OK: All catalogue photos are present.');
+const tryonConfig = JSON.parse(fs.readFileSync(path.join(root,'config/tryon-products.json'),'utf8'));
+const fitConfig = JSON.parse(fs.readFileSync(path.join(root,'config/fit-charts.json'),'utf8'));
+const approved = Object.values(tryonConfig.products).flatMap(p => Object.values(p.colors || {})).filter(p => p.approved && fs.existsSync(path.join(root,p.file))).length;
+console.log('TRY-ON: '+approved+' approved reference photos; '+Object.values(fitConfig.products).filter(c => c.verified === true).length+' marked-verified supplier charts. See TRY-ON-SETUP.md for activation.');
 console.log('Mode: browser-local storefront preview. Payments, courier tracking and shared server accounts are not connected.');
 process.exitCode = problems ? 1 : 0;

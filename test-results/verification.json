@@ -1,0 +1,40 @@
+{
+  "project": "GymDrobe",
+  "version": "1.2.0",
+  "verified_on": "2026-09-27",
+  "environment": "Linux; Node v24.19.0; headless Chromium",
+  "local_import_check": {
+    "source_files": 88,
+    "passed": true
+  },
+  "logic_tests": {
+    "passed": 44,
+    "failed": 0,
+    "command": "npm test"
+  },
+  "production_build": {
+    "passed": true,
+    "command": "npm run build"
+  },
+  "browser_scenarios": {
+    "shopping_passed": 12,
+    "tryon_passed": 9,
+    "page_errors": 0,
+    "reports": [
+      "browser-report.json",
+      "tryon-browser-report.json"
+    ]
+  },
+  "responsive_widths_px": [
+    320,
+    390,
+    768,
+    1440
+  ],
+  "limitations": [
+    "Photo try-on was tested with a mock provider and synthetic images; live output quality and physical fit were not validated.",
+    "FASHN credentials, approved product reference photos and verified supplier measurement charts must be provided before activation.",
+    "Windows launcher reviewed but not executed on Windows.",
+    "Main commerce backend, payment and courier services remain unconnected."
+  ]
+}

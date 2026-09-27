@@ -1,0 +1,7 @@
+# Approved try-on photos
+
+Add sharp JPEG/PNG product photos here. Each image must show one item in the exact listed colour on a clean background. Avoid collages, text overlays, hidden panels or different products. At least 384 pixels per side; a detailed 1,500–2,500 pixel source is preferable. Keep each file below 8 MB.
+
+Update `config/tryon-products.json` with each exact path and set `approved: true` only after visually checking it. Black, White and Blue are separate images; the system does not recolour a Black product photo to pretend it is Blue. Restart `npm run dev:tryon` after changing files/configuration.
+
+No reference photos are included because the original photo files were not supplied. Read `TRY-ON-SETUP.md` in the project root.

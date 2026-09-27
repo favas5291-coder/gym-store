@@ -1,0 +1,15 @@
+{
+  "passed": [
+    "fitting room opens; missing supplier data never produces a size",
+    "photo validation and consent gate generation",
+    "real API pipeline with mock provider produces compare/download/reset controls",
+    "unapproved colour cannot silently use another garment photo",
+    "supplier range comparison applies the chosen size to the bag",
+    "measurement validation, unit conversion and no-match state",
+    "provider failures recover without showing a fake result",
+    "closing or stopping pending generation clears local UI",
+    "fitting room and size guide remain usable at mobile and desktop widths"
+  ],
+  "errors": [],
+  "provider": "Mock provider with synthetic colour-grid PNG. No real customer images, paid calls, or realism validation."
+}

@@ -1,3 +1,4 @@
+import { useShoppingTools } from "../context/ShoppingToolsContext.jsx";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useStore } from "../context/StoreContext.jsx";
@@ -13,6 +14,7 @@ import Modal from "./Modal.jsx";
 import ProductOptions from "./ProductOptions.jsx";
 import useProductReviews from "../hooks/useProductReviews.js";
 export default function ProductCard({ product, ...legacy }) {
+  const { compared, toggleCompare } = useShoppingTools();
   const item = product || legacy,
     { wishlist, toggleWishlist } = useStore();
   const [quick, setQuick] = useState(false),
@@ -24,6 +26,16 @@ export default function ProductCard({ product, ...legacy }) {
       <div className="gm-product-visual">
         <Link className="gm-product-image" to={productPath(item.id)}>
           <ProductImage product={item} />
+          {item.images?.find((src) => src && src !== item.image) && (
+            <ProductImage
+              className="alternate-photo"
+              product={{
+                ...item,
+                image: item.images.find((src) => src && src !== item.image),
+              }}
+              decorative
+            />
+          )}
         </Link>
         {item.badge && <span className="gm-product-badge">{item.badge}</span>}
         <button
@@ -67,6 +79,16 @@ export default function ProductCard({ product, ...legacy }) {
           )}
         </p>
       </div>
+      <button
+        className="compare-toggle"
+        type="button"
+        aria-pressed={compared.some((p) => String(p.id) === String(item.id))}
+        onClick={() => toggleCompare(item)}
+      >
+        {compared.some((p) => String(p.id) === String(item.id))
+          ? "✓ In comparison"
+          : "+ Compare"}
+      </button>
       {quick && (
         <Modal
           title={item.name}

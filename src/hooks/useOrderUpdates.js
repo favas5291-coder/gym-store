@@ -1,22 +1,11 @@
-import { useEffect, useState } from "react";
-
+import { useEffect, useReducer } from "react";
 export default function useOrderUpdates() {
-  const [version, setVersion] = useState(0);
-
+  const [revision, update] = useReducer(n => n + 1, 0);
   useEffect(() => {
-    const update = () => setVersion((value) => value + 1);
-    const sync = (event) => {
-      if (event.key === "gymdrobe-orders" || event.key === null) update();
-    };
-
-    window.addEventListener("gymdrobe-orders-updated", update);
+    const sync = event => { if (event.key === "gymdrobe-orders" || event.key === null) update(); };
     window.addEventListener("storage", sync);
-
-    return () => {
-      window.removeEventListener("gymdrobe-orders-updated", update);
-      window.removeEventListener("storage", sync);
-    };
+    window.addEventListener("gymdrobe-orders-updated", update);
+    return () => { window.removeEventListener("storage", sync); window.removeEventListener("gymdrobe-orders-updated", update); };
   }, []);
-
-  return version;
+  return revision;
 }

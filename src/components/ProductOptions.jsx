@@ -1,3 +1,4 @@
+import TryOnEntry from "./tryon/TryOnEntry.jsx";
 import { useShoppingTools } from "../context/ShoppingToolsContext.jsx";
 import FitGuide from "./FitGuide.jsx";
 import { useState } from "react";
@@ -99,6 +100,7 @@ export default function ProductOptions({ product, onAdded }) {
           </div>
         </fieldset>
       )}
+      <TryOnEntry product={product} color={color} size={size} onSelectSize={next => { setSize(next); setQuantity(1); setAdded(false); }} />
       <div className="quantity-line">
         <label htmlFor={`quantity-${product.id}`}>Quantity</label>
         <input
@@ -173,7 +175,7 @@ export default function ProductOptions({ product, onAdded }) {
           ? "Watching this product ✓"
           : "Watch price & availability"}
       </button>
-      {guide && <FitGuide product={product} onClose={() => setGuide(false)} />}
+      {guide && <FitGuide product={product} color={color} onSelectSize={next => { setSize(next); setQuantity(1); setAdded(false); setGuide(false); }} onClose={() => setGuide(false)} />}
     </div>
   );
 }

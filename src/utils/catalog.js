@@ -5,74 +5,45 @@ import {
   number,
 } from "./productPricing.js";
 import { getTotalStock, getVariantStock } from "./cartUtils.js";
-
-const normalize = (value) =>
-  String(value ?? "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-
-const SEARCH_ALIASES = {
-  tee: ["tee", "t-shirt", "t shirt", "tshirt", "shirt"],
-  trainer: ["trainer", "trainers", "shoe", "shoes", "sneaker", "sneakers"],
-};
-
-function searchVariants(query) {
-  const text = normalize(query);
-  if (!text) return [""];
-
-  const variants = new Set([text, text.replace(/\s+/g, ""), text.replace(/\s+/g, "-")]);
-  for (const term of text.split(/\s+/)) {
-    variants.add(term);
-    for (const [key, values] of Object.entries(SEARCH_ALIASES)) {
-      if (key === term || values.includes(term)) {
-        values.forEach((value) => variants.add(value));
-      }
-    }
-  }
-  return [...variants];
-}
-
+const normalizeSearch = value => String(value || "").toLowerCase()
+  .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^a-z0-9]+/g, " ")
+  .replace(/\b(?:t shirts?|tshirts?|tees?)\b/g, "tshirt")
+  .replace(/\btrainers?\b/g, "shoes").trim();
 export function matchesSearch(product, query) {
-  const text = normalize(query);
+  const text = normalizeSearch(query);
   if (!text) return true;
   if (["bestseller", "bestsellers"].includes(text))
     return Boolean(product.isBestSeller);
   if (["new", "new arrivals"].includes(text)) return Boolean(product.isNew);
+  if (["trending", "featured"].includes(text)) return Boolean(product.isFeatured);
   if (text === "top rated") return reviewStats(product).rating >= 4;
-
-  const haystack = normalize(
-    [
-      product.name,
-      product.category,
-      product.subcategory,
-      product.brand,
-      product.description,
-      product.material,
-      product.gender,
-      product.badge,
-      ...(product.tags || []),
-      ...(product.colors || []),
-      ...(product.sizes || []),
-    ].join(" "),
-  );
-
-  return searchVariants(text).every((term) => {
-    if (!term) return true;
-    const matches = [term, ...SEARCH_ALIASES[term] || []];
-    return matches.some((variant) => haystack.includes(variant));
-  });
+  const haystack = normalizeSearch([
+    product.name,
+    product.category,
+    product.subcategory,
+    product.brand,
+    product.description,
+    product.material,
+    product.gender,
+    product.badge,
+    ...(product.tags || []),
+    ...(product.colors || []),
+    ...(product.sizes || []),
+  ]
+    .join(" "));
+  return text.split(/\s+/).every((word) => haystack.includes(word));
 }
 export function filterProducts(catalogue, params) {
   const selected = (key) => (params.get(key) || "").split(",").filter(Boolean);
   const collection = params.get("collection"),
-    category = selected("category"),
+    category = params.get("category"),
     sub = params.get("subcategory");
   let result = catalogue.filter((product) => {
     const price = getDiscountedPrice(product);
     return (
       matchesSearch(product, params.get("search")) &&
-      (!category.length || category.includes(product.category)) &&
+      (!category || selected("category").includes(product.category)) &&
       (!sub || product.subcategory === sub) &&
       (!collection ||
         (collection === "featured" && product.isFeatured) ||
