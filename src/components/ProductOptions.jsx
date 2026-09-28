@@ -1,4 +1,5 @@
 import TryOnEntry from "./tryon/TryOnEntry.jsx";
+import VirtualTryOnButton from "./virtual-try-on/VirtualTryOnButton.jsx";
 import { useShoppingTools } from "../context/ShoppingToolsContext.jsx";
 import FitGuide from "./FitGuide.jsx";
 import { useState } from "react";
@@ -102,6 +103,17 @@ export default function ProductOptions({ product, onAdded }) {
       )}
       <TryOnEntry product={product} color={color} size={size} onSelectSize={next => { setSize(next); setQuantity(1); setAdded(false); }} />
       <div className="quantity-line">
+       <VirtualTryOnButton
+  product={product}
+  color={color}
+  size={size}
+  onSelectionChange={({ color: nextColor, size: nextSize }) => {
+    setColor(nextColor);
+    setSize(nextSize);
+    setQuantity(1);
+    setAdded(false);
+  }}
+/>
         <label htmlFor={`quantity-${product.id}`}>Quantity</label>
         <input
           id={`quantity-${product.id}`}
