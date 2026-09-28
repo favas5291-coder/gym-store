@@ -13,7 +13,6 @@
     "test:browser": "node tests/browser.mjs",
     "setup:vto": "node scripts/setup-vto.mjs",
     "dev:vto": "node scripts/dev-vto.mjs",
-    "prebuild": "node scripts/setup-vto.mjs",
     "test:vto": "node --test tests/vto*.test.js",
     "test:vto:browser": "node tests/vto-browser.mjs"
   },
