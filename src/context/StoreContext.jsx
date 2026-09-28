@@ -50,8 +50,9 @@ export default function StoreProvider({ children }) {
     cartRef.current = checked.cart;
     setCartState(checked.cart);
     if (checked.changes.length) {
-      commitCart(checked.cart);
-      notify("Your bag was updated to current prices and stock.", "info");
+      if (commitCart(checked.cart)) {
+        notify("Your bag was updated to current prices and stock.", "info");
+      }
     }
     const next = wishlistRef.current.map(item => products.find(p => String(p.id) === String(item.id))).filter(Boolean);
     wishlistRef.current = next;
@@ -67,6 +68,7 @@ export default function StoreProvider({ children }) {
       }
       if (event.key === wishlistKey || event.key === null) {
         const next = restoreWishlist(); wishlistRef.current = next; setWishlistState(next);
+        wishlistMemory.current = false;
       }
       if (event.key === couponKey || event.key === null) setCouponState(resolveCoupon(readStorage(couponKey, null)));
     }
@@ -88,8 +90,8 @@ export default function StoreProvider({ children }) {
     const validation = validateCartItem(canonical, total, size, color);
     if (!validation.valid) { notify(validation.message, "error"); return false; }
     const item = normalizeCartItem(canonical, total, size, color);
-    commitCart(existing ? rows.map(row => getCartItemKey(row) === itemKey ? item : row) : [...rows, item]);
-    notify("Added to your bag.");
+    const saved = commitCart(existing ? rows.map(row => getCartItemKey(row) === itemKey ? item : row) : [...rows, item]);
+    if (saved) notify("Added to your bag.");
     return true;
   }
   function updateQuantity(itemKey, quantity) {
@@ -101,8 +103,9 @@ export default function StoreProvider({ children }) {
     commitCart(rows.map(item => getCartItemKey(item) === itemKey ? normalizeCartItem(product, Number(quantity), row.selectedSize, row.selectedColor) : item));
   }
   function removeFromCart(itemKey) {
-    commitCart(latestCart().filter(item => getCartItemKey(item) !== itemKey));
-    notify("Removed from your bag.", "info");
+    if (commitCart(latestCart().filter(item => getCartItemKey(item) !== itemKey))) {
+      notify("Removed from your bag.", "info");
+    }
   }
   function toggleWishlist(product) {
     const canonical = products.find(p => String(p.id) === String(product?.id));

@@ -1,0 +1,831 @@
+.vto-entry {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 76px;
+  margin: 22px 0;
+  padding: 16px 20px;
+  border: 1px solid #e5becd;
+  border-radius: 14px;
+  background: linear-gradient(115deg, #fff4f8, #f5f2ff);
+  text-align: left;
+  color: #272333;
+  cursor: pointer;
+  transition:
+    box-shadow 0.2s,
+    transform 0.2s;
+}
+.vto-entry:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px #6e245914;
+}
+.vto-entry-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #fff;
+  color: #bf3565;
+  font-size: 26px;
+}
+.vto-entry strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 750;
+}
+.vto-entry small {
+  display: block;
+  font-size: 12px;
+  color: #716575;
+  margin-top: 4px;
+}
+.vto-entry-arrow {
+  margin-left: auto;
+  font-size: 24px;
+}
+.modal.vto-modal {
+  width: min(1160px, calc(100vw - 40px));
+  max-width: 1160px;
+  max-height: 94dvh;
+  padding: 0;
+  border: 1px solid #eadfe5;
+  border-radius: 24px;
+  background: #fff;
+  color: #282333;
+  overflow-y: auto;
+  box-shadow: 0 30px 100px #1e102c30;
+  font-family: inherit;
+}
+.modal.vto-modal::backdrop {
+  background: #2015279c;
+  backdrop-filter: blur(5px);
+}
+.modal.vto-modal * {
+  box-sizing: border-box;
+}
+.modal.vto-modal .modal-head {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  padding: 18px 28px;
+  border-bottom: 1px solid #f0e9ee;
+  background: #fff;
+}
+.modal.vto-modal .modal-head h2 {
+  font-size: 16px;
+  letter-spacing: 0;
+  margin: 0;
+  color: #302635;
+}
+.modal.vto-modal .modal-head button {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  border: 1px solid #ebe3e9;
+  border-radius: 50%;
+  font-size: 25px;
+  background: #fff;
+  cursor: pointer;
+}
+.modal.vto-modal .vto-intro {
+  padding: 28px 32px 18px;
+}
+.modal.vto-modal .vto-eyebrow {
+  font-size: 10px !important;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  font-weight: 750;
+  color: #a53e65;
+  margin: 0 0 8px;
+}
+.modal.vto-modal .vto-intro h3 {
+  margin: 0;
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.15;
+  color: #282333;
+}
+.modal.vto-modal .vto-intro > p:last-child {
+  font-size: 13px;
+  color: #756a7a;
+  line-height: 1.6;
+  margin: 10px 0 0;
+}
+.modal.vto-modal .vto-steps {
+  display: flex;
+  gap: 30px;
+  list-style: none;
+  margin: 0;
+  padding: 6px 32px 22px;
+  border-bottom: 1px solid #f0e9ee;
+}
+.modal.vto-modal .vto-steps li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+  color: #817585;
+}
+.modal.vto-modal .vto-steps li span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #e3dae0;
+  border-radius: 50%;
+  font-size: 11px;
+}
+.modal.vto-modal .vto-steps .is-current {
+  color: #a3325a;
+  font-weight: 750;
+}
+.modal.vto-modal .vto-steps .is-current span {
+  color: white;
+  background: #ae315f;
+  border-color: #ae315f;
+}
+.modal.vto-modal .vto-steps .is-done span {
+  background: #eef6f1;
+  color: #36705b;
+  border-color: #d4e5dc;
+}
+.modal.vto-modal .vto-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 38px;
+  padding: 28px 32px 32px;
+}
+.modal.vto-modal .vto-visual,
+.modal.vto-modal .vto-controls {
+  min-width: 0;
+}
+.modal.vto-modal .vto-canvas {
+  position: relative;
+  aspect-ratio: 4/5;
+  max-height: 660px;
+  background: radial-gradient(ellipse at 25% 20%, #fbf1ed, #efedf7);
+  border: 1px solid #e9e1e7;
+  border-radius: 20px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  isolation: isolate;
+}
+.modal.vto-modal .vto-canvas.has-photo {
+  background: #efeaf0;
+}
+.modal.vto-modal .vto-empty {
+  padding: 28px;
+  text-align: center;
+  width: 100%;
+}
+.modal.vto-modal .vto-empty svg {
+  stroke: #a895b0;
+  stroke-width: 1.5;
+  width: 135px;
+  height: 215px;
+  margin: auto;
+}
+.modal.vto-modal .vto-empty h4 {
+  margin: 12px 0 8px;
+  font-size: 23px;
+  color: #403147;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+}
+.modal.vto-modal .vto-empty p {
+  max-width: 230px;
+  margin: 0 auto 20px;
+  font-size: 13px;
+  color: #786a7f;
+  line-height: 1.7;
+}
+.modal.vto-modal .vto-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.modal.vto-modal .vto-person {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.modal.vto-modal .vto-result {
+  background: #efeaf0;
+  z-index: 1;
+}
+.modal.vto-modal .vto-photo-label {
+  position: absolute;
+  top: 14px;
+  padding: 7px 9px;
+  border-radius: 6px;
+  background: #fffffff0;
+  color: #48374d;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  font-weight: 750;
+  z-index: 3;
+  pointer-events: none;
+}
+.modal.vto-modal .vto-photo-label.before {
+  right: 14px;
+}
+.modal.vto-modal .vto-photo-label.after {
+  left: 14px;
+}
+.modal.vto-modal .vto-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 2px;
+  background: #fff;
+  box-shadow: 0 0 8px #352a4940;
+  pointer-events: none;
+}
+.modal.vto-modal .vto-divider span {
+  position: absolute;
+  top: 47%;
+  left: -18px;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  color: #624567;
+  border-radius: 50%;
+  box-shadow: 0 4px 14px #32193028;
+  font-size: 19px;
+}
+.modal.vto-modal .vto-primary,
+.modal.vto-modal .vto-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 12px 19px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.4;
+  transition:
+    background 0.2s,
+    box-shadow 0.2s;
+  font-family: inherit;
+  text-align: center;
+}
+.modal.vto-modal .vto-primary {
+  color: #fff;
+  background: #ad315b;
+}
+.modal.vto-modal .vto-primary:hover {
+  background: #8c2248;
+  box-shadow: 0 6px 18px #9c2e4e20;
+}
+.modal.vto-modal .vto-secondary {
+  background: #fff;
+  color: #49384e;
+  border-color: #dcd0da;
+}
+.modal.vto-modal .vto-secondary:hover {
+  background: #faf6fa;
+  border-color: #a997af;
+}
+.modal.vto-modal .vto-full {
+  width: 100%;
+}
+.modal.vto-modal button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+.modal.vto-modal button:disabled:hover {
+  box-shadow: none;
+}
+.modal.vto-modal .vto-link {
+  font-size: 12px;
+  color: #a3325a;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  background: none;
+  border: 0;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 0;
+}
+.modal.vto-modal .vto-field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 750;
+  margin: 0 0 10px;
+}
+.modal.vto-modal .vto-select {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid #dfd3dd;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: #39313f;
+}
+.modal.vto-modal .vto-product-card {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  padding: 18px 0 22px;
+  border-bottom: 1px solid #eee6ed;
+  margin-bottom: 22px;
+}
+.modal.vto-modal .vto-product-card > img,
+.modal.vto-modal .vto-product-card > .image-fallback,
+.modal.vto-modal .vto-product-card > .gm-image-fallback {
+  width: 86px;
+  height: 100px;
+  min-height: 0;
+  flex-shrink: 0;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #f7f5f7;
+}
+.modal.vto-modal .vto-product-card > div {
+  min-width: 0;
+}
+.modal.vto-modal .vto-product-card h4 {
+  font-size: 16px;
+  line-height: 1.45;
+  font-weight: 750;
+  margin: 0 0 8px;
+  color: #302534;
+}
+.modal.vto-modal .vto-product-card .vto-eyebrow {
+  font-size: 9px !important;
+}
+.modal.vto-modal .vto-price {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0;
+}
+.modal.vto-modal .vto-price strong {
+  font-size: 16px;
+}
+.modal.vto-modal .vto-price del {
+  font-size: 12px;
+  color: #8a7e8f;
+}
+.modal.vto-modal .vto-caption {
+  font-size: 11px;
+  line-height: 1.7;
+  color: #776a7d;
+  margin: 10px 0;
+}
+.modal.vto-modal .vto-product-card .vto-caption {
+  margin-bottom: 0;
+  font-size: 10px;
+}
+.modal.vto-modal .vto-options {
+  margin: 0 0 20px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.modal.vto-modal .vto-options legend {
+  font-size: 12px;
+  color: #706475;
+  margin-bottom: 10px;
+}
+.modal.vto-modal .vto-options legend strong {
+  margin-left: 8px;
+  color: #332839;
+  font-size: 13px;
+}
+.modal.vto-modal .vto-options > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+.modal.vto-modal .vto-options button {
+  min-width: 46px;
+  min-height: 44px;
+  padding: 10px 15px;
+  border: 1px solid #e0d7df;
+  border-radius: 9px;
+  background: #fff;
+  color: #53475a;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.modal.vto-modal .vto-options button[aria-pressed="true"] {
+  border-color: #ad315b;
+  background: #fff1f6;
+  color: #902448;
+  box-shadow: inset 0 0 0 1px #ad315b;
+}
+.modal.vto-modal .vto-options button:disabled {
+  text-decoration: line-through;
+}
+.modal.vto-modal .vto-consent {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 11px;
+  line-height: 1.75;
+  color: #6b5e72;
+  margin: 20px 0 16px;
+  cursor: pointer;
+}
+.modal.vto-modal .vto-consent input {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  margin: 3px 0 0;
+  accent-color: #ad315b;
+}
+.modal.vto-modal .vto-consent a,
+.modal.vto-modal .vto-tips a {
+  color: #923052;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.modal.vto-modal .vto-cta-block {
+  margin: 16px 0;
+}
+.modal.vto-modal .vto-cta-block > .vto-primary {
+  min-height: 52px;
+  justify-content: space-between;
+  padding: 14px 20px;
+  font-size: 14px;
+}
+.modal.vto-modal .vto-bag {
+  text-align: center;
+}
+.modal.vto-modal .vto-bag > .vto-secondary {
+  min-height: 50px;
+}
+.modal.vto-modal .vto-notice {
+  padding: 12px 14px;
+  background: #fff9ef;
+  border: 1px solid #ede0c5;
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: #786045;
+  margin: 16px 0;
+}
+.modal.vto-modal .vto-notice strong {
+  color: #6b5131;
+}
+.modal.vto-modal .vto-notice p {
+  margin: 5px 0 0;
+}
+.modal.vto-modal .vto-error {
+  padding: 12px 14px;
+  border: 1px solid #f0cbd5;
+  border-radius: 10px;
+  background: #fff3f6;
+  color: #962b4b;
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 16px 0;
+}
+.modal.vto-modal .vto-notice-text {
+  font-size: 12px;
+  line-height: 1.65;
+  color: #3d6d5c;
+  padding: 12px 14px;
+  background: #f0f8f3;
+  border-radius: 10px;
+  margin: 14px 0;
+}
+.modal.vto-modal .vto-processing {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  text-align: center;
+  background: #fffafcef;
+  backdrop-filter: blur(6px);
+  padding: 30px;
+}
+.modal.vto-modal .vto-processing strong {
+  font-size: 19px;
+  color: #563854;
+  line-height: 1.5;
+}
+.modal.vto-modal .vto-processing p {
+  font-size: 12px;
+  line-height: 1.8;
+  color: #806d82;
+  max-width: 290px;
+  margin: 0;
+}
+.modal.vto-modal .vto-time {
+  font-size: 10px;
+  color: #876f86;
+  margin-top: 10px;
+}
+.modal.vto-modal .vto-orbit {
+  display: grid;
+  place-items: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 2px solid #efdae6;
+  border-top-color: #c95186;
+  border-right-color: #bc99cd;
+  margin-bottom: 20px;
+  animation: vto-orbit 2s linear infinite;
+  box-shadow: 0 0 35px #ead4ed70;
+}
+.modal.vto-modal .vto-orbit span {
+  font-size: 31px;
+  color: #b54678;
+  animation: vto-orbit 2s linear reverse infinite;
+}
+@keyframes vto-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.modal.vto-modal .vto-slider {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 10px;
+  color: #7b6882;
+  margin: 18px 0 6px;
+}
+.modal.vto-modal .vto-slider input {
+  width: 100%;
+  min-height: 36px;
+  margin: 0;
+  accent-color: #ae315e;
+  cursor: ew-resize;
+}
+.modal.vto-modal .vto-photo-actions {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+.modal.vto-modal .vto-photo-actions button {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: #935471;
+  font-size: 11px;
+  min-height: 44px;
+  padding: 0;
+}
+.modal.vto-modal .vto-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.modal.vto-modal .vto-tips {
+  font-size: 11px;
+  line-height: 1.8;
+  color: #7b6b80;
+  border-top: 1px solid #efe7ed;
+  padding-top: 12px;
+  margin-top: 14px;
+}
+.modal.vto-modal .vto-tips summary {
+  cursor: pointer;
+  min-height: 36px;
+  font-weight: 750;
+  color: #6e5876;
+}
+.modal.vto-modal .vto-tips ul {
+  padding-left: 17px;
+}
+.modal.vto-modal .vto-tips li {
+  margin: 6px 0;
+}
+.vto-loading-entry {
+  padding: 12px;
+  font-size: 12px;
+  color: #82556d;
+}
+.modal.vto-modal .vto-camera-frame {
+  position: relative;
+  aspect-ratio: 3/4;
+  background: #221d28;
+  border-radius: 18px;
+  overflow: hidden;
+}
+.modal.vto-modal .vto-camera-frame video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: scaleX(-1);
+}
+.modal.vto-modal .vto-camera-guide {
+  position: absolute;
+  inset: 9% 16%;
+  border: 1px dashed #ffffffa0;
+  border-radius: 42% 42% 18% 18%;
+  pointer-events: none;
+}
+.modal.vto-modal .vto-camera-frame > p {
+  position: absolute;
+  inset: 40% 12%;
+  text-align: center;
+  font-size: 13px;
+  color: #fff;
+}
+.modal.vto-modal .vto-camera > p {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #776880;
+}
+.modal.vto-modal :focus-visible,
+.vto-entry:focus-visible {
+  outline: 3px solid #aa4975;
+  outline-offset: 3px;
+}
+@media (max-width: 820px) {
+  .modal.vto-modal {
+    width: calc(100vw - 24px);
+    max-height: 96dvh;
+    border-radius: 18px;
+  }
+  .modal.vto-modal .vto-layout {
+    gap: 24px;
+    padding: 24px;
+  }
+  .modal.vto-modal .vto-intro {
+    padding: 24px 24px 18px;
+  }
+  .modal.vto-modal .vto-intro h3 {
+    font-size: 30px;
+  }
+  .modal.vto-modal .vto-steps {
+    padding-left: 24px;
+    padding-right: 24px;
+    gap: 20px;
+  }
+  .modal.vto-modal .vto-product-card {
+    gap: 12px;
+  }
+  .modal.vto-modal .vto-product-card > img {
+    width: 65px;
+    height: 80px;
+  }
+  .modal.vto-modal .vto-product-card h4 {
+    font-size: 14px;
+  }
+}
+@media (max-width: 650px) {
+  .modal.vto-modal {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+  }
+  .modal.vto-modal .modal-head {
+    padding: 10px 18px;
+  }
+  .modal.vto-modal .vto-intro {
+    padding: 21px 18px 15px;
+  }
+  .modal.vto-modal .vto-intro h3 {
+    font-size: 29px;
+  }
+  .modal.vto-modal .vto-intro > p:last-child {
+    font-size: 12px;
+  }
+  .modal.vto-modal .vto-steps {
+    padding: 4px 18px 18px;
+    gap: 16px;
+    justify-content: space-between;
+  }
+  .modal.vto-modal .vto-steps li {
+    font-size: 10px;
+    gap: 6px;
+  }
+  .modal.vto-modal .vto-steps li span {
+    width: 22px;
+    height: 22px;
+  }
+  .modal.vto-modal .vto-layout {
+    display: block;
+    padding: 18px 18px max(24px, env(safe-area-inset-bottom));
+  }
+  .modal.vto-modal .vto-visual {
+    max-width: 430px;
+    margin: 0 auto 25px;
+  }
+  .modal.vto-modal .vto-empty {
+    padding: 24px 15px;
+  }
+  .modal.vto-modal .vto-empty svg {
+    height: 140px;
+    width: 95px;
+  }
+  .modal.vto-modal .vto-empty h4 {
+    font-size: 21px;
+  }
+  .modal.vto-modal .vto-empty p {
+    font-size: 12px;
+  }
+  .modal.vto-modal .vto-canvas:not(.has-photo) {
+    aspect-ratio: auto;
+    min-height: 330px;
+  }
+  .modal.vto-modal .vto-canvas.has-photo {
+    max-height: 65dvh;
+  }
+  .modal.vto-modal .vto-controls {
+    padding-top: 8px;
+  }
+  .modal.vto-modal .vto-cta-block {
+    position: sticky;
+    bottom: 0;
+    z-index: 6;
+    background: #fff;
+    padding: 12px 0 max(12px, env(safe-area-inset-bottom));
+    box-shadow: 0 -8px 18px #ffffffed;
+  }
+  .modal.vto-modal .vto-options button {
+    min-width: 48px;
+    min-height: 46px;
+  }
+  .modal.vto-modal .vto-select {
+    font-size: 16px;
+  }
+  .modal.vto-modal .vto-product-card > img {
+    width: 78px;
+    height: 90px;
+  }
+  .modal.vto-modal .vto-photo-actions {
+    gap: 22px;
+  }
+  .modal.vto-modal .vto-primary,
+  .modal.vto-modal .vto-secondary {
+    min-height: 48px;
+  }
+  .vto-entry {
+    margin: 18px 0;
+    padding: 14px;
+  }
+  .vto-entry small {
+    font-size: 11px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal.vto-modal .vto-orbit,
+  .modal.vto-modal .vto-orbit span {
+    animation: none;
+  }
+  .vto-entry,
+  .modal.vto-modal .vto-primary,
+  .modal.vto-modal .vto-secondary {
+    transition: none;
+  }
+  .vto-entry:hover {
+    transform: none;
+  }
+}
+
+.modal.vto-modal .vto-canvas:not(.has-photo) {
+  min-height: 450px;
+}
+@media (max-width: 650px) {
+  .modal.vto-modal .vto-canvas:not(.has-photo) {
+    min-height: 330px;
+  }
+}

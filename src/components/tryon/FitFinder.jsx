@@ -1,6 +1,6 @@
 import { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
-import charts from '../../../scripts/config/fit-charts.json';
+import charts from '../../../config/fit-charts.json';
 import { assessFit, chartProblem, convertMeasurement, MEASUREMENTS } from '../../utils/fit.js';
 import { getVariantStock } from '../../utils/cartUtils.js';
 

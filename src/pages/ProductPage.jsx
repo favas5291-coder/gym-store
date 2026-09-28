@@ -18,29 +18,44 @@ function ProductDetail({ product }) {
   const { compared, toggleCompare } = useShoppingTools();
   const { notify, shoppingKey } = useStore(),
     { rating, count } = useProductReviews(product);
+  const deliveryKey = shoppingKey("gymdrobe-delivery-pincode");
+  const recentlyViewedKey = shoppingKey("gymdrobe-recently-viewed");
   const images = [
-    ...new Set([product.image, ...(product.images || [])].filter(Boolean)),
+    ...new Set(
+      [product.image, ...(Array.isArray(product.images) ? product.images : [])]
+        .filter((src) => typeof src === "string" && src.trim()),
+    ),
   ];
   const [photo, setPhoto] = useState(images[0] || ""),
     [zoom, setZoom] = useState(false),
-    [pincode, setPincode] = useState(
-      readStorage(shoppingKey("gymdrobe-delivery-pincode"), ""),
-    ),
+    [pincode, setPincode] = useState(() => {
+      const saved = readStorage(deliveryKey, "");
+      return typeof saved === "string" ? saved : "";
+    }),
     [delivery, setDelivery] = useState("");
-  const [recentIds] = useState(() => {
-    const ids = readStorage(shoppingKey("gymdrobe-recently-viewed"), []);
-    return Array.isArray(ids) ? ids.map(String) : [];
-  });
+  const activePhoto = images.includes(photo) ? photo : images[0] || "";
+  const photoIndex = images.indexOf(activePhoto);
+  const isCompared = compared.some((item) => String(item.id) === String(product.id));
+  const highlights = Array.isArray(product.highlights)
+    ? product.highlights
+    : Array.isArray(product.features) ? product.features : [];
+  const careInstructions = Array.isArray(product.careInstructions)
+    ? product.careInstructions
+    : typeof product.careInstructions === "string" && product.careInstructions.trim()
+      ? [product.careInstructions]
+      : [];
   useEffect(() => { document.title = `${product.name} | GymDrobe`; }, [product.name]);
   useEffect(() => {
+    const saved = readStorage(recentlyViewedKey, []);
+    const recentIds = Array.isArray(saved) ? saved.filter((id) => id != null).map(String) : [];
     writeStorage(
-      shoppingKey("gymdrobe-recently-viewed"),
-      [
+      recentlyViewedKey,
+      [...new Set([
         String(product.id),
         ...recentIds.filter((id) => id !== String(product.id)),
-      ].slice(0, 8),
+      ])].slice(0, 8),
     );
-  }, [product.id, recentIds]);
+  }, [product.id, recentlyViewedKey]);
   const related = rankRelated(product, products).slice(0, 5);
   function checkDelivery(event) {
     event.preventDefault();
@@ -48,7 +63,7 @@ function ProductDetail({ product }) {
       setDelivery("Enter a valid 6-digit pincode.");
       return;
     }
-    writeStorage(shoppingKey("gymdrobe-delivery-pincode"), pincode);
+    writeStorage(deliveryKey, pincode);
     setDelivery(
       product.delivery?.available === false
         ? "This product is currently unavailable for delivery."
@@ -85,10 +100,11 @@ function ProductDetail({ product }) {
           <button
             className="main-photo"
             type="button"
+            disabled={!activePhoto}
             onClick={() => setZoom(true)}
             aria-label={`Enlarge ${product.name} image`}
           >
-            <ProductImage product={{ ...product, image: photo }} eager />
+            <ProductImage product={{ ...product, image: activePhoto }} eager />
           </button>
           {images.length > 1 && (
             <div className="thumbnails">
@@ -97,7 +113,7 @@ function ProductDetail({ product }) {
                   key={src}
                   type="button"
                   aria-label={`View product photo ${index + 1}`}
-                  aria-pressed={photo === src}
+                  aria-pressed={activePhoto === src}
                   onClick={() => setPhoto(src)}
                 >
                   <ProductImage
@@ -152,9 +168,9 @@ function ProductDetail({ product }) {
           <details open className="product-description">
             <summary>PRODUCT DETAILS</summary>
             <p>{product.description}</p>
-            {Array.isArray(product.highlights || product.features) && (
+            {highlights.length > 0 && (
               <ul>
-                {(product.highlights || product.features).map((feature) => (
+                {highlights.map((feature) => (
                   <li key={feature}>{feature}</li>
                 ))}
               </ul>
@@ -170,9 +186,9 @@ function ProductDetail({ product }) {
           </details>
           <details className="product-description">
             <summary>CARE INSTRUCTIONS</summary>
-            {product.careInstructions?.length ? (
+            {careInstructions.length ? (
               <ul>
-                {product.careInstructions.map((line) => (
+                {careInstructions.map((line) => (
                   <li key={line}>{line}</li>
                 ))}
               </ul>
@@ -184,10 +200,10 @@ function ProductDetail({ product }) {
             <button
               className="text-link"
               type="button"
-              aria-pressed={compared.some((p) => p.id === product.id)}
+              aria-pressed={isCompared}
               onClick={() => toggleCompare(product)}
             >
-              {compared.some((p) => p.id === product.id)
+              {isCompared
                 ? "Remove from comparison"
                 : "Compare this product"}
             </button>
@@ -212,7 +228,7 @@ function ProductDetail({ product }) {
           onClose={() => setZoom(false)}
           className="image-modal"
         >
-          <ProductImage product={{ ...product, image: photo }} eager />
+          <ProductImage product={{ ...product, image: activePhoto }} eager />
           {images.length > 1 && (
             <div className="pagination">
               <button
@@ -220,7 +236,7 @@ function ProductDetail({ product }) {
                 onClick={() =>
                   setPhoto(
                     images[
-                      (images.indexOf(photo) - 1 + images.length) %
+                      (photoIndex - 1 + images.length) %
                         images.length
                     ],
                   )
@@ -229,12 +245,12 @@ function ProductDetail({ product }) {
                 Previous photo
               </button>
               <span>
-                {images.indexOf(photo) + 1} / {images.length}
+                {photoIndex + 1} / {images.length}
               </span>
               <button
                 type="button"
                 onClick={() =>
-                  setPhoto(images[(images.indexOf(photo) + 1) % images.length])
+                  setPhoto(images[(photoIndex + 1) % images.length])
                 }
               >
                 Next photo

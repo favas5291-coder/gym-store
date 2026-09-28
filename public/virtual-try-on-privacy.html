@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Virtual Try-On photo privacy | GymDrobe</title>
+    <style>
+      body {
+        margin: 0;
+        background: #fcf9fb;
+        color: #342b39;
+        font:
+          16px/1.8 system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 740px;
+        margin: 40px auto;
+        padding: 28px;
+      }
+      h1 {
+        line-height: 1.2;
+        letter-spacing: -0.04em;
+      }
+      h2 {
+        font-size: 19px;
+        margin-top: 28px;
+      }
+      a {
+        color: #a7355e;
+      }
+      li {
+        margin: 10px 0;
+      }
+      .note {
+        padding: 18px;
+        border: 1px solid #e9d6e0;
+        background: white;
+        border-radius: 14px;
+      }
+      footer {
+        font-size: 13px;
+        color: #786877;
+        margin-top: 35px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a href="/">← GymDrobe</a>
+      <h1>Your photo. Your choice.</h1>
+      <p>
+        This notice explains how the GymDrobe Virtual Try-On feature handles
+        photos.
+      </p>
+      <h2>Before you generate</h2>
+      <p>
+        Uploaded and camera photos are held in the open fitting room. Image
+        quality and person checks run on your device using a locally served
+        model. Preparing a photo removes embedded metadata, including location
+        metadata. Camera access begins only when you choose “Use camera”;
+        closing the camera or fitting room stops the stream.
+      </p>
+      <h2>When you choose “Try It On”</h2>
+      <p>
+        With your permission, GymDrobe sends a prepared copy of your photo and
+        the chosen product photo to FASHN to generate an appearance preview.
+        These photos are used for this requested try-on. Your cart, address,
+        payment information and body measurements are not included in the
+        request.
+      </p>
+      <h2>Storage and retention</h2>
+      <ul>
+        <li>
+          GymDrobe does not save your photo or generated preview to your
+          account, browser storage or application database. They pass through
+          the server during generation and retrieval.
+        </li>
+        <li>
+          Closing the fitting room or choosing “Remove photo” clears its local
+          copies. A request already sent may still finish at the image service.
+        </li>
+        <li>
+          Job identifiers and product selections expire from job storage after
+          10 minutes. Rate-limit counters and a keyed hash of the requesting IP
+          expire within 24 hours. A necessary session cookie expires after 24
+          hours.
+        </li>
+        <li>
+          FASHN processes inputs sent as base64. Its documented policy removes
+          temporary input copies after processing, with a one-day cleanup
+          backstop. This integration requests base64 outputs, which remain
+          retrievable at the provider for up to 60 minutes after completion.
+        </li>
+        <li>
+          FASHN retains request records such as parameters, timestamps and
+          status; base64 image inputs are represented by placeholders. These
+          records are not automatically deleted. Its policy states customer
+          content is not used for model training unless separately opted in.
+        </li>
+        <li>
+          Downloads and shared copies remain on the devices or services you
+          choose. Removing a photo here does not remove those copies.
+        </li>
+      </ul>
+      <p>
+        <a
+          href="https://docs.fashn.ai/api-overview/data-retention-privacy"
+          target="_blank"
+          rel="noreferrer"
+          >Read FASHN’s data-retention policy</a
+        >.
+      </p>
+      <h2>Your choices</h2>
+      <p>
+        You can shop without using Virtual Try-On, remove your photo at any
+        time, and decide whether to download or share a result. Only use photos
+        you have permission to process. For questions about this feature,
+        <a href="/help">contact GymDrobe through Help</a>.
+      </p>
+      <p class="note">
+        AI previews illustrate appearance. They can alter details, body
+        proportions, pose or drape. They do not measure physical fit or
+        guarantee how a product will look in real life.
+      </p>
+      <footer>Virtual Try-On photo handling · GymDrobe</footer>
+    </main>
+  </body>
+</html>

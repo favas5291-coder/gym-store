@@ -1,0 +1,42 @@
+{
+  "products": {
+    "1": {
+      "enabled": true,
+      "name": "Gym Training T-Shirt",
+      "category": "tops",
+      "colors": {
+        "Black": {
+          "image": "/tryon-products/tshirt-black.jpg",
+          "approved": false
+        },
+        "White": {
+          "image": "/tryon-products/tshirt-white.jpg",
+          "approved": false
+        },
+        "Blue": {
+          "image": "/tryon-products/tshirt-blue.jpg",
+          "approved": false
+        }
+      }
+    },
+    "2": {
+      "enabled": true,
+      "name": "Performance Gym Shoes",
+      "category": "shoes",
+      "colors": {
+        "Black": {
+          "image": "/tryon-products/shoes-black.jpg",
+          "approved": false
+        },
+        "White": {
+          "image": "/tryon-products/shoes-white.jpg",
+          "approved": false
+        },
+        "Grey": {
+          "image": "/tryon-products/shoes-grey.jpg",
+          "approved": false
+        }
+      }
+    }
+  }
+}
