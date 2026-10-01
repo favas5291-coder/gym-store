@@ -1,119 +1,780 @@
-import { allOrders } from "../utils/customerData.js";
-import { applyReservations, reservedQuantity } from "../utils/inventory.js";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import seedProducts from "../data/products.js";
-import { readStorage, writeStorage } from "../utils/storage.js";
-import { getTotalStock } from "../utils/cartUtils.js";
-const CatalogContext = createContext(null);
-const KEY = "gymdrobe-catalog-preview-v3";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
-function restore() {
-  const saved = readStorage(KEY, []);
-  if (!Array.isArray(saved)) return seedProducts;
-  const edits = new Map(
-    saved
-      .filter(
-        (p) =>
-          p &&
-          p.id &&
-          typeof p.name === "string" &&
-          Number.isFinite(p.price) &&
-          p.price >= 0,
+import {
+  allOrders,
+} from "../utils/customerData.js";
+
+import {
+  applyReservations,
+  reservedQuantity,
+} from "../utils/inventory.js";
+
+import {
+  getTotalStock,
+} from "../utils/cartUtils.js";
+
+import {
+  createProduct,
+  getProducts,
+  updateProduct,
+} from "../services/productApi.js";
+
+const CatalogContext =
+  createContext(null);
+
+
+// ======================================================
+// NORMALIZE MONGODB PRODUCT
+// ======================================================
+
+function normalizeProduct(product) {
+  if (!product) {
+    return null;
+  }
+
+  return {
+    ...product,
+
+    // Existing frontend expects product.id.
+    // MongoDB gives us product._id.
+    id:
+      product.id ||
+      product._id,
+
+    _id:
+      product._id ||
+      product.id,
+
+    name:
+      product.name ||
+      "",
+
+    slug:
+      product.slug ||
+      "",
+
+    category:
+      product.category ||
+      "",
+
+    subcategory:
+      product.subcategory ||
+      "",
+
+    brand:
+      product.brand ||
+      "GymDrobe",
+
+    gender:
+      product.gender ||
+      "Unisex",
+
+    price:
+      Number(
+        product.price ?? 0
+      ),
+
+    discount:
+      Number(
+        product.discount ?? 0
+      ),
+
+    stock:
+      Number(
+        product.stock ?? 0
+      ),
+
+    rating:
+      Number(
+        product.rating ?? 0
+      ),
+
+    reviewCount:
+      Number(
+        product.reviewCount ?? 0
+      ),
+
+    sizes:
+      Array.isArray(
+        product.sizes
       )
-      .map((p) => [String(p.id), p]),
-  );
-  const merged = seedProducts.map((p) => ({
-    ...p,
-    ...(edits.get(String(p.id)) || {}),
-    image: edits.get(String(p.id))?.customImage || p.image,
-    images: edits.get(String(p.id))?.customImage
-      ? [edits.get(String(p.id)).customImage]
-      : p.images,
-  }));
-  return [
-    ...merged,
-    ...[...edits.values()].filter(
-      (p) => !seedProducts.some((s) => String(s.id) === String(p.id)),
-    ),
-  ];
+        ? product.sizes.map(
+            String
+          )
+        : [],
+
+    colors:
+      Array.isArray(
+        product.colors
+      )
+        ? product.colors.map(
+            String
+          )
+        : [],
+
+    images:
+      Array.isArray(
+        product.images
+      )
+        ? product.images
+        : [],
+
+    tags:
+      Array.isArray(
+        product.tags
+      )
+        ? product.tags
+        : [],
+
+    highlights:
+      Array.isArray(
+        product.highlights
+      )
+        ? product.highlights
+        : [],
+
+    careInstructions:
+      Array.isArray(
+        product.careInstructions
+      )
+        ? product.careInstructions
+        : [],
+
+    reviews:
+      Array.isArray(
+        product.reviews
+      )
+        ? product.reviews
+        : [],
+
+    variants:
+      product.variants &&
+      typeof product.variants ===
+        "object"
+        ? product.variants
+        : {},
+
+    specifications:
+      product.specifications &&
+      typeof product.specifications ===
+        "object"
+        ? product.specifications
+        : {},
+
+    delivery:
+      product.delivery &&
+      typeof product.delivery ===
+        "object"
+        ? product.delivery
+        : {},
+
+    isFeatured:
+      Boolean(
+        product.isFeatured
+      ),
+
+    isBestSeller:
+      Boolean(
+        product.isBestSeller
+      ),
+
+    isNew:
+      Boolean(
+        product.isNew ??
+        product.isNewArrival
+      ),
+
+    isActive:
+      product.isActive !==
+      false,
+  };
 }
-export default function CatalogProvider({ children }) {
-  const [baseProducts, setProducts] = useState(restore);
-  const [revision, setRevision] = useState(0);
-  const products = useMemo(
-    () => applyReservations(baseProducts, allOrders()),
-    [baseProducts, revision],
-  );
+
+
+// ======================================================
+// PREPARE PRODUCT BEFORE SENDING TO BACKEND
+// ======================================================
+
+function prepareForApi(product) {
+  const {
+    id,
+    _id,
+    createdAt,
+    updatedAt,
+    __v,
+    isNew,
+    ...productData
+  } = product;
+
+  const reviews =
+    Array.isArray(
+      product.reviews
+    )
+      ? product.reviews.map(
+          (review) => {
+            const {
+              _id,
+              createdAt,
+              updatedAt,
+              __v,
+              ...reviewData
+            } = review;
+
+            return reviewData;
+          }
+        )
+      : [];
+
+  return {
+    ...productData,
+
+    isNewArrival:
+      Boolean(isNew),
+
+    reviews,
+  };
+}
+
+
+// ======================================================
+// VALIDATE PRODUCT
+// ======================================================
+
+function validateProduct(product) {
+  if (
+    !String(
+      product.name || ""
+    ).trim()
+  ) {
+    return false;
+  }
+
+  if (
+    !Number.isFinite(
+      Number(product.price)
+    ) ||
+    Number(product.price) <
+      0
+  ) {
+    return false;
+  }
+
+  if (
+    !Number.isFinite(
+      Number(
+        product.discount ?? 0
+      )
+    ) ||
+    Number(
+      product.discount ?? 0
+    ) < 0 ||
+    Number(
+      product.discount ?? 0
+    ) > 100
+  ) {
+    return false;
+  }
+
+  const stockValid = (
+    value
+  ) => {
+    if (
+      value &&
+      typeof value ===
+        "object"
+    ) {
+      return Object.values(
+        value
+      ).every(stockValid);
+    }
+
+    return (
+      Number.isSafeInteger(
+        Number(value)
+      ) &&
+      Number(value) >= 0
+    );
+  };
+
+  if (
+    product.variants &&
+    !stockValid(
+      product.variants
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    !product.variants &&
+    !stockValid(
+      product.stock ?? 0
+    )
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+
+// ======================================================
+// PROVIDER
+// ======================================================
+
+export default function CatalogProvider({
+  children,
+}) {
+  const [
+    baseProducts,
+    setBaseProducts,
+  ] = useState([]);
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    error,
+    setError,
+  ] = useState("");
+
+  const [
+    revision,
+    setRevision,
+  ] = useState(0);
+
+
+  // ======================================================
+  // LOAD PRODUCTS FROM EXPRESS / MONGODB
+  // ======================================================
+
+  const refreshProducts =
+    useCallback(
+      async () => {
+        try {
+          setLoading(true);
+
+          setError("");
+
+          const data =
+            await getProducts();
+
+          const normalized =
+            Array.isArray(data)
+              ? data
+                  .map(
+                    normalizeProduct
+                  )
+                  .filter(Boolean)
+              : [];
+
+          setBaseProducts(
+            normalized
+          );
+
+          return normalized;
+        } catch (error) {
+          console.error(
+            "Catalog loading error:",
+            error
+          );
+
+          setError(
+            error.message ||
+              "Unable to load products."
+          );
+
+          return [];
+        } finally {
+          setLoading(false);
+        }
+      },
+      []
+    );
+
+
+  // ======================================================
+  // INITIAL LOAD
+  // ======================================================
+
   useEffect(() => {
-    const sync = (event) => {
-      if (event.key === KEY || event.key === null) setProducts(restore());
-      if (event.key === "gymdrobe-orders" || event.key === null) setRevision((n) => n + 1);
+    refreshProducts();
+  }, [
+    refreshProducts,
+  ]);
+
+
+  // ======================================================
+  // APPLY LOCAL ORDER RESERVATIONS
+  // ======================================================
+
+  const products =
+    useMemo(
+      () =>
+        applyReservations(
+          baseProducts,
+          allOrders()
+        ),
+
+      [
+        baseProducts,
+        revision,
+      ]
+    );
+
+
+  // ======================================================
+  // WATCH ORDER CHANGES
+  // ======================================================
+
+  useEffect(() => {
+    const updateOrders =
+      () => {
+        setRevision(
+          (value) =>
+            value + 1
+        );
+      };
+
+    const syncStorage = (
+      event
+    ) => {
+      if (
+        event.key ===
+          "gymdrobe-orders" ||
+        event.key === null
+      ) {
+        updateOrders();
+      }
     };
-    const update = () => setRevision((n) => n + 1);
-    window.addEventListener("gymdrobe-orders-updated", update);
-    window.addEventListener("storage", sync);
+
+    window.addEventListener(
+      "gymdrobe-orders-updated",
+      updateOrders
+    );
+
+    window.addEventListener(
+      "storage",
+      syncStorage
+    );
+
     return () => {
-      window.removeEventListener("storage", sync);
-      window.removeEventListener("gymdrobe-orders-updated", update);
+      window.removeEventListener(
+        "gymdrobe-orders-updated",
+        updateOrders
+      );
+
+      window.removeEventListener(
+        "storage",
+        syncStorage
+      );
     };
   }, []);
-  function saveProduct(product) {
+
+
+  // ======================================================
+  // CREATE / UPDATE PRODUCT
+  // ======================================================
+
+  async function saveProduct(
+    product
+  ) {
     if (
-      !product.id ||
-      !String(product.name || "").trim() ||
-      !Number.isFinite(product.price) ||
-      product.price < 0 ||
-      !Number.isFinite(product.discount) ||
-      product.discount < 0 ||
-      product.discount > 100
-    )
+      !validateProduct(
+        product
+      )
+    ) {
+      console.error(
+        "Invalid product data."
+      );
+
       return false;
-    const stockValid = (value) =>
-      value && typeof value === "object"
-        ? Object.values(value).every(stockValid)
-        : Number.isSafeInteger(value) && value >= 0;
-    if (!stockValid(product.variants || product.stock)) return false;
-    const nextProduct = {
-      ...product,
-      variants: product.variants
-        ? structuredClone(product.variants)
-        : undefined,
-    };
-    // The editor accepts available stock. Restore the ledger base before applying reservations again.
-    const orders = allOrders();
-    if (nextProduct.variants) {
-      for (const color of product.colors?.length ? product.colors : [null]) {
-        for (const size of product.sizes?.length ? product.sizes : [null]) {
-          const group = color
-            ? nextProduct.variants[color]
-            : nextProduct.variants;
-          if (group && typeof group === "object") {
-            const key = size || "default";
-            group[key] =
-              Number(group[key] || 0) +
-              reservedQuantity(orders, product, size, color);
+    }
+
+    try {
+      const nextProduct =
+        structuredClone(
+          product
+        );
+
+      /*
+        The frontend currently displays
+        AVAILABLE inventory after local
+        order reservations have been applied.
+
+        Before saving to MongoDB we restore
+        those reserved quantities.
+      */
+
+      const orders =
+        allOrders();
+
+
+      if (
+        nextProduct.variants &&
+        typeof nextProduct.variants ===
+          "object"
+      ) {
+        const colors =
+          product.colors
+            ?.length
+            ? product.colors
+            : [null];
+
+        const sizes =
+          product.sizes
+            ?.length
+            ? product.sizes
+            : [null];
+
+        for (
+          const color
+          of colors
+        ) {
+          for (
+            const size
+            of sizes
+          ) {
+            const group =
+              color
+                ? nextProduct
+                    .variants[
+                    color
+                  ]
+                : nextProduct
+                    .variants;
+
+            if (
+              group &&
+              typeof group ===
+                "object"
+            ) {
+              const key =
+                size ||
+                "default";
+
+              group[key] =
+                Number(
+                  group[
+                    key
+                  ] || 0
+                ) +
+                reservedQuantity(
+                  orders,
+                  product,
+                  size,
+                  color
+                );
+            }
           }
         }
+      } else {
+        nextProduct.stock =
+          Number(
+            nextProduct.stock ||
+              0
+          ) +
+          reservedQuantity(
+            orders,
+            product,
+            null,
+            null
+          );
       }
-    } else nextProduct.stock += reservedQuantity(orders, product, null, null);
-    nextProduct.stock = getTotalStock(nextProduct);
-    const next = baseProducts.some((p) => String(p.id) === String(product.id))
-      ? baseProducts.map((p) =>
-          String(p.id) === String(product.id) ? nextProduct : p,
-        )
-      : [...baseProducts, nextProduct];
-    if (!writeStorage(KEY, next)) return false;
-    setProducts(next);
-    return true;
+
+
+      // Recalculate total inventory.
+      nextProduct.stock =
+        getTotalStock(
+          nextProduct
+        );
+
+
+      // Find existing MongoDB product.
+      const existing =
+        baseProducts.find(
+          (item) =>
+            String(
+              item.id
+            ) ===
+              String(
+                product.id
+              ) ||
+            (
+              product._id &&
+              String(
+                item._id
+              ) ===
+                String(
+                  product._id
+                )
+            )
+        );
+
+
+      const apiData =
+        prepareForApi(
+          nextProduct
+        );
+
+      let response;
+
+
+      // UPDATE
+      if (existing) {
+        response =
+          await updateProduct(
+            existing._id ||
+              existing.id,
+
+            apiData
+          );
+      }
+
+      // CREATE
+      else {
+        response =
+          await createProduct(
+            apiData
+          );
+      }
+
+
+      const savedProduct =
+        normalizeProduct(
+          response.product
+        );
+
+
+      if (!savedProduct) {
+        return false;
+      }
+
+
+      // Update React state.
+      setBaseProducts(
+        (current) => {
+          const exists =
+            current.some(
+              (item) =>
+                String(
+                  item.id
+                ) ===
+                  String(
+                    savedProduct.id
+                  )
+            );
+
+          if (exists) {
+            return current.map(
+              (item) =>
+                String(
+                  item.id
+                ) ===
+                String(
+                  savedProduct.id
+                )
+                  ? savedProduct
+                  : item
+            );
+          }
+
+          return [
+            ...current,
+            savedProduct,
+          ];
+        }
+      );
+
+      return true;
+
+    } catch (error) {
+      console.error(
+        "Product save error:",
+        error
+      );
+
+      return false;
+    }
   }
+
+
+  // ======================================================
+  // CURRENT CATALOG
+  // ======================================================
+
+  function getLatestProducts() {
+    return applyReservations(
+      baseProducts,
+      allOrders()
+    );
+  }
+
+
+  // ======================================================
+  // PROVIDER VALUE
+  // ======================================================
+
+  const value =
+    useMemo(
+      () => ({
+        products,
+
+        loading,
+
+        error,
+
+        saveProduct,
+
+        refreshProducts,
+
+        getLatestProducts,
+      }),
+
+      [
+        products,
+        loading,
+        error,
+        baseProducts,
+        refreshProducts,
+      ]
+    );
+
+
   return (
-    <CatalogContext.Provider value={{ products, saveProduct, getLatestProducts: () => applyReservations(restore(), allOrders()) }}>
+    <CatalogContext.Provider
+      value={value}
+    >
       {children}
     </CatalogContext.Provider>
   );
 }
+
+
+// ======================================================
+// HOOK
+// ======================================================
+
 export function useCatalog() {
-  const context = useContext(CatalogContext);
-  if (!context) throw new Error("CatalogProvider is missing.");
+  const context =
+    useContext(
+      CatalogContext
+    );
+
+  if (!context) {
+    throw new Error(
+      "CatalogProvider is missing."
+    );
+  }
+
   return context;
 }

@@ -1,163 +1,784 @@
-import { useEffect, useState } from "react";
-import { useAuth } from "../context/AuthContext.jsx";
-import { useStore } from "../context/StoreContext.jsx";
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  useAuth,
+} from "../context/AuthContext.jsx";
+
+import {
+  useStore,
+} from "../context/StoreContext.jsx";
+
 import {
   addressErrors,
   EMPTY_ADDRESS,
-  getAddresses,
-  saveAddresses,
 } from "../utils/customerData.js";
-import { makeId, userKey } from "../utils/storage.js";
+
+import {
+  createAddress,
+  deleteAddress,
+  getAddresses,
+  updateAddress,
+} from "../services/addressApi.js";
+
 import AccountLayout from "../components/AccountLayout.jsx";
+
 import AddressForm from "../components/AddressForm.jsx";
+
 import Modal from "../components/Modal.jsx";
+
+
+// ======================================================
+// ADDRESS PAGE
+// ======================================================
+
 export default function AddressesPage() {
-  const { user } = useAuth(),
-    { notify } = useStore();
-  const [addresses, setAddresses] = useState(() => getAddresses(user)),
-    [editing, setEditing] = useState(null),
-    [errors, setErrors] = useState({}),
-    [error, setError] = useState("");
+  const {
+    user,
+    token,
+  } = useAuth();
+
+  const {
+    notify,
+  } = useStore();
+
+
+  const [
+    addresses,
+    setAddresses,
+  ] = useState([]);
+
+
+  const [
+    editing,
+    setEditing,
+  ] = useState(null);
+
+
+  const [
+    errors,
+    setErrors,
+  ] = useState({});
+
+
+  const [
+    error,
+    setError,
+  ] = useState("");
+
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+
+  const [
+    busy,
+    setBusy,
+  ] = useState(false);
+
+
+  // ======================================================
+  // LOAD ADDRESSES
+  // ======================================================
+
+  const loadAddresses =
+    useCallback(
+      async (
+        silent = false
+      ) => {
+        if (!token) {
+          setAddresses([]);
+
+          setLoading(false);
+
+          return [];
+        }
+
+
+        if (!silent) {
+          setLoading(true);
+        }
+
+
+        try {
+          const result =
+            await getAddresses(
+              token
+            );
+
+
+          setAddresses(
+            result
+          );
+
+          setError("");
+
+
+          return result;
+
+        } catch (error) {
+          console.error(
+            "Load addresses error:",
+            error
+          );
+
+
+          setError(
+            error.message ||
+              "Could not load your addresses."
+          );
+
+
+          return [];
+
+        } finally {
+          if (!silent) {
+            setLoading(false);
+          }
+        }
+      },
+
+      [token]
+    );
+
+
+  // ======================================================
+  // INITIAL LOAD
+  // ======================================================
+
   useEffect(() => {
-    const sync = event => { if (event.key === userKey("gymdrobe-addresses", user) || event.key === null) setAddresses(getAddresses(user)); };
-    window.addEventListener("storage", sync);
-    return () => window.removeEventListener("storage", sync);
-  }, [user?.id]);
-  function commit(next) {
-    if (!saveAddresses(user, next)) {
-      setError("Could not save addresses. Check browser storage.");
-      return false;
-    }
-    setAddresses(next);
+    loadAddresses();
+  }, [loadAddresses]);
+
+
+  // ======================================================
+  // OPEN NEW ADDRESS FORM
+  // ======================================================
+
+  function addNewAddress() {
+    setEditing({
+      ...EMPTY_ADDRESS,
+
+      fullName:
+        user?.name || "",
+
+      email:
+        user?.email || "",
+
+      phone:
+        user?.phone || "",
+
+      isDefault:
+        addresses.length ===
+        0,
+    });
+
+
+    setErrors({});
+
     setError("");
-    return true;
   }
-  function save(event) {
+
+
+  // ======================================================
+  // SAVE / UPDATE ADDRESS
+  // ======================================================
+
+  async function save(
+    event
+  ) {
     event.preventDefault();
-    const invalid = addressErrors(editing);
-    setErrors(invalid);
-    if (Object.keys(invalid).length) return;
-    const item = {
-      ...editing,
-      id: editing.id || makeId("address"),
-      isDefault: editing.isDefault || !addresses.length,
-    };
-    const rest = addresses
-      .filter((a) => a.id !== item.id)
-      .map((a) => (item.isDefault ? { ...a, isDefault: false } : a));
-    if (commit([...rest, item])) {
-      setEditing(null);
-      notify("Address saved.");
+
+
+    if (
+      !editing ||
+      busy
+    ) {
+      return;
+    }
+
+
+    const invalid =
+      addressErrors(
+        editing
+      );
+
+
+    setErrors(
+      invalid
+    );
+
+
+    if (
+      Object.keys(
+        invalid
+      ).length
+    ) {
+      return;
+    }
+
+
+    setBusy(true);
+
+    setError("");
+
+
+    try {
+      const payload = {
+        fullName:
+          editing.fullName,
+
+        email:
+          editing.email,
+
+        phone:
+          editing.phone,
+
+        addressLine:
+          editing.addressLine,
+
+        landmark:
+          editing.landmark,
+
+        city:
+          editing.city,
+
+        state:
+          editing.state,
+
+        pincode:
+          editing.pincode,
+
+        label:
+          editing.label ||
+          "Home",
+
+        isDefault:
+          Boolean(
+            editing.isDefault
+          ),
+      };
+
+
+      if (
+        editing.id
+      ) {
+        await updateAddress(
+          token,
+          editing.id,
+          payload
+        );
+      } else {
+        await createAddress(
+          token,
+          payload
+        );
+      }
+
+
+      await loadAddresses(
+        true
+      );
+
+
+      setEditing(
+        null
+      );
+
+      setErrors({});
+
+
+      notify(
+        editing.id
+          ? "Address updated."
+          : "Address saved."
+      );
+
+    } catch (error) {
+      console.error(
+        "Save address error:",
+        error
+      );
+
+
+      if (
+        error.errors &&
+        Object.keys(
+          error.errors
+        ).length
+      ) {
+        setErrors(
+          error.errors
+        );
+      }
+
+
+      setError(
+        error.message ||
+          "Could not save address."
+      );
+
+    } finally {
+      setBusy(false);
     }
   }
-  function remove(id) {
-    const remaining = addresses.filter((a) => a.id !== id);
-    if (remaining.length && !remaining.some((a) => a.isDefault))
-      remaining[0] = { ...remaining[0], isDefault: true };
-    if (commit(remaining)) notify("Address removed.", "info");
+
+
+  // ======================================================
+  // DELETE ADDRESS
+  // ======================================================
+
+  async function remove(
+    id
+  ) {
+    if (
+      busy ||
+      !id
+    ) {
+      return;
+    }
+
+
+    setBusy(true);
+
+    setError("");
+
+
+    try {
+      await deleteAddress(
+        token,
+        id
+      );
+
+
+      await loadAddresses(
+        true
+      );
+
+
+      notify(
+        "Address removed.",
+        "info"
+      );
+
+    } catch (error) {
+      console.error(
+        "Delete address error:",
+        error
+      );
+
+
+      setError(
+        error.message ||
+          "Could not remove address."
+      );
+
+    } finally {
+      setBusy(false);
+    }
   }
+
+
+  // ======================================================
+  // MAKE DEFAULT
+  // ======================================================
+
+  async function makeDefault(
+    id
+  ) {
+    if (
+      busy ||
+      !id
+    ) {
+      return;
+    }
+
+
+    setBusy(true);
+
+    setError("");
+
+
+    try {
+      await updateAddress(
+        token,
+        id,
+        {
+          isDefault:
+            true,
+        }
+      );
+
+
+      await loadAddresses(
+        true
+      );
+
+
+      notify(
+        "Default address updated."
+      );
+
+    } catch (error) {
+      console.error(
+        "Default address error:",
+        error
+      );
+
+
+      setError(
+        error.message ||
+          "Could not update the default address."
+      );
+
+    } finally {
+      setBusy(false);
+    }
+  }
+
+
+  // ======================================================
+  // LOADING
+  // ======================================================
+
+  if (loading) {
+    return (
+      <AccountLayout
+        title="Saved addresses"
+      >
+        <p className="muted">
+          Loading your
+          addresses…
+        </p>
+      </AccountLayout>
+    );
+  }
+
+
+  // ======================================================
+  // PAGE
+  // ======================================================
+
   return (
-    <AccountLayout title="Saved addresses">
+    <AccountLayout
+      title="Saved addresses"
+    >
+
+      {/* ADD ADDRESS */}
+
       <button
         type="button"
+
         className="button secondary"
-        onClick={() => {
-          setEditing({
-            ...EMPTY_ADDRESS,
-            fullName: user.name,
-            email: user.email,
-            phone: user.phone || "",
-          });
-          setErrors({});
-          setError("");
-        }}
+
+        disabled={
+          busy
+        }
+
+        onClick={
+          addNewAddress
+        }
       >
         + Add new address
       </button>
-      {error && !editing && (
-        <p className="field-error" role="alert">
-          {error}
-        </p>
-      )}
+
+
+      {/* ERROR */}
+
+      {error &&
+        !editing && (
+
+          <p
+            className="field-error"
+            role="alert"
+          >
+            {error}
+          </p>
+
+        )}
+
+
+      {/* ADDRESS LIST */}
+
       <div className="address-list">
-        {addresses.map((a) => (
-          <article className="address-card" key={a.id}>
-            <strong>{a.fullName}</strong>
-            {a.isDefault && <span className="status-pill">Default</span>}
-            <p>
-              {a.addressLine}
-              <br />
-              {a.city}, {a.state} – {a.pincode}
-            </p>
-            <p>{a.phone}</p>
-            <div className="action-links">
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing({ ...a });
-                  setErrors({});
-                  setError("");
-                }}
-              >
-                Edit
-              </button>
-              <button type="button" onClick={() => remove(a.id)}>
-                Remove
-              </button>
-              {!a.isDefault && (
+
+        {addresses.map(
+          (address) => (
+
+            <article
+              className="address-card"
+
+              key={
+                address.id
+              }
+            >
+
+              <strong>
+                {
+                  address.fullName
+                }
+              </strong>
+
+
+              {address.isDefault && (
+
+                <span className="status-pill">
+                  Default
+                </span>
+
+              )}
+
+
+              <p>
+
+                {
+                  address.addressLine
+                }
+
+                {address.landmark && (
+                  <>
+                    <br />
+
+                    {
+                      address.landmark
+                    }
+                  </>
+                )}
+
+                <br />
+
+                {
+                  address.city
+                }
+                ,{" "}
+                {
+                  address.state
+                }
+                {" – "}
+                {
+                  address.pincode
+                }
+
+              </p>
+
+
+              <p>
+                {
+                  address.phone
+                }
+              </p>
+
+
+              <div className="action-links">
+
+                {/* EDIT */}
+
                 <button
                   type="button"
+
+                  disabled={
+                    busy
+                  }
+
+                  onClick={() => {
+                    setEditing({
+                      ...address,
+                    });
+
+                    setErrors({});
+
+                    setError("");
+                  }}
+                >
+                  Edit
+                </button>
+
+
+                {/* REMOVE */}
+
+                <button
+                  type="button"
+
+                  disabled={
+                    busy
+                  }
+
                   onClick={() =>
-                    commit(
-                      addresses.map((x) => ({
-                        ...x,
-                        isDefault: x.id === a.id,
-                      })),
+                    remove(
+                      address.id
                     )
                   }
                 >
-                  Make default
+                  Remove
                 </button>
-              )}
-            </div>
-          </article>
-        ))}
+
+
+                {/* DEFAULT */}
+
+                {!address.isDefault && (
+
+                  <button
+                    type="button"
+
+                    disabled={
+                      busy
+                    }
+
+                    onClick={() =>
+                      makeDefault(
+                        address.id
+                      )
+                    }
+                  >
+                    Make default
+                  </button>
+
+                )}
+
+              </div>
+
+            </article>
+
+          )
+        )}
+
       </div>
-      {!addresses.length && (
-        <p className="muted">Add an address for faster checkout.</p>
-      )}
+
+
+      {/* EMPTY */}
+
+      {!addresses.length &&
+        !error && (
+
+          <p className="muted">
+            Add an address
+            for faster
+            checkout.
+          </p>
+
+        )}
+
+
+      {/* ADDRESS MODAL */}
+
       {editing && (
+
         <Modal
-          title={editing.id ? "Edit address" : "Add address"}
-          onClose={() => setEditing(null)}
+          title={
+            editing.id
+              ? "Edit address"
+              : "Add address"
+          }
+
+          onClose={() => {
+            if (!busy) {
+              setEditing(
+                null
+              );
+
+              setErrors({});
+
+              setError("");
+            }
+          }}
         >
-          <form onSubmit={save} noValidate>
+
+          <form
+            onSubmit={
+              save
+            }
+
+            noValidate
+          >
+
             <AddressForm
-              value={editing}
-              onChange={setEditing}
-              errors={errors}
+              value={
+                editing
+              }
+
+              onChange={
+                setEditing
+              }
+
+              errors={
+                errors
+              }
             />
+
+
             <label className="check">
+
               <input
                 type="checkbox"
-                checked={Boolean(editing.isDefault)}
-                onChange={(e) =>
-                  setEditing({ ...editing, isDefault: e.target.checked })
+
+                checked={
+                  Boolean(
+                    editing.isDefault
+                  )
+                }
+
+                disabled={
+                  busy
+                }
+
+                onChange={(
+                  event
+                ) =>
+                  setEditing({
+                    ...editing,
+
+                    isDefault:
+                      event.target
+                        .checked,
+                  })
                 }
               />
-              Make this my default address
+
+              Make this my
+              default address
+
             </label>
+
+
             {error && (
-              <p className="field-error" role="alert">
+
+              <p
+                className="field-error"
+                role="alert"
+              >
                 {error}
               </p>
+
             )}
-            <button className="button full" type="submit">
-              Save address
+
+
+            <button
+              className="button full"
+
+              type="submit"
+
+              disabled={
+                busy
+              }
+            >
+              {
+                busy
+                  ? "Saving…"
+                  : "Save address"
+              }
             </button>
+
           </form>
+
         </Modal>
+
       )}
+
     </AccountLayout>
   );
 }

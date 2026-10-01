@@ -17,10 +17,11 @@
     "test:vto:browser": "node tests/vto-browser.mjs"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "1.0.1",
+    "cors": "^2.8.6",
     "react": "19.1.1",
     "react-dom": "19.1.1",
-    "react-router-dom": "7.18.4",
-    "@mediapipe/tasks-vision": "1.0.1"
+    "react-router-dom": "7.18.4"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "6.1.1",
