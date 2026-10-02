@@ -8,9 +8,13 @@ import {
   writeSession,
 } from "../utils/shopperStorage.js";
 
-import { useShoppingTools } from "../context/ShoppingToolsContext.jsx";
+import {
+  useShoppingTools,
+} from "../context/ShoppingToolsContext.jsx";
 
-import { selectedBag } from "../utils/commerce.js";
+import {
+  selectedBag,
+} from "../utils/commerce.js";
 
 import {
   useEffect,
@@ -24,11 +28,17 @@ import {
   useSearchParams,
 } from "react-router-dom";
 
-import { useAuth } from "../context/AuthContext.jsx";
+import {
+  useAuth,
+} from "../context/AuthContext.jsx";
 
-import { useStore } from "../context/StoreContext.jsx";
+import {
+  useStore,
+} from "../context/StoreContext.jsx";
 
-import { useCatalog } from "../context/CatalogContext.jsx";
+import {
+  useCatalog,
+} from "../context/CatalogContext.jsx";
 
 import {
   getCartItemKey,
@@ -61,58 +71,104 @@ import {
 } from "../services/addressApi.js";
 
 import AddressForm from "../components/AddressForm.jsx";
-
 import CouponBox from "../components/CouponBox.jsx";
-
 import PriceSummary from "../components/PriceSummary.jsx";
-
 import EmptyState from "../components/EmptyState.jsx";
+
+
+// ======================================================
+// CONSTANTS
+// ======================================================
+
+const PAYMENT_METHOD =
+  "cod";
+
+
+// ======================================================
+// ADDRESS ID
+// ======================================================
+
+function addressId(
+  address
+) {
+  return (
+    address?.id ||
+    address?._id ||
+    ""
+  );
+}
 
 
 // ======================================================
 // ADDRESS PAYLOAD
 // ======================================================
 
-function addressPayload(address) {
+function addressPayload(
+  address
+) {
   return {
-    fullName: String(
-      address?.fullName || ""
-    ).trim(),
+    fullName:
+      String(
+        address?.fullName ||
+          ""
+      ).trim(),
 
-    email: String(
-      address?.email || ""
-    )
-      .trim()
-      .toLowerCase(),
+    email:
+      String(
+        address?.email ||
+          ""
+      )
+        .trim()
+        .toLowerCase(),
 
-    phone: String(
-      address?.phone || ""
-    ).trim(),
+    phone:
+      String(
+        address?.phone ||
+          ""
+      ).replace(
+        /\D/g,
+        ""
+      ),
 
-    addressLine: String(
-      address?.addressLine || ""
-    ).trim(),
+    addressLine:
+      String(
+        address?.addressLine ||
+          ""
+      ).trim(),
 
-    landmark: String(
-      address?.landmark || ""
-    ).trim(),
+    landmark:
+      String(
+        address?.landmark ||
+          ""
+      ).trim(),
 
-    city: String(
-      address?.city || ""
-    ).trim(),
+    city:
+      String(
+        address?.city ||
+          ""
+      ).trim(),
 
-    state: String(
-      address?.state || ""
-    ).trim(),
+    state:
+      String(
+        address?.state ||
+          ""
+      ).trim(),
 
-    pincode: String(
-      address?.pincode || ""
-    ).trim(),
+    pincode:
+      String(
+        address?.pincode ||
+          ""
+      ).replace(
+        /\D/g,
+        ""
+      ),
 
     label:
       String(
-        address?.label || "Home"
-      ).trim() || "Home",
+        address?.label ||
+          "Home"
+      ).trim() ||
+      "Home",
 
     isDefault:
       Boolean(
@@ -123,34 +179,69 @@ function addressPayload(address) {
 
 
 // ======================================================
-// CHECK IF ADDRESS ALREADY EXISTS
+// SAME ADDRESS
 // ======================================================
 
-function sameAddress(a, b) {
+function sameAddress(
+  first,
+  second
+) {
   return (
     String(
-      a?.addressLine || ""
+      first?.addressLine ||
+        ""
     )
       .trim()
       .toLowerCase() ===
       String(
-        b?.addressLine || ""
+        second?.addressLine ||
+          ""
       )
         .trim()
         .toLowerCase() &&
 
     String(
-      a?.pincode || ""
+      first?.pincode ||
+        ""
     ).trim() ===
       String(
-        b?.pincode || ""
+        second?.pincode ||
+          ""
       ).trim() &&
 
     String(
-      a?.phone || ""
-    ).trim() ===
+      first?.phone ||
+        ""
+    ).replace(
+      /\D/g,
+      ""
+    ) ===
       String(
-        b?.phone || ""
+        second?.phone ||
+          ""
+      ).replace(
+        /\D/g,
+        ""
+      )
+  );
+}
+
+
+// ======================================================
+// CHECK WHETHER ADDRESS HAS BEEN ENTERED
+// ======================================================
+
+function hasAddressData(
+  address
+) {
+  return Boolean(
+    String(
+      address?.addressLine ||
+        ""
+    ).trim() &&
+      String(
+        address?.pincode ||
+          ""
       ).trim()
   );
 }
@@ -164,23 +255,32 @@ export default function CheckoutPage() {
   const {
     getLatestProducts,
     refreshProducts,
-  } = useCatalog();
+  } =
+    useCatalog();
+
 
   const tools =
     useShoppingTools();
 
+
   const {
     user,
     token,
-  } = useAuth();
+  } =
+    useAuth();
+
 
   const store =
     useStore();
 
+
   const navigate =
     useNavigate();
 
-  const [params] =
+
+  const [
+    params,
+  ] =
     useSearchParams();
 
 
@@ -189,11 +289,16 @@ export default function CheckoutPage() {
   // ====================================================
 
   const isBuyNow =
-    params.get("mode") ===
+    params.get(
+      "mode"
+    ) ===
     "buy-now";
 
+
   const isSelection =
-    params.get("mode") ===
+    params.get(
+      "mode"
+    ) ===
     "selection";
 
 
@@ -206,7 +311,7 @@ export default function CheckoutPage() {
 
 
   // ====================================================
-  // ITEMS BEING CHECKED OUT
+  // ITEMS
   // ====================================================
 
   const items =
@@ -225,37 +330,57 @@ export default function CheckoutPage() {
 
 
   // ====================================================
-  // EXISTING CHECKOUT OPTIONS
+  // PREVIOUS CHECKOUT OPTIONS
   // ====================================================
 
-  const [draftOptions] =
-    useState(() =>
-      readStorage(
-        userKey(
-          "gymdrobe-checkout-options",
-          user
-        ),
-        {}
-      )
+  const [
+    draftOptions,
+  ] =
+    useState(
+      () =>
+        readStorage(
+          userKey(
+            "gymdrobe-checkout-options",
+            user
+          ),
+          {}
+        )
     );
 
 
   const [
     giftMessage,
     setGiftMessage,
-  ] = useState(
-    draftOptions
-      ?.giftMessage || ""
-  );
+  ] =
+    useState(
+      draftOptions
+        ?.giftMessage ||
+        ""
+    );
 
 
   const [
     orderNote,
     setOrderNote,
-  ] = useState(
-    draftOptions
-      ?.orderNote || ""
-  );
+  ] =
+    useState(
+      draftOptions
+        ?.orderNote ||
+        ""
+    );
+
+
+  const [
+    method,
+    setMethod,
+  ] =
+    useState(
+      draftOptions
+        ?.method ===
+      "express"
+        ? "express"
+        : "standard"
+    );
 
 
   // ====================================================
@@ -265,21 +390,26 @@ export default function CheckoutPage() {
   const [
     addresses,
     setAddresses,
-  ] = useState([]);
+  ] =
+    useState([]);
 
 
   const [
     addressesLoading,
     setAddressesLoading,
-  ] = useState(
-    Boolean(user)
-  );
+  ] =
+    useState(
+      Boolean(
+        user
+      )
+    );
 
 
   const [
     addressesError,
     setAddressesError,
-  ] = useState("");
+  ] =
+    useState("");
 
 
   // ====================================================
@@ -289,116 +419,120 @@ export default function CheckoutPage() {
   const [
     address,
     setAddress,
-  ] = useState(() => {
-    const draft =
-      readStorage(
-        userKey(
-          "gymdrobe-checkout-details",
-          user
-        ),
-        {}
-      );
+  ] =
+    useState(
+      () => {
+        const draft =
+          readStorage(
+            userKey(
+              "gymdrobe-checkout-details",
+              user
+            ),
+            {}
+          );
 
 
-    return normalizeAddress({
-      ...EMPTY_ADDRESS,
+        return normalizeAddress({
+          ...EMPTY_ADDRESS,
 
-      ...(
-        draft &&
-        typeof draft ===
-          "object"
-          ? draft
-          : {}
-      ),
-
-      fullName:
-        draft?.fullName ||
-        draft?.name ||
-        user?.name ||
-        "",
-
-      email:
-        user?.email ||
-        draft?.email ||
-        "",
-
-      phone:
-        draft?.phone ||
-        user?.phone ||
-        "",
-
-      pincode:
-        draft?.pincode ||
-        readStorage(
-          store.shoppingKey(
-            "gymdrobe-delivery-pincode"
+          ...(
+            draft &&
+            typeof draft ===
+              "object"
+              ? draft
+              : {}
           ),
-          ""
-        ),
-    });
-  });
+
+          fullName:
+            draft?.fullName ||
+            draft?.name ||
+            user?.name ||
+            "",
+
+          email:
+            user?.email ||
+            draft?.email ||
+            "",
+
+          phone:
+            draft?.phone ||
+            user?.phone ||
+            "",
+
+          pincode:
+            draft?.pincode ||
+            readStorage(
+              store.shoppingKey(
+                "gymdrobe-delivery-pincode"
+              ),
+              ""
+            ),
+        });
+      }
+    );
 
 
   const [
     saveAddress,
     setSaveAddress,
-  ] = useState(
-    Boolean(user)
-  );
+  ] =
+    useState(
+      Boolean(
+        user
+      )
+    );
 
 
   // ====================================================
-  // CHECKOUT UI STATE
+  // PAGE STATE
   // ====================================================
 
   const [
     step,
     setStep,
-  ] = useState(
-    "address"
-  );
-
-
-  const [
-    method,
-    setMethod,
-  ] = useState(
-    draftOptions
-      ?.method ===
-      "express"
-      ? "express"
-      : "standard"
-  );
+  ] =
+    useState(
+      "address"
+    );
 
 
   const [
     errors,
     setErrors,
-  ] = useState({});
+  ] =
+    useState({});
 
 
   const [
     error,
     setError,
-  ] = useState("");
+  ] =
+    useState("");
 
 
   const [
     busy,
     setBusy,
-  ] = useState(false);
+  ] =
+    useState(
+      false
+    );
 
 
   const submitting =
-    useRef(false);
+    useRef(
+      false
+    );
 
 
   const reviewed =
-    useRef(null);
+    useRef(
+      null
+    );
 
 
   // ====================================================
-  // UNIQUE CHECKOUT ATTEMPT
+  // IDEMPOTENT CHECKOUT ATTEMPT
   // ====================================================
 
   const attemptKey =
@@ -407,7 +541,9 @@ export default function CheckoutPage() {
     );
 
 
-  const [attempt] =
+  const [
+    attempt,
+  ] =
     useState(
       () =>
         readSession(
@@ -420,195 +556,240 @@ export default function CheckoutPage() {
     );
 
 
-  useEffect(() => {
-    writeSession(
+  useEffect(
+    () => {
+      writeSession(
+        attemptKey,
+        attempt
+      );
+    },
+
+    [
       attemptKey,
-      attempt
-    );
-  }, [
-    attemptKey,
-    attempt,
-  ]);
+      attempt,
+    ]
+  );
 
 
   // ====================================================
-  // LOAD SAVED ADDRESSES FROM MONGODB
+  // LOAD MONGODB SAVED ADDRESSES
   // ====================================================
 
-  useEffect(() => {
-    let cancelled =
-      false;
+  useEffect(
+    () => {
+      let cancelled =
+        false;
 
 
-    async function loadSavedAddresses() {
-      if (
-        !user ||
-        !token
-      ) {
-        setAddresses([]);
+      async function loadSavedAddresses() {
+        if (
+          !user ||
+          !token
+        ) {
+          setAddresses(
+            []
+          );
+
+          setAddressesLoading(
+            false
+          );
+
+          setAddressesError(
+            ""
+          );
+
+          return;
+        }
+
 
         setAddressesLoading(
-          false
+          true
         );
 
         setAddressesError(
           ""
         );
 
-        return;
-      }
+
+        try {
+          const result =
+            await getSavedAddresses(
+              token
+            );
 
 
-      setAddressesLoading(
-        true
-      );
-
-      setAddressesError(
-        ""
-      );
+          if (
+            cancelled
+          ) {
+            return;
+          }
 
 
-      try {
-        const savedAddresses =
-          await getSavedAddresses(
-            token
+          const savedAddresses =
+            Array.isArray(
+              result
+            )
+              ? result
+              : [];
+
+
+          setAddresses(
+            savedAddresses
           );
 
 
-        if (cancelled) {
-          return;
-        }
+          /*
+            Keep a checkout draft if the customer
+            already entered one.
+
+            Otherwise load the default saved address.
+          */
+
+          if (
+            !hasAddressData(
+              address
+            )
+          ) {
+            const preferred =
+              savedAddresses.find(
+                (
+                  item
+                ) =>
+                  item.isDefault
+              ) ||
+              savedAddresses[0];
 
 
-        setAddresses(
-          savedAddresses
-        );
+            if (
+              preferred
+            ) {
+              setAddress(
+                normalizeAddress({
+                  ...preferred,
 
+                  id:
+                    addressId(
+                      preferred
+                    ),
 
-        const preferred =
-          savedAddresses.find(
-            (item) =>
-              item.isDefault
-          ) ||
-          savedAddresses[0];
-
-
-        if (preferred) {
-          setAddress(
-            normalizeAddress({
-              ...preferred,
-
-              email:
-                preferred.email ||
-                user.email ||
-                "",
-            })
-          );
-        }
-
-      } catch (
-        loadError
-      ) {
-        if (cancelled) {
-          return;
-        }
-
-
-        console.error(
-          "Checkout address load error:",
-          loadError
-        );
-
-
-        setAddresses(
-          []
-        );
-
-
-        setAddressesError(
-          loadError.message ||
-            "Saved addresses could not be loaded. You can still enter an address manually."
-        );
-
-      } finally {
-        if (!cancelled) {
-          setAddressesLoading(
-            false
-          );
-        }
-      }
-    }
-
-
-    loadSavedAddresses();
-
-
-    return () => {
-      cancelled =
-        true;
-    };
-
-  }, [
-    user?.id,
-    token,
-  ]);
-
-
-  // ====================================================
-  // SAVE CHECKOUT DRAFT LOCALLY
-  // ====================================================
-
-  useEffect(() => {
-    const timer =
-      setTimeout(
-        () => {
-          writeStorage(
-            userKey(
-              "gymdrobe-checkout-details",
-              user
-            ),
-            address
-          );
-
-
-          writeStorage(
-            userKey(
-              "gymdrobe-checkout-options",
-              user
-            ),
-            {
-              method,
-              giftMessage,
-              orderNote,
+                  email:
+                    preferred.email ||
+                    user.email ||
+                    "",
+                })
+              );
             }
+          }
+
+        } catch (
+          loadError
+        ) {
+          if (
+            cancelled
+          ) {
+            return;
+          }
+
+
+          console.error(
+            "Checkout address load error:",
+            loadError
           );
-        },
-        300
-      );
 
 
-    return () => {
-      clearTimeout(
-        timer
-      );
+          setAddresses(
+            []
+          );
 
 
-      writeStorage(
-        userKey(
-          "gymdrobe-checkout-details",
-          user
-        ),
-        address
-      );
-    };
+          setAddressesError(
+            loadError.message ||
+              "Saved addresses could not be loaded. You can still enter an address manually."
+          );
 
-  }, [
-    address,
-    method,
-    giftMessage,
-    orderNote,
-    user?.id,
-  ]);
+        } finally {
+          if (
+            !cancelled
+          ) {
+            setAddressesLoading(
+              false
+            );
+          }
+        }
+      }
+
+
+      loadSavedAddresses();
+
+
+      return () => {
+        cancelled =
+          true;
+      };
+    },
+
+    [
+      user?.id,
+      token,
+    ]
+  );
+
+
+  // ====================================================
+  // SAVE CHECKOUT DRAFT
+  // ====================================================
+
+  useEffect(
+    () => {
+      const timer =
+        setTimeout(
+          () => {
+            writeStorage(
+              userKey(
+                "gymdrobe-checkout-details",
+                user
+              ),
+              address
+            );
+
+
+            writeStorage(
+              userKey(
+                "gymdrobe-checkout-options",
+                user
+              ),
+              {
+                method,
+
+                paymentMethod:
+                  PAYMENT_METHOD,
+
+                giftMessage,
+
+                orderNote,
+              }
+            );
+          },
+
+          300
+        );
+
+
+      return () => {
+        clearTimeout(
+          timer
+        );
+      };
+    },
+
+    [
+      address,
+      method,
+      giftMessage,
+      orderNote,
+      user?.id,
+    ]
+  );
 
 
   // ====================================================
@@ -617,7 +798,8 @@ export default function CheckoutPage() {
 
   const pricing =
     calculateOrderPricing({
-      cart: items,
+      cart:
+        items,
 
       coupon:
         store.coupon,
@@ -672,6 +854,41 @@ export default function CheckoutPage() {
 
 
   // ====================================================
+  // SELECT SAVED ADDRESS
+  // ====================================================
+
+  function selectSavedAddress(
+    item
+  ) {
+    setAddress(
+      normalizeAddress({
+        ...item,
+
+        id:
+          addressId(
+            item
+          ),
+
+        email:
+          item.email ||
+          user?.email ||
+          "",
+      })
+    );
+
+
+    setErrors(
+      {}
+    );
+
+
+    setError(
+      ""
+    );
+  }
+
+
+  // ====================================================
   // SAVE ADDRESS TO MONGODB
   // ====================================================
 
@@ -687,7 +904,9 @@ export default function CheckoutPage() {
 
     const duplicate =
       addresses.some(
-        (item) =>
+        (
+          item
+        ) =>
           sameAddress(
             item,
             address
@@ -695,7 +914,9 @@ export default function CheckoutPage() {
       );
 
 
-    if (duplicate) {
+    if (
+      duplicate
+    ) {
       return;
     }
 
@@ -716,14 +937,21 @@ export default function CheckoutPage() {
         );
 
 
-      if (created) {
+      if (
+        created
+      ) {
         setAddresses(
-          (current) => [
+          (
+            current
+          ) => [
             ...current.map(
-              (item) =>
+              (
+                item
+              ) =>
                 created.isDefault
                   ? {
                       ...item,
+
                       isDefault:
                         false,
                     }
@@ -745,7 +973,7 @@ export default function CheckoutPage() {
 
 
       store.notify(
-        "Order saved. Your address could not be added to saved addresses.",
+        "Your order was placed, but this address could not be added to your saved addresses.",
         "warning"
       );
     }
@@ -753,7 +981,96 @@ export default function CheckoutPage() {
 
 
   // ====================================================
-  // CHECKOUT SUBMIT
+  // UPDATE CART AFTER REVALIDATION
+  // ====================================================
+
+  function applyRevalidatedCart(
+    checked
+  ) {
+    if (
+      isBuyNow
+    ) {
+      store.refreshBuyNow(
+        checked.cart[0]
+      );
+
+      return;
+    }
+
+
+    const selectedKeys =
+      items.map(
+        getCartItemKey
+      );
+
+
+    store.setCart([
+      ...store.cart.filter(
+        (
+          item
+        ) =>
+          !selectedKeys.includes(
+            getCartItemKey(
+              item
+            )
+          )
+      ),
+
+      ...checked.cart,
+    ]);
+  }
+
+
+  // ====================================================
+  // CLEAR PURCHASED ITEMS
+  // ====================================================
+
+  function clearPurchasedItems() {
+    if (
+      isBuyNow
+    ) {
+      store.clearBuyNow();
+
+      return;
+    }
+
+
+    const orderedKeys =
+      items.map(
+        getCartItemKey
+      );
+
+
+    store.setCart(
+      (
+        current
+      ) =>
+        current.filter(
+          (
+            item
+          ) =>
+            !orderedKeys.includes(
+              getCartItemKey(
+                item
+              )
+            )
+        )
+    );
+
+
+    tools.startSelection(
+      []
+    );
+
+
+    store.setCoupon(
+      null
+    );
+  }
+
+
+  // ====================================================
+  // SUBMIT CHECKOUT
   // ====================================================
 
   async function submit(
@@ -769,16 +1086,24 @@ export default function CheckoutPage() {
     }
 
 
-    setError("");
+    setError(
+      ""
+    );
 
 
-    if (!validate()) {
+    // ==================================================
+    // ADDRESS VALIDATION
+    // ==================================================
+
+    if (
+      !validate()
+    ) {
       return;
     }
 
 
     // ==================================================
-    // STEP 1 → REVIEW
+    // ADDRESS → REVIEW
     // ==================================================
 
     if (
@@ -808,7 +1133,9 @@ export default function CheckoutPage() {
 
 
       window.scrollTo({
-        top: 0,
+        top:
+          0,
+
         behavior:
           "instant",
       });
@@ -819,7 +1146,7 @@ export default function CheckoutPage() {
 
 
     // ==================================================
-    // CHECK IF ORDER CHANGED AFTER REVIEW
+    // CHECK WHETHER CART/TOTAL CHANGED AFTER REVIEW
     // ==================================================
 
     const signature =
@@ -839,7 +1166,7 @@ export default function CheckoutPage() {
 
 
       setError(
-        "Your selection or total has changed. Review the current items and total, then place your order again."
+        "Your products, coupon or delivery total changed. Review the latest order summary and place your order again."
       );
 
 
@@ -848,7 +1175,7 @@ export default function CheckoutPage() {
 
 
     // ==================================================
-    // REVALIDATE PRODUCTS
+    // REVALIDATE AGAINST CURRENT CATALOG
     // ==================================================
 
     const checked =
@@ -862,35 +1189,13 @@ export default function CheckoutPage() {
       !checked.cart.length ||
       checked.changes.length
     ) {
-      if (isBuyNow) {
-        store.refreshBuyNow(
-          checked.cart[0]
-        );
-
-      } else {
-        const selectedKeys =
-          items.map(
-            getCartItemKey
-          );
-
-
-        store.setCart([
-          ...store.cart.filter(
-            (item) =>
-              !selectedKeys.includes(
-                getCartItemKey(
-                  item
-                )
-              )
-          ),
-
-          ...checked.cart,
-        ]);
-      }
+      applyRevalidatedCart(
+        checked
+      );
 
 
       setError(
-        "Product availability or prices changed. Please review your selection before placing an order."
+        "Product availability or prices changed. Please review your updated selection before placing the order."
       );
 
 
@@ -898,23 +1203,30 @@ export default function CheckoutPage() {
     }
 
 
-    // Signed-in customer should never
-    // silently fall back to a guest order.
+    // ==================================================
+    // AUTH SESSION CHECK
+    // ==================================================
 
     if (
       user &&
       !token
     ) {
       setError(
-        "Your sign-in session expired. Please sign in again before placing the order."
+        "Your sign-in session expired. Please sign in again before placing your order."
       );
+
 
       return;
     }
 
 
+    // ==================================================
+    // START
+    // ==================================================
+
     submitting.current =
       true;
+
 
     setBusy(
       true
@@ -922,7 +1234,11 @@ export default function CheckoutPage() {
 
 
     // ==================================================
-    // ORDER DATA
+    // ORDER PAYLOAD
+    //
+    // For signed-in orders the backend will recalculate
+    // prices, verify inventory and generate the real
+    // MongoDB order.
     // ==================================================
 
     const now =
@@ -950,12 +1266,28 @@ export default function CheckoutPage() {
       );
 
 
+    const latestPricing =
+      calculateOrderPricing({
+        cart:
+          checked.cart,
+
+        coupon,
+
+        deliveryMethod:
+          method,
+      });
+
+
     const order = {
       id:
-        makeId("GD"),
+        makeId(
+          "GD"
+        ),
 
       ownerKey:
-        ownerKey(user),
+        ownerKey(
+          user
+        ),
 
       createdAt:
         now,
@@ -970,25 +1302,26 @@ export default function CheckoutPage() {
         checkoutMode,
 
       giftMessage:
-        giftMessage.trim(),
+        giftMessage
+          .trim(),
 
       orderNote:
-        orderNote.trim(),
+        orderNote
+          .trim(),
 
+      user:
+        user
+          ? {
+              id:
+                user.id,
 
-      user: user
-        ? {
-            id:
-              user.id,
+              name:
+                user.name,
 
-            name:
-              user.name,
-
-            email:
-              user.email,
-          }
-        : null,
-
+              email:
+                user.email,
+            }
+          : null,
 
       customer: {
         name:
@@ -1004,7 +1337,6 @@ export default function CheckoutPage() {
             .phone,
       },
 
-
       shippingAddress: {
         ...cleanShippingAddress,
 
@@ -1013,10 +1345,11 @@ export default function CheckoutPage() {
             .fullName,
       },
 
-
       items:
         checked.cart.map(
-          (item) => ({
+          (
+            item
+          ) => ({
             id:
               item.id,
 
@@ -1039,39 +1372,30 @@ export default function CheckoutPage() {
               item.quantity,
 
             selectedSize:
-              item.selectedSize,
+              item.selectedSize ??
+              null,
 
             selectedColor:
-              item.selectedColor,
+              item.selectedColor ??
+              null,
 
             returnPolicy:
               item.returnPolicy,
           })
         ),
 
-
       pricing: {
-        ...calculateOrderPricing({
-          cart:
-            checked.cart,
-
-          coupon,
-
-          deliveryMethod:
-            method,
-        }),
+        ...latestPricing,
 
         currency:
           "INR",
       },
 
-
       coupon,
-
 
       payment: {
         method:
-          "cod",
+          PAYMENT_METHOD,
 
         status:
           "pending",
@@ -1080,10 +1404,8 @@ export default function CheckoutPage() {
           null,
       },
 
-
       paymentMethod:
-        "cod",
-
+        PAYMENT_METHOD,
 
       delivery: {
         method,
@@ -1101,10 +1423,8 @@ export default function CheckoutPage() {
           null,
       },
 
-
       deliveryMethod:
         method,
-
 
       tracking: {
         carrier:
@@ -1124,7 +1444,7 @@ export default function CheckoutPage() {
             description:
               user
                 ? "Order confirmed by GymDrobe."
-                : "Preview order created on this device.",
+                : "Guest checkout order created on this device.",
 
             timestamp:
               now,
@@ -1132,18 +1452,15 @@ export default function CheckoutPage() {
         ],
       },
 
-
       cancellation: {
         status:
           "not-cancelled",
       },
 
-
       returnRequest: {
         status:
           "not-requested",
       },
-
 
       refund: {
         status:
@@ -1153,16 +1470,17 @@ export default function CheckoutPage() {
           0,
       },
 
-
       metadata: {
         version:
           "5.0",
 
         demo:
-          true,
+          !user,
 
         inventoryReserved:
-          true,
+          Boolean(
+            user
+          ),
 
         checkoutToken:
           attempt,
@@ -1178,7 +1496,9 @@ export default function CheckoutPage() {
       const result =
         await commitCheckout(
           order,
+
           getLatestProducts,
+
           {
             token,
             user,
@@ -1187,13 +1507,17 @@ export default function CheckoutPage() {
 
 
       // =================================================
-      // PRODUCT/TOTAL CHANGED
+      // BACKEND/CATALOG CHANGED
       // =================================================
 
-      if (result.error) {
-        if (isBuyNow) {
+      if (
+        result.error
+      ) {
+        if (
+          isBuyNow
+        ) {
           store.refreshBuyNow(
-            result.cart[0]
+            result.cart?.[0]
           );
 
         } else {
@@ -1218,7 +1542,9 @@ export default function CheckoutPage() {
         result.order;
 
 
-      if (!savedOrder) {
+      if (
+        !savedOrder
+      ) {
         throw new Error(
           "Your order could not be loaded after checkout."
         );
@@ -1226,7 +1552,7 @@ export default function CheckoutPage() {
 
 
       // =================================================
-      // SAVE ADDRESS ONLY FOR NEW ORDER
+      // SAVE NEW ADDRESS
       // =================================================
 
       if (
@@ -1237,12 +1563,10 @@ export default function CheckoutPage() {
 
 
       // =================================================
-      // SIGNED-IN CUSTOMER
-      // MongoDB is authoritative.
+      // TEMPORARY LOCAL ORDER CACHE
       //
-      // Temporary local copy keeps your existing
-      // order-success/details pages working until
-      // those pages are migrated to the API.
+      // Keep this until every order-success/detail
+      // screen is completely API-backed.
       // =================================================
 
       let orderForLocalPages =
@@ -1257,7 +1581,9 @@ export default function CheckoutPage() {
           ...savedOrder,
 
           ownerKey:
-            ownerKey(user),
+            ownerKey(
+              user
+            ),
 
           user: {
             id:
@@ -1275,7 +1601,7 @@ export default function CheckoutPage() {
 
             checkoutToken:
               savedOrder
-                .metadata
+                ?.metadata
                 ?.checkoutToken ||
               attempt,
           },
@@ -1288,16 +1614,18 @@ export default function CheckoutPage() {
           );
 
 
-        if (!cached) {
+        if (
+          !cached
+        ) {
           console.warn(
-            "Server order was created, but the temporary local order cache could not be saved."
+            "The MongoDB order was created, but its temporary local cache could not be saved."
           );
         }
 
 
-        // MongoDB stock was reduced by the backend.
-        // Refresh products so the frontend immediately
-        // shows the new stock.
+        // ===============================================
+        // BACKEND RESERVED STOCK
+        // ===============================================
 
         try {
           if (
@@ -1311,7 +1639,7 @@ export default function CheckoutPage() {
           refreshError
         ) {
           console.error(
-            "Product refresh after order failed:",
+            "Product refresh after checkout failed:",
             refreshError
           );
 
@@ -1325,7 +1653,7 @@ export default function CheckoutPage() {
 
 
       // =================================================
-      // LAST ORDER CACHE
+      // LAST ORDER
       // =================================================
 
       writeStorage(
@@ -1333,6 +1661,7 @@ export default function CheckoutPage() {
           "gymdrobe-last-order",
           user
         ),
+
         orderForLocalPages
       );
 
@@ -1341,38 +1670,7 @@ export default function CheckoutPage() {
       // CLEAR PURCHASED ITEMS
       // =================================================
 
-      if (isBuyNow) {
-        store.clearBuyNow();
-
-      } else {
-        const orderedKeys =
-          items.map(
-            getCartItemKey
-          );
-
-
-        store.setCart(
-          (current) =>
-            current.filter(
-              (item) =>
-                !orderedKeys.includes(
-                  getCartItemKey(
-                    item
-                  )
-                )
-            )
-        );
-
-
-        tools.startSelection(
-          []
-        );
-
-
-        store.setCoupon(
-          null
-        );
-      }
+      clearPurchasedItems();
 
 
       // =================================================
@@ -1394,6 +1692,9 @@ export default function CheckoutPage() {
           method:
             "standard",
 
+          paymentMethod:
+            PAYMENT_METHOD,
+
           giftMessage:
             "",
 
@@ -1404,15 +1705,14 @@ export default function CheckoutPage() {
 
 
       // =================================================
-      // IMPORTANT:
-      // use server MongoDB order ID / orderNumber
-      // instead of old frontend-generated ID
+      // SUCCESS
       // =================================================
 
       navigate(
         `/order-success?orderId=${encodeURIComponent(
           savedOrder.id
         )}`,
+
         {
           replace:
             true,
@@ -1449,7 +1749,9 @@ export default function CheckoutPage() {
   // EMPTY CHECKOUT
   // ====================================================
 
-  if (!items.length) {
+  if (
+    !items.length
+  ) {
     return (
       <EmptyState
         title={
@@ -1458,7 +1760,16 @@ export default function CheckoutPage() {
             : "Your checkout is empty"
         }
       >
-        Return to a product or add something to your bag to continue.
+        <p>
+          Return to a product or add something to your bag to continue.
+        </p>
+
+        <Link
+          className="button"
+          to="/shop"
+        >
+          Continue shopping
+        </Link>
       </EmptyState>
     );
   }
@@ -1469,23 +1780,38 @@ export default function CheckoutPage() {
   // ====================================================
 
   return (
-    <div className="page narrow">
+    <div
+      className="page narrow"
+    >
+      {/* ===============================================
+          CHECKOUT PROGRESS
+      =============================================== */}
 
       <nav
         className="checkout-steps"
         aria-label="Checkout progress"
       >
-        <Link to="/cart">
+        <Link
+          to="/cart"
+        >
           1. BAG
         </Link>
 
-        <strong>
+        <strong
+          className={
+            step ===
+            "address"
+              ? "active"
+              : undefined
+          }
+        >
           2. ADDRESS
         </strong>
 
         <strong
           className={
-            step === "review"
+            step ===
+            "review"
               ? "active"
               : "muted"
           }
@@ -1495,9 +1821,16 @@ export default function CheckoutPage() {
       </nav>
 
 
-      <div className="page-heading">
+      {/* ===============================================
+          HEADING
+      =============================================== */}
+
+      <div
+        className="page-heading"
+      >
         <h1>
-          {step === "address"
+          {step ===
+          "address"
             ? "Delivery address"
             : "Review your order"}
         </h1>
@@ -1512,52 +1845,80 @@ export default function CheckoutPage() {
       </div>
 
 
-      <div className="notice">
+      {/* ===============================================
+          ACCOUNT STATUS
+      =============================================== */}
+
+      <div
+        className="notice"
+      >
         {user
-          ? "Signed-in orders are saved securely to your GymDrobe account. Cash on delivery is currently in preview mode; no online payment is taken."
-          : "Guest orders are currently saved on this device. Sign in to save orders to your GymDrobe account."}
+          ? "Your order will be saved securely to your GymDrobe account. Cash on delivery is currently available."
+          : "You are checking out as a guest. This guest order is currently stored on this device. Sign in to save orders to your GymDrobe account."}
       </div>
 
 
       {!user && (
-        <p className="checkout-signin">
+        <p
+          className="checkout-signin"
+        >
           <Link
             to={`/login?next=${encodeURIComponent(
               `/checkout?mode=${checkoutMode}`
             )}`}
           >
             Sign in
-          </Link>{" "}
+          </Link>
+
+          {" "}
           to save this order to your GymDrobe account, or continue as a guest.
         </p>
       )}
 
 
-      <div className="checkout-layout">
+      <div
+        className="checkout-layout"
+      >
+        {/* =============================================
+            CHECKOUT FORM
+        ============================================== */}
 
         <form
           id="checkout-form"
           className="checkout-form"
-          onSubmit={submit}
+          onSubmit={
+            submit
+          }
           noValidate
         >
+          {/* ===========================================
+              ERROR
+          ============================================ */}
 
           {error && (
             <p
               role="alert"
               className="error-box"
             >
-              {error}
+              {
+                error
+              }
             </p>
           )}
 
 
-          {step === "address" ? (
-            <>
+          {/* ===========================================
+              ADDRESS STEP
+          ============================================ */}
 
+          {step ===
+          "address" ? (
+            <>
               {user &&
                 addressesLoading && (
-                  <p className="muted">
+                  <p
+                    className="muted"
+                  >
                     Loading your saved addresses…
                   </p>
                 )}
@@ -1569,7 +1930,9 @@ export default function CheckoutPage() {
                     className="field-error"
                     role="alert"
                   >
-                    {addressesError}
+                    {
+                      addressesError
+                    }
                   </p>
                 )}
 
@@ -1578,81 +1941,87 @@ export default function CheckoutPage() {
                 !addressesLoading &&
                 addresses.length >
                   0 && (
-                  <div className="saved-address-choices">
-
+                  <div
+                    className="saved-address-choices"
+                  >
                     <h2>
                       USE A SAVED ADDRESS
                     </h2>
 
 
                     {addresses.map(
-                      (item) => (
-                        <button
-                          type="button"
-                          key={
-                            item.id
-                          }
-                          className="saved-address-choice"
-                          aria-pressed={
-                            String(
-                              address?.id ||
-                                ""
-                            ) ===
-                            String(
-                              item.id
-                            )
-                          }
-                          onClick={() => {
-                            setAddress(
-                              normalizeAddress({
-                                ...item,
-
-                                email:
-                                  item.email ||
-                                  user.email ||
-                                  "",
-                              })
-                            );
+                      (
+                        item
+                      ) => {
+                        const id =
+                          addressId(
+                            item
+                          );
 
 
-                            setErrors(
-                              {}
-                            );
-
-
-                            setError(
-                              ""
-                            );
-                          }}
-                        >
-                          <strong>
-                            {
-                              item.fullName
-                            }{" "}
-                            ·{" "}
-                            {item.label ||
-                              "Home"}
-
-                            {item.isDefault
-                              ? " · Default"
-                              : ""}
-                          </strong>
-
-
-                          <span>
-                            {
-                              item.addressLine
+                        return (
+                          <button
+                            type="button"
+                            key={
+                              id
                             }
-                            ,{" "}
-                            {
-                              item.city
-                            }{" "}
-                            {
-                              item.pincode
+                            className="saved-address-choice"
+                            aria-pressed={
+                              String(
+                                addressId(
+                                  address
+                                )
+                              ) ===
+                              String(
+                                id
+                              )
                             }
-                          </span>
-                        </button>
-                      )
+                            onClick={() =>
+                              selectSavedAddress(
+                                item
+                              )
+                            }
+                          >
+                            <strong>
+                              {
+                                item.fullName
+                              }
+
+                              {" · "}
+
+                              {item.label ||
+                                "Home"}
+
+                              {item.isDefault
+                                ? " · Default"
+                                : ""}
+                            </strong>
+
+
+                            <span>
+                              {
+                                item.addressLine
+                              }
+
+                              {item.landmark
+                                ? `, ${item.landmark}`
+                                : ""}
+
+                              {", "}
+
+                              {
+                                item.city
+                              }
+
+                              {" "}
+
+                              {
+                                item.pincode
+                              }
+                            </span>
+                          </button>
+                        );
+                      }
                     )}
                   </div>
                 )}
@@ -1665,49 +2034,63 @@ export default function CheckoutPage() {
                 errors={
                   errors
                 }
-                onChange={(
-                  value
-                ) => {
-                  setAddress(
+                onChange={
+                  (
                     value
-                  );
+                  ) => {
+                    setAddress(
+                      value
+                    );
 
-                  setErrors(
-                    {}
-                  );
-                }}
+                    setErrors(
+                      {}
+                    );
+
+                    setError(
+                      ""
+                    );
+                  }
+                }
               />
 
 
               {user && (
-                <label className="check">
+                <label
+                  className="check"
+                >
                   <input
                     type="checkbox"
                     checked={
                       saveAddress
                     }
-                    onChange={(
-                      event
-                    ) =>
-                      setSaveAddress(
+                    onChange={
+                      (
                         event
-                          .target
-                          .checked
-                      )
+                      ) =>
+                        setSaveAddress(
+                          event.target
+                            .checked
+                        )
                     }
                   />
 
                   Save this address for next time
                 </label>
               )}
-
             </>
+
           ) : (
             <>
+              {/* =======================================
+                  REVIEW ADDRESS
+              ======================================== */}
 
-              <section className="panel">
-
-                <div className="panel-heading">
+              <section
+                className="panel"
+              >
+                <div
+                  className="panel-heading"
+                >
                   <h2>
                     DELIVER TO
                   </h2>
@@ -1715,11 +2098,15 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     className="text-link"
-                    onClick={() =>
+                    onClick={() => {
                       setStep(
                         "address"
-                      )
-                    }
+                      );
+
+                      setError(
+                        ""
+                      );
+                    }}
                   >
                     Edit address
                   </button>
@@ -1747,11 +2134,15 @@ export default function CheckoutPage() {
                   {
                     address.city
                   }
-                  ,{" "}
+
+                  {", "}
+
                   {
                     address.state
-                  }{" "}
-                  –{" "}
+                  }
+
+                  {" – "}
+
                   {
                     address.pincode
                   }
@@ -1761,44 +2152,86 @@ export default function CheckoutPage() {
                 <p>
                   {
                     address.phone
-                  }{" "}
-                  ·{" "}
+                  }
+
+                  {" · "}
+
                   {
                     address.email
                   }
                 </p>
-
               </section>
 
 
-              <section className="panel">
+              {/* =======================================
+                  PAYMENT
+              ======================================== */}
 
+              <section
+                className="panel"
+              >
                 <h2>
                   PAYMENT METHOD
                 </h2>
 
 
-                <label className="check">
+                <label
+                  className="check"
+                >
                   <input
                     type="radio"
+                    name="payment"
+                    value="cod"
                     checked
                     readOnly
-                    name="payment"
                   />
 
                   Cash on delivery
                 </label>
 
 
-                <p className="muted">
-                  Online payments will be available after payment integration.
+                <p
+                  className="muted"
+                >
+                  Pay when your GymDrobe order is delivered.
                 </p>
 
+
+                <label
+                  className="check"
+                  style={{
+                    opacity:
+                      0.55,
+
+                    cursor:
+                      "not-allowed",
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="payment"
+                    disabled
+                  />
+
+                  Online payment — coming soon
+                </label>
+
+
+                <p
+                  className="muted"
+                >
+                  UPI, cards and other online payment methods will be connected in the payment-gateway phase.
+                </p>
               </section>
 
 
-              <section className="panel">
+              {/* =======================================
+                  ORDER ITEMS
+              ======================================== */}
 
+              <section
+                className="panel"
+              >
                 <h2>
                   ORDER ITEMS
                 </h2>
@@ -1808,21 +2241,9 @@ export default function CheckoutPage() {
                   (
                     item,
                     index
-                  ) => (
-                    <p
-                      key={
-                        getCartItemKey(
-                          item
-                        ) ||
-                        index
-                      }
-                    >
-                      {
-                        item.name
-                      }{" "}
-                      ·{" "}
-
-                      {[
+                  ) => {
+                    const options =
+                      [
                         item.selectedColor,
                         item.selectedSize,
                       ]
@@ -1831,35 +2252,62 @@ export default function CheckoutPage() {
                         )
                         .join(
                           " / "
-                        )}{" "}
+                        );
 
-                      ×{" "}
-                      {
-                        item.quantity
-                      }
-                    </p>
-                  )
+
+                    return (
+                      <p
+                        key={
+                          getCartItemKey(
+                            item
+                          ) ||
+                          index
+                        }
+                      >
+                        <strong>
+                          {
+                            item.name
+                          }
+                        </strong>
+
+                        {options
+                          ? ` · ${options}`
+                          : ""}
+
+                        {" × "}
+
+                        {
+                          item.quantity
+                        }
+                      </p>
+                    );
+                  }
                 )}
-
               </section>
-
             </>
           )}
 
 
-          <section className="panel">
+          {/* ===========================================
+              GIFT MESSAGE / DELIVERY NOTE
+          ============================================ */}
 
+          <section
+            className="panel"
+          >
             <h2>
               MAKE IT YOURS
             </h2>
 
 
-            <div className="field">
-
-              <label htmlFor="gift-message">
+            <div
+              className="field"
+            >
+              <label
+                htmlFor="gift-message"
+              >
                 Gift message (optional, no extra charge)
               </label>
-
 
               <textarea
                 id="gift-message"
@@ -1868,25 +2316,27 @@ export default function CheckoutPage() {
                 value={
                   giftMessage
                 }
-                onChange={(
-                  event
-                ) =>
-                  setGiftMessage(
-                    event.target
-                      .value
-                  )
+                onChange={
+                  (
+                    event
+                  ) =>
+                    setGiftMessage(
+                      event.target
+                        .value
+                    )
                 }
               />
-
             </div>
 
 
-            <div className="field">
-
-              <label htmlFor="order-note">
+            <div
+              className="field"
+            >
+              <label
+                htmlFor="order-note"
+              >
                 Delivery instructions (optional)
               </label>
-
 
               <textarea
                 id="order-note"
@@ -1895,34 +2345,42 @@ export default function CheckoutPage() {
                 value={
                   orderNote
                 }
-                onChange={(
-                  event
-                ) =>
-                  setOrderNote(
-                    event.target
-                      .value
-                  )
+                onChange={
+                  (
+                    event
+                  ) =>
+                    setOrderNote(
+                      event.target
+                        .value
+                    )
                 }
               />
-
             </div>
 
 
-            <p className="muted">
+            <p
+              className="muted"
+            >
               These messages will be included with your order.
             </p>
-
           </section>
 
 
-          <fieldset className="delivery-methods">
+          {/* ===========================================
+              DELIVERY METHOD
+          ============================================ */}
 
+          <fieldset
+            className="delivery-methods"
+          >
             <legend>
               DELIVERY METHOD
             </legend>
 
 
-            <label className="check">
+            <label
+              className="check"
+            >
               <input
                 type="radio"
                 name="delivery"
@@ -1931,18 +2389,24 @@ export default function CheckoutPage() {
                   method ===
                   "standard"
                 }
-                onChange={() =>
+                onChange={() => {
                   setMethod(
                     "standard"
-                  )
-                }
+                  );
+
+                  setError(
+                    ""
+                  );
+                }}
               />
 
               Standard — ₹99, free from ₹500 after coupons
             </label>
 
 
-            <label className="check">
+            <label
+              className="check"
+            >
               <input
                 type="radio"
                 name="delivery"
@@ -1951,28 +2415,37 @@ export default function CheckoutPage() {
                   method ===
                   "express"
                 }
-                onChange={() =>
+                onChange={() => {
                   setMethod(
                     "express"
-                  )
-                }
+                  );
+
+                  setError(
+                    ""
+                  );
+                }}
               />
 
               Express — ₹199
             </label>
 
 
-            <p className="muted">
-              Delivery dates will be shown after shipping integration.
+            <p
+              className="muted"
+            >
+              Exact delivery dates will be connected during the shipping and serviceability phase.
             </p>
-
           </fieldset>
-
         </form>
 
 
-        <aside className="checkout-summary">
+        {/* =============================================
+            SUMMARY
+        ============================================== */}
 
+        <aside
+          className="checkout-summary"
+        >
           <CouponBox
             subtotal={
               pricing.subtotal
@@ -1991,6 +2464,31 @@ export default function CheckoutPage() {
               method
             }
           >
+            {step ===
+              "review" && (
+              <div
+                style={{
+                  marginBottom:
+                    "14px",
+                }}
+              >
+                <small
+                  className="muted"
+                >
+                  Payment
+                </small>
+
+                <strong
+                  style={{
+                    display:
+                      "block",
+                  }}
+                >
+                  Cash on delivery
+                </strong>
+              </div>
+            )}
+
 
             <button
               type="submit"
@@ -2003,21 +2501,29 @@ export default function CheckoutPage() {
               {busy
                 ? user
                   ? "Placing order…"
-                  : "Saving order…"
+                  : "Saving guest order…"
                 : step ===
                     "address"
                   ? "Continue to review"
-                  : user
-                    ? "Place order"
-                    : "Place preview order"}
+                  : "Place order"}
             </button>
 
+
+            {step ===
+              "review" && (
+              <p
+                className="muted"
+                style={{
+                  marginTop:
+                    "10px",
+                }}
+              >
+                By placing the order, you confirm your delivery details and order total.
+              </p>
+            )}
           </PriceSummary>
-
         </aside>
-
       </div>
-
     </div>
   );
 }

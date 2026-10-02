@@ -84,7 +84,246 @@ async function request(
 
 
 // ======================================================
-// GET RETURN / EXCHANGE REQUESTS
+// ADMIN — GET ALL ORDERS
+// ======================================================
+
+export async function getAdminOrders(
+  token,
+  {
+    status = "",
+    search = "",
+    page = 1,
+    limit = 25,
+  } = {}
+) {
+  const params =
+    new URLSearchParams();
+
+
+  if (
+    status &&
+    status !==
+      "all"
+  ) {
+    params.set(
+      "status",
+      status
+    );
+  }
+
+
+  if (
+    String(
+      search
+    ).trim()
+  ) {
+    params.set(
+      "search",
+      String(
+        search
+      ).trim()
+    );
+  }
+
+
+  params.set(
+    "page",
+    String(
+      page
+    )
+  );
+
+
+  params.set(
+    "limit",
+    String(
+      limit
+    )
+  );
+
+
+  const query =
+    params.toString();
+
+
+  const data =
+    await request(
+      `/orders/admin/orders${
+        query
+          ? `?${query}`
+          : ""
+      }`,
+      {
+        token,
+      }
+    );
+
+
+  return {
+    orders:
+      Array.isArray(
+        data.orders
+      )
+        ? data.orders
+        : [],
+
+    count:
+      Number(
+        data.count ||
+        0
+      ),
+
+    total:
+      Number(
+        data.total ||
+        0
+      ),
+
+    page:
+      Number(
+        data.page ||
+        1
+      ),
+
+    pages:
+      Number(
+        data.pages ||
+        1
+      ),
+
+    limit:
+      Number(
+        data.limit ||
+        limit
+      ),
+  };
+}
+
+
+// ======================================================
+// ADMIN — GET ONE ORDER
+// ======================================================
+
+export async function getAdminOrderById(
+  token,
+  orderId
+) {
+  if (
+    !orderId
+  ) {
+    throw new Error(
+      "Order ID is required."
+    );
+  }
+
+
+  const data =
+    await request(
+      `/orders/admin/orders/${encodeURIComponent(
+        orderId
+      )}`,
+      {
+        token,
+      }
+    );
+
+
+  return data.order;
+}
+
+
+// ======================================================
+// ADMIN — UPDATE ORDER STATUS / TRACKING
+// ======================================================
+
+export async function updateAdminOrderStatus(
+  token,
+  orderId,
+  {
+    status,
+    carrier,
+    trackingNumber,
+    estimatedDelivery,
+  } = {}
+) {
+  if (
+    !orderId
+  ) {
+    throw new Error(
+      "Order ID is required."
+    );
+  }
+
+
+  if (
+    !status
+  ) {
+    throw new Error(
+      "Order status is required."
+    );
+  }
+
+
+  const body = {
+    status,
+  };
+
+
+  if (
+    carrier !==
+    undefined
+  ) {
+    body.carrier =
+      String(
+        carrier || ""
+      ).trim();
+  }
+
+
+  if (
+    trackingNumber !==
+    undefined
+  ) {
+    body.trackingNumber =
+      String(
+        trackingNumber ||
+        ""
+      ).trim();
+  }
+
+
+  if (
+    estimatedDelivery !==
+    undefined
+  ) {
+    body.estimatedDelivery =
+      estimatedDelivery ||
+      "";
+  }
+
+
+  const data =
+    await request(
+      `/orders/admin/orders/${encodeURIComponent(
+        orderId
+      )}/status`,
+      {
+        token,
+
+        method:
+          "PUT",
+
+        body,
+      }
+    );
+
+
+  return data.order;
+}
+
+
+// ======================================================
+// ADMIN — GET RETURN / EXCHANGE REQUESTS
 // ======================================================
 
 export async function getAdminReturnRequests(
@@ -117,7 +356,7 @@ export async function getAdminReturnRequests(
 
 
 // ======================================================
-// APPROVE / REJECT
+// ADMIN — APPROVE / REJECT RETURN / EXCHANGE
 // ======================================================
 
 export async function reviewReturnRequest(
@@ -152,7 +391,7 @@ export async function reviewReturnRequest(
 
 
 // ======================================================
-// COMPLETE RETURN / EXCHANGE
+// ADMIN — COMPLETE RETURN / EXCHANGE
 // ======================================================
 
 export async function completeReturnRequest(
@@ -185,7 +424,7 @@ export async function completeReturnRequest(
 
 
 // ======================================================
-// RECORD MANUAL REFUND
+// ADMIN — RECORD MANUAL REFUND
 // ======================================================
 
 export async function recordReturnRefund(

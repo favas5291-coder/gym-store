@@ -8,6 +8,10 @@ const {
   cancelOrder,
   requestReturn,
 
+  getAdminOrders,
+  getAdminOrderById,
+  updateAdminOrderStatus,
+
   getAdminReturnRequests,
   reviewReturnRequest,
   completeReturnRequest,
@@ -54,11 +58,43 @@ router
 
 
 // ======================================================
-// ADMIN — RETURNS / EXCHANGES
+// ADMIN — ALL ORDERS
 //
 // IMPORTANT:
-// Keep these admin routes ABOVE "/:id"
-// so Express does not treat "admin" as an order ID.
+// Keep every "/admin/..." route ABOVE "/:id".
+// ======================================================
+
+router.get(
+  "/admin/orders",
+  adminOnly,
+  getAdminOrders
+);
+
+
+// ======================================================
+// ADMIN — UPDATE ORDER STATUS / TRACKING
+// ======================================================
+
+router.put(
+  "/admin/orders/:id/status",
+  adminOnly,
+  updateAdminOrderStatus
+);
+
+
+// ======================================================
+// ADMIN — GET ONE ORDER
+// ======================================================
+
+router.get(
+  "/admin/orders/:id",
+  adminOnly,
+  getAdminOrderById
+);
+
+
+// ======================================================
+// ADMIN — RETURNS / EXCHANGES
 // ======================================================
 
 router.get(
@@ -69,7 +105,7 @@ router.get(
 
 
 // ======================================================
-// ADMIN — APPROVE / REJECT
+// ADMIN — APPROVE / REJECT RETURN / EXCHANGE
 // ======================================================
 
 router.put(

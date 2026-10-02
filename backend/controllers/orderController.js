@@ -2874,6 +2874,681 @@ async function getAdminReturnRequests(
 
 
 // ======================================================
+// ADMIN — LIST ALL ORDERS
+// ======================================================
+
+async function getAdminOrders(
+  req,
+  res
+) {
+  try {
+    const requestedStatus =
+      cleanString(
+        req.query?.status,
+        40
+      ).toLowerCase();
+
+    const search =
+      cleanString(
+        req.query?.search,
+        120
+      );
+
+    const page =
+      Math.max(
+        1,
+        Number.parseInt(
+          req.query?.page,
+          10
+        ) || 1
+      );
+
+    const limit =
+      Math.min(
+        100,
+        Math.max(
+          1,
+          Number.parseInt(
+            req.query?.limit,
+            10
+          ) || 25
+        )
+      );
+
+    const allowedStatuses = [
+      "confirmed",
+      "processing",
+      "shipped",
+      "out-for-delivery",
+      "delivered",
+      "cancelled",
+    ];
+
+    if (
+      requestedStatus &&
+      requestedStatus !==
+        "all" &&
+      !allowedStatuses.includes(
+        requestedStatus
+      )
+    ) {
+      return res
+        .status(
+          400
+        )
+        .json({
+          success:
+            false,
+
+          message:
+            "Invalid order status.",
+        });
+    }
+
+    const query = {};
+
+    if (
+      requestedStatus &&
+      requestedStatus !==
+        "all"
+    ) {
+      query.status =
+        requestedStatus;
+    }
+
+    if (search) {
+      const escapedSearch =
+        search.replace(
+          /[.*+?^${}()|[\]\\]/g,
+          "\\$&"
+        );
+
+      const searchRegex =
+        new RegExp(
+          escapedSearch,
+          "i"
+        );
+
+      query.$or = [
+        {
+          orderNumber:
+            searchRegex,
+        },
+        {
+          "customer.name":
+            searchRegex,
+        },
+        {
+          "customer.email":
+            searchRegex,
+        },
+        {
+          "customer.phone":
+            searchRegex,
+        },
+        {
+          "shippingAddress.city":
+            searchRegex,
+        },
+        {
+          "shippingAddress.pincode":
+            searchRegex,
+        },
+      ];
+    }
+
+    const skip =
+      (page - 1) *
+      limit;
+
+    const [
+      orders,
+      total,
+    ] =
+      await Promise.all([
+        Order
+          .find(
+            query
+          )
+          .populate(
+            "user",
+            "name email role"
+          )
+          .sort({
+            createdAt:
+              -1,
+          })
+          .skip(
+            skip
+          )
+          .limit(
+            limit
+          ),
+
+        Order.countDocuments(
+          query
+        ),
+      ]);
+
+    return res
+      .status(
+        200
+      )
+      .json({
+        success:
+          true,
+
+        count:
+          orders.length,
+
+        total,
+
+        page,
+
+        pages:
+          Math.max(
+            1,
+            Math.ceil(
+              total /
+              limit
+            )
+          ),
+
+        limit,
+
+        orders:
+          orders.map(
+            safeOrder
+          ),
+      });
+
+  } catch (
+    error
+  ) {
+    console.error(
+      "Admin order list error:",
+      error
+    );
+
+    return res
+      .status(
+        500
+      )
+      .json({
+        success:
+          false,
+
+        message:
+          "Unable to load admin orders.",
+      });
+  }
+}
+
+
+// ======================================================
+// ADMIN — GET ONE ORDER
+// ======================================================
+
+async function getAdminOrderById(
+  req,
+  res
+) {
+  try {
+    const id =
+      cleanString(
+        req.params.id,
+        150
+      );
+
+    const order =
+      await Order
+        .findOne({
+          $or:
+            orderLookupConditions(
+              id
+            ),
+        })
+        .populate(
+          "user",
+          "name email role"
+        );
+
+    if (
+      !order
+    ) {
+      return res
+        .status(
+          404
+        )
+        .json({
+          success:
+            false,
+
+          message:
+            "Order not found.",
+        });
+    }
+
+    return res
+      .status(
+        200
+      )
+      .json({
+        success:
+          true,
+
+        order:
+          safeOrder(
+            order
+          ),
+      });
+
+  } catch (
+    error
+  ) {
+    console.error(
+      "Admin get order error:",
+      error
+    );
+
+    return res
+      .status(
+        500
+      )
+      .json({
+        success:
+          false,
+
+        message:
+          "Unable to load this order.",
+      });
+  }
+}
+
+
+// ======================================================
+// ADMIN — UPDATE ORDER STATUS / TRACKING
+// ======================================================
+
+async function updateAdminOrderStatus(
+  req,
+  res
+) {
+  const id =
+    cleanString(
+      req.params.id,
+      150
+    );
+
+  const status =
+    cleanString(
+      req.body?.status,
+      40
+    ).toLowerCase();
+
+  const statusFlow = [
+    "confirmed",
+    "processing",
+    "shipped",
+    "out-for-delivery",
+    "delivered",
+  ];
+
+  if (
+    !statusFlow.includes(
+      status
+    )
+  ) {
+    return res
+      .status(
+        400
+      )
+      .json({
+        success:
+          false,
+
+        message:
+          "Choose a valid fulfilment status.",
+      });
+  }
+
+  const hasCarrier =
+    Object.prototype
+      .hasOwnProperty.call(
+        req.body || {},
+        "carrier"
+      );
+
+  const hasTrackingNumber =
+    Object.prototype
+      .hasOwnProperty.call(
+        req.body || {},
+        "trackingNumber"
+      );
+
+  const hasEstimatedDelivery =
+    Object.prototype
+      .hasOwnProperty.call(
+        req.body || {},
+        "estimatedDelivery"
+      );
+
+  const carrier =
+    hasCarrier
+      ? cleanString(
+          req.body?.carrier,
+          100
+        ) || null
+      : undefined;
+
+  const trackingNumber =
+    hasTrackingNumber
+      ? cleanString(
+          req.body?.trackingNumber,
+          150
+        ) || null
+      : undefined;
+
+  let estimatedDelivery;
+
+  if (
+    hasEstimatedDelivery
+  ) {
+    const rawEstimatedDelivery =
+      cleanString(
+        req.body?.estimatedDelivery,
+        100
+      );
+
+    if (
+      rawEstimatedDelivery
+    ) {
+      const parsed =
+        new Date(
+          rawEstimatedDelivery
+        );
+
+      if (
+        Number.isNaN(
+          parsed.getTime()
+        )
+      ) {
+        return res
+          .status(
+            400
+          )
+          .json({
+            success:
+              false,
+
+            message:
+              "Enter a valid estimated delivery date.",
+          });
+      }
+
+      estimatedDelivery =
+        parsed;
+
+    } else {
+      estimatedDelivery =
+        null;
+    }
+  }
+
+  try {
+    const order =
+      await Order
+        .findOne({
+          $or:
+            orderLookupConditions(
+              id
+            ),
+        })
+        .populate(
+          "user",
+          "name email role"
+        );
+
+    if (
+      !order
+    ) {
+      return res
+        .status(
+          404
+        )
+        .json({
+          success:
+            false,
+
+          message:
+            "Order not found.",
+        });
+    }
+
+    if (
+      order.status ===
+        "cancelled" ||
+      order.cancellation
+        ?.status ===
+        "cancelled"
+    ) {
+      return res
+        .status(
+          409
+        )
+        .json({
+          success:
+            false,
+
+          message:
+            "A cancelled order cannot move through fulfilment.",
+        });
+    }
+
+    const currentIndex =
+      statusFlow.indexOf(
+        order.status
+      );
+
+    const nextIndex =
+      statusFlow.indexOf(
+        status
+      );
+
+    if (
+      currentIndex ===
+        -1
+    ) {
+      return res
+        .status(
+          409
+        )
+        .json({
+          success:
+            false,
+
+          message:
+            "This order has an unsupported current status.",
+        });
+    }
+
+    if (
+      nextIndex <
+      currentIndex
+    ) {
+      return res
+        .status(
+          409
+        )
+        .json({
+          success:
+            false,
+
+          message:
+            "Order status cannot move backwards.",
+        });
+    }
+
+    const now =
+      new Date();
+
+    const statusChanged =
+      order.status !==
+      status;
+
+    ensureTracking(
+      order
+    );
+
+    if (
+      hasCarrier
+    ) {
+      order.tracking.carrier =
+        carrier;
+    }
+
+    if (
+      hasTrackingNumber
+    ) {
+      order.tracking
+        .trackingNumber =
+        trackingNumber;
+    }
+
+    if (
+      hasEstimatedDelivery
+    ) {
+      order.tracking
+        .estimatedDelivery =
+        estimatedDelivery;
+    }
+
+    order.status =
+      status;
+
+    if (
+      !order.delivery
+    ) {
+      order.delivery = {};
+    }
+
+    order.delivery.status =
+      status ===
+      "confirmed"
+        ? "pending"
+        : status;
+
+    if (
+      status ===
+      "delivered" &&
+      !order.delivery
+        .deliveredAt
+    ) {
+      order.delivery
+        .deliveredAt =
+        now;
+    }
+
+    if (
+      statusChanged
+    ) {
+      const descriptions = {
+        confirmed:
+          "Order confirmed by GymDrobe.",
+
+        processing:
+          "Order is being prepared for dispatch.",
+
+        shipped:
+          "Order has been shipped.",
+
+        "out-for-delivery":
+          "Order is out for delivery.",
+
+        delivered:
+          "Order delivered successfully.",
+      };
+
+      order.tracking
+        .events
+        .push({
+          status,
+
+          description:
+            descriptions[
+              status
+            ],
+
+          timestamp:
+            now,
+        });
+
+    } else if (
+      hasCarrier ||
+      hasTrackingNumber ||
+      hasEstimatedDelivery
+    ) {
+      order.tracking
+        .events
+        .push({
+          status:
+            "tracking-updated",
+
+          description:
+            "Tracking information updated by GymDrobe.",
+
+          timestamp:
+            now,
+        });
+    }
+
+    await order.save();
+
+    return res
+      .status(
+        200
+      )
+      .json({
+        success:
+          true,
+
+        message:
+          statusChanged
+            ? `Order status updated to ${status}.`
+            : "Order tracking information updated.",
+
+        order:
+          safeOrder(
+            order
+          ),
+      });
+
+  } catch (
+    error
+  ) {
+    console.error(
+      "Admin order update error:",
+      error
+    );
+
+    return res
+      .status(
+        error.status ||
+        500
+      )
+      .json({
+        success:
+          false,
+
+        message:
+          error.message ||
+          "Unable to update this order.",
+      });
+  }
+}
+
+
+// ======================================================
 // ADMIN — APPROVE / REJECT REQUEST
 // ======================================================
 
@@ -4245,6 +4920,12 @@ module.exports = {
   cancelOrder,
 
   requestReturn,
+
+  getAdminOrders,
+
+  getAdminOrderById,
+
+  updateAdminOrderStatus,
 
   getAdminReturnRequests,
 

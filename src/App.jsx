@@ -230,8 +230,26 @@ const SecurityPage =
 
 
 // ======================================================
-// ADMIN PAGE
+// ADMIN PAGES
 // ======================================================
+
+const AdminOrdersPage =
+  lazy(
+    () =>
+      import(
+        "./pages/AdminOrdersPage.jsx"
+      )
+  );
+
+
+const AdminProductsPage =
+  lazy(
+    () =>
+      import(
+        "./pages/AdminProductsPage.jsx"
+      )
+  );
+
 
 const AdminReturnsPage =
   lazy(
@@ -401,6 +419,12 @@ function ScrollAndTitle() {
         "/account/security":
           "Password & account data",
 
+        "/admin/orders":
+          "Admin orders",
+
+        "/admin/products":
+          "Admin products & inventory",
+
         "/admin/returns":
           "Admin returns & exchanges",
 
@@ -416,8 +440,8 @@ function ScrollAndTitle() {
           ] ||
           "Your workout essentials"
         }`;
-
     },
+
     [
       pathname,
     ]
@@ -452,7 +476,6 @@ function Layout() {
 
   return (
     <>
-
       <a
         className="skip-link"
         href="#main-content"
@@ -490,21 +513,17 @@ function Layout() {
         className="gd-storefront"
         tabIndex="-1"
       >
-
         <ErrorBoundary
           key={
             location.pathname
           }
         >
-
           <Suspense
             fallback={
               <PageLoading />
             }
           >
-
             <Routes>
-
               {/* =========================================
                   HOME
               ========================================= */}
@@ -574,13 +593,11 @@ function Layout() {
                 path="/account/security"
                 element={
                   <AccountRequired>
-
                     <SecurityPage
                       key={
                         user?.id
                       }
                     />
-
                   </AccountRequired>
                 }
               />
@@ -590,13 +607,11 @@ function Layout() {
                 path="/account"
                 element={
                   <AccountRequired>
-
                     <AccountPage
                       key={
                         user?.id
                       }
                     />
-
                   </AccountRequired>
                 }
               />
@@ -606,13 +621,11 @@ function Layout() {
                 path="/addresses"
                 element={
                   <AccountRequired>
-
                     <AddressesPage
                       key={
                         user?.id
                       }
                     />
-
                   </AccountRequired>
                 }
               />
@@ -623,12 +636,30 @@ function Layout() {
               ========================================= */}
 
               <Route
+                path="/admin/orders"
+                element={
+                  <AdminRequired>
+                    <AdminOrdersPage />
+                  </AdminRequired>
+                }
+              />
+
+
+              <Route
+                path="/admin/products"
+                element={
+                  <AdminRequired>
+                    <AdminProductsPage />
+                  </AdminRequired>
+                }
+              />
+
+
+              <Route
                 path="/admin/returns"
                 element={
                   <AdminRequired>
-
                     <AdminReturnsPage />
-
                   </AdminRequired>
                 }
               />
@@ -802,13 +833,9 @@ function Layout() {
                   </EmptyState>
                 }
               />
-
             </Routes>
-
           </Suspense>
-
         </ErrorBoundary>
-
       </main>
 
 
@@ -826,7 +853,6 @@ function Layout() {
           closeToast
         }
       />
-
     </>
   );
 }
@@ -844,26 +870,18 @@ export default function App() {
 
   return (
     <BrowserRouter>
-
       <CatalogProvider>
-
         <StoreProvider
           key={
             user?.id ||
             "guest"
           }
         >
-
           <ShoppingToolsProvider>
-
             <Layout />
-
           </ShoppingToolsProvider>
-
         </StoreProvider>
-
       </CatalogProvider>
-
     </BrowserRouter>
   );
 }

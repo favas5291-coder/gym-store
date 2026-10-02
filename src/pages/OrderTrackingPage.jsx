@@ -40,6 +40,137 @@ const stages = [
 
 
 // ======================================================
+// HELPERS
+// ======================================================
+
+function statusLabel(
+  status
+) {
+  const labels = {
+    confirmed:
+      "Confirmed",
+
+    processing:
+      "Processing",
+
+    shipped:
+      "Shipped",
+
+    "out-for-delivery":
+      "Out for delivery",
+
+    delivered:
+      "Delivered",
+
+    cancelled:
+      "Cancelled",
+
+    packed:
+      "Processing",
+  };
+
+
+  return (
+    labels[
+      status
+    ] ||
+    String(
+      status ||
+        "Order update"
+    )
+      .replaceAll(
+        "-",
+        " "
+      )
+  );
+}
+
+
+function formatDate(
+  value
+) {
+  if (!value) {
+    return "";
+  }
+
+
+  const date =
+    new Date(
+      value
+    );
+
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "";
+  }
+
+
+  return date.toLocaleDateString(
+    "en-IN",
+    {
+      day:
+        "numeric",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
+    }
+  );
+}
+
+
+function formatDateTime(
+  value
+) {
+  if (!value) {
+    return "";
+  }
+
+
+  const date =
+    new Date(
+      value
+    );
+
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "";
+  }
+
+
+  return date.toLocaleString(
+    "en-IN",
+    {
+      day:
+        "numeric",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
+
+      hour:
+        "numeric",
+
+      minute:
+        "2-digit",
+    }
+  );
+}
+
+
+// ======================================================
 // ORDER TRACKING PAGE
 // ======================================================
 
@@ -50,180 +181,426 @@ export default function OrderTrackingPage() {
 
   const {
     orderId,
-  } = useParams();
+  } =
+    useParams();
 
 
   const {
     user,
     token,
-  } = useAuth();
+  } =
+    useAuth();
 
 
   const [
     order,
     setOrder,
-  ] = useState(null);
+  ] =
+    useState(
+      null
+    );
 
 
   const [
     loading,
     setLoading,
-  ] = useState(
-    Boolean(user)
-  );
+  ] =
+    useState(
+      Boolean(
+        user
+      )
+    );
+
+
+  const [
+    refreshing,
+    setRefreshing,
+  ] =
+    useState(
+      false
+    );
 
 
   const [
     error,
     setError,
-  ] = useState("");
+  ] =
+    useState("");
+
+
+  const [
+    refreshError,
+    setRefreshError,
+  ] =
+    useState("");
+
+
+  const [
+    lastUpdated,
+    setLastUpdated,
+  ] =
+    useState(
+      null
+    );
 
 
   // ====================================================
   // LOAD ORDER
   //
-  // Signed in:
+  // SIGNED IN:
   // MongoDB
   //
-  // Guest:
+  // GUEST:
   // localStorage
   // ====================================================
 
-  useEffect(() => {
-    let cancelled =
-      false;
+  useEffect(
+    () => {
+      let cancelled =
+        false;
 
 
-    async function loadOrder() {
-      setError("");
+      async function loadOrder() {
+        setError(
+          ""
+        );
 
 
-      // -----------------------------------------------
-      // GUEST
-      // -----------------------------------------------
+        // ----------------------------------------------
+        // GUEST ORDER
+        // ----------------------------------------------
 
-      if (!user) {
-        const local =
-          getLocalOrder(
-            orderId,
-            null
-          );
+        if (
+          !user
+        ) {
+          const local =
+            getLocalOrder(
+              orderId,
+              null
+            );
 
 
-        if (!cancelled) {
-          setOrder(
-            local
-          );
+          if (
+            !cancelled
+          ) {
+            setOrder(
+              local
+            );
 
-          setLoading(
-            false
-          );
+            setLoading(
+              false
+            );
+
+            setLastUpdated(
+              new Date()
+            );
+          }
+
+
+          return;
         }
 
 
-        return;
-      }
+        // ----------------------------------------------
+        // LOGGED-IN USER WITHOUT TOKEN
+        // ----------------------------------------------
+
+        if (
+          !token
+        ) {
+          if (
+            !cancelled
+          ) {
+            setOrder(
+              null
+            );
+
+            setLoading(
+              false
+            );
+
+            setError(
+              "Your sign-in session has expired. Please sign in again."
+            );
+          }
 
 
-      // -----------------------------------------------
-      // LOGGED-IN USER WITHOUT TOKEN
-      // -----------------------------------------------
+          return;
+        }
 
-      if (!token) {
-        if (!cancelled) {
+
+        // ----------------------------------------------
+        // MONGODB ORDER
+        // ----------------------------------------------
+
+        setLoading(
+          true
+        );
+
+
+        try {
+          const remoteOrder =
+            await getOrderById(
+              token,
+              orderId
+            );
+
+
+          if (
+            cancelled
+          ) {
+            return;
+          }
+
+
+          setOrder(
+            remoteOrder ||
+              null
+          );
+
+
+          setLastUpdated(
+            new Date()
+          );
+
+        } catch (
+          loadError
+        ) {
+          if (
+            cancelled
+          ) {
+            return;
+          }
+
+
+          console.error(
+            "Order tracking load error:",
+            loadError
+          );
+
+
           setOrder(
             null
           );
 
-          setLoading(
-            false
-          );
 
           setError(
-            "Your sign-in session has expired. Please sign in again."
+            loadError.message ||
+              "Tracking information could not be loaded."
           );
+
+        } finally {
+          if (
+            !cancelled
+          ) {
+            setLoading(
+              false
+            );
+          }
         }
-
-
-        return;
       }
 
 
-      // -----------------------------------------------
-      // MONGODB ORDER
-      // -----------------------------------------------
-
-      setLoading(
-        true
-      );
+      loadOrder();
 
 
-      try {
-        const remoteOrder =
-          await getOrderById(
-            token,
-            orderId
-          );
+      return () => {
+        cancelled =
+          true;
+      };
+    },
+
+    [
+      orderId,
+      user?.id,
+      token,
+      revision,
+    ]
+  );
 
 
-        if (cancelled) {
-          return;
-        }
+  // ====================================================
+  // SILENT REMOTE REFRESH
+  // ====================================================
 
-
-        setOrder(
-          remoteOrder ||
-            null
-        );
-
-      } catch (
-        loadError
-      ) {
-        if (cancelled) {
-          return;
-        }
-
-
-        console.error(
-          "Order tracking load error:",
-          loadError
-        );
-
-
-        setOrder(
-          null
-        );
-
-
-        setError(
-          loadError.message ||
-            "Tracking information could not be loaded."
-        );
-
-      } finally {
-        if (!cancelled) {
-          setLoading(
-            false
-          );
-        }
-      }
+  async function refreshRemoteOrder({
+    showLoading = false,
+  } = {}) {
+    if (
+      !user ||
+      !token ||
+      !orderId
+    ) {
+      return;
     }
 
 
-    loadOrder();
+    if (
+      showLoading
+    ) {
+      setRefreshing(
+        true
+      );
+    }
 
 
-    return () => {
-      cancelled =
-        true;
-    };
+    setRefreshError(
+      ""
+    );
 
-  }, [
-    orderId,
-    user?.id,
-    token,
-    revision,
-  ]);
+
+    try {
+      const remoteOrder =
+        await getOrderById(
+          token,
+          orderId
+        );
+
+
+      setOrder(
+        remoteOrder ||
+          null
+      );
+
+
+      setLastUpdated(
+        new Date()
+      );
+
+    } catch (
+      refreshLoadError
+    ) {
+      console.error(
+        "Tracking refresh error:",
+        refreshLoadError
+      );
+
+
+      setRefreshError(
+        refreshLoadError.message ||
+          "Could not refresh tracking right now."
+      );
+
+    } finally {
+      if (
+        showLoading
+      ) {
+        setRefreshing(
+          false
+        );
+      }
+    }
+  }
+
+
+  // ====================================================
+  // AUTO REFRESH
+  //
+  // Checks MongoDB while this tracking page is open.
+  // ====================================================
+
+  useEffect(
+    () => {
+      if (
+        !user ||
+        !token ||
+        !orderId
+      ) {
+        return undefined;
+      }
+
+
+      const interval =
+        window.setInterval(
+          () => {
+            if (
+              document.visibilityState ===
+              "visible"
+            ) {
+              refreshRemoteOrder();
+            }
+          },
+
+          30000
+        );
+
+
+      return () => {
+        window.clearInterval(
+          interval
+        );
+      };
+    },
+
+    [
+      user?.id,
+      token,
+      orderId,
+    ]
+  );
+
+
+  // ====================================================
+  // REFRESH WHEN CUSTOMER RETURNS TO TAB
+  // ====================================================
+
+  useEffect(
+    () => {
+      if (
+        !user ||
+        !token
+      ) {
+        return undefined;
+      }
+
+
+      function refreshOnFocus() {
+        refreshRemoteOrder();
+      }
+
+
+      function refreshOnVisibility() {
+        if (
+          document.visibilityState ===
+          "visible"
+        ) {
+          refreshRemoteOrder();
+        }
+      }
+
+
+      window.addEventListener(
+        "focus",
+        refreshOnFocus
+      );
+
+
+      document.addEventListener(
+        "visibilitychange",
+        refreshOnVisibility
+      );
+
+
+      return () => {
+        window.removeEventListener(
+          "focus",
+          refreshOnFocus
+        );
+
+
+        document.removeEventListener(
+          "visibilitychange",
+          refreshOnVisibility
+        );
+      };
+    },
+
+    [
+      user?.id,
+      token,
+      orderId,
+    ]
+  );
 
 
   // ====================================================
@@ -235,10 +612,12 @@ export default function OrderTrackingPage() {
     user
   ) {
     return (
-      <div className="page narrow tracking-page">
-
-        <div className="empty-state">
-
+      <div
+        className="page narrow tracking-page"
+      >
+        <div
+          className="empty-state"
+        >
           <h3>
             Loading tracking…
           </h3>
@@ -246,9 +625,7 @@ export default function OrderTrackingPage() {
           <p>
             Getting the latest information for your GymDrobe order.
           </p>
-
         </div>
-
       </div>
     );
   }
@@ -258,14 +635,18 @@ export default function OrderTrackingPage() {
   // ERROR
   // ====================================================
 
-  if (error) {
+  if (
+    error
+  ) {
     return (
       <EmptyState
         title="Tracking could not be loaded"
         to="/orders"
         label="My orders"
       >
-        {error}
+        {
+          error
+        }
       </EmptyState>
     );
   }
@@ -275,7 +656,9 @@ export default function OrderTrackingPage() {
   // ORDER NOT FOUND
   // ====================================================
 
-  if (!order) {
+  if (
+    !order
+  ) {
     return (
       <EmptyState
         title="Order not found"
@@ -319,13 +702,32 @@ export default function OrderTrackingPage() {
       : [];
 
 
+  const sortedEvents = [
+    ...events,
+  ].sort(
+    (
+      a,
+      b
+    ) =>
+      Date.parse(
+        b.timestamp ||
+          0
+      ) -
+      Date.parse(
+        a.timestamp ||
+          0
+      )
+  );
+
+
   // ====================================================
   // PAGE
   // ====================================================
 
   return (
-    <div className="page narrow tracking-page">
-
+    <div
+      className="page narrow tracking-page"
+    >
       <Link
         className="text-link"
         to={`/orders/${encodeURIComponent(
@@ -336,114 +738,253 @@ export default function OrderTrackingPage() {
       </Link>
 
 
-      <h1>
-        Track your order
-      </h1>
+      <div
+        style={{
+          display:
+            "flex",
 
+          justifyContent:
+            "space-between",
 
-      <p className="order-id">
-        {order.id}
-      </p>
+          alignItems:
+            "flex-start",
 
+          gap:
+            "16px",
 
-      <span
-        className={`status-pill ${
-          order.status ===
-          "cancelled"
-            ? "cancelled"
-            : ""
-        }`}
+          flexWrap:
+            "wrap",
+        }}
       >
-        {orderStatus(
-          order
+        <div>
+          <h1>
+            Track your order
+          </h1>
+
+          <p
+            className="order-id"
+          >
+            {
+              order.id
+            }
+          </p>
+
+          <span
+            className={`status-pill ${
+              order.status ===
+              "cancelled"
+                ? "cancelled"
+                : ""
+            }`}
+          >
+            {orderStatus(
+              order
+            )}
+          </span>
+        </div>
+
+
+        {user && (
+          <button
+            type="button"
+            className="button secondary"
+            disabled={
+              refreshing
+            }
+            onClick={
+              () =>
+                refreshRemoteOrder({
+                  showLoading:
+                    true,
+                })
+            }
+          >
+            {refreshing
+              ? "Refreshing…"
+              : "Refresh tracking"}
+          </button>
         )}
-      </span>
-
-
-      {/* =================================================
-          DATA SOURCE NOTICE
-      ================================================= */}
-
-      <div className="notice">
-        {user
-          ? "Tracking information is loaded from your GymDrobe account."
-          : "Guest tracking information is stored on this device."}
       </div>
 
 
       {/* =================================================
-          CANCELLED ORDER
+          DATA SOURCE
+      ================================================= */}
+
+      <div
+        className="notice"
+      >
+        {user
+          ? "Tracking information is synced with your GymDrobe account."
+          : "Guest tracking information is stored on this device."}
+
+        {lastUpdated && (
+          <>
+            {" "}
+            Last updated{" "}
+            {formatDateTime(
+              lastUpdated
+            )}
+            .
+          </>
+        )}
+      </div>
+
+
+      {refreshError && (
+        <p
+          className="field-error"
+          role="alert"
+        >
+          {
+            refreshError
+          }
+        </p>
+      )}
+
+
+      {/* =================================================
+          CANCELLED
       ================================================= */}
 
       {order.status ===
       "cancelled" ? (
-        <div className="notice">
+        <div
+          className="notice"
+        >
           This order has been cancelled.
         </div>
+
       ) : (
+        <>
+          {/* =============================================
+              PROGRESS
+          ============================================= */}
 
-        // ===============================================
-        // TRACKING PROGRESS
-        // ===============================================
-
-        <ol className="tracking-steps">
-
-          {stages.map(
-            (
-              stage,
-              index
-            ) => {
-              const completed =
-                currentIndex >=
-                  0 &&
-                index <=
-                  currentIndex;
-
-
-              const isCurrent =
-                stage ===
-                progressStatus;
+          <ol
+            className="tracking-steps"
+          >
+            {stages.map(
+              (
+                stage,
+                index
+              ) => {
+                const completed =
+                  currentIndex >=
+                    0 &&
+                  index <=
+                    currentIndex;
 
 
-              return (
-                <li
-                  key={
-                    stage
-                  }
-                  className={
-                    completed
-                      ? "done"
-                      : ""
-                  }
-                  aria-current={
-                    isCurrent
-                      ? "step"
-                      : undefined
-                  }
-                >
-
-                  <span aria-hidden="true">
-                    {currentIndex >
-                    index
-                      ? "✓"
-                      : index +
-                        1}
-                  </span>
+                const isCurrent =
+                  stage ===
+                  progressStatus;
 
 
-                  <strong>
-                    {stage.replaceAll(
-                      "-",
-                      " "
-                    )}
-                  </strong>
+                return (
+                  <li
+                    key={
+                      stage
+                    }
+                    className={
+                      completed
+                        ? "done"
+                        : ""
+                    }
+                    aria-current={
+                      isCurrent
+                        ? "step"
+                        : undefined
+                    }
+                  >
+                    <span
+                      aria-hidden="true"
+                    >
+                      {currentIndex >
+                      index
+                        ? "✓"
+                        : index +
+                          1}
+                    </span>
 
-                </li>
-              );
-            }
-          )}
+                    <strong>
+                      {statusLabel(
+                        stage
+                      )}
+                    </strong>
+                  </li>
+                );
+              }
+            )}
+          </ol>
 
-        </ol>
+
+          {/* =============================================
+              CURRENT DELIVERY MESSAGE
+          ============================================= */}
+
+          <section
+            className="panel"
+          >
+            <h2>
+              ORDER STATUS
+            </h2>
+
+
+            {progressStatus ===
+              "confirmed" && (
+              <p>
+                Your order has been confirmed. GymDrobe will begin preparing it for dispatch.
+              </p>
+            )}
+
+
+            {progressStatus ===
+              "processing" && (
+              <p>
+                Your order is being prepared and packed for dispatch.
+              </p>
+            )}
+
+
+            {progressStatus ===
+              "shipped" && (
+              <p>
+                Your order has left GymDrobe and is on its way to you.
+              </p>
+            )}
+
+
+            {progressStatus ===
+              "out-for-delivery" && (
+              <p>
+                Your order is out for delivery. Please keep your phone available for the delivery partner.
+              </p>
+            )}
+
+
+            {progressStatus ===
+              "delivered" && (
+              <p>
+                Your order has been delivered successfully.
+              </p>
+            )}
+
+
+            {order.delivery
+              ?.deliveredAt && (
+              <p
+                className="muted"
+              >
+                Delivered:{" "}
+                {formatDateTime(
+                  order.delivery
+                    .deliveredAt
+                )}
+              </p>
+            )}
+          </section>
+        </>
       )}
 
 
@@ -451,8 +992,9 @@ export default function OrderTrackingPage() {
           SHIPMENT INFORMATION
       ================================================= */}
 
-      <section className="panel">
-
+      <section
+        className="panel"
+      >
         <h2>
           SHIPMENT INFORMATION
         </h2>
@@ -461,7 +1003,9 @@ export default function OrderTrackingPage() {
         {order.tracking
           ?.carrier ? (
           <p>
-            Carrier:{" "}
+            <strong>
+              Carrier:
+            </strong>{" "}
             {
               order.tracking
                 .carrier
@@ -477,7 +1021,9 @@ export default function OrderTrackingPage() {
         {order.tracking
           ?.trackingNumber && (
           <p>
-            Tracking number:{" "}
+            <strong>
+              Tracking number:
+            </strong>{" "}
             {
               order.tracking
                 .trackingNumber
@@ -489,23 +1035,12 @@ export default function OrderTrackingPage() {
         {order.tracking
           ?.estimatedDelivery && (
           <p>
-            Estimated delivery:{" "}
-
-            {new Date(
+            <strong>
+              Estimated delivery:
+            </strong>{" "}
+            {formatDate(
               order.tracking
                 .estimatedDelivery
-            ).toLocaleDateString(
-              "en-IN",
-              {
-                day:
-                  "numeric",
-
-                month:
-                  "short",
-
-                year:
-                  "numeric",
-              }
             )}
           </p>
         )}
@@ -514,7 +1049,9 @@ export default function OrderTrackingPage() {
         {order.delivery
           ?.label && (
           <p>
-            Delivery method:{" "}
+            <strong>
+              Delivery method:
+            </strong>{" "}
             {
               order.delivery
                 .label
@@ -523,10 +1060,39 @@ export default function OrderTrackingPage() {
         )}
 
 
-        <p className="muted">
-          Tracking displays events currently recorded for this order. Live courier tracking will be added when shipping integration is connected.
-        </p>
+        {order.delivery
+          ?.status && (
+          <p>
+            <strong>
+              Delivery status:
+            </strong>{" "}
+            {statusLabel(
+              order.delivery
+                .status
+            )}
+          </p>
+        )}
 
+
+        {!order.tracking
+          ?.carrier &&
+          !order.tracking
+            ?.trackingNumber &&
+          progressStatus ===
+            "confirmed" && (
+            <p
+              className="muted"
+            >
+              Courier information will appear here after your order is prepared for shipment.
+            </p>
+          )}
+
+
+        <p
+          className="muted"
+        >
+          This page shows fulfilment and tracking information recorded by GymDrobe. Courier-level live location tracking can be connected later through a shipping provider.
+        </p>
       </section>
 
 
@@ -534,31 +1100,17 @@ export default function OrderTrackingPage() {
           ORDER ACTIVITY
       ================================================= */}
 
-      <section className="panel">
-
+      <section
+        className="panel"
+      >
         <h2>
           ORDER ACTIVITY
         </h2>
 
 
-        {events.length ? (
-
-          [...events]
-            .sort(
-              (
-                a,
-                b
-              ) =>
-                Date.parse(
-                  b.timestamp ||
-                    0
-                ) -
-                Date.parse(
-                  a.timestamp ||
-                    0
-                )
-            )
-            .map(
+        {sortedEvents.length ? (
+          <div>
+            {sortedEvents.map(
               (
                 event,
                 index
@@ -567,21 +1119,21 @@ export default function OrderTrackingPage() {
                   className="tracking-event"
                   key={`${event.status || "event"}-${event.timestamp || index}`}
                 >
-
                   <strong>
                     {event.description ||
-                      event.status ||
+                      statusLabel(
+                        event.status
+                      ) ||
                       "Order update"}
                   </strong>
 
 
                   {event.status && (
-                    <p className="muted">
-                      {String(
+                    <p
+                      className="muted"
+                    >
+                      {statusLabel(
                         event.status
-                      ).replaceAll(
-                        "-",
-                        " "
                       )}
                     </p>
                   )}
@@ -589,26 +1141,137 @@ export default function OrderTrackingPage() {
 
                   {event.timestamp && (
                     <p>
-                      {new Date(
+                      {formatDateTime(
                         event.timestamp
-                      ).toLocaleString(
-                        "en-IN"
                       )}
                     </p>
                   )}
-
                 </div>
               )
-            )
-
+            )}
+          </div>
         ) : (
           <p>
             No tracking events have been recorded yet.
           </p>
         )}
-
       </section>
 
+
+      {/* =================================================
+          DELIVERY ADDRESS
+      ================================================= */}
+
+      {order.shippingAddress && (
+        <section
+          className="panel"
+        >
+          <h2>
+            DELIVERY ADDRESS
+          </h2>
+
+
+          <p>
+            <strong>
+              {order.shippingAddress
+                .fullName ||
+                order.customer
+                  ?.name ||
+                "Customer"}
+            </strong>
+
+            <br />
+
+            {order.shippingAddress
+              .addressLine ||
+              ""}
+
+            {order.shippingAddress
+              .landmark && (
+              <>
+                <br />
+                {
+                  order.shippingAddress
+                    .landmark
+                }
+              </>
+            )}
+
+            <br />
+
+            {order.shippingAddress
+              .city ||
+              ""}
+
+            {order.shippingAddress
+              .state
+              ? `, ${order.shippingAddress.state}`
+              : ""}
+
+            {order.shippingAddress
+              .pincode
+              ? ` - ${order.shippingAddress.pincode}`
+              : ""}
+          </p>
+
+
+          {order.shippingAddress
+            .phone && (
+            <p>
+              <strong>
+                Phone:
+              </strong>{" "}
+              {
+                order.shippingAddress
+                  .phone
+              }
+            </p>
+          )}
+        </section>
+      )}
+
+
+      {/* =================================================
+          CUSTOMER ACTIONS
+      ================================================= */}
+
+      <div
+        style={{
+          display:
+            "flex",
+
+          gap:
+            "12px",
+
+          flexWrap:
+            "wrap",
+        }}
+      >
+        <Link
+          className="button secondary"
+          to={`/orders/${encodeURIComponent(
+            order.id
+          )}`}
+        >
+          View order details
+        </Link>
+
+
+        <Link
+          className="button secondary"
+          to="/orders"
+        >
+          All orders
+        </Link>
+
+
+        <Link
+          className="button"
+          to="/shop"
+        >
+          Continue shopping
+        </Link>
+      </div>
     </div>
   );
 }

@@ -12,6 +12,10 @@ const bcrypt =
 const userSchema =
   new mongoose.Schema(
     {
+      // ==================================================
+      // NAME
+      // ==================================================
+
       name: {
         type:
           String,
@@ -24,13 +28,21 @@ const userSchema =
         trim:
           true,
 
-        minlength:
+        minlength: [
           2,
+          "Name must contain at least 2 characters",
+        ],
 
-        maxlength:
+        maxlength: [
           60,
+          "Name cannot exceed 60 characters",
+        ],
       },
 
+
+      // ==================================================
+      // EMAIL
+      // ==================================================
 
       email: {
         type:
@@ -50,12 +62,71 @@ const userSchema =
         trim:
           true,
 
+        maxlength:
+          150,
+
         match: [
           /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
           "Please enter a valid email address",
         ],
       },
 
+
+      // ==================================================
+      // MOBILE NUMBER
+      //
+      // Optional.
+      //
+      // Current GymDrobe validation uses Indian
+      // 10-digit mobile numbers beginning with 6–9.
+      // ==================================================
+
+      phone: {
+        type:
+          String,
+
+        default:
+          "",
+
+        trim:
+          true,
+
+        maxlength:
+          10,
+
+        validate: {
+          validator(
+            value
+          ) {
+            /*
+              Empty phone number is allowed.
+
+              If supplied:
+              - exactly 10 digits
+              - starts with 6, 7, 8 or 9
+            */
+
+            if (
+              !value
+            ) {
+              return true;
+            }
+
+
+            return /^[6-9]\d{9}$/.test(
+              value
+            );
+          },
+
+          message:
+            "Please enter a valid 10-digit mobile number",
+        },
+      },
+
+
+      // ==================================================
+      // PASSWORD
+      // ==================================================
 
       password: {
         type:
@@ -66,10 +137,16 @@ const userSchema =
           "Password is required",
         ],
 
-        minlength:
+        minlength: [
           8,
+          "Password must contain at least 8 characters",
+        ],
 
-        // Never return password automatically.
+        /*
+          Password hashes must never be returned through
+          normal User queries.
+        */
+
         select:
           false,
       },
@@ -90,6 +167,9 @@ const userSchema =
 
         default:
           "customer",
+
+        index:
+          true,
       },
 
 
@@ -103,14 +183,99 @@ const userSchema =
 
         default:
           true,
+
+        index:
+          true,
       },
     },
 
     {
       timestamps:
         true,
+
+      /*
+        We also remove the password if a query ever
+        explicitly selected it and then converted the
+        user to JSON.
+      */
+
+      toJSON: {
+        transform(
+          doc,
+          ret
+        ) {
+          delete ret.password;
+          delete ret.__v;
+
+          return ret;
+        },
+      },
+
+      toObject: {
+        transform(
+          doc,
+          ret
+        ) {
+          delete ret.password;
+          delete ret.__v;
+
+          return ret;
+        },
+      },
     }
   );
+
+
+// ======================================================
+// NORMALIZE USER BEFORE VALIDATION
+// ======================================================
+
+userSchema.pre(
+  "validate",
+
+  function () {
+    if (
+      typeof this.name ===
+      "string"
+    ) {
+      this.name =
+        this.name.trim();
+    }
+
+
+    if (
+      typeof this.email ===
+      "string"
+    ) {
+      this.email =
+        this.email
+          .trim()
+          .toLowerCase();
+    }
+
+
+    if (
+      typeof this.phone ===
+      "string"
+    ) {
+      /*
+        Store phone number as digits only.
+
+        Example:
+
+        "98765 43210"
+        becomes
+        "9876543210"
+      */
+
+      this.phone =
+        this.phone.replace(
+          /\D/g,
+          ""
+        );
+    }
+  }
+);
 
 
 // ======================================================
@@ -121,6 +286,11 @@ userSchema.pre(
   "save",
 
   async function () {
+    /*
+      Do not hash password again when only changing
+      profile information such as name or phone.
+    */
+
     if (
       !this.isModified(
         "password"
@@ -153,8 +323,27 @@ userSchema.methods.comparePassword =
   async function (
     enteredPassword
   ) {
+    /*
+      Login queries must explicitly request:
+
+      .select("+password")
+
+      because password uses select: false.
+    */
+
+    if (
+      !this.password
+    ) {
+      return false;
+    }
+
+
     return bcrypt.compare(
-      enteredPassword,
+      String(
+        enteredPassword ||
+          ""
+      ),
+
       this.password
     );
   };
