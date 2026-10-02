@@ -7,13 +7,23 @@ const {
   getOrderById,
   cancelOrder,
   requestReturn,
+
+  getAdminReturnRequests,
+  reviewReturnRequest,
+  completeReturnRequest,
+  recordReturnRefund,
 } =
-  require("../controllers/orderController");
+  require(
+    "../controllers/orderController"
+  );
 
 const {
   protect,
+  adminOnly,
 } =
-  require("../middleware/authMiddleware");
+  require(
+    "../middleware/authMiddleware"
+  );
 
 
 const router =
@@ -30,7 +40,7 @@ router.use(
 
 
 // ======================================================
-// ORDERS
+// CUSTOMER ORDERS
 // ======================================================
 
 router
@@ -44,9 +54,55 @@ router
 
 
 // ======================================================
-// CANCEL ORDER
+// ADMIN — RETURNS / EXCHANGES
 //
-// PUT /api/orders/:id/cancel
+// IMPORTANT:
+// Keep these admin routes ABOVE "/:id"
+// so Express does not treat "admin" as an order ID.
+// ======================================================
+
+router.get(
+  "/admin/returns",
+  adminOnly,
+  getAdminReturnRequests
+);
+
+
+// ======================================================
+// ADMIN — APPROVE / REJECT
+// ======================================================
+
+router.put(
+  "/admin/returns/:id/review",
+  adminOnly,
+  reviewReturnRequest
+);
+
+
+// ======================================================
+// ADMIN — COMPLETE RETURN / EXCHANGE
+// ======================================================
+
+router.put(
+  "/admin/returns/:id/complete",
+  adminOnly,
+  completeReturnRequest
+);
+
+
+// ======================================================
+// ADMIN — RECORD MANUAL REFUND
+// ======================================================
+
+router.put(
+  "/admin/returns/:id/refund",
+  adminOnly,
+  recordReturnRefund
+);
+
+
+// ======================================================
+// CUSTOMER — CANCEL ORDER
 // ======================================================
 
 router.put(
@@ -56,9 +112,7 @@ router.put(
 
 
 // ======================================================
-// REQUEST RETURN / EXCHANGE
-//
-// POST /api/orders/:id/return
+// CUSTOMER — REQUEST RETURN / EXCHANGE
 // ======================================================
 
 router.post(
@@ -68,7 +122,9 @@ router.post(
 
 
 // ======================================================
-// GET ONE ORDER
+// CUSTOMER — GET ONE ORDER
+//
+// Keep this LAST because "/:id" matches almost anything.
 // ======================================================
 
 router.get(
@@ -76,6 +132,10 @@ router.get(
   getOrderById
 );
 
+
+// ======================================================
+// EXPORT
+// ======================================================
 
 module.exports =
   router;

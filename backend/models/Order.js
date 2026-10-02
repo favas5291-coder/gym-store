@@ -13,102 +13,149 @@ const orderItemSchema =
         type:
           mongoose.Schema.Types.ObjectId,
 
-        ref: "Product",
+        ref:
+          "Product",
 
-        required: true,
+        required:
+          true,
       },
+
 
       legacyId: {
-        type: Number,
+        type:
+          Number,
 
-        default: null,
+        default:
+          null,
       },
+
 
       slug: {
-        type: String,
+        type:
+          String,
 
-        default: "",
+        default:
+          "",
       },
+
 
       sku: {
-        type: String,
+        type:
+          String,
 
-        default: "",
+        default:
+          "",
       },
+
 
       name: {
-        type: String,
+        type:
+          String,
 
-        required: true,
+        required:
+          true,
       },
+
 
       brand: {
-        type: String,
+        type:
+          String,
 
-        default: "",
+        default:
+          "",
       },
+
 
       image: {
-        type: String,
+        type:
+          String,
 
-        default: "",
+        default:
+          "",
       },
+
 
       originalPrice: {
-        type: Number,
+        type:
+          Number,
 
-        required: true,
+        required:
+          true,
 
-        min: 0,
+        min:
+          0,
       },
+
 
       price: {
-        type: Number,
+        type:
+          Number,
 
-        required: true,
+        required:
+          true,
 
-        min: 0,
+        min:
+          0,
       },
+
 
       discount: {
-        type: Number,
+        type:
+          Number,
 
-        default: 0,
+        default:
+          0,
 
-        min: 0,
+        min:
+          0,
 
-        max: 100,
+        max:
+          100,
       },
+
 
       quantity: {
-        type: Number,
+        type:
+          Number,
 
-        required: true,
+        required:
+          true,
 
-        min: 1,
+        min:
+          1,
       },
+
 
       selectedSize: {
-        type: String,
+        type:
+          String,
 
-        default: null,
+        default:
+          null,
       },
+
 
       selectedColor: {
-        type: String,
+        type:
+          String,
 
-        default: null,
+        default:
+          null,
       },
 
-      returnPolicy: {
-        type: String,
 
-        default: "",
+      returnPolicy: {
+        type:
+          String,
+
+        default:
+          "",
       },
     },
 
     {
-      _id: false,
+      _id:
+        false,
     }
   );
 
@@ -121,68 +168,98 @@ const shippingAddressSchema =
   new mongoose.Schema(
     {
       fullName: {
-        type: String,
+        type:
+          String,
 
-        required: true,
+        required:
+          true,
       },
+
 
       name: {
-        type: String,
+        type:
+          String,
 
-        required: true,
+        required:
+          true,
       },
+
 
       email: {
-        type: String,
+        type:
+          String,
 
-        required: true,
+        required:
+          true,
       },
+
 
       phone: {
-        type: String,
+        type:
+          String,
 
-        required: true,
+        required:
+          true,
       },
+
 
       addressLine: {
-        type: String,
+        type:
+          String,
 
-        required: true,
+        required:
+          true,
       },
+
 
       landmark: {
-        type: String,
+        type:
+          String,
 
-        default: "",
+        default:
+          "",
       },
+
 
       city: {
-        type: String,
+        type:
+          String,
 
-        required: true,
+        required:
+          true,
       },
+
 
       state: {
-        type: String,
+        type:
+          String,
 
-        required: true,
+        required:
+          true,
       },
+
 
       pincode: {
-        type: String,
+        type:
+          String,
 
-        required: true,
+        required:
+          true,
       },
 
-      label: {
-        type: String,
 
-        default: "Home",
+      label: {
+        type:
+          String,
+
+        default:
+          "Home",
       },
     },
 
     {
-      _id: false,
+      _id:
+        false,
     }
   );
 
@@ -195,54 +272,77 @@ const pricingSchema =
   new mongoose.Schema(
     {
       subtotal: {
-        type: Number,
+        type:
+          Number,
 
-        required: true,
+        required:
+          true,
 
-        min: 0,
+        min:
+          0,
       },
+
 
       couponDiscount: {
-        type: Number,
+        type:
+          Number,
 
-        default: 0,
+        default:
+          0,
 
-        min: 0,
+        min:
+          0,
       },
+
 
       totalAfterCoupon: {
-        type: Number,
+        type:
+          Number,
 
-        required: true,
+        required:
+          true,
 
-        min: 0,
+        min:
+          0,
       },
+
 
       shipping: {
-        type: Number,
+        type:
+          Number,
 
-        required: true,
+        required:
+          true,
 
-        min: 0,
+        min:
+          0,
       },
+
 
       finalTotal: {
-        type: Number,
+        type:
+          Number,
 
-        required: true,
+        required:
+          true,
 
-        min: 0,
+        min:
+          0,
       },
 
-      currency: {
-        type: String,
 
-        default: "INR",
+      currency: {
+        type:
+          String,
+
+        default:
+          "INR",
       },
     },
 
     {
-      _id: false,
+      _id:
+        false,
     }
   );
 
@@ -255,26 +355,35 @@ const trackingEventSchema =
   new mongoose.Schema(
     {
       status: {
-        type: String,
+        type:
+          String,
 
-        required: true,
+        required:
+          true,
       },
+
 
       description: {
-        type: String,
+        type:
+          String,
 
-        default: "",
+        default:
+          "",
       },
 
-      timestamp: {
-        type: Date,
 
-        default: Date.now,
+      timestamp: {
+        type:
+          Date,
+
+        default:
+          Date.now,
       },
     },
 
     {
-      _id: false,
+      _id:
+        false,
     }
   );
 
@@ -292,20 +401,26 @@ const returnItemSchema =
       */
 
       index: {
-        type: Number,
+        type:
+          Number,
 
-        required: true,
+        required:
+          true,
 
-        min: 0,
+        min:
+          0,
       },
 
 
       quantity: {
-        type: Number,
+        type:
+          Number,
 
-        required: true,
+        required:
+          true,
 
-        min: 1,
+        min:
+          1,
       },
 
 
@@ -313,25 +428,30 @@ const returnItemSchema =
         For exchange requests these contain
         the requested replacement variant.
 
-        For normal returns they can remain null.
+        For normal returns they remain null.
       */
 
       size: {
-        type: String,
+        type:
+          String,
 
-        default: null,
+        default:
+          null,
       },
 
 
       color: {
-        type: String,
+        type:
+          String,
 
-        default: null,
+        default:
+          null,
       },
     },
 
     {
-      _id: false,
+      _id:
+        false,
     }
   );
 
@@ -343,40 +463,67 @@ const returnItemSchema =
 const orderSchema =
   new mongoose.Schema(
     {
+      // ==================================================
+      // ORDER ID
+      // ==================================================
+
       orderNumber: {
-        type: String,
+        type:
+          String,
 
-        required: true,
+        required:
+          true,
 
-        unique: true,
+        unique:
+          true,
 
-        index: true,
+        index:
+          true,
       },
 
+
+      // ==================================================
+      // OWNER
+      // ==================================================
 
       user: {
         type:
           mongoose.Schema.Types.ObjectId,
 
-        ref: "User",
+        ref:
+          "User",
 
-        required: true,
+        required:
+          true,
 
-        index: true,
+        index:
+          true,
       },
 
+
+      // ==================================================
+      // CHECKOUT IDEMPOTENCY
+      // ==================================================
 
       checkoutToken: {
-        type: String,
+        type:
+          String,
 
-        required: true,
+        required:
+          true,
 
-        trim: true,
+        trim:
+          true,
       },
 
 
+      // ==================================================
+      // SOURCE
+      // ==================================================
+
       source: {
-        type: String,
+        type:
+          String,
 
         enum: [
           "cart",
@@ -389,8 +536,13 @@ const orderSchema =
       },
 
 
+      // ==================================================
+      // ORDER STATUS
+      // ==================================================
+
       status: {
-        type: String,
+        type:
+          String,
 
         enum: [
           "confirmed",
@@ -404,25 +556,36 @@ const orderSchema =
         default:
           "confirmed",
 
-        index: true,
+        index:
+          true,
       },
 
 
+      // ==================================================
+      // OPTIONAL ORDER DETAILS
+      // ==================================================
+
       giftMessage: {
-        type: String,
+        type:
+          String,
 
-        default: "",
+        default:
+          "",
 
-        maxlength: 250,
+        maxlength:
+          250,
       },
 
 
       orderNote: {
-        type: String,
+        type:
+          String,
 
-        default: "",
+        default:
+          "",
 
-        maxlength: 300,
+        maxlength:
+          300,
       },
 
 
@@ -432,21 +595,29 @@ const orderSchema =
 
       customer: {
         name: {
-          type: String,
+          type:
+            String,
 
-          required: true,
+          required:
+            true,
         },
+
 
         email: {
-          type: String,
+          type:
+            String,
 
-          required: true,
+          required:
+            true,
         },
 
-        phone: {
-          type: String,
 
-          required: true,
+        phone: {
+          type:
+            String,
+
+          required:
+            true,
         },
       },
 
@@ -459,7 +630,8 @@ const orderSchema =
         type:
           shippingAddressSchema,
 
-        required: true,
+        required:
+          true,
       },
 
 
@@ -472,7 +644,8 @@ const orderSchema =
           orderItemSchema,
         ],
 
-        required: true,
+        required:
+          true,
 
         validate: {
           validator(
@@ -501,7 +674,8 @@ const orderSchema =
         type:
           pricingSchema,
 
-        required: true,
+        required:
+          true,
       },
 
 
@@ -511,27 +685,38 @@ const orderSchema =
 
       coupon: {
         code: {
-          type: String,
+          type:
+            String,
 
-          default: null,
+          default:
+            null,
         },
+
 
         type: {
-          type: String,
+          type:
+            String,
 
-          default: null,
+          default:
+            null,
         },
+
 
         value: {
-          type: Number,
+          type:
+            Number,
 
-          default: null,
+          default:
+            null,
         },
 
-        minimum: {
-          type: Number,
 
-          default: null,
+        minimum: {
+          type:
+            Number,
+
+          default:
+            null,
         },
       },
 
@@ -542,7 +727,8 @@ const orderSchema =
 
       payment: {
         method: {
-          type: String,
+          type:
+            String,
 
           enum: [
             "cod",
@@ -552,8 +738,10 @@ const orderSchema =
             "cod",
         },
 
+
         status: {
-          type: String,
+          type:
+            String,
 
           enum: [
             "pending",
@@ -566,16 +754,20 @@ const orderSchema =
             "pending",
         },
 
-        transactionId: {
-          type: String,
 
-          default: null,
+        transactionId: {
+          type:
+            String,
+
+          default:
+            null,
         },
       },
 
 
       paymentMethod: {
-        type: String,
+        type:
+          String,
 
         default:
           "cod",
@@ -588,7 +780,8 @@ const orderSchema =
 
       delivery: {
         method: {
-          type: String,
+          type:
+            String,
 
           enum: [
             "standard",
@@ -599,44 +792,55 @@ const orderSchema =
             "standard",
         },
 
+
         status: {
-          type: String,
+          type:
+            String,
 
           default:
             "pending",
         },
 
+
         label: {
-          type: String,
+          type:
+            String,
 
           default:
             "Standard delivery",
         },
 
-        estimatedTime: {
-          type: String,
 
-          default: null,
+        estimatedTime: {
+          type:
+            String,
+
+          default:
+            null,
         },
 
 
         /*
-          Actual delivery time.
+          Real delivery timestamp.
 
-          Returns use the real delivery date,
-          never the order creation date.
+          This is important because the
+          7-day return/exchange window starts
+          from delivery, not order creation.
         */
 
         deliveredAt: {
-          type: Date,
+          type:
+            Date,
 
-          default: null,
+          default:
+            null,
         },
       },
 
 
       deliveryMethod: {
-        type: String,
+        type:
+          String,
 
         enum: [
           "standard",
@@ -654,29 +858,39 @@ const orderSchema =
 
       tracking: {
         carrier: {
-          type: String,
+          type:
+            String,
 
-          default: null,
+          default:
+            null,
         },
+
 
         trackingNumber: {
-          type: String,
+          type:
+            String,
 
-          default: null,
+          default:
+            null,
         },
+
 
         estimatedDelivery: {
-          type: Date,
+          type:
+            Date,
 
-          default: null,
+          default:
+            null,
         },
+
 
         events: {
           type: [
             trackingEventSchema,
           ],
 
-          default: [],
+          default:
+            [],
         },
       },
 
@@ -687,7 +901,8 @@ const orderSchema =
 
       cancellation: {
         status: {
-          type: String,
+          type:
+            String,
 
           enum: [
             "not-cancelled",
@@ -698,24 +913,39 @@ const orderSchema =
             "not-cancelled",
         },
 
+
         reason: {
-          type: String,
+          type:
+            String,
 
-          default: "",
+          default:
+            "",
 
-          maxlength: 500,
+          maxlength:
+            500,
         },
+
 
         cancelledAt: {
-          type: Date,
+          type:
+            Date,
 
-          default: null,
+          default:
+            null,
         },
 
-        inventoryRestoredAt: {
-          type: Date,
 
-          default: null,
+        /*
+          Prevents cancellation stock from
+          accidentally being restored twice.
+        */
+
+        inventoryRestoredAt: {
+          type:
+            Date,
+
+          default:
+            null,
         },
       },
 
@@ -725,24 +955,38 @@ const orderSchema =
       // ==================================================
 
       returnRequest: {
-        id: {
-          type: String,
+        /*
+          Example:
+          RET-MABC123-9F12AA
+        */
 
-          default: null,
+        id: {
+          type:
+            String,
+
+          default:
+            null,
         },
 
 
-        type: {
-          type: String,
+        /*
+          null before any request exists.
+        */
 
-          default: null,
+        type: {
+          type:
+            String,
+
+          default:
+            null,
 
           validate: {
             validator(
               value
             ) {
               return (
-                value == null ||
+                value ==
+                  null ||
                 [
                   "return",
                   "exchange",
@@ -758,8 +1002,21 @@ const orderSchema =
         },
 
 
+        /*
+          Lifecycle:
+
+          not-requested
+                ↓
+             requested
+             ↙      ↘
+        approved   rejected
+            ↓
+        completed
+        */
+
         status: {
-          type: String,
+          type:
+            String,
 
           enum: [
             "not-requested",
@@ -771,6 +1028,9 @@ const orderSchema =
 
           default:
             "not-requested",
+
+          index:
+            true,
         },
 
 
@@ -779,39 +1039,130 @@ const orderSchema =
             returnItemSchema,
           ],
 
-          default: [],
+          default:
+            [],
         },
 
 
         reason: {
-          type: String,
+          type:
+            String,
 
-          default: "",
+          default:
+            "",
 
-          maxlength: 1000,
+          maxlength:
+            1000,
         },
 
+
+        // Customer submitted request.
 
         requestedAt: {
-          type: Date,
+          type:
+            Date,
 
-          default: null,
+          default:
+            null,
         },
 
+
+        // Admin message shown to customer.
 
         response: {
-          type: String,
+          type:
+            String,
 
-          default: "",
+          default:
+            "",
 
-          maxlength: 1000,
+          maxlength:
+            1000,
         },
 
 
-        respondedAt: {
-          type: Date,
+        /*
+          Latest time admin responded to
+          this request.
+        */
 
-          default: null,
+        respondedAt: {
+          type:
+            Date,
+
+          default:
+            null,
+        },
+
+
+        // ==================================================
+        // ADMIN DECISION TIMESTAMPS
+        // ==================================================
+
+        approvedAt: {
+          type:
+            Date,
+
+          default:
+            null,
+        },
+
+
+        rejectedAt: {
+          type:
+            Date,
+
+          default:
+            null,
+        },
+
+
+        completedAt: {
+          type:
+            Date,
+
+          default:
+            null,
+        },
+
+
+        // ==================================================
+        // INVENTORY SAFETY
+        // ==================================================
+
+        /*
+          Set when the customer's original
+          returned variant has been put back
+          into inventory.
+
+          This prevents stock being restored twice.
+        */
+
+        originalInventoryRestoredAt: {
+          type:
+            Date,
+
+          default:
+            null,
+        },
+
+
+        /*
+          Exchange only.
+
+          Set after the replacement variant
+          has been successfully reserved/deducted.
+
+          This prevents the replacement stock
+          being deducted more than once.
+        */
+
+        exchangeInventoryReservedAt: {
+          type:
+            Date,
+
+          default:
+            null,
         },
       },
 
@@ -821,17 +1172,102 @@ const orderSchema =
       // ==================================================
 
       refund: {
+        /*
+          Refund lifecycle:
+
+          not-requested
+                ↓
+              pending
+                ↓
+          manual-required
+                ↓
+             refunded
+
+          Exchanges use:
+          not-applicable
+        */
+
         status: {
-          type: String,
+          type:
+            String,
+
+          enum: [
+            "not-requested",
+            "pending",
+            "manual-required",
+            "refunded",
+            "not-applicable",
+          ],
 
           default:
             "not-requested",
         },
 
-        amount: {
-          type: Number,
 
-          default: 0,
+        /*
+          Merchandise refund amount.
+
+          Shipping is not automatically
+          included in this amount.
+        */
+
+        amount: {
+          type:
+            Number,
+
+          default:
+            0,
+
+          min:
+            0,
+        },
+
+
+        /*
+          When GymDrobe created the refund
+          requirement.
+        */
+
+        requestedAt: {
+          type:
+            Date,
+
+          default:
+            null,
+        },
+
+
+        /*
+          Reference entered by admin after the
+          real/manual refund has actually been made.
+
+          Example:
+          UTR number / bank reference / internal reference.
+        */
+
+        reference: {
+          type:
+            String,
+
+          default:
+            "",
+
+          maxlength:
+            200,
+        },
+
+
+        /*
+          Only set when the real refund has
+          actually been recorded as completed.
+        */
+
+        refundedAt: {
+          type:
+            Date,
+
+          default:
+            null,
         },
       },
 
@@ -842,28 +1278,45 @@ const orderSchema =
 
       metadata: {
         version: {
-          type: String,
+          type:
+            String,
 
           default:
             "5.0",
         },
 
-        demo: {
-          type: Boolean,
 
-          default: true,
+        demo: {
+          type:
+            Boolean,
+
+          default:
+            true,
         },
 
-        inventoryReserved: {
-          type: Boolean,
 
-          default: true,
+        /*
+          True while the original order's
+          inventory reservation belongs to
+          this order.
+
+          Cancellation changes this to false
+          after restoring stock.
+        */
+
+        inventoryReserved: {
+          type:
+            Boolean,
+
+          default:
+            true,
         },
       },
     },
 
     {
-      timestamps: true,
+      timestamps:
+        true,
     }
   );
 
@@ -872,21 +1325,56 @@ const orderSchema =
 // INDEXES
 // ======================================================
 
+/*
+  One checkout token can create only one
+  order for the same customer.
+
+  This protects against duplicate checkout
+  submissions.
+*/
+
 orderSchema.index(
   {
-    user: 1,
-    checkoutToken: 1,
+    user:
+      1,
+
+    checkoutToken:
+      1,
   },
 
   {
-    unique: true,
+    unique:
+      true,
   }
 );
 
 
+/*
+  Customer orders page.
+*/
+
 orderSchema.index({
-  user: 1,
-  createdAt: -1,
+  user:
+    1,
+
+  createdAt:
+    -1,
+});
+
+
+/*
+  Admin Returns page.
+
+  Makes it faster to find requested,
+  approved, rejected and completed requests.
+*/
+
+orderSchema.index({
+  "returnRequest.status":
+    1,
+
+  "returnRequest.requestedAt":
+    -1,
 });
 
 

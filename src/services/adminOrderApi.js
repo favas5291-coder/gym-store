@@ -4,7 +4,7 @@ const API_URL =
 
 
 // ======================================================
-// BASE REQUEST HELPER
+// BASE REQUEST
 // ======================================================
 
 async function request(
@@ -17,7 +17,7 @@ async function request(
 ) {
   if (!token) {
     throw new Error(
-      "You must be logged in."
+      "Admin login is required."
     );
   }
 
@@ -57,11 +57,13 @@ async function request(
   }
 
 
-  if (!response.ok) {
+  if (
+    !response.ok
+  ) {
     const error =
       new Error(
         data.message ||
-          "Order request failed."
+          "Admin order request failed."
       );
 
 
@@ -82,38 +84,24 @@ async function request(
 
 
 // ======================================================
-// CREATE ORDER
+// GET RETURN / EXCHANGE REQUESTS
 // ======================================================
 
-export async function createOrder(
+export async function getAdminReturnRequests(
   token,
-  orderData
+  status = ""
 ) {
-  return request(
-    "/orders",
-    {
-      token,
-
-      method:
-        "POST",
-
-      body:
-        orderData,
-    }
-  );
-}
+  const query =
+    status
+      ? `?status=${encodeURIComponent(
+          status
+        )}`
+      : "";
 
 
-// ======================================================
-// GET ALL CURRENT USER ORDERS
-// ======================================================
-
-export async function getOrders(
-  token
-) {
   const data =
     await request(
-      "/orders",
+      `/orders/admin/returns${query}`,
       {
         token,
       }
@@ -129,42 +117,22 @@ export async function getOrders(
 
 
 // ======================================================
-// GET ONE ORDER
+// APPROVE / REJECT
 // ======================================================
 
-export async function getOrderById(
+export async function reviewReturnRequest(
   token,
-  id
+  orderId,
+  {
+    decision,
+    response = "",
+  }
 ) {
   const data =
     await request(
-      `/orders/${encodeURIComponent(
-        id
-      )}`,
-      {
-        token,
-      }
-    );
-
-
-  return data.order;
-}
-
-
-// ======================================================
-// CANCEL ORDER
-// ======================================================
-
-export async function cancelOrder(
-  token,
-  id,
-  reason
-) {
-  const data =
-    await request(
-      `/orders/${encodeURIComponent(
-        id
-      )}/cancel`,
+      `/orders/admin/returns/${encodeURIComponent(
+        orderId
+      )}/review`,
       {
         token,
 
@@ -172,7 +140,8 @@ export async function cancelOrder(
           "PUT",
 
         body: {
-          reason,
+          decision,
+          response,
         },
       }
     );
@@ -183,27 +152,80 @@ export async function cancelOrder(
 
 
 // ======================================================
-// REQUEST RETURN / EXCHANGE
+// COMPLETE RETURN / EXCHANGE
 // ======================================================
 
-export async function requestReturn(
+export async function completeReturnRequest(
   token,
-  id,
-  returnData
+  orderId,
+  {
+    response = "",
+  } = {}
 ) {
   const data =
     await request(
-      `/orders/${encodeURIComponent(
-        id
-      )}/return`,
+      `/orders/admin/returns/${encodeURIComponent(
+        orderId
+      )}/complete`,
       {
         token,
 
         method:
-          "POST",
+          "PUT",
 
-        body:
-          returnData,
+        body: {
+          response,
+        },
+      }
+    );
+
+
+  return data.order;
+}
+
+
+// ======================================================
+// RECORD MANUAL REFUND
+// ======================================================
+
+export async function recordReturnRefund(
+  token,
+  orderId,
+  {
+    reference,
+  }
+) {
+  const cleanReference =
+    String(
+      reference || ""
+    ).trim();
+
+
+  if (
+    cleanReference.length <
+    3
+  ) {
+    throw new Error(
+      "Enter a valid refund reference."
+    );
+  }
+
+
+  const data =
+    await request(
+      `/orders/admin/returns/${encodeURIComponent(
+        orderId
+      )}/refund`,
+      {
+        token,
+
+        method:
+          "PUT",
+
+        body: {
+          reference:
+            cleanReference,
+        },
       }
     );
 

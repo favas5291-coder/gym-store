@@ -20,7 +20,7 @@ const {
 
 
 // ======================================================
-// ERROR HELPER
+// HELPERS
 // ======================================================
 
 function httpError(status, message) {
@@ -31,10 +31,6 @@ function httpError(status, message) {
   return error;
 }
 
-
-// ======================================================
-// ORDER NUMBER
-// ======================================================
 
 function generateOrderNumber() {
   const time = Date.now()
@@ -50,10 +46,6 @@ function generateOrderNumber() {
 }
 
 
-// ======================================================
-// RETURN REQUEST NUMBER
-// ======================================================
-
 function generateReturnNumber() {
   const time = Date.now()
     .toString(36)
@@ -68,67 +60,78 @@ function generateReturnNumber() {
 }
 
 
-// ======================================================
-// CLEAN STRING
-// ======================================================
-
 function cleanString(
   value,
   maxLength = 300
 ) {
-  return String(value ?? "")
+  return String(
+    value ?? ""
+  )
     .trim()
-    .slice(0, maxLength);
+    .slice(
+      0,
+      maxLength
+    );
 }
 
 
 // ======================================================
-// CLEAN + VALIDATE ADDRESS
+// ADDRESS
 // ======================================================
 
-function cleanAddress(value = {}) {
+function cleanAddress(
+  value = {}
+) {
   const address = {
-    fullName: cleanString(
-      value.fullName ||
-        value.name,
-      100
-    ),
+    fullName:
+      cleanString(
+        value.fullName ||
+          value.name,
+        100
+      ),
 
-    email: cleanString(
-      value.email,
-      150
-    ).toLowerCase(),
+    email:
+      cleanString(
+        value.email,
+        150
+      ).toLowerCase(),
 
-    phone: cleanString(
-      value.phone,
-      20
-    ),
+    phone:
+      cleanString(
+        value.phone,
+        20
+      ),
 
-    addressLine: cleanString(
-      value.addressLine ||
-        value.address,
-      200
-    ),
+    addressLine:
+      cleanString(
+        value.addressLine ||
+          value.address,
+        200
+      ),
 
-    landmark: cleanString(
-      value.landmark,
-      150
-    ),
+    landmark:
+      cleanString(
+        value.landmark,
+        150
+      ),
 
-    city: cleanString(
-      value.city,
-      100
-    ),
+    city:
+      cleanString(
+        value.city,
+        100
+      ),
 
-    state: cleanString(
-      value.state,
-      100
-    ),
+    state:
+      cleanString(
+        value.state,
+        100
+      ),
 
-    pincode: cleanString(
-      value.pincode,
-      10
-    ),
+    pincode:
+      cleanString(
+        value.pincode,
+        10
+      ),
 
     label:
       cleanString(
@@ -141,8 +144,8 @@ function cleanAddress(value = {}) {
 
 
   if (
-    address.fullName.length <
-    2
+    address.fullName
+      .length < 2
   ) {
     throw httpError(
       400,
@@ -176,8 +179,8 @@ function cleanAddress(value = {}) {
 
 
   if (
-    address.addressLine.length <
-    5
+    address.addressLine
+      .length < 5
   ) {
     throw httpError(
       400,
@@ -186,7 +189,9 @@ function cleanAddress(value = {}) {
   }
 
 
-  if (!address.city) {
+  if (
+    !address.city
+  ) {
     throw httpError(
       400,
       "Enter your city."
@@ -194,7 +199,9 @@ function cleanAddress(value = {}) {
   }
 
 
-  if (!address.state) {
+  if (
+    !address.state
+  ) {
     throw httpError(
       400,
       "Enter your state."
@@ -216,18 +223,24 @@ function cleanAddress(value = {}) {
 
   return {
     ...address,
-    name: address.fullName,
+
+    name:
+      address.fullName,
   };
 }
 
 
 // ======================================================
-// CLEAN ORDER ITEMS
+// NORMALIZE CHECKOUT ITEMS
 // ======================================================
 
-function normalizeRequestedItems(items) {
+function normalizeRequestedItems(
+  items
+) {
   if (
-    !Array.isArray(items) ||
+    !Array.isArray(
+      items
+    ) ||
     !items.length
   ) {
     throw httpError(
@@ -248,16 +261,21 @@ function normalizeRequestedItems(items) {
   }
 
 
-  const rows = new Map();
+  const rows =
+    new Map();
 
 
-  for (const raw of items) {
-    const id = cleanString(
-      raw?.id ||
-        raw?.productId ||
-        raw?.product,
-      100
-    );
+  for (
+    const raw
+    of items
+  ) {
+    const id =
+      cleanString(
+        raw?.id ||
+          raw?.productId ||
+          raw?.product,
+        100
+      );
 
 
     const quantity =
@@ -317,7 +335,9 @@ function normalizeRequestedItems(items) {
 
 
     const previous =
-      rows.get(key);
+      rows.get(
+        key
+      );
 
 
     if (previous) {
@@ -326,7 +346,10 @@ function normalizeRequestedItems(items) {
         quantity;
 
 
-      if (total > 99) {
+      if (
+        total >
+        99
+      ) {
         throw httpError(
           400,
           "Quantity is too large."
@@ -342,8 +365,11 @@ function normalizeRequestedItems(items) {
         key,
         {
           id,
+
           quantity,
+
           selectedSize,
+
           selectedColor,
         }
       );
@@ -366,18 +392,26 @@ async function findProduct(
   session
 ) {
   const text =
-    String(id);
+    String(
+      id
+    );
 
 
   if (
     mongoose.Types
       .ObjectId
-      .isValid(text)
+      .isValid(
+        text
+      )
   ) {
     const byId =
       await Product
-        .findById(text)
-        .session(session);
+        .findById(
+          text
+        )
+        .session(
+          session
+        );
 
 
     if (byId) {
@@ -387,7 +421,9 @@ async function findProduct(
 
 
   const legacyId =
-    Number(text);
+    Number(
+      text
+    );
 
 
   if (
@@ -400,7 +436,9 @@ async function findProduct(
         .findOne({
           legacyId,
         })
-        .session(session);
+        .session(
+          session
+        );
 
 
     if (byLegacy) {
@@ -414,18 +452,23 @@ async function findProduct(
       slug:
         text.toLowerCase(),
     })
-    .session(session);
+    .session(
+      session
+    );
 }
 
 
 // ======================================================
-// ORDER LOOKUP CONDITIONS
+// ORDER LOOKUP
 // ======================================================
 
-function orderLookupConditions(id) {
+function orderLookupConditions(
+  id
+) {
   const conditions = [
     {
-      orderNumber: id,
+      orderNumber:
+        id,
     },
   ];
 
@@ -433,10 +476,13 @@ function orderLookupConditions(id) {
   if (
     mongoose.Types
       .ObjectId
-      .isValid(id)
+      .isValid(
+        id
+      )
   ) {
     conditions.push({
-      _id: id,
+      _id:
+        id,
     });
   }
 
@@ -447,17 +493,17 @@ function orderLookupConditions(id) {
 
 // ======================================================
 // DELIVERY DATE
-//
-// Matches the frontend commerce.js rule:
-// actual delivery time is required.
 // ======================================================
 
-function getDeliveredAt(order) {
+function getDeliveredAt(
+  order
+) {
   if (
     order?.delivery
       ?.deliveredAt
   ) {
-    return order.delivery
+    return order
+      .delivery
       .deliveredAt;
   }
 
@@ -467,25 +513,34 @@ function getDeliveredAt(order) {
       order?.tracking
         ?.events
     )
-      ? order.tracking
+      ? order
+          .tracking
           .events
       : [];
 
 
   for (
     let index =
-      events.length - 1;
-    index >= 0;
+      events.length -
+      1;
+
+    index >=
+    0;
+
     index--
   ) {
     if (
-      events[index]
-        ?.status ===
+      events[
+        index
+      ]?.status ===
       "delivered"
     ) {
-      return events[index]
-        .timestamp ||
-        null;
+      return (
+        events[
+          index
+        ].timestamp ||
+        null
+      );
     }
   }
 
@@ -495,16 +550,25 @@ function getDeliveredAt(order) {
 
 
 // ======================================================
-// COUPON FOR DATABASE
+// SAFE COUPON
 // ======================================================
 
-function safeCoupon(coupon) {
+function safeCoupon(
+  coupon
+) {
   if (!coupon) {
     return {
-      code: null,
-      type: null,
-      value: null,
-      minimum: null,
+      code:
+        null,
+
+      type:
+        null,
+
+      value:
+        null,
+
+      minimum:
+        null,
     };
   }
 
@@ -526,15 +590,69 @@ function safeCoupon(coupon) {
 
 
 // ======================================================
-// ORDER SENT TO FRONTEND
+// SAFE ORDER RESPONSE
 // ======================================================
 
-function safeOrder(order) {
+function safeOrder(
+  order
+) {
   const value =
     typeof order.toObject ===
     "function"
       ? order.toObject()
       : order;
+
+
+  const rawUser =
+    value.user;
+
+
+  const userId =
+    rawUser &&
+    typeof rawUser ===
+      "object" &&
+    rawUser._id
+      ? rawUser._id
+      : rawUser;
+
+
+  const safeUser = {
+    id:
+      String(
+        userId ||
+        ""
+      ),
+  };
+
+
+  if (
+    rawUser &&
+    typeof rawUser ===
+      "object"
+  ) {
+    if (
+      rawUser.name
+    ) {
+      safeUser.name =
+        rawUser.name;
+    }
+
+
+    if (
+      rawUser.email
+    ) {
+      safeUser.email =
+        rawUser.email;
+    }
+
+
+    if (
+      rawUser.role
+    ) {
+      safeUser.role =
+        rawUser.role;
+    }
+  }
 
 
   return {
@@ -564,11 +682,8 @@ function safeOrder(order) {
       value.orderNote ||
       "",
 
-    user: {
-      id: String(
-        value.user
-      ),
-    },
+    user:
+      safeUser,
 
     customer:
       value.customer,
@@ -581,7 +696,9 @@ function safeOrder(order) {
         value.items ||
         []
       ).map(
-        (item) => ({
+        (
+          item
+        ) => ({
           id:
             String(
               item.product
@@ -674,6 +791,215 @@ function safeOrder(order) {
 
 
 // ======================================================
+// TRACKING
+// ======================================================
+
+function ensureTracking(
+  order
+) {
+  if (
+    !order.tracking
+  ) {
+    order.tracking = {
+      carrier:
+        null,
+
+      trackingNumber:
+        null,
+
+      estimatedDelivery:
+        null,
+
+      events:
+        [],
+    };
+  }
+
+
+  if (
+    !Array.isArray(
+      order.tracking
+        .events
+    )
+  ) {
+    order.tracking.events =
+      [];
+  }
+}
+
+
+// ======================================================
+// CALCULATE RETURN REFUND
+//
+// Coupon discount is proportionally allocated.
+// Shipping is not automatically refunded.
+// ======================================================
+
+function calculateReturnRefund(
+  order,
+  requestedItems
+) {
+  const returnedSubtotal =
+    roundMoney(
+      requestedItems.reduce(
+        (
+          total,
+          row
+        ) => {
+          const item =
+            order.items[
+              row.index
+            ];
+
+
+          return (
+            total +
+            Number(
+              item?.price ||
+              0
+            ) *
+              Number(
+                row.quantity ||
+                0
+              )
+          );
+        },
+        0
+      )
+    );
+
+
+  const orderSubtotal =
+    Number(
+      order.pricing
+        ?.subtotal ||
+      0
+    );
+
+
+  const couponDiscount =
+    Number(
+      order.pricing
+        ?.couponDiscount ||
+      0
+    );
+
+
+  if (
+    returnedSubtotal <=
+    0
+  ) {
+    return 0;
+  }
+
+
+  if (
+    orderSubtotal <=
+      0 ||
+    couponDiscount <=
+      0
+  ) {
+    return returnedSubtotal;
+  }
+
+
+  const proportionalCoupon =
+    roundMoney(
+      couponDiscount *
+        (
+          returnedSubtotal /
+          orderSubtotal
+        )
+    );
+
+
+  return Math.max(
+    0,
+
+    roundMoney(
+      returnedSubtotal -
+        proportionalCoupon
+    )
+  );
+}
+
+
+// ======================================================
+// BLANK REFUND
+// ======================================================
+
+function blankRefund() {
+  return {
+    status:
+      "not-requested",
+
+    amount:
+      0,
+
+    requestedAt:
+      null,
+
+    reference:
+      "",
+
+    refundedAt:
+      null,
+  };
+}
+
+
+// ======================================================
+// LOAD PRODUCT FOR INVENTORY
+// ======================================================
+
+async function loadProductForInventory(
+  item,
+  session,
+  cache
+) {
+  const key =
+    String(
+      item.product
+    );
+
+
+  let product =
+    cache.get(
+      key
+    );
+
+
+  if (!product) {
+    product =
+      await Product
+        .findById(
+          item.product
+        )
+        .session(
+          session
+        );
+
+
+    if (!product) {
+      throw httpError(
+        409,
+        `Unable to update inventory for ${item.name}. The product no longer exists.`
+      );
+    }
+
+
+    cache.set(
+      key,
+      product
+    );
+  }
+
+
+  return product;
+}
+
+
+// ======================================================
 // CREATE ORDER
 // ======================================================
 
@@ -693,11 +1019,16 @@ async function createOrder(
     );
 
 
-  if (!checkoutToken) {
+  if (
+    !checkoutToken
+  ) {
     return res
-      .status(400)
+      .status(
+        400
+      )
       .json({
-        success: false,
+        success:
+          false,
 
         message:
           "Checkout token is missing. Refresh checkout and try again.",
@@ -715,13 +1046,19 @@ async function createOrder(
       });
 
 
-    if (existing) {
+    if (
+      existing
+    ) {
       return res
-        .status(200)
+        .status(
+          200
+        )
         .json({
-          success: true,
+          success:
+            true,
 
-          existing: true,
+          existing:
+            true,
 
           order:
             safeOrder(
@@ -823,12 +1160,16 @@ async function createOrder(
                 );
 
 
-            if (duplicate) {
+            if (
+              duplicate
+            ) {
               savedOrder =
                 duplicate;
 
+
               wasExisting =
                 true;
+
 
               return;
             }
@@ -856,7 +1197,9 @@ async function createOrder(
                 );
 
 
-              if (!product) {
+              if (
+                !product
+              ) {
                 product =
                   await findProduct(
                     requested.id,
@@ -864,7 +1207,9 @@ async function createOrder(
                   );
 
 
-                if (!product) {
+                if (
+                  !product
+                ) {
                   throw httpError(
                     409,
                     "A product in your bag is no longer available."
@@ -894,14 +1239,18 @@ async function createOrder(
                 (
                   product.sizes ||
                   []
-                ).map(String);
+                ).map(
+                  String
+                );
 
 
               const colors =
                 (
                   product.colors ||
                   []
-                ).map(String);
+                ).map(
+                  String
+                );
 
 
               const selectedSize =
@@ -933,7 +1282,8 @@ async function createOrder(
                 throw httpError(
                   409,
 
-                  available > 0
+                  available >
+                  0
                     ? `Only ${available} available for ${product.name}.`
                     : `${product.name} is out of stock for this selection.`
                 );
@@ -986,11 +1336,13 @@ async function createOrder(
                 discount:
                   Math.max(
                     0,
+
                     Math.min(
                       100,
+
                       Number(
                         product.discount ||
-                          0
+                        0
                       )
                     )
                   ),
@@ -1020,6 +1372,7 @@ async function createOrder(
                 String(
                   product._id
                 ),
+
                 product
               );
             }
@@ -1050,6 +1403,7 @@ async function createOrder(
             ) {
               throw httpError(
                 409,
+
                 "Your order total changed. Review the latest total and place the order again."
               );
             }
@@ -1057,8 +1411,7 @@ async function createOrder(
 
             for (
               const product
-              of touchedProducts
-                .values()
+              of touchedProducts.values()
             ) {
               await product.save({
                 session,
@@ -1066,15 +1419,12 @@ async function createOrder(
             }
 
 
-            const orderNumber =
-              generateOrderNumber();
-
-
             const created =
               await Order.create(
                 [
                   {
-                    orderNumber,
+                    orderNumber:
+                      generateOrderNumber(),
 
                     user:
                       userId,
@@ -1216,15 +1566,25 @@ async function createOrder(
 
                       respondedAt:
                         null,
+
+                      approvedAt:
+                        null,
+
+                      rejectedAt:
+                        null,
+
+                      completedAt:
+                        null,
+
+                      originalInventoryRestoredAt:
+                        null,
+
+                      exchangeInventoryReservedAt:
+                        null,
                     },
 
-                    refund: {
-                      status:
-                        "not-requested",
-
-                      amount:
-                        0,
-                    },
+                    refund:
+                      blankRefund(),
 
                     metadata: {
                       version:
@@ -1246,7 +1606,9 @@ async function createOrder(
 
 
             savedOrder =
-              created[0];
+              created[
+                0
+              ];
           }
         );
 
@@ -1256,7 +1618,9 @@ async function createOrder(
     }
 
 
-    if (!savedOrder) {
+    if (
+      !savedOrder
+    ) {
       throw new Error(
         "Order was not created."
       );
@@ -1270,7 +1634,8 @@ async function createOrder(
           : 201
       )
       .json({
-        success: true,
+        success:
+          true,
 
         existing:
           wasExisting,
@@ -1281,7 +1646,9 @@ async function createOrder(
           ),
       });
 
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "Create order error:",
       error
@@ -1301,13 +1668,19 @@ async function createOrder(
         });
 
 
-      if (existing) {
+      if (
+        existing
+      ) {
         return res
-          .status(200)
+          .status(
+            200
+          )
           .json({
-            success: true,
+            success:
+              true,
 
-            existing: true,
+            existing:
+              true,
 
             order:
               safeOrder(
@@ -1324,7 +1697,8 @@ async function createOrder(
         500
       )
       .json({
-        success: false,
+        success:
+          false,
 
         message:
           error.message ||
@@ -1335,7 +1709,7 @@ async function createOrder(
 
 
 // ======================================================
-// GET CURRENT CUSTOMER'S ORDERS
+// GET CUSTOMER ORDERS
 // ======================================================
 
 async function getOrders(
@@ -1356,9 +1730,12 @@ async function getOrders(
 
 
     return res
-      .status(200)
+      .status(
+        200
+      )
       .json({
-        success: true,
+        success:
+          true,
 
         count:
           orders.length,
@@ -1369,7 +1746,9 @@ async function getOrders(
           ),
       });
 
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "Get orders error:",
       error
@@ -1377,9 +1756,12 @@ async function getOrders(
 
 
     return res
-      .status(500)
+      .status(
+        500
+      )
       .json({
-        success: false,
+        success:
+          false,
 
         message:
           "Unable to load orders.",
@@ -1389,7 +1771,7 @@ async function getOrders(
 
 
 // ======================================================
-// GET ONE CURRENT CUSTOMER ORDER
+// GET ONE CUSTOMER ORDER
 // ======================================================
 
 async function getOrderById(
@@ -1416,11 +1798,16 @@ async function getOrderById(
       });
 
 
-    if (!order) {
+    if (
+      !order
+    ) {
       return res
-        .status(404)
+        .status(
+          404
+        )
         .json({
-          success: false,
+          success:
+            false,
 
           message:
             "Order not found.",
@@ -1429,9 +1816,12 @@ async function getOrderById(
 
 
     return res
-      .status(200)
+      .status(
+        200
+      )
       .json({
-        success: true,
+        success:
+          true,
 
         order:
           safeOrder(
@@ -1439,7 +1829,9 @@ async function getOrderById(
           ),
       });
 
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "Get order error:",
       error
@@ -1447,9 +1839,12 @@ async function getOrderById(
 
 
     return res
-      .status(500)
+      .status(
+        500
+      )
       .json({
-        success: false,
+        success:
+          false,
 
         message:
           "Unable to load order.",
@@ -1459,7 +1854,7 @@ async function getOrderById(
 
 
 // ======================================================
-// CANCEL CURRENT CUSTOMER ORDER
+// CANCEL ORDER
 // ======================================================
 
 async function cancelOrder(
@@ -1489,9 +1884,12 @@ async function cancelOrder(
     5
   ) {
     return res
-      .status(400)
+      .status(
+        400
+      )
       .json({
-        success: false,
+        success:
+          false,
 
         message:
           "Please enter a cancellation reason of at least 5 characters.",
@@ -1532,7 +1930,9 @@ async function cancelOrder(
               );
 
 
-          if (!order) {
+          if (
+            !order
+          ) {
             throw httpError(
               404,
               "Order not found."
@@ -1550,8 +1950,10 @@ async function cancelOrder(
             alreadyCancelled =
               true;
 
+
             savedOrder =
               order;
+
 
             return;
           }
@@ -1579,13 +1981,15 @@ async function cancelOrder(
           if (
             order.metadata
               ?.inventoryReserved !==
-            false
+              false &&
+            !order.cancellation
+              ?.inventoryRestoredAt
           ) {
-            const productCache =
+            const cache =
               new Map();
 
 
-            const touchedProducts =
+            const touched =
               new Map();
 
 
@@ -1594,42 +1998,12 @@ async function cancelOrder(
               of order.items ||
               []
             ) {
-              const productId =
-                String(
-                  item.product
+              const product =
+                await loadProductForInventory(
+                  item,
+                  session,
+                  cache
                 );
-
-
-              let product =
-                productCache.get(
-                  productId
-                );
-
-
-              if (!product) {
-                product =
-                  await Product
-                    .findById(
-                      item.product
-                    )
-                    .session(
-                      session
-                    );
-
-
-                if (!product) {
-                  throw httpError(
-                    409,
-                    `Unable to restore inventory for ${item.name}. The product no longer exists.`
-                  );
-                }
-
-
-                productCache.set(
-                  productId,
-                  product
-                );
-              }
 
 
               restoreVariantStock(
@@ -1640,8 +2014,10 @@ async function cancelOrder(
               );
 
 
-              touchedProducts.set(
-                productId,
+              touched.set(
+                String(
+                  product._id
+                ),
                 product
               );
             }
@@ -1649,8 +2025,7 @@ async function cancelOrder(
 
             for (
               const product
-              of touchedProducts
-                .values()
+              of touched.values()
             ) {
               await product.save({
                 session,
@@ -1661,6 +2036,11 @@ async function cancelOrder(
             order.metadata
               .inventoryReserved =
               false;
+
+
+            order.cancellation
+              .inventoryRestoredAt =
+              now;
           }
 
 
@@ -1668,18 +2048,16 @@ async function cancelOrder(
             "cancelled";
 
 
-          order.cancellation = {
-            status:
-              "cancelled",
+          order.cancellation.status =
+            "cancelled";
 
-            reason,
 
-            cancelledAt:
-              now,
+          order.cancellation.reason =
+            reason;
 
-            inventoryRestoredAt:
-              now,
-          };
+
+          order.cancellation.cancelledAt =
+            now;
 
 
           if (
@@ -1690,38 +2068,14 @@ async function cancelOrder(
           }
 
 
-          if (
-            !order.tracking
-          ) {
-            order.tracking = {
-              carrier:
-                null,
-
-              trackingNumber:
-                null,
-
-              estimatedDelivery:
-                null,
-
-              events:
-                [],
-            };
-          }
-
-
-          if (
-            !Array.isArray(
-              order.tracking
-                .events
-            )
-          ) {
-            order.tracking.events =
-              [];
-          }
+          ensureTracking(
+            order
+          );
 
 
           order.tracking
-            .events.push({
+            .events
+            .push({
               status:
                 "cancelled",
 
@@ -1744,7 +2098,9 @@ async function cancelOrder(
       );
 
 
-    if (!savedOrder) {
+    if (
+      !savedOrder
+    ) {
       throw new Error(
         "Order cancellation failed."
       );
@@ -1752,9 +2108,12 @@ async function cancelOrder(
 
 
     return res
-      .status(200)
+      .status(
+        200
+      )
       .json({
-        success: true,
+        success:
+          true,
 
         existing:
           alreadyCancelled,
@@ -1770,7 +2129,9 @@ async function cancelOrder(
           ),
       });
 
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "Cancel order error:",
       error
@@ -1783,7 +2144,8 @@ async function cancelOrder(
         500
       )
       .json({
-        success: false,
+        success:
+          false,
 
         message:
           error.message ||
@@ -1798,7 +2160,7 @@ async function cancelOrder(
 
 
 // ======================================================
-// CREATE RETURN / EXCHANGE REQUEST
+// CUSTOMER RETURN / EXCHANGE REQUEST
 // ======================================================
 
 async function requestReturn(
@@ -1838,20 +2200,21 @@ async function requestReturn(
       : [];
 
 
-  // ====================================================
-  // BASIC REQUEST VALIDATION
-  // ====================================================
-
   if (
     ![
       "return",
       "exchange",
-    ].includes(type)
+    ].includes(
+      type
+    )
   ) {
     return res
-      .status(400)
+      .status(
+        400
+      )
       .json({
-        success: false,
+        success:
+          false,
 
         message:
           "Choose return or exchange.",
@@ -1864,9 +2227,12 @@ async function requestReturn(
     5
   ) {
     return res
-      .status(400)
+      .status(
+        400
+      )
       .json({
-        success: false,
+        success:
+          false,
 
         message:
           "Please describe the reason in at least 5 characters.",
@@ -1878,9 +2244,12 @@ async function requestReturn(
     !requestedItems.length
   ) {
     return res
-      .status(400)
+      .status(
+        400
+      )
       .json({
-        success: false,
+        success:
+          false,
 
         message:
           "Select at least one item.",
@@ -1893,9 +2262,12 @@ async function requestReturn(
     50
   ) {
     return res
-      .status(400)
+      .status(
+        400
+      )
       .json({
-        success: false,
+        success:
+          false,
 
         message:
           "Too many return items.",
@@ -1916,10 +2288,6 @@ async function requestReturn(
     await session
       .withTransaction(
         async () => {
-          // ============================================
-          // FIND ONLY THE LOGGED-IN CUSTOMER'S ORDER
-          // ============================================
-
           const order =
             await Order
               .findOne({
@@ -1936,17 +2304,15 @@ async function requestReturn(
               );
 
 
-          if (!order) {
+          if (
+            !order
+          ) {
             throw httpError(
               404,
               "Order not found."
             );
           }
 
-
-          // ============================================
-          // ORDER MUST BE DELIVERED
-          // ============================================
 
           if (
             order.status !==
@@ -1958,13 +2324,6 @@ async function requestReturn(
             );
           }
 
-
-          // ============================================
-          // ONLY ONE ACTIVE REQUEST
-          //
-          // Matches frontend commerce.js:
-          // not-requested or rejected can submit.
-          // ============================================
 
           const currentStatus =
             order.returnRequest
@@ -1985,10 +2344,6 @@ async function requestReturn(
           }
 
 
-          // ============================================
-          // REAL DELIVERY DATE REQUIRED
-          // ============================================
-
           const deliveredAt =
             getDeliveredAt(
               order
@@ -2001,7 +2356,7 @@ async function requestReturn(
             );
 
 
-          const now =
+          const nowMs =
             Date.now();
 
 
@@ -2010,7 +2365,7 @@ async function requestReturn(
               deliveryTime
             ) ||
             deliveryTime >
-              now
+              nowMs
           ) {
             throw httpError(
               409,
@@ -2019,10 +2374,6 @@ async function requestReturn(
           }
 
 
-          // ============================================
-          // 7-DAY RETURN WINDOW
-          // ============================================
-
           const deadline =
             deliveryTime +
             7 *
@@ -2030,7 +2381,7 @@ async function requestReturn(
 
 
           if (
-            now >
+            nowMs >
             deadline
           ) {
             throw httpError(
@@ -2039,10 +2390,6 @@ async function requestReturn(
             );
           }
 
-
-          // ============================================
-          // VALIDATE REQUESTED ITEMS
-          // ============================================
 
           const seen =
             new Set();
@@ -2072,7 +2419,8 @@ async function requestReturn(
               !Number.isSafeInteger(
                 index
               ) ||
-              index < 0 ||
+              index <
+                0 ||
               seen.has(
                 index
               )
@@ -2095,7 +2443,8 @@ async function requestReturn(
               !Number.isSafeInteger(
                 quantity
               ) ||
-              quantity < 1 ||
+              quantity <
+                1 ||
               quantity >
                 item.quantity
             ) {
@@ -2126,10 +2475,6 @@ async function requestReturn(
                   );
 
 
-            // ==========================================
-            // EXCHANGE VALIDATION
-            // ==========================================
-
             if (
               type ===
               "exchange"
@@ -2147,7 +2492,7 @@ async function requestReturn(
               if (
                 !product ||
                 product.isActive ===
-                  false
+                false
               ) {
                 throw httpError(
                   409,
@@ -2160,14 +2505,18 @@ async function requestReturn(
                 (
                   product.sizes ||
                   []
-                ).map(String);
+                ).map(
+                  String
+                );
 
 
               const colors =
                 (
                   product.colors ||
                   []
-                ).map(String);
+                ).map(
+                  String
+                );
 
 
               size =
@@ -2181,16 +2530,6 @@ async function requestReturn(
                   ? color
                   : null;
 
-
-              /*
-                getVariantStock performs the same
-                size / colour availability check
-                used by checkout.
-
-                IMPORTANT:
-                We only CHECK stock here.
-                We do NOT reserve replacement stock.
-              */
 
               const available =
                 getVariantStock(
@@ -2207,7 +2546,8 @@ async function requestReturn(
                 throw httpError(
                   409,
 
-                  available > 0
+                  available >
+                  0
                     ? `${item.name}: Only ${available} available for this selection.`
                     : `${item.name}: This selection is out of stock.`
                 );
@@ -2247,9 +2587,9 @@ async function requestReturn(
               }
 
             } else {
-              // Normal returns do not need replacement variants.
               size =
                 null;
+
 
               color =
                 null;
@@ -2258,8 +2598,11 @@ async function requestReturn(
 
             cleanItems.push({
               index,
+
               quantity,
+
               size,
+
               color,
             });
 
@@ -2269,10 +2612,6 @@ async function requestReturn(
             );
           }
 
-
-          // ============================================
-          // SAVE REQUEST
-          // ============================================
 
           const requestedAt =
             new Date();
@@ -2299,43 +2638,41 @@ async function requestReturn(
 
             respondedAt:
               null,
+
+            approvedAt:
+              null,
+
+            rejectedAt:
+              null,
+
+            completedAt:
+              null,
+
+            originalInventoryRestoredAt:
+              null,
+
+            exchangeInventoryReservedAt:
+              null,
           };
 
 
-          if (
-            !order.tracking
-          ) {
-            order.tracking = {
-              carrier:
-                null,
-
-              trackingNumber:
-                null,
-
-              estimatedDelivery:
-                null,
-
-              events:
-                [],
-            };
-          }
+          order.refund =
+            blankRefund();
 
 
-          if (
-            !Array.isArray(
-              order.tracking
-                .events
-            )
-          ) {
-            order.tracking.events =
-              [];
-          }
+          ensureTracking(
+            order
+          );
 
 
           order.tracking
-            .events.push({
+            .events
+            .push({
               status:
-                "return-requested",
+                type ===
+                "exchange"
+                  ? "exchange-requested"
+                  : "return-requested",
 
               description:
                 type ===
@@ -2359,7 +2696,9 @@ async function requestReturn(
       );
 
 
-    if (!savedOrder) {
+    if (
+      !savedOrder
+    ) {
       throw new Error(
         "Return request was not created."
       );
@@ -2367,9 +2706,12 @@ async function requestReturn(
 
 
     return res
-      .status(201)
+      .status(
+        201
+      )
       .json({
-        success: true,
+        success:
+          true,
 
         message:
           type ===
@@ -2387,7 +2729,9 @@ async function requestReturn(
             .returnRequest,
       });
 
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "Return request error:",
       error
@@ -2400,11 +2744,1484 @@ async function requestReturn(
         500
       )
       .json({
-        success: false,
+        success:
+          false,
 
         message:
           error.message ||
           "Unable to submit return request.",
+      });
+
+  } finally {
+    await session
+      .endSession();
+  }
+}
+
+
+// ======================================================
+// ADMIN — LIST RETURN / EXCHANGE REQUESTS
+// ======================================================
+
+async function getAdminReturnRequests(
+  req,
+  res
+) {
+  try {
+    const requestedStatus =
+      cleanString(
+        req.query?.status,
+        30
+      ).toLowerCase();
+
+
+    const allowedStatuses = [
+      "requested",
+      "approved",
+      "rejected",
+      "completed",
+    ];
+
+
+    if (
+      requestedStatus &&
+      !allowedStatuses.includes(
+        requestedStatus
+      )
+    ) {
+      return res
+        .status(
+          400
+        )
+        .json({
+          success:
+            false,
+
+          message:
+            "Invalid return request status.",
+        });
+    }
+
+
+    const query = {
+      "returnRequest.status":
+        requestedStatus
+          ? requestedStatus
+          : {
+              $in:
+                allowedStatuses,
+            },
+    };
+
+
+    const orders =
+      await Order
+        .find(
+          query
+        )
+        .populate(
+          "user",
+          "name email role"
+        )
+        .sort({
+          "returnRequest.requestedAt":
+            -1,
+
+          createdAt:
+            -1,
+        });
+
+
+    return res
+      .status(
+        200
+      )
+      .json({
+        success:
+          true,
+
+        count:
+          orders.length,
+
+        orders:
+          orders.map(
+            safeOrder
+          ),
+      });
+
+  } catch (
+    error
+  ) {
+    console.error(
+      "Admin return list error:",
+      error
+    );
+
+
+    return res
+      .status(
+        500
+      )
+      .json({
+        success:
+          false,
+
+        message:
+          "Unable to load return and exchange requests.",
+      });
+  }
+}
+
+
+// ======================================================
+// ADMIN — APPROVE / REJECT REQUEST
+// ======================================================
+
+async function reviewReturnRequest(
+  req,
+  res
+) {
+  const id =
+    cleanString(
+      req.params.id,
+      150
+    );
+
+
+  const decision =
+    cleanString(
+      req.body?.decision,
+      20
+    ).toLowerCase();
+
+
+  const responseText =
+    cleanString(
+      req.body?.response,
+      1000
+    );
+
+
+  if (
+    ![
+      "approve",
+      "reject",
+    ].includes(
+      decision
+    )
+  ) {
+    return res
+      .status(
+        400
+      )
+      .json({
+        success:
+          false,
+
+        message:
+          "Choose approve or reject.",
+      });
+  }
+
+
+  const session =
+    await mongoose
+      .startSession();
+
+
+  let savedOrder =
+    null;
+
+
+  let existingDecision =
+    false;
+
+
+  try {
+    await session
+      .withTransaction(
+        async () => {
+          const order =
+            await Order
+              .findOne({
+                $or:
+                  orderLookupConditions(
+                    id
+                  ),
+              })
+              .session(
+                session
+              );
+
+
+          if (
+            !order
+          ) {
+            throw httpError(
+              404,
+              "Order not found."
+            );
+          }
+
+
+          const currentStatus =
+            order.returnRequest
+              ?.status;
+
+
+          if (
+            decision ===
+              "approve" &&
+            currentStatus ===
+              "approved"
+          ) {
+            existingDecision =
+              true;
+
+
+            savedOrder =
+              order;
+
+
+            return;
+          }
+
+
+          if (
+            decision ===
+              "reject" &&
+            currentStatus ===
+              "rejected"
+          ) {
+            existingDecision =
+              true;
+
+
+            savedOrder =
+              order;
+
+
+            return;
+          }
+
+
+          if (
+            currentStatus !==
+            "requested"
+          ) {
+            throw httpError(
+              409,
+              "This request is no longer waiting for review."
+            );
+          }
+
+
+          const type =
+            order.returnRequest
+              .type;
+
+
+          if (
+            ![
+              "return",
+              "exchange",
+            ].includes(
+              type
+            )
+          ) {
+            throw httpError(
+              409,
+              "This order does not contain a valid return request."
+            );
+          }
+
+
+          const now =
+            new Date();
+
+
+          // ==========================================
+          // REJECT
+          // ==========================================
+
+          if (
+            decision ===
+            "reject"
+          ) {
+            order.returnRequest
+              .status =
+              "rejected";
+
+
+            order.returnRequest
+              .response =
+              responseText;
+
+
+            order.returnRequest
+              .respondedAt =
+              now;
+
+
+            order.returnRequest
+              .approvedAt =
+              null;
+
+
+            order.returnRequest
+              .rejectedAt =
+              now;
+
+
+            order.returnRequest
+              .completedAt =
+              null;
+
+
+            order.returnRequest
+              .originalInventoryRestoredAt =
+              null;
+
+
+            order.returnRequest
+              .exchangeInventoryReservedAt =
+              null;
+
+
+            order.refund =
+              blankRefund();
+
+
+            ensureTracking(
+              order
+            );
+
+
+            order.tracking
+              .events
+              .push({
+                status:
+                  type ===
+                  "exchange"
+                    ? "exchange-rejected"
+                    : "return-rejected",
+
+                description:
+                  type ===
+                  "exchange"
+                    ? "Exchange request rejected by GymDrobe."
+                    : "Return request rejected by GymDrobe.",
+
+                timestamp:
+                  now,
+              });
+
+
+            await order.save({
+              session,
+            });
+
+
+            savedOrder =
+              order;
+
+
+            return;
+          }
+
+
+          // ==========================================
+          // APPROVE EXCHANGE
+          //
+          // IMPORTANT:
+          // replacement stock is reserved NOW.
+          // ==========================================
+
+          if (
+            type ===
+            "exchange"
+          ) {
+            const cache =
+              new Map();
+
+
+            const touched =
+              new Map();
+
+
+            for (
+              const row
+              of order.returnRequest
+                .items ||
+              []
+            ) {
+              const item =
+                order.items[
+                  row.index
+                ];
+
+
+              if (
+                !item
+              ) {
+                throw httpError(
+                  409,
+                  "An exchange item is no longer valid."
+                );
+              }
+
+
+              const product =
+                await loadProductForInventory(
+                  item,
+                  session,
+                  cache
+                );
+
+
+              if (
+                product.isActive ===
+                false
+              ) {
+                throw httpError(
+                  409,
+                  `${item.name}: This product is no longer available.`
+                );
+              }
+
+
+              const available =
+                getVariantStock(
+                  product,
+                  row.size ??
+                    null,
+                  row.color ??
+                    null
+                );
+
+
+              if (
+                available <
+                row.quantity
+              ) {
+                throw httpError(
+                  409,
+
+                  available >
+                  0
+                    ? `${item.name}: Only ${available} available for the requested replacement.`
+                    : `${item.name}: The requested replacement is out of stock.`
+                );
+              }
+
+
+              reserveVariantStock(
+                product,
+                row.quantity,
+                row.size ??
+                  null,
+                row.color ??
+                  null
+              );
+
+
+              touched.set(
+                String(
+                  product._id
+                ),
+                product
+              );
+            }
+
+
+            for (
+              const product
+              of touched.values()
+            ) {
+              await product.save({
+                session,
+              });
+            }
+
+
+            order.returnRequest
+              .exchangeInventoryReservedAt =
+              now;
+
+
+            order.refund = {
+              status:
+                "not-applicable",
+
+              amount:
+                0,
+
+              requestedAt:
+                null,
+
+              reference:
+                "",
+
+              refundedAt:
+                null,
+            };
+
+          } else {
+            // ========================================
+            // APPROVE RETURN
+            // ========================================
+
+            const refundAmount =
+              calculateReturnRefund(
+                order,
+
+                order.returnRequest
+                  .items ||
+                []
+              );
+
+
+            order.refund = {
+              status:
+                refundAmount >
+                0
+                  ? "pending"
+                  : "not-applicable",
+
+              amount:
+                refundAmount,
+
+              requestedAt:
+                refundAmount >
+                0
+                  ? now
+                  : null,
+
+              reference:
+                "",
+
+              refundedAt:
+                null,
+            };
+          }
+
+
+          order.returnRequest
+            .status =
+            "approved";
+
+
+          order.returnRequest
+            .response =
+            responseText;
+
+
+          order.returnRequest
+            .respondedAt =
+            now;
+
+
+          order.returnRequest
+            .approvedAt =
+            now;
+
+
+          order.returnRequest
+            .rejectedAt =
+            null;
+
+
+          order.returnRequest
+            .completedAt =
+            null;
+
+
+          order.returnRequest
+            .originalInventoryRestoredAt =
+            null;
+
+
+          ensureTracking(
+            order
+          );
+
+
+          order.tracking
+            .events
+            .push({
+              status:
+                type ===
+                "exchange"
+                  ? "exchange-approved"
+                  : "return-approved",
+
+              description:
+                type ===
+                "exchange"
+                  ? "Exchange request approved by GymDrobe. Replacement stock has been reserved."
+                  : "Return request approved by GymDrobe.",
+
+              timestamp:
+                now,
+            });
+
+
+          await order.save({
+            session,
+          });
+
+
+          savedOrder =
+            order;
+        }
+      );
+
+
+    if (
+      !savedOrder
+    ) {
+      throw new Error(
+        "Return request review failed."
+      );
+    }
+
+
+    return res
+      .status(
+        200
+      )
+      .json({
+        success:
+          true,
+
+        existing:
+          existingDecision,
+
+        message:
+          existingDecision
+            ? `This request is already ${savedOrder.returnRequest.status}.`
+            : decision ===
+              "approve"
+              ? "Request approved successfully."
+              : "Request rejected successfully.",
+
+        order:
+          safeOrder(
+            savedOrder
+          ),
+      });
+
+  } catch (
+    error
+  ) {
+    console.error(
+      "Admin return review error:",
+      error
+    );
+
+
+    return res
+      .status(
+        error.status ||
+        500
+      )
+      .json({
+        success:
+          false,
+
+        message:
+          error.message ||
+          "Unable to review this request.",
+      });
+
+  } finally {
+    await session
+      .endSession();
+  }
+}
+
+
+// ======================================================
+// ADMIN — COMPLETE APPROVED RETURN / EXCHANGE
+// ======================================================
+
+async function completeReturnRequest(
+  req,
+  res
+) {
+  const id =
+    cleanString(
+      req.params.id,
+      150
+    );
+
+
+  const responseText =
+    cleanString(
+      req.body?.response,
+      1000
+    );
+
+
+  const session =
+    await mongoose
+      .startSession();
+
+
+  let savedOrder =
+    null;
+
+
+  let alreadyCompleted =
+    false;
+
+
+  try {
+    await session
+      .withTransaction(
+        async () => {
+          const order =
+            await Order
+              .findOne({
+                $or:
+                  orderLookupConditions(
+                    id
+                  ),
+              })
+              .session(
+                session
+              );
+
+
+          if (
+            !order
+          ) {
+            throw httpError(
+              404,
+              "Order not found."
+            );
+          }
+
+
+          if (
+            order.returnRequest
+              ?.status ===
+            "completed"
+          ) {
+            alreadyCompleted =
+              true;
+
+
+            savedOrder =
+              order;
+
+
+            return;
+          }
+
+
+          if (
+            !order.returnRequest ||
+            order.returnRequest
+              .status !==
+              "approved"
+          ) {
+            throw httpError(
+              409,
+              "Only an approved return or exchange can be completed."
+            );
+          }
+
+
+          const type =
+            order.returnRequest
+              .type;
+
+
+          if (
+            ![
+              "return",
+              "exchange",
+            ].includes(
+              type
+            )
+          ) {
+            throw httpError(
+              409,
+              "This order does not contain a valid return request."
+            );
+          }
+
+
+          const now =
+            new Date();
+
+
+          const cache =
+            new Map();
+
+
+          const touched =
+            new Map();
+
+
+          // ==========================================
+          // LEGACY EXCHANGE SAFETY
+          //
+          // If an older approved exchange did not
+          // reserve replacement stock during approval,
+          // reserve it here exactly once.
+          // ==========================================
+
+          if (
+            type ===
+              "exchange" &&
+            !order.returnRequest
+              .exchangeInventoryReservedAt
+          ) {
+            for (
+              const row
+              of order.returnRequest
+                .items ||
+              []
+            ) {
+              const item =
+                order.items[
+                  row.index
+                ];
+
+
+              if (
+                !item
+              ) {
+                throw httpError(
+                  409,
+                  "An exchange item is no longer valid."
+                );
+              }
+
+
+              const product =
+                await loadProductForInventory(
+                  item,
+                  session,
+                  cache
+                );
+
+
+              if (
+                product.isActive ===
+                false
+              ) {
+                throw httpError(
+                  409,
+                  `${item.name}: This product is no longer available.`
+                );
+              }
+
+
+              const available =
+                getVariantStock(
+                  product,
+                  row.size ??
+                    null,
+                  row.color ??
+                    null
+                );
+
+
+              if (
+                available <
+                row.quantity
+              ) {
+                throw httpError(
+                  409,
+
+                  available >
+                  0
+                    ? `${item.name}: Only ${available} available for the requested replacement.`
+                    : `${item.name}: The requested replacement is out of stock.`
+                );
+              }
+
+
+              reserveVariantStock(
+                product,
+                row.quantity,
+                row.size ??
+                  null,
+                row.color ??
+                  null
+              );
+
+
+              touched.set(
+                String(
+                  product._id
+                ),
+                product
+              );
+            }
+
+
+            order.returnRequest
+              .exchangeInventoryReservedAt =
+              now;
+          }
+
+
+          // ==========================================
+          // RESTORE ORIGINAL RETURNED ITEMS
+          //
+          // Done only once.
+          // ==========================================
+
+          if (
+            !order.returnRequest
+              .originalInventoryRestoredAt
+          ) {
+            for (
+              const row
+              of order.returnRequest
+                .items ||
+              []
+            ) {
+              const item =
+                order.items[
+                  row.index
+                ];
+
+
+              if (
+                !item
+              ) {
+                throw httpError(
+                  409,
+                  "A return item is no longer valid."
+                );
+              }
+
+
+              const product =
+                await loadProductForInventory(
+                  item,
+                  session,
+                  cache
+                );
+
+
+              restoreVariantStock(
+                product,
+                row.quantity,
+                item.selectedSize ??
+                  null,
+                item.selectedColor ??
+                  null
+              );
+
+
+              touched.set(
+                String(
+                  product._id
+                ),
+                product
+              );
+            }
+
+
+            order.returnRequest
+              .originalInventoryRestoredAt =
+              now;
+          }
+
+
+          for (
+            const product
+            of touched.values()
+          ) {
+            await product.save({
+              session,
+            });
+          }
+
+
+          order.returnRequest
+            .status =
+            "completed";
+
+
+          order.returnRequest
+            .completedAt =
+            now;
+
+
+          order.returnRequest
+            .respondedAt =
+            now;
+
+
+          if (
+            responseText
+          ) {
+            order.returnRequest
+              .response =
+              responseText;
+          }
+
+
+          // ==========================================
+          // NORMAL RETURN
+          // ==========================================
+
+          if (
+            type ===
+            "return"
+          ) {
+            const existingAmount =
+              Number(
+                order.refund
+                  ?.amount
+              );
+
+
+            const amount =
+              Number.isFinite(
+                existingAmount
+              ) &&
+              existingAmount >=
+                0
+                ? roundMoney(
+                    existingAmount
+                  )
+                : calculateReturnRefund(
+                    order,
+
+                    order.returnRequest
+                      .items ||
+                    []
+                  );
+
+
+            order.refund.amount =
+              amount;
+
+
+            order.refund.requestedAt =
+              order.refund
+                ?.requestedAt ||
+              order.returnRequest
+                ?.approvedAt ||
+              now;
+
+
+            order.refund.reference =
+              order.refund
+                ?.reference ||
+              "";
+
+
+            order.refund.refundedAt =
+              null;
+
+
+            order.refund.status =
+              amount >
+              0
+                ? "manual-required"
+                : "not-applicable";
+
+          } else {
+            // ========================================
+            // EXCHANGE
+            // ========================================
+
+            order.refund = {
+              status:
+                "not-applicable",
+
+              amount:
+                0,
+
+              requestedAt:
+                null,
+
+              reference:
+                "",
+
+              refundedAt:
+                null,
+            };
+          }
+
+
+          ensureTracking(
+            order
+          );
+
+
+          order.tracking
+            .events
+            .push({
+              status:
+                type ===
+                "exchange"
+                  ? "exchange-completed"
+                  : "return-completed",
+
+              description:
+                type ===
+                "exchange"
+                  ? "Exchange completed by GymDrobe."
+                  : order.refund
+                      .status ===
+                    "manual-required"
+                    ? "Return completed by GymDrobe. Refund requires manual processing."
+                    : "Return completed by GymDrobe. No refund amount is due.",
+
+              timestamp:
+                now,
+            });
+
+
+          await order.save({
+            session,
+          });
+
+
+          savedOrder =
+            order;
+        }
+      );
+
+
+    if (
+      !savedOrder
+    ) {
+      throw new Error(
+        "Return request completion failed."
+      );
+    }
+
+
+    return res
+      .status(
+        200
+      )
+      .json({
+        success:
+          true,
+
+        existing:
+          alreadyCompleted,
+
+        message:
+          alreadyCompleted
+            ? "This request is already completed."
+            : savedOrder
+                .returnRequest
+                ?.type ===
+              "exchange"
+              ? "Exchange completed successfully."
+              : savedOrder
+                  .refund
+                  ?.status ===
+                "manual-required"
+                ? "Return completed. The refund now requires manual processing."
+                : "Return completed successfully.",
+
+        order:
+          safeOrder(
+            savedOrder
+          ),
+      });
+
+  } catch (
+    error
+  ) {
+    console.error(
+      "Admin return completion error:",
+      error
+    );
+
+
+    return res
+      .status(
+        error.status ||
+        500
+      )
+      .json({
+        success:
+          false,
+
+        message:
+          error.message ||
+          "Unable to complete this request.",
+      });
+
+  } finally {
+    await session
+      .endSession();
+  }
+}
+
+
+// ======================================================
+// ADMIN — RECORD MANUAL REFUND
+// ======================================================
+
+async function recordReturnRefund(
+  req,
+  res
+) {
+  const id =
+    cleanString(
+      req.params.id,
+      150
+    );
+
+
+  const reference =
+    cleanString(
+      req.body?.reference,
+      200
+    );
+
+
+  if (
+    reference.length <
+    3
+  ) {
+    return res
+      .status(
+        400
+      )
+      .json({
+        success:
+          false,
+
+        message:
+          "Enter a valid refund reference.",
+      });
+  }
+
+
+  const session =
+    await mongoose
+      .startSession();
+
+
+  let savedOrder =
+    null;
+
+
+  let alreadyRefunded =
+    false;
+
+
+  try {
+    await session
+      .withTransaction(
+        async () => {
+          const order =
+            await Order
+              .findOne({
+                $or:
+                  orderLookupConditions(
+                    id
+                  ),
+              })
+              .session(
+                session
+              );
+
+
+          if (
+            !order
+          ) {
+            throw httpError(
+              404,
+              "Order not found."
+            );
+          }
+
+
+          if (
+            order.returnRequest
+              ?.type !==
+            "return"
+          ) {
+            throw httpError(
+              409,
+              "Refund recording is only available for return requests."
+            );
+          }
+
+
+          if (
+            order.returnRequest
+              ?.status !==
+            "completed"
+          ) {
+            throw httpError(
+              409,
+              "Complete the return before recording its refund."
+            );
+          }
+
+
+          if (
+            order.refund
+              ?.status ===
+            "refunded"
+          ) {
+            alreadyRefunded =
+              true;
+
+
+            savedOrder =
+              order;
+
+
+            return;
+          }
+
+
+          const amount =
+            Number(
+              order.refund
+                ?.amount ||
+              0
+            );
+
+
+          if (
+            !Number.isFinite(
+              amount
+            ) ||
+            amount <=
+              0
+          ) {
+            throw httpError(
+              409,
+              "There is no refund amount to record for this return."
+            );
+          }
+
+
+          if (
+            ![
+              "pending",
+              "manual-required",
+            ].includes(
+              order.refund
+                ?.status
+            )
+          ) {
+            throw httpError(
+              409,
+              "This refund is not waiting for manual processing."
+            );
+          }
+
+
+          const now =
+            new Date();
+
+
+          order.refund.status =
+            "refunded";
+
+
+          order.refund.reference =
+            reference;
+
+
+          order.refund.refundedAt =
+            now;
+
+
+          ensureTracking(
+            order
+          );
+
+
+          order.tracking
+            .events
+            .push({
+              status:
+                "refund-recorded",
+
+              description:
+                "Return refund recorded by GymDrobe.",
+
+              timestamp:
+                now,
+            });
+
+
+          await order.save({
+            session,
+          });
+
+
+          savedOrder =
+            order;
+        }
+      );
+
+
+    if (
+      !savedOrder
+    ) {
+      throw new Error(
+        "Refund recording failed."
+      );
+    }
+
+
+    return res
+      .status(
+        200
+      )
+      .json({
+        success:
+          true,
+
+        existing:
+          alreadyRefunded,
+
+        message:
+          alreadyRefunded
+            ? "This refund has already been recorded."
+            : "Refund recorded successfully.",
+
+        order:
+          safeOrder(
+            savedOrder
+          ),
+      });
+
+  } catch (
+    error
+  ) {
+    console.error(
+      "Admin refund record error:",
+      error
+    );
+
+
+    return res
+      .status(
+        error.status ||
+        500
+      )
+      .json({
+        success:
+          false,
+
+        message:
+          error.message ||
+          "Unable to record this refund.",
       });
 
   } finally {
@@ -2420,8 +4237,20 @@ async function requestReturn(
 
 module.exports = {
   createOrder,
+
   getOrders,
+
   getOrderById,
+
   cancelOrder,
+
   requestReturn,
+
+  getAdminReturnRequests,
+
+  reviewReturnRequest,
+
+  completeReturnRequest,
+
+  recordReturnRefund,
 };

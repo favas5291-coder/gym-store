@@ -1,64 +1,116 @@
-const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
+const mongoose =
+  require("mongoose");
 
-const userSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: [
+const bcrypt =
+  require("bcryptjs");
+
+
+// ======================================================
+// USER SCHEMA
+// ======================================================
+
+const userSchema =
+  new mongoose.Schema(
+    {
+      name: {
+        type:
+          String,
+
+        required: [
+          true,
+          "Name is required",
+        ],
+
+        trim:
+          true,
+
+        minlength:
+          2,
+
+        maxlength:
+          60,
+      },
+
+
+      email: {
+        type:
+          String,
+
+        required: [
+          true,
+          "Email is required",
+        ],
+
+        unique:
+          true,
+
+        lowercase:
+          true,
+
+        trim:
+          true,
+
+        match: [
+          /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+          "Please enter a valid email address",
+        ],
+      },
+
+
+      password: {
+        type:
+          String,
+
+        required: [
+          true,
+          "Password is required",
+        ],
+
+        minlength:
+          8,
+
+        // Never return password automatically.
+        select:
+          false,
+      },
+
+
+      // ==================================================
+      // USER ROLE
+      // ==================================================
+
+      role: {
+        type:
+          String,
+
+        enum: [
+          "customer",
+          "admin",
+        ],
+
+        default:
+          "customer",
+      },
+
+
+      // ==================================================
+      // ACCOUNT STATUS
+      // ==================================================
+
+      isActive: {
+        type:
+          Boolean,
+
+        default:
+          true,
+      },
+    },
+
+    {
+      timestamps:
         true,
-        "Name is required",
-      ],
-      trim: true,
-      minlength: 2,
-      maxlength: 60,
-    },
-
-    email: {
-      type: String,
-      required: [
-        true,
-        "Email is required",
-      ],
-      unique: true,
-      lowercase: true,
-      trim: true,
-      match: [
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-        "Please enter a valid email address",
-      ],
-    },
-
-    password: {
-      type: String,
-      required: [
-        true,
-        "Password is required",
-      ],
-      minlength: 8,
-
-      // Never return password automatically
-      select: false,
-    },
-
-    role: {
-      type: String,
-      enum: [
-        "customer",
-        "admin",
-      ],
-      default: "customer",
-    },
-
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-  },
-  {
-    timestamps: true,
-  }
-);
+    }
+  );
 
 
 // ======================================================
@@ -67,6 +119,7 @@ const userSchema = new mongoose.Schema(
 
 userSchema.pre(
   "save",
+
   async function () {
     if (
       !this.isModified(
@@ -76,8 +129,12 @@ userSchema.pre(
       return;
     }
 
+
     const salt =
-      await bcrypt.genSalt(12);
+      await bcrypt.genSalt(
+        12
+      );
+
 
     this.password =
       await bcrypt.hash(
@@ -103,10 +160,16 @@ userSchema.methods.comparePassword =
   };
 
 
+// ======================================================
+// MODEL
+// ======================================================
+
 const User =
   mongoose.model(
     "User",
     userSchema
   );
 
-module.exports = User;
+
+module.exports =
+  User;

@@ -180,3 +180,33 @@ export async function cancelOrder(
 
   return data.order;
 }
+
+
+// ======================================================
+// RETURN / EXCHANGE REQUEST
+// ======================================================
+
+export async function requestReturn(
+  token,
+  id,
+  returnData
+) {
+  const data =
+    await request(
+      `/orders/${encodeURIComponent(
+        id
+      )}/return`,
+      {
+        token,
+
+        method:
+          "POST",
+
+        body:
+          returnData,
+      }
+    );
+
+
+  return data.order;
+}

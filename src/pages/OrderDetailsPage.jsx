@@ -59,6 +59,226 @@ import Modal from "../components/Modal.jsx";
 
 
 // ======================================================
+// DATE FORMATTER
+// ======================================================
+
+function formatDate(
+  value
+) {
+  if (!value) {
+    return "";
+  }
+
+  const date =
+    new Date(
+      value
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "";
+  }
+
+  return date.toLocaleString(
+    "en-IN"
+  );
+}
+
+
+// ======================================================
+// RETURN STATUS TEXT
+// ======================================================
+
+function returnStatusText(
+  order,
+  signedIn
+) {
+  const request =
+    order.returnRequest ||
+    {};
+
+  const refund =
+    order.refund ||
+    {};
+
+  const type =
+    request.type;
+
+  const status =
+    request.status;
+
+
+  if (!signedIn) {
+    if (
+      status ===
+      "requested"
+    ) {
+      return type ===
+        "exchange"
+        ? "Your guest preview exchange request has been saved on this device."
+        : "Your guest preview return request has been saved on this device.";
+    }
+
+    if (
+      status ===
+      "approved"
+    ) {
+      return "This guest preview request is marked as approved.";
+    }
+
+    if (
+      status ===
+      "rejected"
+    ) {
+      return "This guest preview request is marked as rejected.";
+    }
+
+    if (
+      status ===
+      "completed"
+    ) {
+      return "This guest preview request is marked as completed.";
+    }
+
+    return "";
+  }
+
+
+  // ====================================================
+  // REQUESTED
+  // ====================================================
+
+  if (
+    status ===
+    "requested"
+  ) {
+    return type ===
+      "exchange"
+      ? "Your exchange request has been submitted and is waiting for GymDrobe review."
+      : "Your return request has been submitted and is waiting for GymDrobe review.";
+  }
+
+
+  // ====================================================
+  // APPROVED
+  // ====================================================
+
+  if (
+    status ===
+    "approved"
+  ) {
+    if (
+      type ===
+      "exchange"
+    ) {
+      return request.exchangeInventoryReservedAt
+        ? "Your exchange is approved and the replacement stock has been reserved. The original returned item will be restored to inventory when the exchange is completed."
+        : "Your exchange is approved. GymDrobe is preparing the replacement process.";
+    }
+
+    if (
+      refund.status ===
+      "pending" &&
+      Number(
+        refund.amount ||
+        0
+      ) >
+        0
+    ) {
+      return `Your return is approved. The expected refund is ${money(
+        refund.amount
+      )}. The refund will move to processing after the returned item is received and the return is completed.`;
+    }
+
+    return "Your return is approved. The returned item will be checked before the return is completed.";
+  }
+
+
+  // ====================================================
+  // REJECTED
+  // ====================================================
+
+  if (
+    status ===
+    "rejected"
+  ) {
+    return type ===
+      "exchange"
+      ? "Your exchange request was not approved."
+      : "Your return request was not approved.";
+  }
+
+
+  // ====================================================
+  // COMPLETED EXCHANGE
+  // ====================================================
+
+  if (
+    status ===
+      "completed" &&
+    type ===
+      "exchange"
+  ) {
+    return "Your exchange has been completed. The replacement stock was reserved during approval and the returned original item has been restored to inventory.";
+  }
+
+
+  // ====================================================
+  // COMPLETED RETURN
+  // ====================================================
+
+  if (
+    status ===
+      "completed" &&
+    type ===
+      "return"
+  ) {
+    if (
+      refund.status ===
+      "refunded"
+    ) {
+      return `Your return is complete and a refund of ${money(
+        refund.amount
+      )} has been recorded.`;
+    }
+
+    if (
+      refund.status ===
+      "manual-required"
+    ) {
+      return `Your return is complete. A refund of ${money(
+        refund.amount
+      )} is awaiting or undergoing manual COD refund processing.`;
+    }
+
+    if (
+      refund.status ===
+      "pending"
+    ) {
+      return `Your return is complete and the refund of ${money(
+        refund.amount
+      )} is pending processing.`;
+    }
+
+    if (
+      refund.status ===
+      "not-applicable"
+    ) {
+      return "Your return has been completed. No refund is required for this request.";
+    }
+
+    return "Your return has been completed.";
+  }
+
+
+  return "";
+}
+
+
+// ======================================================
 // ORDER DETAIL
 // ======================================================
 
@@ -93,186 +313,215 @@ function OrderDetail({
   const [
     order,
     setOrder,
-  ] = useState(null);
+  ] = useState(
+    null
+  );
 
 
   const [
     loading,
     setLoading,
   ] = useState(
-    Boolean(user)
+    Boolean(
+      user
+    )
   );
 
 
   const [
     loadError,
     setLoadError,
-  ] = useState("");
+  ] = useState(
+    ""
+  );
 
 
   const [
     action,
     setAction,
-  ] = useState(null);
+  ] = useState(
+    null
+  );
 
 
   const [
     reason,
     setReason,
-  ] = useState("");
+  ] = useState(
+    ""
+  );
 
 
   const [
     error,
     setError,
-  ] = useState("");
+  ] = useState(
+    ""
+  );
 
 
   const [
     actionLoading,
     setActionLoading,
-  ] = useState(false);
+  ] = useState(
+    false
+  );
 
 
   // ====================================================
   // LOAD ORDER
   // ====================================================
 
-  useEffect(() => {
-    let cancelled =
-      false;
+  useEffect(
+    () => {
+      let cancelled =
+        false;
 
 
-    async function loadOrder() {
-      setLoadError("");
+      async function loadOrder() {
+        setLoadError(
+          ""
+        );
 
 
-      // -----------------------------------------------
-      // GUEST
-      // -----------------------------------------------
+        // -----------------------------------------------
+        // GUEST ORDER
+        // -----------------------------------------------
 
-      if (!user) {
-        const local =
-          getLocalOrder(
-            id,
-            null
-          );
+        if (!user) {
+          const local =
+            getLocalOrder(
+              id,
+              null
+            );
 
 
-        if (!cancelled) {
-          setOrder(
-            local
-          );
+          if (
+            !cancelled
+          ) {
+            setOrder(
+              local
+            );
 
-          setLoading(
-            false
-          );
+            setLoading(
+              false
+            );
+          }
+
+
+          return;
         }
 
 
-        return;
-      }
+        // -----------------------------------------------
+        // SIGNED-IN WITHOUT JWT
+        // -----------------------------------------------
+
+        if (!token) {
+          if (
+            !cancelled
+          ) {
+            setOrder(
+              null
+            );
+
+            setLoading(
+              false
+            );
+
+            setLoadError(
+              "Your sign-in session has expired. Please sign in again."
+            );
+          }
 
 
-      // -----------------------------------------------
-      // SIGNED-IN WITHOUT TOKEN
-      // -----------------------------------------------
+          return;
+        }
 
-      if (!token) {
-        if (!cancelled) {
+
+        // -----------------------------------------------
+        // MONGODB ORDER
+        // -----------------------------------------------
+
+        setLoading(
+          true
+        );
+
+
+        try {
+          const remoteOrder =
+            await getOrderById(
+              token,
+              id
+            );
+
+
+          if (
+            cancelled
+          ) {
+            return;
+          }
+
+
+          setOrder(
+            remoteOrder ||
+              null
+          );
+
+        } catch (
+          fetchError
+        ) {
+          if (
+            cancelled
+          ) {
+            return;
+          }
+
+
+          console.error(
+            "Load order details error:",
+            fetchError
+          );
+
+
           setOrder(
             null
           );
 
-          setLoading(
-            false
-          );
 
           setLoadError(
-            "Your sign-in session has expired. Please sign in again."
+            fetchError.message ||
+              "Your order could not be loaded."
           );
+
+        } finally {
+          if (
+            !cancelled
+          ) {
+            setLoading(
+              false
+            );
+          }
         }
-
-
-        return;
       }
 
 
-      // -----------------------------------------------
-      // MONGODB ORDER
-      // -----------------------------------------------
-
-      setLoading(
-        true
-      );
+      loadOrder();
 
 
-      try {
-        const remoteOrder =
-          await getOrderById(
-            token,
-            id
-          );
+      return () => {
+        cancelled =
+          true;
+      };
+    },
 
-
-        if (cancelled) {
-          return;
-        }
-
-
-        setOrder(
-          remoteOrder ||
-            null
-        );
-
-      } catch (
-        fetchError
-      ) {
-        if (cancelled) {
-          return;
-        }
-
-
-        console.error(
-          "Load order details error:",
-          fetchError
-        );
-
-
-        setOrder(
-          null
-        );
-
-
-        setLoadError(
-          fetchError.message ||
-            "Your order could not be loaded."
-        );
-
-      } finally {
-        if (!cancelled) {
-          setLoading(
-            false
-          );
-        }
-      }
-    }
-
-
-    loadOrder();
-
-
-    return () => {
-      cancelled =
-        true;
-    };
-
-  }, [
-    id,
-    user?.id,
-    token,
-    revision,
-  ]);
+    [
+      id,
+      user?.id,
+      token,
+      revision,
+    ]
+  );
 
 
   // ====================================================
@@ -307,7 +556,9 @@ function OrderDetail({
   // LOAD ERROR
   // ====================================================
 
-  if (loadError) {
+  if (
+    loadError
+  ) {
     return (
       <div className="page narrow">
 
@@ -325,10 +576,12 @@ function OrderDetail({
 
 
   // ====================================================
-  // ORDER NOT FOUND
+  // NOT FOUND
   // ====================================================
 
-  if (!order) {
+  if (
+    !order
+  ) {
     return (
       <EmptyState
         title="Order not found"
@@ -342,12 +595,44 @@ function OrderDetail({
 
 
   // ====================================================
-  // ORDER HELPERS
+  // HELPERS
   // ====================================================
 
   const address =
     order.shippingAddress ||
     {};
+
+
+  const request =
+    order.returnRequest ||
+    {};
+
+
+  const refund =
+    order.refund ||
+    {};
+
+
+  const signedIn =
+    Boolean(
+      user
+    );
+
+
+  const isReturn =
+    request.type ===
+    "return";
+
+
+  const isExchange =
+    request.type ===
+    "exchange";
+
+
+  const hasRequest =
+    request.status &&
+    request.status !==
+      "not-requested";
 
 
   const canCancel =
@@ -367,37 +652,40 @@ function OrderDetail({
         );
 
 
-  // Signed-in returns will be connected later.
   const canReturn =
-    !user &&
     returnEligibility(
       order
     ).eligible;
 
 
   // ====================================================
-  // FIND CURRENT PRODUCT
+  // FIND PRODUCT
   // ====================================================
 
   function findProductForOrderItem(
     item
   ) {
     return products.find(
-      (product) =>
+      (
+        product
+      ) =>
         String(
           product.id
         ) ===
           String(
             item.id
           ) ||
+
         String(
           product.id
         ) ===
           String(
             item.productId
           ) ||
+
         (
-          item.legacyId != null &&
+          item.legacyId !=
+            null &&
           String(
             product.legacyId
           ) ===
@@ -405,6 +693,7 @@ function OrderDetail({
               item.legacyId
             )
         ) ||
+
         (
           item.slug &&
           String(
@@ -468,7 +757,9 @@ function OrderDetail({
         );
 
 
-      if (!product) {
+      if (
+        !product
+      ) {
         skipped.push(
           item.name
         );
@@ -501,7 +792,9 @@ function OrderDetail({
 
       const existing =
         next.find(
-          (row) =>
+          (
+            row
+          ) =>
             getCartItemKey(
               row
             ) ===
@@ -542,7 +835,9 @@ function OrderDetail({
 
       next = [
         ...next.filter(
-          (row) =>
+          (
+            row
+          ) =>
             getCartItemKey(
               row
             ) !==
@@ -570,9 +865,12 @@ function OrderDetail({
     notify(
       `${added} selections added at current prices.${
         skipped.length
-          ? ` Unavailable: ${skipped.join(", ")}.`
+          ? ` Unavailable: ${skipped.join(
+              ", "
+            )}.`
           : ""
       }`,
+
       skipped.length
         ? "info"
         : "success"
@@ -581,7 +879,7 @@ function OrderDetail({
 
 
   // ====================================================
-  // CANCEL / RETURN
+  // CANCEL ORDER
   // ====================================================
 
   async function confirm(
@@ -613,7 +911,9 @@ function OrderDetail({
     }
 
 
-    setError("");
+    setError(
+      ""
+    );
 
 
     // ==================================================
@@ -625,7 +925,9 @@ function OrderDetail({
       action ===
         "cancel"
     ) {
-      if (!token) {
+      if (
+        !token
+      ) {
         setError(
           "Your sign-in session has expired. Please sign in again."
         );
@@ -648,7 +950,9 @@ function OrderDetail({
           );
 
 
-        if (!updatedOrder) {
+        if (
+          !updatedOrder
+        ) {
           throw new Error(
             "The cancelled order was not returned by the server."
           );
@@ -675,12 +979,6 @@ function OrderDetail({
           "success"
         );
 
-
-        /*
-          Cancellation restores inventory in MongoDB.
-          Refresh the catalogue so the restored stock
-          appears immediately on the storefront.
-        */
 
         if (
           typeof refreshProducts ===
@@ -724,17 +1022,23 @@ function OrderDetail({
 
 
     // ==================================================
-    // GUEST LOCAL PREVIEW ACTION
+    // SIGNED-IN UNKNOWN ACTION
     // ==================================================
 
-    if (user) {
+    if (
+      user
+    ) {
       setError(
-        "This account action is not available yet."
+        "This account action is not available here."
       );
 
       return;
     }
 
+
+    // ==================================================
+    // GUEST LOCAL CANCELLATION
+    // ==================================================
 
     const current =
       getLocalOrder(
@@ -755,23 +1059,6 @@ function OrderDetail({
         ].includes(
           current.status
         )
-      ) ||
-      (
-        action ===
-          "return" &&
-        (
-          current.status !==
-            "delivered" ||
-          (
-            current
-              .returnRequest
-              ?.status &&
-            current
-              .returnRequest
-              .status !==
-              "not-requested"
-          )
-        )
       )
     ) {
       setError(
@@ -791,68 +1078,56 @@ function OrderDetail({
       updateOrder(
         id,
         null,
-        (old) =>
-          action ===
-          "cancel"
-            ? {
-                ...old,
+        (
+          old
+        ) => ({
+          ...old,
 
+          status:
+            "cancelled",
+
+          cancellation: {
+            ...old.cancellation,
+
+            status:
+              "cancelled",
+
+            reason:
+              cleanReason,
+
+            cancelledAt:
+              now,
+          },
+
+          tracking: {
+            ...old.tracking,
+
+            events: [
+              ...(
+                old.tracking
+                  ?.events ||
+                []
+              ),
+
+              {
                 status:
                   "cancelled",
 
-                cancellation: {
-                  status:
-                    "cancelled",
+                description:
+                  "Preview cancellation saved",
 
-                  reason:
-                    cleanReason,
-
-                  cancelledAt:
-                    now,
-                },
-
-                tracking: {
-                  ...old.tracking,
-
-                  events: [
-                    ...(
-                      old
-                        .tracking
-                        ?.events ||
-                      []
-                    ),
-
-                    {
-                      status:
-                        "cancelled",
-
-                      description:
-                        "Preview cancellation saved",
-
-                      timestamp:
-                        now,
-                    },
-                  ],
-                },
-              }
-            : {
-                ...old,
-
-                returnRequest: {
-                  status:
-                    "requested",
-
-                  reason:
-                    cleanReason,
-
-                  requestedAt:
-                    now,
-                },
-              }
+                timestamp:
+                  now,
+              },
+            ],
+          },
+        })
       );
 
 
-    if (!next) {
+    if (
+      !next
+    ) {
       setError(
         "Unable to save this change. Please try again."
       );
@@ -877,12 +1152,23 @@ function OrderDetail({
 
 
     notify(
-      action ===
-        "cancel"
-        ? "Preview order cancelled."
-        : "Preview return request saved."
+      "Preview order cancelled.",
+      "success"
     );
   }
+
+
+  // ====================================================
+  // RETURN STATUS MESSAGE
+  // ====================================================
+
+  const requestMessage =
+    hasRequest
+      ? returnStatusText(
+          order,
+          signedIn
+        )
+      : "";
 
 
   // ====================================================
@@ -950,7 +1236,10 @@ function OrderDetail({
               PRODUCTS
           ============================================= */}
 
-          {(order.items || []).map(
+          {(
+            order.items ||
+            []
+          ).map(
             (
               item,
               index
@@ -982,9 +1271,7 @@ function OrderDetail({
                   <div className="bag-copy">
 
                     <h2>
-                      {
-                        item.name
-                      }
+                      {item.name}
                     </h2>
 
 
@@ -1006,9 +1293,7 @@ function OrderDetail({
 
                     <p>
                       Quantity:{" "}
-                      {
-                        item.quantity
-                      }
+                      {item.quantity}
                     </p>
 
 
@@ -1027,12 +1312,14 @@ function OrderDetail({
 
 
                     <p>
+
                       <Link
                         className="text-link"
                         to={path}
                       >
                         View product
                       </Link>
+
                     </p>
 
                   </div>
@@ -1096,12 +1383,13 @@ function OrderDetail({
 
           {order.giftMessage && (
             <p className="panel">
+
               <strong>
                 Gift message:
               </strong>{" "}
-              {
-                order.giftMessage
-              }
+
+              {order.giftMessage}
+
             </p>
           )}
 
@@ -1112,12 +1400,13 @@ function OrderDetail({
 
           {order.orderNote && (
             <p className="panel">
+
               <strong>
                 Delivery instructions:
               </strong>{" "}
-              {
-                order.orderNote
-              }
+
+              {order.orderNote}
+
             </p>
           )}
 
@@ -1207,7 +1496,7 @@ function OrderDetail({
 
 
           {/* =============================================
-              CANCELLATION INFO
+              CANCELLATION
           ============================================= */}
 
           {order.cancellation
@@ -1223,11 +1512,10 @@ function OrderDetail({
                 <strong>
                   Reason:
                 </strong>{" "}
-                {
-                  order
-                    .cancellation
-                    .reason
-                }
+
+                {order
+                  .cancellation
+                  .reason}
               </p>
 
 
@@ -1235,12 +1523,25 @@ function OrderDetail({
                 ?.cancelledAt && (
                 <p className="muted">
                   Cancelled on{" "}
-                  {new Date(
+
+                  {formatDate(
                     order
                       .cancellation
                       .cancelledAt
-                  ).toLocaleString(
-                    "en-IN"
+                  )}
+                </p>
+              )}
+
+
+              {order.cancellation
+                ?.inventoryRestoredAt && (
+                <p className="muted">
+                  Reserved stock was restored on{" "}
+
+                  {formatDate(
+                    order
+                      .cancellation
+                      .inventoryRestoredAt
                   )}
                 </p>
               )}
@@ -1250,45 +1551,432 @@ function OrderDetail({
 
 
           {/* =============================================
-              RETURN INFO
+              RETURN / EXCHANGE
           ============================================= */}
 
-          {order.returnRequest
-            ?.status &&
-            order.returnRequest
-              .status !==
-              "not-requested" && (
-              <section className="panel">
+          {hasRequest && (
+            <section className="panel">
 
-                <h3>
-                  {order
-                    .returnRequest
-                    .type ===
-                  "exchange"
-                    ? "Exchange"
-                    : "Return"}{" "}
-                  request ·{" "}
-                  {
-                    order
-                      .returnRequest
-                      .status
-                  }
-                </h3>
+              <div className="page-heading">
+
+                <div>
+
+                  <h3>
+                    {isExchange
+                      ? "Exchange"
+                      : "Return"}{" "}
+                    request
+                  </h3>
 
 
-                {order.returnRequest
-                  .reason && (
-                  <p>
-                    {
-                      order
-                        .returnRequest
-                        .reason
+                  {request.id && (
+                    <p className="order-id">
+                      {request.id}
+                    </p>
+                  )}
+
+                </div>
+
+
+                <span className="status-pill">
+                  {request.status}
+                </span>
+
+              </div>
+
+
+              {requestMessage && (
+                <div className="notice">
+                  {requestMessage}
+                </div>
+              )}
+
+
+              {request.reason && (
+                <p>
+
+                  <strong>
+                    Reason:
+                  </strong>{" "}
+
+                  {request.reason}
+
+                </p>
+              )}
+
+
+              {/* =========================================
+                  REQUEST ITEMS
+              ========================================= */}
+
+              {Array.isArray(
+                request.items
+              ) &&
+                request.items.length >
+                  0 && (
+                <div>
+
+                  <h4>
+                    Requested items
+                  </h4>
+
+
+                  {request.items.map(
+                    (
+                      row,
+                      index
+                    ) => {
+                      const item =
+                        order.items?.[
+                          row.index
+                        ];
+
+
+                      if (!item) {
+                        return null;
+                      }
+
+
+                      return (
+                        <div
+                          className="bag-item"
+                          key={`${order.id}-return-${row.index}-${index}`}
+                        >
+
+                          <div className="bag-copy">
+
+                            <strong>
+                              {item.name}
+                            </strong>
+
+
+                            <p>
+                              Quantity:{" "}
+                              {row.quantity}
+                            </p>
+
+
+                            <p className="muted">
+                              Original:{" "}
+
+                              {[
+                                item.selectedColor,
+
+                                item.selectedSize &&
+                                  `Size ${item.selectedSize}`,
+                              ]
+                                .filter(
+                                  Boolean
+                                )
+                                .join(
+                                  " · "
+                                ) ||
+                                "Default variant"}
+                            </p>
+
+
+                            {isExchange && (
+                              <p>
+                                <strong>
+                                  Replacement:
+                                </strong>{" "}
+
+                                {[
+                                  row.color,
+
+                                  row.size &&
+                                    `Size ${row.size}`,
+                                ]
+                                  .filter(
+                                    Boolean
+                                  )
+                                  .join(
+                                    " · "
+                                  ) ||
+                                  "Default variant"}
+                              </p>
+                            )}
+
+                          </div>
+
+                        </div>
+                      );
                     }
-                  </p>
-                )}
+                  )}
 
-              </section>
-            )}
+                </div>
+              )}
+
+
+              {/* =========================================
+                  ADMIN RESPONSE
+              ========================================= */}
+
+              {request.response && (
+                <div className="notice">
+
+                  <strong>
+                    GymDrobe response:
+                  </strong>{" "}
+
+                  {request.response}
+
+                </div>
+              )}
+
+
+              {/* =========================================
+                  DATES
+              ========================================= */}
+
+              {request.requestedAt && (
+                <p className="muted">
+                  Requested on{" "}
+
+                  {formatDate(
+                    request.requestedAt
+                  )}
+                </p>
+              )}
+
+
+              {request.approvedAt && (
+                <p className="muted">
+                  Approved on{" "}
+
+                  {formatDate(
+                    request.approvedAt
+                  )}
+                </p>
+              )}
+
+
+              {request.rejectedAt && (
+                <p className="muted">
+                  Rejected on{" "}
+
+                  {formatDate(
+                    request.rejectedAt
+                  )}
+                </p>
+              )}
+
+
+              {request.completedAt && (
+                <p className="muted">
+                  Completed on{" "}
+
+                  {formatDate(
+                    request.completedAt
+                  )}
+                </p>
+              )}
+
+
+              {/* =========================================
+                  EXCHANGE STATUS
+              ========================================= */}
+
+              {signedIn &&
+                isExchange && (
+                <div className="panel">
+
+                  <h4>
+                    Exchange progress
+                  </h4>
+
+
+                  <p>
+                    Replacement reserved:{" "}
+
+                    <strong>
+                      {request.exchangeInventoryReservedAt
+                        ? "Yes"
+                        : request.status ===
+                            "approved" ||
+                          request.status ===
+                            "completed"
+                          ? "Processing"
+                          : "Not yet"}
+                    </strong>
+                  </p>
+
+
+                  {request.exchangeInventoryReservedAt && (
+                    <p className="muted">
+                      Reserved on{" "}
+
+                      {formatDate(
+                        request.exchangeInventoryReservedAt
+                      )}
+                    </p>
+                  )}
+
+
+                  {request.status ===
+                    "completed" && (
+                    <>
+                      <p>
+                        Original item restored to inventory:{" "}
+
+                        <strong>
+                          {request.originalInventoryRestoredAt
+                            ? "Yes"
+                            : "Processing"}
+                        </strong>
+                      </p>
+
+
+                      {request.originalInventoryRestoredAt && (
+                        <p className="muted">
+                          Restored on{" "}
+
+                          {formatDate(
+                            request.originalInventoryRestoredAt
+                          )}
+                        </p>
+                      )}
+                    </>
+                  )}
+
+                </div>
+              )}
+
+
+              {/* =========================================
+                  RETURN REFUND
+              ========================================= */}
+
+              {signedIn &&
+                isReturn &&
+                refund.status &&
+                refund.status !==
+                  "not-requested" && (
+                <div className="panel">
+
+                  <h4>
+                    Refund
+                  </h4>
+
+
+                  <p>
+                    Amount:{" "}
+
+                    <strong>
+                      {money(
+                        Number(
+                          refund.amount ||
+                            0
+                        )
+                      )}
+                    </strong>
+                  </p>
+
+
+                  <p>
+                    Status:{" "}
+
+                    <strong>
+                      {refund.status ===
+                      "manual-required"
+                        ? "Manual refund processing"
+                        : refund.status ===
+                            "refunded"
+                          ? "Refunded"
+                          : refund.status ===
+                              "pending"
+                            ? "Pending"
+                            : refund.status ===
+                                "not-applicable"
+                              ? "Not applicable"
+                              : refund.status}
+                    </strong>
+                  </p>
+
+
+                  {refund.status ===
+                    "pending" && (
+                    <p className="muted">
+                      The refund amount has been calculated. The returned item must be completed before manual COD refund processing.
+                    </p>
+                  )}
+
+
+                  {refund.status ===
+                    "manual-required" && (
+                    <p className="muted">
+                      GymDrobe has completed the return. The COD refund must now be processed manually and recorded by an administrator.
+                    </p>
+                  )}
+
+
+                  {refund.status ===
+                    "refunded" && (
+                    <div className="notice">
+
+                      <strong>
+                        Refund completed
+                      </strong>
+
+
+                      {refund.reference && (
+                        <p>
+                          Reference:{" "}
+
+                          <strong>
+                            {refund.reference}
+                          </strong>
+                        </p>
+                      )}
+
+
+                      {refund.refundedAt && (
+                        <p className="muted">
+                          Recorded on{" "}
+
+                          {formatDate(
+                            refund.refundedAt
+                          )}
+                        </p>
+                      )}
+
+                    </div>
+                  )}
+
+                </div>
+              )}
+
+
+              {/* =========================================
+                  REJECTED — TRY AGAIN
+              ========================================= */}
+
+              {request.status ===
+                "rejected" &&
+                canReturn && (
+                <div className="purchase-actions">
+
+                  <Link
+                    className="button secondary"
+                    to={`/orders/${encodeURIComponent(
+                      order.id
+                    )}/return`}
+                  >
+                    Submit a new request
+                  </Link>
+
+                </div>
+              )}
+
+
+              {!signedIn && (
+                <p className="muted">
+                  This is a guest preview request stored only on this device. It is not connected to the GymDrobe admin return system.
+                </p>
+              )}
+
+            </section>
+          )}
 
         </div>
 
@@ -1350,6 +2038,7 @@ function OrderDetail({
 
 
             <div className="total">
+
               <dt>
                 Total
               </dt>
@@ -1361,6 +2050,7 @@ function OrderDetail({
                   )
                 )}
               </dd>
+
             </div>
 
           </dl>
@@ -1383,6 +2073,7 @@ function OrderDetail({
 
           <p>
             Status:{" "}
+
             {order.payment
               ?.status ||
               "pending"}
@@ -1391,6 +2082,7 @@ function OrderDetail({
 
           <p>
             Delivery:{" "}
+
             {order.delivery
               ?.label ||
               (
@@ -1407,17 +2099,13 @@ function OrderDetail({
 
 
       {/* =================================================
-          CANCEL / GUEST RETURN MODAL
+          CANCEL MODAL
       ================================================= */}
 
-      {action && (
+      {action ===
+        "cancel" && (
         <Modal
-          title={
-            action ===
-            "cancel"
-              ? "Cancel this order?"
-              : "Request a return"
-          }
+          title="Cancel this order?"
           onClose={() => {
             if (
               !actionLoading
@@ -1440,9 +2128,7 @@ function OrderDetail({
           >
 
             <p>
-              {user &&
-              action ===
-                "cancel"
+              {user
                 ? "Cancelling this order will update your GymDrobe account and restore the reserved product stock."
                 : "This action updates your guest preview order stored on this device."}
             </p>
@@ -1499,10 +2185,7 @@ function OrderDetail({
             >
               {actionLoading
                 ? "Cancelling..."
-                : action ===
-                    "cancel"
-                  ? "Confirm cancellation"
-                  : "Submit return request"}
+                : "Confirm cancellation"}
             </button>
 
           </form>
