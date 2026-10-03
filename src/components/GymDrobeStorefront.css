@@ -2961,3 +2961,26 @@
     transform: none;
   }
 }
+/* Mobile product controls */
+@media (max-width: 767px) {
+  .gd-storefront .option-list button {
+    min-width: 48px;
+    min-height: 48px;
+    font-size: 13px;
+  }
+
+  .gd-storefront .fit-guide-link,
+  .gd-storefront .watch-button {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 8px 0;
+    font-size: 13px;
+  }
+
+  .gd-storefront .product-primary-actions .button {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+  }
+}
