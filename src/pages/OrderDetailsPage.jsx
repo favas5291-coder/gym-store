@@ -1,5 +1,4 @@
 import useOrderUpdates from "../hooks/useOrderUpdates.js";
-
 import {
   useEffect,
   useState,
@@ -54,7 +53,6 @@ import {
 } from "../components/StorefrontShared.jsx";
 
 import EmptyState from "../components/EmptyState.jsx";
-
 import Modal from "../components/Modal.jsx";
 
 
@@ -62,17 +60,13 @@ import Modal from "../components/Modal.jsx";
 // DATE FORMATTER
 // ======================================================
 
-function formatDate(
-  value
-) {
+function formatDate(value) {
   if (!value) {
     return "";
   }
 
   const date =
-    new Date(
-      value
-    );
+    new Date(value);
 
   if (
     Number.isNaN(
@@ -85,6 +79,322 @@ function formatDate(
   return date.toLocaleString(
     "en-IN"
   );
+}
+
+
+// ======================================================
+// PAYMENT HELPERS
+// ======================================================
+
+function number(value) {
+  const parsed =
+    Number(value);
+
+  return Number.isFinite(
+    parsed
+  )
+    ? parsed
+    : 0;
+}
+
+
+function paymentMethod(order) {
+  return (
+    order?.payment?.method ||
+    order?.paymentMethod ||
+    ""
+  );
+}
+
+
+function paymentMethodLabel(order) {
+  const method =
+    paymentMethod(order);
+
+  if (
+    method ===
+    "cod-partial"
+  ) {
+    return "Cash on Delivery with 10% advance";
+  }
+
+  if (
+    method ===
+    "razorpay"
+  ) {
+    return "Full online payment";
+  }
+
+  if (
+    method ===
+    "cod"
+  ) {
+    return "Cash on delivery";
+  }
+
+  return "Not recorded";
+}
+
+
+function paymentStatusLabel(order) {
+  const status =
+    order?.payment?.status ||
+    "pending";
+
+  if (
+    status ===
+    "partially-paid"
+  ) {
+    return "Advance paid";
+  }
+
+  if (
+    status ===
+    "paid"
+  ) {
+    return "Paid";
+  }
+
+  if (
+    status ===
+    "failed"
+  ) {
+    return "Payment failed";
+  }
+
+  if (
+    status ===
+    "refunded"
+  ) {
+    return "Refunded";
+  }
+
+  return "Payment pending";
+}
+
+
+function getOrderTotal(order) {
+  const paymentTotal =
+    number(
+      order?.payment
+        ?.totalAmount
+    );
+
+  if (
+    paymentTotal >
+    0
+  ) {
+    return paymentTotal;
+  }
+
+  const pricingTotal =
+    number(
+      order?.pricing
+        ?.finalTotal
+    );
+
+  if (
+    pricingTotal >
+    0
+  ) {
+    return pricingTotal;
+  }
+
+  return number(
+    orderTotal(
+      order
+    )
+  );
+}
+
+
+function getAmountPaid(order) {
+  return Math.max(
+    0,
+
+    number(
+      order?.payment
+        ?.amountPaid
+    )
+  );
+}
+
+
+function getAmountDue(order) {
+  return Math.max(
+    0,
+
+    number(
+      order?.payment
+        ?.amountDue
+    )
+  );
+}
+
+
+function getAdvanceAmount(order) {
+  const recorded =
+    number(
+      order?.payment
+        ?.advanceAmount
+    );
+
+  if (
+    recorded >
+    0
+  ) {
+    return recorded;
+  }
+
+  if (
+    paymentMethod(
+      order
+    ) ===
+    "cod-partial"
+  ) {
+    return getAmountPaid(
+      order
+    );
+  }
+
+  return 0;
+}
+
+
+function refundStatusLabel(
+  status
+) {
+  if (
+    status ===
+    "refunded"
+  ) {
+    return "Refunded";
+  }
+
+  if (
+    status ===
+    "pending"
+  ) {
+    return "Refund processing";
+  }
+
+  if (
+    status ===
+    "manual-required"
+  ) {
+    return "Manual review required";
+  }
+
+  if (
+    status ===
+    "not-applicable"
+  ) {
+    return "Not applicable";
+  }
+
+  return (
+    status ||
+    "Not requested"
+  );
+}
+
+
+function cancellationSuccessMessage(
+  order
+) {
+  const refund =
+    order?.refund ||
+    {};
+
+  const amount =
+    Math.max(
+      0,
+
+      number(
+        refund.amount
+      )
+    );
+
+  if (
+    refund.status ===
+      "refunded" &&
+    amount >
+      0
+  ) {
+    return `Order cancelled successfully. ${money(
+      amount
+    )} has been refunded.`;
+  }
+
+  if (
+    refund.status ===
+      "pending" &&
+    amount >
+      0
+  ) {
+    return `Order cancelled successfully. Your ${money(
+      amount
+    )} refund is being processed.`;
+  }
+
+  if (
+    refund.status ===
+      "manual-required" &&
+    amount >
+      0
+  ) {
+    return `Order cancelled successfully. Your ${money(
+      amount
+    )} refund requires GymDrobe review.`;
+  }
+
+  return "Order cancelled successfully.";
+}
+
+
+function cancellationModalText(
+  order,
+  signedIn
+) {
+  if (
+    !signedIn
+  ) {
+    return "This action updates your guest preview order stored on this device.";
+  }
+
+  const method =
+    paymentMethod(
+      order
+    );
+
+  const amountPaid =
+    getAmountPaid(
+      order
+    );
+
+  if (
+    method ===
+      "cod-partial" &&
+    amountPaid >
+      0
+  ) {
+    return `Cancelling this order will restore the reserved stock, remove the remaining COD balance, and request a refund of the ${money(
+      amountPaid
+    )} advance already paid online.`;
+  }
+
+  if (
+    method ===
+      "razorpay" &&
+    amountPaid >
+      0
+  ) {
+    return `Cancelling this order will restore the reserved stock and request a refund of the ${money(
+      amountPaid
+    )} already paid online.`;
+  }
+
+  return "Cancelling this order will update your GymDrobe account and restore the reserved product stock.";
 }
 
 
@@ -111,7 +421,9 @@ function returnStatusText(
     request.status;
 
 
-  if (!signedIn) {
+  if (
+    !signedIn
+  ) {
     if (
       status ===
       "requested"
@@ -147,10 +459,6 @@ function returnStatusText(
   }
 
 
-  // ====================================================
-  // REQUESTED
-  // ====================================================
-
   if (
     status ===
     "requested"
@@ -162,10 +470,6 @@ function returnStatusText(
   }
 
 
-  // ====================================================
-  // APPROVED
-  // ====================================================
-
   if (
     status ===
     "approved"
@@ -174,14 +478,16 @@ function returnStatusText(
       type ===
       "exchange"
     ) {
-      return request.exchangeInventoryReservedAt
+      return request
+        .exchangeInventoryReservedAt
         ? "Your exchange is approved and the replacement stock has been reserved. The original returned item will be restored to inventory when the exchange is completed."
         : "Your exchange is approved. GymDrobe is preparing the replacement process.";
     }
 
+
     if (
       refund.status ===
-      "pending" &&
+        "pending" &&
       Number(
         refund.amount ||
         0
@@ -193,13 +499,10 @@ function returnStatusText(
       )}. The refund will move to processing after the returned item is received and the return is completed.`;
     }
 
+
     return "Your return is approved. The returned item will be checked before the return is completed.";
   }
 
-
-  // ====================================================
-  // REJECTED
-  // ====================================================
 
   if (
     status ===
@@ -212,10 +515,6 @@ function returnStatusText(
   }
 
 
-  // ====================================================
-  // COMPLETED EXCHANGE
-  // ====================================================
-
   if (
     status ===
       "completed" &&
@@ -225,10 +524,6 @@ function returnStatusText(
     return "Your exchange has been completed. The replacement stock was reserved during approval and the returned original item has been restored to inventory.";
   }
 
-
-  // ====================================================
-  // COMPLETED RETURN
-  // ====================================================
 
   if (
     status ===
@@ -245,14 +540,16 @@ function returnStatusText(
       )} has been recorded.`;
     }
 
+
     if (
       refund.status ===
       "manual-required"
     ) {
       return `Your return is complete. A refund of ${money(
         refund.amount
-      )} is awaiting or undergoing manual COD refund processing.`;
+      )} requires manual refund processing.`;
     }
+
 
     if (
       refund.status ===
@@ -263,12 +560,14 @@ function returnStatusText(
       )} is pending processing.`;
     }
 
+
     if (
       refund.status ===
       "not-applicable"
     ) {
       return "Your return has been completed. No refund is required for this request.";
     }
+
 
     return "Your return has been completed.";
   }
@@ -292,13 +591,15 @@ function OrderDetail({
   const {
     products,
     refreshProducts,
-  } = useCatalog();
+  } =
+    useCatalog();
 
 
   const {
     user,
     token,
-  } = useAuth();
+  } =
+    useAuth();
 
 
   const store =
@@ -307,65 +608,73 @@ function OrderDetail({
 
   const {
     notify,
-  } = store;
+  } =
+    store;
 
 
   const [
     order,
     setOrder,
-  ] = useState(
-    null
-  );
+  ] =
+    useState(
+      null
+    );
 
 
   const [
     loading,
     setLoading,
-  ] = useState(
-    Boolean(
-      user
-    )
-  );
+  ] =
+    useState(
+      Boolean(
+        user
+      )
+    );
 
 
   const [
     loadError,
     setLoadError,
-  ] = useState(
-    ""
-  );
+  ] =
+    useState(
+      ""
+    );
 
 
   const [
     action,
     setAction,
-  ] = useState(
-    null
-  );
+  ] =
+    useState(
+      null
+    );
 
 
   const [
     reason,
     setReason,
-  ] = useState(
-    ""
-  );
+  ] =
+    useState(
+      ""
+    );
 
 
   const [
     error,
     setError,
-  ] = useState(
-    ""
-  );
+  ] =
+    useState(
+      ""
+    );
 
 
   const [
     actionLoading,
     setActionLoading,
-  ] = useState(
-    false
-  );
+  ] =
+    useState(
+      false
+    );
 
 
   // ====================================================
@@ -388,7 +697,9 @@ function OrderDetail({
         // GUEST ORDER
         // -----------------------------------------------
 
-        if (!user) {
+        if (
+          !user
+        ) {
           const local =
             getLocalOrder(
               id,
@@ -417,7 +728,9 @@ function OrderDetail({
         // SIGNED-IN WITHOUT JWT
         // -----------------------------------------------
 
-        if (!token) {
+        if (
+          !token
+        ) {
           if (
             !cancelled
           ) {
@@ -514,7 +827,6 @@ function OrderDetail({
           true;
       };
     },
-
     [
       id,
       user?.id,
@@ -534,9 +846,7 @@ function OrderDetail({
   ) {
     return (
       <div className="page narrow">
-
         <div className="empty-state">
-
           <h3>
             Loading order…
           </h3>
@@ -544,9 +854,7 @@ function OrderDetail({
           <p>
             Getting the latest order details from your GymDrobe account.
           </p>
-
         </div>
-
       </div>
     );
   }
@@ -561,7 +869,6 @@ function OrderDetail({
   ) {
     return (
       <div className="page narrow">
-
         <EmptyState
           title="Order could not be loaded"
           to="/orders"
@@ -569,7 +876,6 @@ function OrderDetail({
         >
           {loadError}
         </EmptyState>
-
       </div>
     );
   }
@@ -686,6 +992,7 @@ function OrderDetail({
         (
           item.legacyId !=
             null &&
+
           String(
             product.legacyId
           ) ===
@@ -696,6 +1003,7 @@ function OrderDetail({
 
         (
           item.slug &&
+
           String(
             product.slug
           ) ===
@@ -975,7 +1283,9 @@ function OrderDetail({
 
 
         notify(
-          "Order cancelled successfully.",
+          cancellationSuccessMessage(
+            updatedOrder
+          ),
           "success"
         );
 
@@ -986,6 +1296,7 @@ function OrderDetail({
         ) {
           try {
             await refreshProducts();
+
           } catch (
             refreshError
           ) {
@@ -1052,6 +1363,7 @@ function OrderDetail({
       (
         action ===
           "cancel" &&
+
         ![
           "confirmed",
           "pending",
@@ -1078,6 +1390,7 @@ function OrderDetail({
       updateOrder(
         id,
         null,
+
         (
           old
         ) => ({
@@ -1177,7 +1490,6 @@ function OrderDetail({
 
   return (
     <div className="page narrow">
-
       <Link
         className="text-link"
         to="/orders"
@@ -1187,9 +1499,7 @@ function OrderDetail({
 
 
       <div className="page-heading">
-
         <div>
-
           <h1>
             Order details
           </h1>
@@ -1197,7 +1507,6 @@ function OrderDetail({
           <p className="order-id">
             {order.id}
           </p>
-
         </div>
 
 
@@ -1209,11 +1518,13 @@ function OrderDetail({
               : ""
           }`}
         >
-          {orderStatus(
-            order
-          )}
+          {order.status ===
+          "payment-pending"
+            ? "Payment pending"
+            : orderStatus(
+                order
+              )}
         </span>
-
       </div>
 
 
@@ -1229,105 +1540,95 @@ function OrderDetail({
 
 
       <div className="checkout-layout">
-
         <div>
-
           {/* =============================================
               PRODUCTS
           ============================================= */}
 
-          {(
-            order.items ||
-            []
-          ).map(
-            (
-              item,
-              index
-            ) => {
-              const path =
-                orderItemProductPath(
-                  item
-                );
+          {(order.items || [])
+            .map(
+              (
+                item,
+                index
+              ) => {
+                const path =
+                  orderItemProductPath(
+                    item
+                  );
 
 
-              return (
-                <article
-                  className="bag-item"
-                  key={`${order.id}-${item.id || item.productId || index}`}
-                >
-
-                  <Link
-                    className="bag-photo"
-                    to={path}
+                return (
+                  <article
+                    className="bag-item"
+                    key={`${order.id}-${item.id || item.productId || index}`}
                   >
-                    <ProductImage
-                      product={
-                        item
-                      }
-                    />
-                  </Link>
+                    <Link
+                      className="bag-photo"
+                      to={path}
+                    >
+                      <ProductImage
+                        product={
+                          item
+                        }
+                      />
+                    </Link>
 
 
-                  <div className="bag-copy">
-
-                    <h2>
-                      {item.name}
-                    </h2>
-
-
-                    <p>
-                      {[
-                        item.selectedColor,
-
-                        item.selectedSize &&
-                          `Size ${item.selectedSize}`,
-                      ]
-                        .filter(
-                          Boolean
-                        )
-                        .join(
-                          " · "
-                        )}
-                    </p>
+                    <div className="bag-copy">
+                      <h2>
+                        {item.name}
+                      </h2>
 
 
-                    <p>
-                      Quantity:{" "}
-                      {item.quantity}
-                    </p>
+                      <p>
+                        {[
+                          item.selectedColor,
 
-
-                    <strong>
-                      {money(
-                        Number(
-                          item.price ||
-                            0
-                        ) *
-                          Number(
-                            item.quantity ||
-                              0
+                          item.selectedSize &&
+                            `Size ${item.selectedSize}`,
+                        ]
+                          .filter(
+                            Boolean
                           )
-                      )}
-                    </strong>
+                          .join(
+                            " · "
+                          )}
+                      </p>
 
 
-                    <p>
+                      <p>
+                        Quantity:{" "}
+                        {item.quantity}
+                      </p>
 
-                      <Link
-                        className="text-link"
-                        to={path}
-                      >
-                        View product
-                      </Link>
 
-                    </p>
+                      <strong>
+                        {money(
+                          Number(
+                            item.price ||
+                              0
+                          ) *
+                            Number(
+                              item.quantity ||
+                                0
+                            )
+                        )}
+                      </strong>
 
-                  </div>
 
-                </article>
-              );
-            }
-          )}
+                      <p>
+                        <Link
+                          className="text-link"
+                          to={path}
+                        >
+                          View product
+                        </Link>
+                      </p>
+                    </div>
+                  </article>
+                );
+              }
+            )}
 
 
           {/* =============================================
@@ -1335,7 +1636,6 @@ function OrderDetail({
           ============================================= */}
 
           <div className="panel">
-
             <h2>
               DELIVERY ADDRESS
             </h2>
@@ -1373,7 +1673,6 @@ function OrderDetail({
                 {address.email}
               </p>
             )}
-
           </div>
 
 
@@ -1383,13 +1682,11 @@ function OrderDetail({
 
           {order.giftMessage && (
             <p className="panel">
-
               <strong>
                 Gift message:
               </strong>{" "}
 
               {order.giftMessage}
-
             </p>
           )}
 
@@ -1400,13 +1697,11 @@ function OrderDetail({
 
           {order.orderNote && (
             <p className="panel">
-
               <strong>
                 Delivery instructions:
               </strong>{" "}
 
               {order.orderNote}
-
             </p>
           )}
 
@@ -1416,7 +1711,6 @@ function OrderDetail({
           ============================================= */}
 
           <div className="purchase-actions">
-
             <Link
               className="button secondary"
               to={`/orders/${encodeURIComponent(
@@ -1491,7 +1785,6 @@ function OrderDetail({
                 Return / exchange items
               </Link>
             )}
-
           </div>
 
 
@@ -1502,7 +1795,6 @@ function OrderDetail({
           {order.cancellation
             ?.reason && (
             <section className="panel">
-
               <h3>
                 Order cancelled
               </h3>
@@ -1546,6 +1838,72 @@ function OrderDetail({
                 </p>
               )}
 
+
+              {order.refund
+                ?.status &&
+                order.refund
+                  .status !==
+                  "not-requested" &&
+
+                number(
+                  order.refund
+                    ?.amount
+                ) >
+                  0 && (
+                <div className="notice">
+                  <strong>
+                    Cancellation refund
+                  </strong>
+
+
+                  <p>
+                    Amount:{" "}
+
+                    <strong>
+                      {money(
+                        order.refund
+                          .amount
+                      )}
+                    </strong>
+                  </p>
+
+
+                  <p>
+                    Status:{" "}
+
+                    <strong>
+                      {refundStatusLabel(
+                        order.refund
+                          .status
+                      )}
+                    </strong>
+                  </p>
+
+
+                  {order.refund
+                    ?.refundedAt && (
+                    <p className="muted">
+                      Refunded on{" "}
+
+                      {formatDate(
+                        order.refund
+                          .refundedAt
+                      )}
+                    </p>
+                  )}
+
+
+                  {order.refund
+                    ?.reference && (
+                    <p className="muted">
+                      Refund reference:{" "}
+
+                      {order.refund
+                        .reference}
+                    </p>
+                  )}
+                </div>
+              )}
             </section>
           )}
 
@@ -1556,11 +1914,8 @@ function OrderDetail({
 
           {hasRequest && (
             <section className="panel">
-
               <div className="page-heading">
-
                 <div>
-
                   <h3>
                     {isExchange
                       ? "Exchange"
@@ -1574,14 +1929,12 @@ function OrderDetail({
                       {request.id}
                     </p>
                   )}
-
                 </div>
 
 
                 <span className="status-pill">
                   {request.status}
                 </span>
-
               </div>
 
 
@@ -1594,20 +1947,14 @@ function OrderDetail({
 
               {request.reason && (
                 <p>
-
                   <strong>
                     Reason:
                   </strong>{" "}
 
                   {request.reason}
-
                 </p>
               )}
 
-
-              {/* =========================================
-                  REQUEST ITEMS
-              ========================================= */}
 
               {Array.isArray(
                 request.items
@@ -1615,7 +1962,6 @@ function OrderDetail({
                 request.items.length >
                   0 && (
                 <div>
-
                   <h4>
                     Requested items
                   </h4>
@@ -1632,7 +1978,9 @@ function OrderDetail({
                         ];
 
 
-                      if (!item) {
+                      if (
+                        !item
+                      ) {
                         return null;
                       }
 
@@ -1642,9 +1990,7 @@ function OrderDetail({
                           className="bag-item"
                           key={`${order.id}-return-${row.index}-${index}`}
                         >
-
                           <div className="bag-copy">
-
                             <strong>
                               {item.name}
                             </strong>
@@ -1696,38 +2042,25 @@ function OrderDetail({
                                   "Default variant"}
                               </p>
                             )}
-
                           </div>
-
                         </div>
                       );
                     }
                   )}
-
                 </div>
               )}
 
 
-              {/* =========================================
-                  ADMIN RESPONSE
-              ========================================= */}
-
               {request.response && (
                 <div className="notice">
-
                   <strong>
                     GymDrobe response:
                   </strong>{" "}
 
                   {request.response}
-
                 </div>
               )}
 
-
-              {/* =========================================
-                  DATES
-              ========================================= */}
 
               {request.requestedAt && (
                 <p className="muted">
@@ -1773,14 +2106,9 @@ function OrderDetail({
               )}
 
 
-              {/* =========================================
-                  EXCHANGE STATUS
-              ========================================= */}
-
               {signedIn &&
                 isExchange && (
                 <div className="panel">
-
                   <h4>
                     Exchange progress
                   </h4>
@@ -1838,14 +2166,9 @@ function OrderDetail({
                       )}
                     </>
                   )}
-
                 </div>
               )}
 
-
-              {/* =========================================
-                  RETURN REFUND
-              ========================================= */}
 
               {signedIn &&
                 isReturn &&
@@ -1853,7 +2176,6 @@ function OrderDetail({
                 refund.status !==
                   "not-requested" && (
                 <div className="panel">
-
                   <h4>
                     Refund
                   </h4>
@@ -1897,7 +2219,7 @@ function OrderDetail({
                   {refund.status ===
                     "pending" && (
                     <p className="muted">
-                      The refund amount has been calculated. The returned item must be completed before manual COD refund processing.
+                      The refund amount has been calculated. The returned item must be completed before refund processing.
                     </p>
                   )}
 
@@ -1905,7 +2227,7 @@ function OrderDetail({
                   {refund.status ===
                     "manual-required" && (
                     <p className="muted">
-                      GymDrobe has completed the return. The COD refund must now be processed manually and recorded by an administrator.
+                      GymDrobe has completed the return. The refund must now be processed manually and recorded by an administrator.
                     </p>
                   )}
 
@@ -1913,7 +2235,6 @@ function OrderDetail({
                   {refund.status ===
                     "refunded" && (
                     <div className="notice">
-
                       <strong>
                         Refund completed
                       </strong>
@@ -1939,23 +2260,16 @@ function OrderDetail({
                           )}
                         </p>
                       )}
-
                     </div>
                   )}
-
                 </div>
               )}
 
-
-              {/* =========================================
-                  REJECTED — TRY AGAIN
-              ========================================= */}
 
               {request.status ===
                 "rejected" &&
                 canReturn && (
                 <div className="purchase-actions">
-
                   <Link
                     className="button secondary"
                     to={`/orders/${encodeURIComponent(
@@ -1964,7 +2278,6 @@ function OrderDetail({
                   >
                     Submit a new request
                   </Link>
-
                 </div>
               )}
 
@@ -1974,10 +2287,8 @@ function OrderDetail({
                   This is a guest preview request stored only on this device. It is not connected to the GymDrobe admin return system.
                 </p>
               )}
-
             </section>
           )}
-
         </div>
 
 
@@ -1986,14 +2297,12 @@ function OrderDetail({
         =============================================== */}
 
         <aside className="panel order-totals">
-
           <h2>
             PAYMENT DETAILS
           </h2>
 
 
           <dl>
-
             <div>
               <dt>
                 Items subtotal
@@ -2038,46 +2347,231 @@ function OrderDetail({
 
 
             <div className="total">
-
               <dt>
                 Total
               </dt>
 
               <dd>
                 {money(
-                  orderTotal(
+                  getOrderTotal(
                     order
                   )
                 )}
               </dd>
-
             </div>
-
           </dl>
 
 
           <p>
             Method:{" "}
 
-            {order.payment
-              ?.method ===
-              "cod" ||
-            order.paymentMethod ===
-              "cod"
-              ? "Cash on delivery"
-              : order.payment
-                  ?.method ||
-                "Not recorded"}
+            <strong>
+              {paymentMethodLabel(
+                order
+              )}
+            </strong>
           </p>
 
 
           <p>
-            Status:{" "}
+            Payment status:{" "}
 
-            {order.payment
-              ?.status ||
-              "pending"}
+            <strong>
+              {paymentStatusLabel(
+                order
+              )}
+            </strong>
           </p>
+
+
+          {paymentMethod(
+            order
+          ) ===
+            "cod-partial" && (
+            <>
+              <p>
+                Advance percentage:{" "}
+
+                <strong>
+                  {number(
+                    order.payment
+                      ?.advancePercentage
+                  ) || 10}
+                  %
+                </strong>
+              </p>
+
+
+              <p>
+                Advance paid online:{" "}
+
+                <strong>
+                  {money(
+                    getAdvanceAmount(
+                      order
+                    )
+                  )}
+                </strong>
+              </p>
+
+
+              <p>
+                Remaining amount:{" "}
+
+                <strong>
+                  {money(
+                    getAmountDue(
+                      order
+                    )
+                  )}
+                </strong>
+              </p>
+
+
+              {order.status !==
+                "cancelled" &&
+                getAmountDue(
+                  order
+                ) >
+                  0 && (
+                <p className="muted">
+                  The remaining amount is paid on delivery. Shipping is included in the final order total, but the 10% advance is calculated from the merchandise amount after coupon discount.
+                </p>
+              )}
+
+
+              {order.payment
+                ?.balanceStatus && (
+                <p>
+                  COD balance:{" "}
+
+                  <strong>
+                    {order.payment
+                      .balanceStatus ===
+                    "collected"
+                      ? "Collected"
+                      : order.payment
+                            .balanceStatus ===
+                          "pending"
+                        ? "Due on delivery"
+                        : "Not applicable"}
+                  </strong>
+                </p>
+              )}
+
+
+              {order.payment
+                ?.advancePaidAt && (
+                <p className="muted">
+                  Advance paid on{" "}
+
+                  {formatDate(
+                    order.payment
+                      .advancePaidAt
+                  )}
+                </p>
+              )}
+
+
+              {order.payment
+                ?.balanceCollectedAt && (
+                <p className="muted">
+                  COD balance collected on{" "}
+
+                  {formatDate(
+                    order.payment
+                      .balanceCollectedAt
+                  )}
+                </p>
+              )}
+            </>
+          )}
+
+
+          {paymentMethod(
+            order
+          ) ===
+            "razorpay" && (
+            <p>
+              Amount paid online:{" "}
+
+              <strong>
+                {money(
+                  getAmountPaid(
+                    order
+                  ) ||
+                    (
+                      order.payment
+                        ?.status ===
+                      "paid"
+                        ? getOrderTotal(
+                            order
+                          )
+                        : 0
+                    )
+                )}
+              </strong>
+            </p>
+          )}
+
+
+          {order.payment
+            ?.razorpayPaymentId && (
+            <p className="muted">
+              Razorpay payment ID:{" "}
+
+              {order.payment
+                .razorpayPaymentId}
+            </p>
+          )}
+
+
+          {order.payment
+            ?.paidAt && (
+            <p className="muted">
+              Payment updated on{" "}
+
+              {formatDate(
+                order.payment
+                  .paidAt
+              )}
+            </p>
+          )}
+
+
+          {order.status ===
+              "cancelled" &&
+            order.refund
+              ?.status &&
+            order.refund
+              .status !==
+              "not-requested" &&
+
+            number(
+              order.refund
+                ?.amount
+            ) >
+              0 && (
+              <div className="notice">
+                <strong>
+                  Refund
+                </strong>
+
+
+                <p>
+                  {money(
+                    order.refund
+                      .amount
+                  )}{" "}
+                  —{" "}
+
+                  {refundStatusLabel(
+                    order.refund
+                      .status
+                  )}
+                </p>
+              </div>
+            )}
 
 
           <p>
@@ -2092,9 +2586,7 @@ function OrderDetail({
                   : "Standard delivery"
               )}
           </p>
-
         </aside>
-
       </div>
 
 
@@ -2120,22 +2612,22 @@ function OrderDetail({
             }
           }}
         >
-
           <form
             onSubmit={
               confirm
             }
           >
-
             <p>
-              {user
-                ? "Cancelling this order will update your GymDrobe account and restore the reserved product stock."
-                : "This action updates your guest preview order stored on this device."}
+              {cancellationModalText(
+                order,
+                Boolean(
+                  user
+                )
+              )}
             </p>
 
 
             <div className="field">
-
               <label htmlFor="order-action-reason">
                 Reason
               </label>
@@ -2162,7 +2654,6 @@ function OrderDetail({
                   )
                 }
               />
-
             </div>
 
 
@@ -2187,12 +2678,9 @@ function OrderDetail({
                 ? "Cancelling..."
                 : "Confirm cancellation"}
             </button>
-
           </form>
-
         </Modal>
       )}
-
     </div>
   );
 }
@@ -2205,12 +2693,14 @@ function OrderDetail({
 export default function OrderDetailsPage() {
   const {
     orderId,
-  } = useParams();
+  } =
+    useParams();
 
 
   const {
     user,
-  } = useAuth();
+  } =
+    useAuth();
 
 
   return (

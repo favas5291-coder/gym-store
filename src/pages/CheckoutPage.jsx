@@ -1,8 +1,4 @@
-import {
-  checkoutSignature,
-  commitCheckout,
-} from "../utils/checkout.js";
-
+import { checkoutSignature } from "../utils/checkout.js";
 import {
   readSession,
   writeSession,
@@ -51,6 +47,11 @@ import {
 } from "../utils/orderCalculations.js";
 
 import {
+  money,
+  roundMoney,
+} from "../utils/productPricing.js";
+
+import {
   addressErrors,
   EMPTY_ADDRESS,
   normalizeAddress,
@@ -70,6 +71,15 @@ import {
   getAddresses as getSavedAddresses,
 } from "../services/addressApi.js";
 
+import {
+  createRazorpayPaymentOrder,
+  verifyRazorpayPayment,
+} from "../services/paymentApi.js";
+
+import {
+  openRazorpayCheckout,
+} from "../utils/razorpay.js";
+
 import AddressForm from "../components/AddressForm.jsx";
 import CouponBox from "../components/CouponBox.jsx";
 import PriceSummary from "../components/PriceSummary.jsx";
@@ -77,18 +87,18 @@ import EmptyState from "../components/EmptyState.jsx";
 
 
 // ======================================================
-// CONSTANTS
+// PAYMENT
 // ======================================================
 
-const PAYMENT_METHOD =
-  "cod";
+const COD_ADVANCE_PERCENTAGE =
+  10;
 
 
 // ======================================================
-// ADDRESS ID
+// HELPERS
 // ======================================================
 
-function addressId(
+function getAddressId(
   address
 ) {
   return (
@@ -98,10 +108,6 @@ function addressId(
   );
 }
 
-
-// ======================================================
-// ADDRESS PAYLOAD
-// ======================================================
 
 function addressPayload(
   address
@@ -178,71 +184,47 @@ function addressPayload(
 }
 
 
-// ======================================================
-// SAME ADDRESS
-// ======================================================
-
 function sameAddress(
-  first,
-  second
+  a,
+  b
 ) {
   return (
     String(
-      first?.addressLine ||
+      a?.addressLine ||
         ""
     )
       .trim()
       .toLowerCase() ===
       String(
-        second?.addressLine ||
+        b?.addressLine ||
           ""
       )
         .trim()
         .toLowerCase() &&
 
     String(
-      first?.pincode ||
+      a?.pincode ||
         ""
     ).trim() ===
       String(
-        second?.pincode ||
+        b?.pincode ||
           ""
       ).trim() &&
 
     String(
-      first?.phone ||
+      a?.phone ||
         ""
     ).replace(
       /\D/g,
       ""
     ) ===
       String(
-        second?.phone ||
+        b?.phone ||
           ""
       ).replace(
         /\D/g,
         ""
       )
-  );
-}
-
-
-// ======================================================
-// CHECK WHETHER ADDRESS HAS BEEN ENTERED
-// ======================================================
-
-function hasAddressData(
-  address
-) {
-  return Boolean(
-    String(
-      address?.addressLine ||
-        ""
-    ).trim() &&
-      String(
-        address?.pincode ||
-          ""
-      ).trim()
   );
 }
 
@@ -330,7 +312,7 @@ export default function CheckoutPage() {
 
 
   // ====================================================
-  // PREVIOUS CHECKOUT OPTIONS
+  // SAVED OPTIONS
   // ====================================================
 
   const [
@@ -384,7 +366,29 @@ export default function CheckoutPage() {
 
 
   // ====================================================
-  // SAVED ADDRESSES
+  // PAYMENT METHOD
+  // ====================================================
+
+  const [
+    paymentMethod,
+    setPaymentMethod,
+  ] =
+    useState(
+      [
+        "razorpay",
+        "cod-partial",
+      ].includes(
+        draftOptions
+          ?.paymentMethod
+      )
+        ? draftOptions
+            .paymentMethod
+        : "cod-partial"
+    );
+
+
+  // ====================================================
+  // ADDRESSES
   // ====================================================
 
   const [
@@ -411,10 +415,6 @@ export default function CheckoutPage() {
   ] =
     useState("");
 
-
-  // ====================================================
-  // CURRENT ADDRESS
-  // ====================================================
 
   const [
     address,
@@ -484,7 +484,7 @@ export default function CheckoutPage() {
 
 
   // ====================================================
-  // PAGE STATE
+  // UI STATE
   // ====================================================
 
   const [
@@ -514,25 +514,19 @@ export default function CheckoutPage() {
     busy,
     setBusy,
   ] =
-    useState(
-      false
-    );
+    useState(false);
 
 
   const submitting =
-    useRef(
-      false
-    );
+    useRef(false);
 
 
   const reviewed =
-    useRef(
-      null
-    );
+    useRef(null);
 
 
   // ====================================================
-  // IDEMPOTENT CHECKOUT ATTEMPT
+  // CHECKOUT ATTEMPT
   // ====================================================
 
   const attemptKey =
@@ -543,6 +537,7 @@ export default function CheckoutPage() {
 
   const [
     attempt,
+    setAttempt,
   ] =
     useState(
       () =>
@@ -554,6 +549,10 @@ export default function CheckoutPage() {
           "checkout"
         )
     );
+
+
+  const checkoutToken =
+    `${attempt}-${paymentMethod}`;
 
 
   useEffect(
@@ -572,7 +571,7 @@ export default function CheckoutPage() {
 
 
   // ====================================================
-  // LOAD MONGODB SAVED ADDRESSES
+  // LOAD SAVED ADDRESSES
   // ====================================================
 
   useEffect(
@@ -625,7 +624,7 @@ export default function CheckoutPage() {
           }
 
 
-          const savedAddresses =
+          const saved =
             Array.isArray(
               result
             )
@@ -634,51 +633,43 @@ export default function CheckoutPage() {
 
 
           setAddresses(
-            savedAddresses
+            saved
           );
 
 
-          /*
-            Keep a checkout draft if the customer
-            already entered one.
+          const preferred =
+            saved.find(
+              (
+                item
+              ) =>
+                item.isDefault
+            ) ||
+            saved[0];
 
-            Otherwise load the default saved address.
-          */
 
           if (
-            !hasAddressData(
+            preferred &&
+            !String(
               address
-            )
+                ?.addressLine ||
+                ""
+            ).trim()
           ) {
-            const preferred =
-              savedAddresses.find(
-                (
-                  item
-                ) =>
-                  item.isDefault
-              ) ||
-              savedAddresses[0];
+            setAddress(
+              normalizeAddress({
+                ...preferred,
 
+                id:
+                  getAddressId(
+                    preferred
+                  ),
 
-            if (
-              preferred
-            ) {
-              setAddress(
-                normalizeAddress({
-                  ...preferred,
-
-                  id:
-                    addressId(
-                      preferred
-                    ),
-
-                  email:
-                    preferred.email ||
-                    user.email ||
-                    "",
-                })
-              );
-            }
+                email:
+                  preferred.email ||
+                  user.email ||
+                  "",
+              })
+            );
           }
 
         } catch (
@@ -736,7 +727,7 @@ export default function CheckoutPage() {
 
 
   // ====================================================
-  // SAVE CHECKOUT DRAFT
+  // SAVE DRAFT
   // ====================================================
 
   useEffect(
@@ -760,12 +751,8 @@ export default function CheckoutPage() {
               ),
               {
                 method,
-
-                paymentMethod:
-                  PAYMENT_METHOD,
-
+                paymentMethod,
                 giftMessage,
-
                 orderNote,
               }
             );
@@ -785,6 +772,7 @@ export default function CheckoutPage() {
     [
       address,
       method,
+      paymentMethod,
       giftMessage,
       orderNote,
       user?.id,
@@ -807,6 +795,84 @@ export default function CheckoutPage() {
       deliveryMethod:
         method,
     });
+
+
+  const codAdvanceAmount =
+    roundMoney(
+      (
+        Number(
+          pricing.totalAfterCoupon ||
+            0
+        ) *
+        COD_ADVANCE_PERCENTAGE
+      ) /
+        100
+    );
+
+
+  const codBalanceAmount =
+    roundMoney(
+      Math.max(
+        0,
+
+        Number(
+          pricing.finalTotal ||
+            0
+        ) -
+          codAdvanceAmount
+      )
+    );
+
+
+  // ====================================================
+  // REVIEW SIGNATURE
+  // ====================================================
+
+  function reviewSignature(
+    deliveryMethod =
+      method,
+
+    payment =
+      paymentMethod
+  ) {
+    return JSON.stringify({
+      checkout:
+        checkoutSignature(
+          items,
+          store.coupon,
+          deliveryMethod
+        ),
+
+      paymentMethod:
+        payment,
+    });
+  }
+
+
+  // ====================================================
+  // NEW ATTEMPT
+  // ====================================================
+
+  function createNewAttempt() {
+    const next =
+      makeId(
+        "checkout"
+      );
+
+
+    setAttempt(
+      next
+    );
+
+
+    writeSession(
+      attemptKey,
+      next
+    );
+
+
+    return next;
+  }
 
 
   // ====================================================
@@ -854,7 +920,7 @@ export default function CheckoutPage() {
 
 
   // ====================================================
-  // SELECT SAVED ADDRESS
+  // SELECT ADDRESS
   // ====================================================
 
   function selectSavedAddress(
@@ -865,7 +931,7 @@ export default function CheckoutPage() {
         ...item,
 
         id:
-          addressId(
+          getAddressId(
             item
           ),
 
@@ -889,7 +955,7 @@ export default function CheckoutPage() {
 
 
   // ====================================================
-  // SAVE ADDRESS TO MONGODB
+  // SAVE ADDRESS
   // ====================================================
 
   async function saveCheckoutAddressIfNeeded() {
@@ -981,7 +1047,7 @@ export default function CheckoutPage() {
 
 
   // ====================================================
-  // UPDATE CART AFTER REVALIDATION
+  // REVALIDATED CART
   // ====================================================
 
   function applyRevalidatedCart(
@@ -991,7 +1057,7 @@ export default function CheckoutPage() {
       isBuyNow
     ) {
       store.refreshBuyNow(
-        checked.cart[0]
+        checked.cart?.[0]
       );
 
       return;
@@ -1016,7 +1082,10 @@ export default function CheckoutPage() {
           )
       ),
 
-      ...checked.cart,
+      ...(
+        checked.cart ||
+        []
+      ),
     ]);
   }
 
@@ -1070,7 +1139,498 @@ export default function CheckoutPage() {
 
 
   // ====================================================
-  // SUBMIT CHECKOUT
+  // SUCCESS
+  // ====================================================
+
+  async function finishSuccessfulOrder(
+    savedOrder,
+    {
+      existing =
+        false,
+    } = {}
+  ) {
+    if (
+      !savedOrder
+    ) {
+      throw new Error(
+        "Your order could not be loaded after checkout."
+      );
+    }
+
+
+    if (
+      !existing
+    ) {
+      await saveCheckoutAddressIfNeeded();
+    }
+
+
+    let orderForLocalPages =
+      savedOrder;
+
+
+    if (
+      user &&
+      token
+    ) {
+      orderForLocalPages = {
+        ...savedOrder,
+
+        ownerKey:
+          ownerKey(
+            user
+          ),
+
+        user: {
+          id:
+            user.id,
+
+          name:
+            user.name,
+
+          email:
+            user.email,
+        },
+
+        metadata: {
+          ...savedOrder.metadata,
+
+          checkoutToken:
+            savedOrder
+              ?.metadata
+              ?.checkoutToken ||
+            checkoutToken,
+        },
+      };
+
+
+      const cached =
+        persistOrder(
+          orderForLocalPages
+        );
+
+
+      if (
+        !cached
+      ) {
+        console.warn(
+          "MongoDB order was created, but its temporary local cache could not be saved."
+        );
+      }
+
+
+      try {
+        if (
+          typeof refreshProducts ===
+          "function"
+        ) {
+          await refreshProducts();
+        }
+
+      } catch (
+        refreshError
+      ) {
+        console.error(
+          "Product refresh after checkout failed:",
+          refreshError
+        );
+
+
+        store.notify(
+          "Your order was placed, but the latest stock could not be refreshed yet.",
+          "warning"
+        );
+      }
+    }
+
+
+    writeStorage(
+      userKey(
+        "gymdrobe-last-order",
+        user
+      ),
+      orderForLocalPages
+    );
+
+
+    clearPurchasedItems();
+
+
+    writeSession(
+      attemptKey,
+      null
+    );
+
+
+    writeStorage(
+      userKey(
+        "gymdrobe-checkout-options",
+        user
+      ),
+      {
+        method:
+          "standard",
+
+        paymentMethod:
+          "cod-partial",
+
+        giftMessage:
+          "",
+
+        orderNote:
+          "",
+      }
+    );
+
+
+    navigate(
+      `/order-success?orderId=${encodeURIComponent(
+        savedOrder.id
+      )}`,
+      {
+        replace:
+          true,
+      }
+    );
+  }
+
+
+  // ====================================================
+  // PAYMENT METHOD
+  // ====================================================
+
+  function changePaymentMethod(
+    next
+  ) {
+    if (
+      ![
+        "razorpay",
+        "cod-partial",
+      ].includes(
+        next
+      )
+    ) {
+      return;
+    }
+
+
+    setPaymentMethod(
+      next
+    );
+
+
+    setError(
+      ""
+    );
+
+
+    createNewAttempt();
+
+
+    if (
+      step ===
+      "review"
+    ) {
+      reviewed.current =
+        reviewSignature(
+          method,
+          next
+        );
+    }
+  }
+
+
+  // ====================================================
+  // DELIVERY METHOD
+  // ====================================================
+
+  function changeDeliveryMethod(
+    next
+  ) {
+    setMethod(
+      next
+    );
+
+
+    setError(
+      ""
+    );
+
+
+    createNewAttempt();
+
+
+    if (
+      step ===
+      "review"
+    ) {
+      reviewed.current =
+        reviewSignature(
+          next,
+          paymentMethod
+        );
+    }
+  }
+
+
+  // ====================================================
+  // RAZORPAY
+  // ====================================================
+
+  async function placeRazorpayOrder({
+    checked,
+    coupon,
+    cleanShippingAddress,
+    latestPricing,
+  }) {
+    if (
+      !user ||
+      !token
+    ) {
+      throw new Error(
+        "Sign in to continue with payment."
+      );
+    }
+
+
+    const gatewayOrder =
+      await createRazorpayPaymentOrder(
+        token,
+        {
+          checkoutToken,
+
+          paymentMethod,
+
+          source:
+            checkoutMode,
+
+          giftMessage:
+            giftMessage.trim(),
+
+          orderNote:
+            orderNote.trim(),
+
+          shippingAddress:
+            cleanShippingAddress,
+
+          items:
+            checked.cart.map(
+              (
+                item
+              ) => ({
+                id:
+                  item.id,
+
+                quantity:
+                  item.quantity,
+
+                selectedSize:
+                  item.selectedSize ??
+                  null,
+
+                selectedColor:
+                  item.selectedColor ??
+                  null,
+              })
+            ),
+
+          coupon:
+            coupon?.code ||
+            null,
+
+          deliveryMethod:
+            method,
+
+          expectedTotal:
+            latestPricing
+              .finalTotal,
+        }
+      );
+
+
+    if (
+      gatewayOrder
+        ?.alreadyPaid &&
+      gatewayOrder
+        ?.order
+    ) {
+      return {
+        order:
+          gatewayOrder.order,
+
+        existing:
+          true,
+      };
+    }
+
+
+    if (
+      !gatewayOrder
+        ?.keyId ||
+      !gatewayOrder
+        ?.razorpayOrderId ||
+      !gatewayOrder
+        ?.amount
+    ) {
+      throw new Error(
+        "Razorpay payment could not be started."
+      );
+    }
+
+
+    const description =
+      paymentMethod ===
+      "cod-partial"
+        ? `10% advance for ${
+            gatewayOrder.orderNumber ||
+            "GymDrobe order"
+          }`
+        : gatewayOrder
+            .orderNumber
+          ? `Full payment for ${gatewayOrder.orderNumber}`
+          : "GymDrobe order payment";
+
+
+    const paymentResponse =
+      await openRazorpayCheckout({
+        key:
+          gatewayOrder.keyId,
+
+        amount:
+          gatewayOrder.amount,
+
+        currency:
+          gatewayOrder.currency ||
+          "INR",
+
+        name:
+          "GymDrobe",
+
+        description,
+
+        order_id:
+          gatewayOrder
+            .razorpayOrderId,
+
+        prefill: {
+          name:
+            cleanShippingAddress
+              .fullName,
+
+          email:
+            cleanShippingAddress
+              .email,
+
+          contact:
+            cleanShippingAddress
+              .phone,
+        },
+
+        notes: {
+          gymdrobe_order:
+            gatewayOrder
+              .orderNumber ||
+            "",
+
+          payment_method:
+            paymentMethod,
+        },
+
+        retry: {
+          enabled:
+            true,
+        },
+
+        modal: {
+          confirm_close:
+            true,
+        },
+      });
+
+
+    if (
+      !paymentResponse
+        ?.razorpay_order_id ||
+      !paymentResponse
+        ?.razorpay_payment_id ||
+      !paymentResponse
+        ?.razorpay_signature
+    ) {
+      throw new Error(
+        "Razorpay did not return complete payment verification details."
+      );
+    }
+
+
+    const verifyPayload = {
+      checkoutToken,
+
+      razorpay_order_id:
+        paymentResponse
+          .razorpay_order_id,
+
+      razorpay_payment_id:
+        paymentResponse
+          .razorpay_payment_id,
+
+      razorpay_signature:
+        paymentResponse
+          .razorpay_signature,
+    };
+
+
+    try {
+      const verified =
+        await verifyRazorpayPayment(
+          token,
+          verifyPayload
+        );
+
+
+      return {
+        order:
+          verified.order,
+
+        existing:
+          Boolean(
+            verified.existing
+          ),
+      };
+
+    } catch (
+      verificationError
+    ) {
+      if (
+        verificationError
+          ?.data
+          ?.retryVerification
+      ) {
+        const retried =
+          await verifyRazorpayPayment(
+            token,
+            verifyPayload
+          );
+
+
+        return {
+          order:
+            retried.order,
+
+          existing:
+            Boolean(
+              retried.existing
+            ),
+        };
+      }
+
+
+      throw verificationError;
+    }
+  }
+
+
+  // ====================================================
+  // SUBMIT
   // ====================================================
 
   async function submit(
@@ -1091,10 +1651,6 @@ export default function CheckoutPage() {
     );
 
 
-    // ==================================================
-    // ADDRESS VALIDATION
-    // ==================================================
-
     if (
       !validate()
     ) {
@@ -1102,10 +1658,7 @@ export default function CheckoutPage() {
     }
 
 
-    // ==================================================
     // ADDRESS → REVIEW
-    // ==================================================
-
     if (
       step ===
       "address"
@@ -1120,11 +1673,7 @@ export default function CheckoutPage() {
 
 
       reviewed.current =
-        checkoutSignature(
-          items,
-          store.coupon,
-          method
-        );
+        reviewSignature();
 
 
       setStep(
@@ -1145,16 +1694,20 @@ export default function CheckoutPage() {
     }
 
 
-    // ==================================================
-    // CHECK WHETHER CART/TOTAL CHANGED AFTER REVIEW
-    // ==================================================
+    if (
+      !user ||
+      !token
+    ) {
+      setError(
+        "Please sign in before placing your GymDrobe order."
+      );
+
+      return;
+    }
+
 
     const signature =
-      checkoutSignature(
-        items,
-        store.coupon,
-        method
-      );
+      reviewSignature();
 
 
     if (
@@ -1165,18 +1718,17 @@ export default function CheckoutPage() {
         signature;
 
 
+      createNewAttempt();
+
+
       setError(
-        "Your products, coupon or delivery total changed. Review the latest order summary and place your order again."
+        "Your products, coupon, delivery option or payment method changed. Review the latest total and place the order again."
       );
 
 
       return;
     }
 
-
-    // ==================================================
-    // REVALIDATE AGAINST CURRENT CATALOG
-    // ==================================================
 
     const checked =
       revalidateCart(
@@ -1194,6 +1746,9 @@ export default function CheckoutPage() {
       );
 
 
+      createNewAttempt();
+
+
       setError(
         "Product availability or prices changed. Please review your updated selection before placing the order."
       );
@@ -1203,27 +1758,6 @@ export default function CheckoutPage() {
     }
 
 
-    // ==================================================
-    // AUTH SESSION CHECK
-    // ==================================================
-
-    if (
-      user &&
-      !token
-    ) {
-      setError(
-        "Your sign-in session expired. Please sign in again before placing your order."
-      );
-
-
-      return;
-    }
-
-
-    // ==================================================
-    // START
-    // ==================================================
-
     submitting.current =
       true;
 
@@ -1231,19 +1765,6 @@ export default function CheckoutPage() {
     setBusy(
       true
     );
-
-
-    // ==================================================
-    // ORDER PAYLOAD
-    //
-    // For signed-in orders the backend will recalculate
-    // prices, verify inventory and generate the real
-    // MongoDB order.
-    // ==================================================
-
-    const now =
-      new Date()
-        .toISOString();
 
 
     const selectedCoupon =
@@ -1278,460 +1799,58 @@ export default function CheckoutPage() {
       });
 
 
-    const order = {
-      id:
-        makeId(
-          "GD"
-        ),
-
-      ownerKey:
-        ownerKey(
-          user
-        ),
-
-      createdAt:
-        now,
-
-      updatedAt:
-        now,
-
-      status:
-        "confirmed",
-
-      source:
-        checkoutMode,
-
-      giftMessage:
-        giftMessage
-          .trim(),
-
-      orderNote:
-        orderNote
-          .trim(),
-
-      user:
-        user
-          ? {
-              id:
-                user.id,
-
-              name:
-                user.name,
-
-              email:
-                user.email,
-            }
-          : null,
-
-      customer: {
-        name:
-          cleanShippingAddress
-            .fullName,
-
-        email:
-          cleanShippingAddress
-            .email,
-
-        phone:
-          cleanShippingAddress
-            .phone,
-      },
-
-      shippingAddress: {
-        ...cleanShippingAddress,
-
-        name:
-          cleanShippingAddress
-            .fullName,
-      },
-
-      items:
-        checked.cart.map(
-          (
-            item
-          ) => ({
-            id:
-              item.id,
-
-            name:
-              item.name,
-
-            brand:
-              item.brand,
-
-            image:
-              item.image,
-
-            price:
-              item.price,
-
-            originalPrice:
-              item.originalPrice,
-
-            quantity:
-              item.quantity,
-
-            selectedSize:
-              item.selectedSize ??
-              null,
-
-            selectedColor:
-              item.selectedColor ??
-              null,
-
-            returnPolicy:
-              item.returnPolicy,
-          })
-        ),
-
-      pricing: {
-        ...latestPricing,
-
-        currency:
-          "INR",
-      },
-
-      coupon,
-
-      payment: {
-        method:
-          PAYMENT_METHOD,
-
-        status:
-          "pending",
-
-        transactionId:
-          null,
-      },
-
-      paymentMethod:
-        PAYMENT_METHOD,
-
-      delivery: {
-        method,
-
-        status:
-          "pending",
-
-        label:
-          method ===
-          "express"
-            ? "Express delivery"
-            : "Standard delivery",
-
-        estimatedTime:
-          null,
-      },
-
-      deliveryMethod:
-        method,
-
-      tracking: {
-        carrier:
-          null,
-
-        trackingNumber:
-          null,
-
-        estimatedDelivery:
-          null,
-
-        events: [
-          {
-            status:
-              "confirmed",
-
-            description:
-              user
-                ? "Order confirmed by GymDrobe."
-                : "Guest checkout order created on this device.",
-
-            timestamp:
-              now,
-          },
-        ],
-      },
-
-      cancellation: {
-        status:
-          "not-cancelled",
-      },
-
-      returnRequest: {
-        status:
-          "not-requested",
-      },
-
-      refund: {
-        status:
-          "not-requested",
-
-        amount:
-          0,
-      },
-
-      metadata: {
-        version:
-          "5.0",
-
-        demo:
-          !user,
-
-        inventoryReserved:
-          Boolean(
-            user
-          ),
-
-        checkoutToken:
-          attempt,
-      },
-    };
-
-
-    // ==================================================
-    // PLACE ORDER
-    // ==================================================
-
     try {
       const result =
-        await commitCheckout(
-          order,
-
-          getLatestProducts,
-
-          {
-            token,
-            user,
-          }
-        );
+        await placeRazorpayOrder({
+          checked,
+          coupon,
+          cleanShippingAddress,
+          latestPricing,
+        });
 
 
-      // =================================================
-      // BACKEND/CATALOG CHANGED
-      // =================================================
-
-      if (
-        result.error
-      ) {
-        if (
-          isBuyNow
-        ) {
-          store.refreshBuyNow(
-            result.cart?.[0]
-          );
-
-        } else {
-          store.setCart(
-            () =>
-              result.cart ||
-              revalidateCart(
-                store.cart,
-                getLatestProducts()
-              ).cart
-          );
-        }
-
-
-        throw new Error(
-          result.error
-        );
-      }
-
-
-      const savedOrder =
-        result.order;
-
-
-      if (
-        !savedOrder
-      ) {
-        throw new Error(
-          "Your order could not be loaded after checkout."
-        );
-      }
-
-
-      // =================================================
-      // SAVE NEW ADDRESS
-      // =================================================
-
-      if (
-        !result.existing
-      ) {
-        await saveCheckoutAddressIfNeeded();
-      }
-
-
-      // =================================================
-      // TEMPORARY LOCAL ORDER CACHE
-      //
-      // Keep this until every order-success/detail
-      // screen is completely API-backed.
-      // =================================================
-
-      let orderForLocalPages =
-        savedOrder;
-
-
-      if (
-        user &&
-        token
-      ) {
-        orderForLocalPages = {
-          ...savedOrder,
-
-          ownerKey:
-            ownerKey(
-              user
-            ),
-
-          user: {
-            id:
-              user.id,
-
-            name:
-              user.name,
-
-            email:
-              user.email,
-          },
-
-          metadata: {
-            ...savedOrder.metadata,
-
-            checkoutToken:
-              savedOrder
-                ?.metadata
-                ?.checkoutToken ||
-              attempt,
-          },
-        };
-
-
-        const cached =
-          persistOrder(
-            orderForLocalPages
-          );
-
-
-        if (
-          !cached
-        ) {
-          console.warn(
-            "The MongoDB order was created, but its temporary local cache could not be saved."
-          );
-        }
-
-
-        // ===============================================
-        // BACKEND RESERVED STOCK
-        // ===============================================
-
-        try {
-          if (
-            typeof refreshProducts ===
-            "function"
-          ) {
-            await refreshProducts();
-          }
-
-        } catch (
-          refreshError
-        ) {
-          console.error(
-            "Product refresh after checkout failed:",
-            refreshError
-          );
-
-
-          store.notify(
-            "Your order was placed, but the latest stock could not be refreshed yet.",
-            "warning"
-          );
-        }
-      }
-
-
-      // =================================================
-      // LAST ORDER
-      // =================================================
-
-      writeStorage(
-        userKey(
-          "gymdrobe-last-order",
-          user
-        ),
-
-        orderForLocalPages
-      );
-
-
-      // =================================================
-      // CLEAR PURCHASED ITEMS
-      // =================================================
-
-      clearPurchasedItems();
-
-
-      // =================================================
-      // CLEAR CHECKOUT ATTEMPT
-      // =================================================
-
-      writeSession(
-        attemptKey,
-        null
-      );
-
-
-      writeStorage(
-        userKey(
-          "gymdrobe-checkout-options",
-          user
-        ),
+      await finishSuccessfulOrder(
+        result.order,
         {
-          method:
-            "standard",
-
-          paymentMethod:
-            PAYMENT_METHOD,
-
-          giftMessage:
-            "",
-
-          orderNote:
-            "",
+          existing:
+            result.existing,
         }
       );
 
 
-      // =================================================
-      // SUCCESS
-      // =================================================
-
-      navigate(
-        `/order-success?orderId=${encodeURIComponent(
-          savedOrder.id
-        )}`,
-
-        {
-          replace:
-            true,
-        }
-      );
+      return;
 
     } catch (
-      submitError
+      paymentError
     ) {
       console.error(
-        "Checkout error:",
-        submitError
+        "GymDrobe payment error:",
+        paymentError
       );
 
 
-      setError(
-        submitError.message ||
-          "Could not place your order. Please try again."
-      );
+      const paymentReceived =
+        Boolean(
+          paymentError
+            ?.data
+            ?.paymentReceived
+        );
+
+
+      if (
+        paymentReceived
+      ) {
+        setError(
+          paymentError.message ||
+            "Your payment was received, but the order still requires confirmation. Do not make another payment."
+        );
+
+      } else {
+        setError(
+          paymentError.message ||
+            "Payment could not be completed."
+        );
+      }
 
 
       submitting.current =
@@ -1746,7 +1865,83 @@ export default function CheckoutPage() {
 
 
   // ====================================================
-  // EMPTY CHECKOUT
+  // CRO DISPLAY VALUES
+  // ====================================================
+
+  const itemCount =
+    items.reduce(
+      (
+        total,
+        item
+      ) =>
+        total +
+        Number(
+          item.quantity ||
+            0
+        ),
+
+      0
+    );
+
+
+  const standardPricing =
+    calculateOrderPricing({
+      cart:
+        items,
+
+      coupon:
+        store.coupon,
+
+      deliveryMethod:
+        "standard",
+    });
+
+
+  const expressPricing =
+    calculateOrderPricing({
+      cart:
+        items,
+
+      coupon:
+        store.coupon,
+
+      deliveryMethod:
+        "express",
+    });
+
+
+  const standardDeliveryText =
+    Number(
+      standardPricing.shipping ||
+        0
+    ) >
+    0
+      ? money(
+          standardPricing.shipping
+        )
+      : "FREE";
+
+
+  const expressDeliveryText =
+    Number(
+      expressPricing.shipping ||
+        0
+    ) >
+    0
+      ? money(
+          expressPricing.shipping
+        )
+      : "FREE";
+
+
+  const loginPath =
+    `/login?next=${encodeURIComponent(
+      `/checkout?mode=${checkoutMode}`
+    )}`;
+
+
+  // ====================================================
+  // EMPTY
   // ====================================================
 
   if (
@@ -1764,6 +1959,7 @@ export default function CheckoutPage() {
           Return to a product or add something to your bag to continue.
         </p>
 
+
         <Link
           className="button"
           to="/shop"
@@ -1780,22 +1976,17 @@ export default function CheckoutPage() {
   // ====================================================
 
   return (
-    <div
-      className="page narrow"
-    >
-      {/* ===============================================
-          CHECKOUT PROGRESS
-      =============================================== */}
+    <div className="page narrow checkout-page">
+      {/* CHECKOUT PROGRESS */}
 
       <nav
         className="checkout-steps"
         aria-label="Checkout progress"
       >
-        <Link
-          to="/cart"
-        >
+        <Link to="/cart">
           1. BAG
         </Link>
+
 
         <strong
           className={
@@ -1808,6 +1999,7 @@ export default function CheckoutPage() {
           2. ADDRESS
         </strong>
 
+
         <strong
           className={
             step ===
@@ -1816,73 +2008,99 @@ export default function CheckoutPage() {
               : "muted"
           }
         >
-          3. REVIEW
+          3. REVIEW & PAY
         </strong>
       </nav>
 
 
-      {/* ===============================================
-          HEADING
-      =============================================== */}
+      {/* HEADING */}
 
-      <div
-        className="page-heading"
-      >
-        <h1>
-          {step ===
-          "address"
-            ? "Delivery address"
-            : "Review your order"}
-        </h1>
+      <div className="page-heading">
+        <div>
+          <h1>
+            {step ===
+            "address"
+              ? "Delivery details"
+              : "Review & payment"}
+          </h1>
 
-        <span>
-          {isBuyNow
-            ? "Buy now"
-            : isSelection
-              ? "Selected items"
-              : "Bag checkout"}
-        </span>
+
+          <p className="muted">
+            {itemCount}{" "}
+            {itemCount ===
+            1
+              ? "item"
+              : "items"}{" "}
+            ·{" "}
+            {isBuyNow
+              ? "Buy now"
+              : isSelection
+                ? "Selected items"
+                : "Bag checkout"}
+          </p>
+        </div>
+
+
+        {step ===
+          "review" && (
+          <button
+            type="button"
+            className="text-link"
+            disabled={
+              busy
+            }
+            onClick={() => {
+              setStep(
+                "address"
+              );
+
+              setError(
+                ""
+              );
+            }}
+          >
+            Edit details
+          </button>
+        )}
       </div>
 
 
-      {/* ===============================================
-          ACCOUNT STATUS
-      =============================================== */}
+      {/* TRUST */}
 
       <div
         className="notice"
+        role="status"
       >
+        <strong>
+          Secure GymDrobe checkout
+        </strong>
+
+        <br />
+
         {user
-          ? "Your order will be saved securely to your GymDrobe account. Cash on delivery is currently available."
-          : "You are checking out as a guest. This guest order is currently stored on this device. Sign in to save orders to your GymDrobe account."}
+          ? "Choose full online payment or COD with a 10% online advance. Both payment flows are verified securely through Razorpay."
+          : "You can enter your delivery details first. Sign in before payment so GymDrobe can securely create and verify your order."}
       </div>
 
 
       {!user && (
-        <p
-          className="checkout-signin"
-        >
+        <p className="checkout-signin">
+          Already have an account?{" "}
+
           <Link
-            to={`/login?next=${encodeURIComponent(
-              `/checkout?mode=${checkoutMode}`
-            )}`}
+            to={
+              loginPath
+            }
           >
             Sign in
           </Link>
-
-          {" "}
-          to save this order to your GymDrobe account, or continue as a guest.
         </p>
       )}
 
 
-      <div
-        className="checkout-layout"
-      >
-        {/* =============================================
-            CHECKOUT FORM
-        ============================================== */}
+      {/* MAIN */}
 
+      <div className="checkout-layout">
         <form
           id="checkout-form"
           className="checkout-form"
@@ -1891,18 +2109,12 @@ export default function CheckoutPage() {
           }
           noValidate
         >
-          {/* ===========================================
-              ERROR
-          ============================================ */}
-
           {error && (
             <p
               role="alert"
               className="error-box"
             >
-              {
-                error
-              }
+              {error}
             </p>
           )}
 
@@ -1914,39 +2126,47 @@ export default function CheckoutPage() {
           {step ===
           "address" ? (
             <>
-              {user &&
-                addressesLoading && (
-                  <p
-                    className="muted"
-                  >
+              <section className="panel">
+                <div className="panel-heading">
+                  <div>
+                    <p className="eyebrow">
+                      STEP 1
+                    </p>
+
+                    <h2>
+                      CONTACT & DELIVERY ADDRESS
+                    </h2>
+                  </div>
+                </div>
+
+
+                {user &&
+                  addressesLoading && (
+                  <p className="muted">
                     Loading your saved addresses…
                   </p>
                 )}
 
 
-              {user &&
-                addressesError && (
+                {user &&
+                  addressesError && (
                   <p
                     className="field-error"
                     role="alert"
                   >
-                    {
-                      addressesError
-                    }
+                    {addressesError}
                   </p>
                 )}
 
 
-              {user &&
-                !addressesLoading &&
-                addresses.length >
-                  0 && (
-                  <div
-                    className="saved-address-choices"
-                  >
-                    <h2>
-                      USE A SAVED ADDRESS
-                    </h2>
+                {user &&
+                  !addressesLoading &&
+                  addresses.length >
+                    0 && (
+                  <div className="saved-address-choices">
+                    <h3>
+                      Use a saved address
+                    </h3>
 
 
                     {addresses.map(
@@ -1954,7 +2174,7 @@ export default function CheckoutPage() {
                         item
                       ) => {
                         const id =
-                          addressId(
+                          getAddressId(
                             item
                           );
 
@@ -1968,7 +2188,7 @@ export default function CheckoutPage() {
                             className="saved-address-choice"
                             aria-pressed={
                               String(
-                                addressId(
+                                getAddressId(
                                   address
                                 )
                               ) ===
@@ -1983,9 +2203,7 @@ export default function CheckoutPage() {
                             }
                           >
                             <strong>
-                              {
-                                item.fullName
-                              }
+                              {item.fullName}
 
                               {" · "}
 
@@ -1999,9 +2217,7 @@ export default function CheckoutPage() {
 
 
                             <span>
-                              {
-                                item.addressLine
-                              }
+                              {item.addressLine}
 
                               {item.landmark
                                 ? `, ${item.landmark}`
@@ -2009,15 +2225,11 @@ export default function CheckoutPage() {
 
                               {", "}
 
-                              {
-                                item.city
-                              }
+                              {item.city}
 
                               {" "}
 
-                              {
-                                item.pincode
-                              }
+                              {item.pincode}
                             </span>
                           </button>
                         );
@@ -2027,15 +2239,14 @@ export default function CheckoutPage() {
                 )}
 
 
-              <AddressForm
-                value={
-                  address
-                }
-                errors={
-                  errors
-                }
-                onChange={
-                  (
+                <AddressForm
+                  value={
+                    address
+                  }
+                  errors={
+                    errors
+                  }
+                  onChange={(
                     value
                   ) => {
                     setAddress(
@@ -2049,55 +2260,119 @@ export default function CheckoutPage() {
                     setError(
                       ""
                     );
-                  }
-                }
-              />
+                  }}
+                />
 
 
-              {user && (
-                <label
-                  className="check"
-                >
-                  <input
-                    type="checkbox"
-                    checked={
-                      saveAddress
-                    }
-                    onChange={
-                      (
+                {user && (
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={
+                        saveAddress
+                      }
+                      onChange={(
                         event
                       ) =>
                         setSaveAddress(
                           event.target
                             .checked
                         )
+                      }
+                    />
+
+                    Save this address for next time
+                  </label>
+                )}
+              </section>
+
+
+              {/* OPTIONAL DETAILS */}
+
+              <details className="panel">
+                <summary>
+                  Gift message & delivery instructions (optional)
+                </summary>
+
+
+                <div className="field">
+                  <label
+                    htmlFor="gift-message"
+                  >
+                    Gift message
+                  </label>
+
+
+                  <textarea
+                    id="gift-message"
+                    rows="3"
+                    maxLength="250"
+                    disabled={
+                      busy
+                    }
+                    value={
+                      giftMessage
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setGiftMessage(
+                        event.target
+                          .value
+                      )
                     }
                   />
+                </div>
 
-                  Save this address for next time
-                </label>
-              )}
+
+                <div className="field">
+                  <label
+                    htmlFor="order-note"
+                  >
+                    Delivery instructions
+                  </label>
+
+
+                  <textarea
+                    id="order-note"
+                    rows="2"
+                    maxLength="300"
+                    disabled={
+                      busy
+                    }
+                    value={
+                      orderNote
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setOrderNote(
+                        event.target
+                          .value
+                      )
+                    }
+                  />
+                </div>
+              </details>
             </>
 
           ) : (
             <>
-              {/* =======================================
-                  REVIEW ADDRESS
-              ======================================== */}
+              {/* DELIVERY ADDRESS */}
 
-              <section
-                className="panel"
-              >
-                <div
-                  className="panel-heading"
-                >
+              <section className="panel">
+                <div className="panel-heading">
                   <h2>
                     DELIVER TO
                   </h2>
 
+
                   <button
                     type="button"
                     className="text-link"
+                    disabled={
+                      busy
+                    }
                     onClick={() => {
                       setStep(
                         "address"
@@ -2108,22 +2383,18 @@ export default function CheckoutPage() {
                       );
                     }}
                   >
-                    Edit address
+                    Edit
                   </button>
                 </div>
 
 
                 <strong>
-                  {
-                    address.fullName
-                  }
+                  {address.fullName}
                 </strong>
 
 
                 <p>
-                  {
-                    address.addressLine
-                  }
+                  {address.addressLine}
 
                   {address.landmark
                     ? `, ${address.landmark}`
@@ -2131,110 +2402,317 @@ export default function CheckoutPage() {
 
                   <br />
 
-                  {
-                    address.city
-                  }
-
+                  {address.city}
                   {", "}
-
-                  {
-                    address.state
-                  }
-
+                  {address.state}
                   {" – "}
-
-                  {
-                    address.pincode
-                  }
+                  {address.pincode}
                 </p>
 
 
-                <p>
-                  {
-                    address.phone
-                  }
-
+                <p className="muted">
+                  {address.phone}
                   {" · "}
-
-                  {
-                    address.email
-                  }
+                  {address.email}
                 </p>
               </section>
 
 
-              {/* =======================================
-                  PAYMENT
-              ======================================== */}
+              {/* DELIVERY METHOD */}
 
-              <section
-                className="panel"
+              <fieldset
+                className="delivery-methods"
+                disabled={
+                  busy
+                }
               >
-                <h2>
-                  PAYMENT METHOD
-                </h2>
+                <legend>
+                  DELIVERY METHOD
+                </legend>
 
 
-                <label
-                  className="check"
-                >
+                <label className="check">
                   <input
                     type="radio"
-                    name="payment"
-                    value="cod"
-                    checked
-                    readOnly
+                    name="delivery"
+                    value="standard"
+                    checked={
+                      method ===
+                      "standard"
+                    }
+                    onChange={() =>
+                      changeDeliveryMethod(
+                        "standard"
+                      )
+                    }
                   />
 
-                  Cash on delivery
+                  <span>
+                    <strong>
+                      Standard delivery
+                    </strong>
+
+                    <br />
+
+                    <small className="muted">
+                      {standardDeliveryText}
+                    </small>
+                  </span>
                 </label>
 
 
-                <p
-                  className="muted"
-                >
-                  Pay when your GymDrobe order is delivered.
+                <label className="check">
+                  <input
+                    type="radio"
+                    name="delivery"
+                    value="express"
+                    checked={
+                      method ===
+                      "express"
+                    }
+                    onChange={() =>
+                      changeDeliveryMethod(
+                        "express"
+                      )
+                    }
+                  />
+
+                  <span>
+                    <strong>
+                      Express delivery
+                    </strong>
+
+                    <br />
+
+                    <small className="muted">
+                      {expressDeliveryText}
+                    </small>
+                  </span>
+                </label>
+
+
+                <p className="muted">
+                  Shipping is not included when calculating the 10% COD advance.
                 </p>
+              </fieldset>
 
 
-                <label
-                  className="check"
+              {/* PAYMENT */}
+
+              <section className="panel">
+                <div className="panel-heading">
+                  <div>
+                    <p className="eyebrow">
+                      SECURE PAYMENT
+                    </p>
+
+                    <h2>
+                      PAYMENT METHOD
+                    </h2>
+                  </div>
+                </div>
+
+
+                <div
                   style={{
-                    opacity:
-                      0.55,
+                    display:
+                      "grid",
 
-                    cursor:
-                      "not-allowed",
+                    gap:
+                      "14px",
                   }}
                 >
-                  <input
-                    type="radio"
-                    name="payment"
-                    disabled
-                  />
+                  <label
+                    className="check"
+                    style={
+                      !user
+                        ? {
+                            opacity:
+                              0.55,
+                          }
+                        : undefined
+                    }
+                  >
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="cod-partial"
+                      disabled={
+                        busy ||
+                        !user ||
+                        !token
+                      }
+                      checked={
+                        paymentMethod ===
+                        "cod-partial"
+                      }
+                      onChange={() =>
+                        changePaymentMethod(
+                          "cod-partial"
+                        )
+                      }
+                    />
 
-                  Online payment — coming soon
-                </label>
+
+                    <span>
+                      <strong>
+                        COD with 10% advance
+                      </strong>
+
+                      <br />
+
+                      <small>
+                        Pay{" "}
+                        {money(
+                          codAdvanceAmount
+                        )}{" "}
+                        securely online now
+                      </small>
+
+                      <br />
+
+                      <small className="muted">
+                        {money(
+                          codBalanceAmount
+                        )}{" "}
+                        remains payable on delivery
+                      </small>
+                    </span>
+                  </label>
 
 
-                <p
-                  className="muted"
-                >
-                  UPI, cards and other online payment methods will be connected in the payment-gateway phase.
-                </p>
+                  <label
+                    className="check"
+                    style={
+                      !user
+                        ? {
+                            opacity:
+                              0.55,
+                          }
+                        : undefined
+                    }
+                  >
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="razorpay"
+                      disabled={
+                        busy ||
+                        !user ||
+                        !token
+                      }
+                      checked={
+                        paymentMethod ===
+                        "razorpay"
+                      }
+                      onChange={() =>
+                        changePaymentMethod(
+                          "razorpay"
+                        )
+                      }
+                    />
+
+
+                    <span>
+                      <strong>
+                        Full Online Payment
+                      </strong>
+
+                      <br />
+
+                      <small>
+                        Pay{" "}
+                        {money(
+                          pricing.finalTotal
+                        )}{" "}
+                        securely through Razorpay
+                      </small>
+
+                      <br />
+
+                      <small className="muted">
+                        Nothing remains payable on delivery
+                      </small>
+                    </span>
+                  </label>
+                </div>
+
+
+                {!user && (
+                  <p className="muted">
+                    <Link
+                      to={
+                        loginPath
+                      }
+                    >
+                      Sign in
+                    </Link>{" "}
+                    to choose a payment method and place your order.
+                  </p>
+                )}
+
+
+                {paymentMethod ===
+                "cod-partial" ? (
+                  <div className="notice">
+                    <strong>
+                      Pay{" "}
+                      {money(
+                        codAdvanceAmount
+                      )}{" "}
+                      now
+                    </strong>
+
+                    <br />
+
+                    The remaining{" "}
+                    <strong>
+                      {money(
+                        codBalanceAmount
+                      )}
+                    </strong>{" "}
+                    will be collected on delivery.
+
+                    <br />
+
+                    <small>
+                      The 10% advance is calculated only from merchandise after coupon discount. Shipping is excluded from the advance.
+                    </small>
+                  </div>
+
+                ) : (
+                  <div className="notice">
+                    <strong>
+                      Pay in full:{" "}
+                      {money(
+                        pricing.finalTotal
+                      )}
+                    </strong>
+
+                    <br />
+
+                    The complete order amount will be verified through Razorpay before confirmation.
+                  </div>
+                )}
               </section>
 
 
-              {/* =======================================
-                  ORDER ITEMS
-              ======================================== */}
+              {/* ORDER ITEMS */}
 
-              <section
-                className="panel"
-              >
-                <h2>
-                  ORDER ITEMS
-                </h2>
+              <section className="panel">
+                <div className="panel-heading">
+                  <h2>
+                    ORDER ITEMS
+                  </h2>
+
+                  <span className="muted">
+                    {itemCount}{" "}
+                    {itemCount ===
+                    1
+                      ? "item"
+                      : "items"}
+                  </span>
+                </div>
 
 
                 {items.map(
@@ -2265,9 +2743,7 @@ export default function CheckoutPage() {
                         }
                       >
                         <strong>
-                          {
-                            item.name
-                          }
+                          {item.name}
                         </strong>
 
                         {options
@@ -2276,181 +2752,93 @@ export default function CheckoutPage() {
 
                         {" × "}
 
-                        {
-                          item.quantity
-                        }
+                        {item.quantity}
+
+                        {" · "}
+
+                        <strong>
+                          {money(
+                            Number(
+                              item.price ||
+                                0
+                            ) *
+                              Number(
+                                item.quantity ||
+                                  0
+                              )
+                          )}
+                        </strong>
                       </p>
                     );
                   }
                 )}
               </section>
+
+
+              {/* NOTES SUMMARY */}
+
+              {(giftMessage.trim() ||
+                orderNote.trim()) && (
+                <section className="panel">
+                  <div className="panel-heading">
+                    <h2>
+                      ORDER NOTES
+                    </h2>
+
+
+                    <button
+                      type="button"
+                      className="text-link"
+                      disabled={
+                        busy
+                      }
+                      onClick={() =>
+                        setStep(
+                          "address"
+                        )
+                      }
+                    >
+                      Edit
+                    </button>
+                  </div>
+
+
+                  {giftMessage.trim() && (
+                    <p>
+                      <strong>
+                        Gift message:
+                      </strong>{" "}
+                      {giftMessage.trim()}
+                    </p>
+                  )}
+
+
+                  {orderNote.trim() && (
+                    <p>
+                      <strong>
+                        Delivery instructions:
+                      </strong>{" "}
+                      {orderNote.trim()}
+                    </p>
+                  )}
+                </section>
+              )}
             </>
           )}
-
-
-          {/* ===========================================
-              GIFT MESSAGE / DELIVERY NOTE
-          ============================================ */}
-
-          <section
-            className="panel"
-          >
-            <h2>
-              MAKE IT YOURS
-            </h2>
-
-
-            <div
-              className="field"
-            >
-              <label
-                htmlFor="gift-message"
-              >
-                Gift message (optional, no extra charge)
-              </label>
-
-              <textarea
-                id="gift-message"
-                rows="3"
-                maxLength="250"
-                value={
-                  giftMessage
-                }
-                onChange={
-                  (
-                    event
-                  ) =>
-                    setGiftMessage(
-                      event.target
-                        .value
-                    )
-                }
-              />
-            </div>
-
-
-            <div
-              className="field"
-            >
-              <label
-                htmlFor="order-note"
-              >
-                Delivery instructions (optional)
-              </label>
-
-              <textarea
-                id="order-note"
-                rows="2"
-                maxLength="300"
-                value={
-                  orderNote
-                }
-                onChange={
-                  (
-                    event
-                  ) =>
-                    setOrderNote(
-                      event.target
-                        .value
-                    )
-                }
-              />
-            </div>
-
-
-            <p
-              className="muted"
-            >
-              These messages will be included with your order.
-            </p>
-          </section>
-
-
-          {/* ===========================================
-              DELIVERY METHOD
-          ============================================ */}
-
-          <fieldset
-            className="delivery-methods"
-          >
-            <legend>
-              DELIVERY METHOD
-            </legend>
-
-
-            <label
-              className="check"
-            >
-              <input
-                type="radio"
-                name="delivery"
-                value="standard"
-                checked={
-                  method ===
-                  "standard"
-                }
-                onChange={() => {
-                  setMethod(
-                    "standard"
-                  );
-
-                  setError(
-                    ""
-                  );
-                }}
-              />
-
-              Standard — ₹99, free from ₹500 after coupons
-            </label>
-
-
-            <label
-              className="check"
-            >
-              <input
-                type="radio"
-                name="delivery"
-                value="express"
-                checked={
-                  method ===
-                  "express"
-                }
-                onChange={() => {
-                  setMethod(
-                    "express"
-                  );
-
-                  setError(
-                    ""
-                  );
-                }}
-              />
-
-              Express — ₹199
-            </label>
-
-
-            <p
-              className="muted"
-            >
-              Exact delivery dates will be connected during the shipping and serviceability phase.
-            </p>
-          </fieldset>
         </form>
 
 
-        {/* =============================================
-            SUMMARY
-        ============================================== */}
+        {/* SUMMARY */}
 
-        <aside
-          className="checkout-summary"
-        >
-          <CouponBox
-            subtotal={
-              pricing.subtotal
-            }
-          />
+        <aside className="checkout-summary">
+          {step ===
+            "address" && (
+            <CouponBox
+              subtotal={
+                pricing.subtotal
+              }
+            />
+          )}
 
 
           <PriceSummary
@@ -2467,58 +2855,151 @@ export default function CheckoutPage() {
             {step ===
               "review" && (
               <div
+                className="panel"
                 style={{
                   marginBottom:
-                    "14px",
+                    "16px",
                 }}
               >
-                <small
-                  className="muted"
-                >
-                  Payment
-                </small>
+                <div className="panel-heading">
+                  <h3>
+                    PAYMENT SUMMARY
+                  </h3>
+                </div>
 
-                <strong
-                  style={{
-                    display:
-                      "block",
-                  }}
-                >
-                  Cash on delivery
-                </strong>
+
+                {paymentMethod ===
+                "cod-partial" ? (
+                  <>
+                    <p>
+                      Pay now{" "}
+                      <strong>
+                        {money(
+                          codAdvanceAmount
+                        )}
+                      </strong>
+                    </p>
+
+
+                    <p>
+                      Pay on delivery{" "}
+                      <strong>
+                        {money(
+                          codBalanceAmount
+                        )}
+                      </strong>
+                    </p>
+
+
+                    <p className="muted">
+                      Shipping stays in the delivery balance and is not part of the 10% advance.
+                    </p>
+                  </>
+
+                ) : (
+                  <>
+                    <p>
+                      Pay now{" "}
+                      <strong>
+                        {money(
+                          pricing.finalTotal
+                        )}
+                      </strong>
+                    </p>
+
+
+                    <p>
+                      Pay on delivery{" "}
+                      <strong>
+                        {money(
+                          0
+                        )}
+                      </strong>
+                    </p>
+                  </>
+                )}
               </div>
             )}
 
 
-            <button
-              type="submit"
-              form="checkout-form"
-              className="button full"
-              disabled={
-                busy
-              }
+            {!user &&
+              step ===
+                "review" && (
+                <Link
+                  className="button full"
+                  to={
+                    loginPath
+                  }
+                >
+                  Sign in to continue
+                </Link>
+              )}
+
+
+            {(
+              user ||
+              step ===
+                "address"
+            ) && (
+              <button
+                type="submit"
+                form="checkout-form"
+                className="button full"
+                disabled={
+                  busy ||
+                  (
+                    step ===
+                      "review" &&
+                    (
+                      !user ||
+                      !token
+                    )
+                  )
+                }
+              >
+                {busy
+                  ? "Opening secure payment…"
+
+                  : step ===
+                      "address"
+                    ? "Continue to delivery & payment"
+
+                    : paymentMethod ===
+                        "cod-partial"
+                      ? `Pay ${money(
+                          codAdvanceAmount
+                        )} & place order`
+
+                      : `Pay ${money(
+                          pricing.finalTotal
+                        )} & place order`}
+              </button>
+            )}
+
+
+            <p
+              className="muted"
+              style={{
+                marginTop:
+                  "10px",
+              }}
             >
-              {busy
-                ? user
-                  ? "Placing order…"
-                  : "Saving guest order…"
-                : step ===
-                    "address"
-                  ? "Continue to review"
-                  : "Place order"}
-            </button>
+              {step ===
+              "address"
+                ? "You can review delivery, payment and the final total before paying."
+
+                : paymentMethod ===
+                    "cod-partial"
+                  ? `GymDrobe confirms the order only after the ${COD_ADVANCE_PERCENTAGE}% Razorpay advance is verified.`
+
+                  : "GymDrobe confirms the order only after the full Razorpay payment is verified."}
+            </p>
 
 
             {step ===
               "review" && (
-              <p
-                className="muted"
-                style={{
-                  marginTop:
-                    "10px",
-                }}
-              >
-                By placing the order, you confirm your delivery details and order total.
+              <p className="muted">
+                Secure payment verification · Final stock and price rechecked before order confirmation
               </p>
             )}
           </PriceSummary>

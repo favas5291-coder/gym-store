@@ -11,7 +11,8 @@ const orderItemSchema =
     {
       product: {
         type:
-          mongoose.Schema.Types.ObjectId,
+          mongoose.Schema.Types
+            .ObjectId,
 
         ref:
           "Product",
@@ -395,11 +396,6 @@ const trackingEventSchema =
 const returnItemSchema =
   new mongoose.Schema(
     {
-      /*
-        Index of the item inside the original
-        order.items array.
-      */
-
       index: {
         type:
           Number,
@@ -423,13 +419,6 @@ const returnItemSchema =
           1,
       },
 
-
-      /*
-        For exchange requests these contain
-        the requested replacement variant.
-
-        For normal returns they remain null.
-      */
 
       size: {
         type:
@@ -457,6 +446,584 @@ const returnItemSchema =
 
 
 // ======================================================
+// RETURN / EXCHANGE REQUEST
+// ======================================================
+
+const returnRequestSchema =
+  new mongoose.Schema(
+    {
+      id: {
+        type:
+          String,
+
+        default:
+          null,
+      },
+
+
+      type: {
+        type:
+          String,
+
+        default:
+          null,
+
+        validate: {
+          validator(
+            value
+          ) {
+            return (
+              value ==
+                null ||
+              [
+                "return",
+                "exchange",
+              ].includes(
+                value
+              )
+            );
+          },
+
+          message:
+            "Invalid return request type.",
+        },
+      },
+
+
+      status: {
+        type:
+          String,
+
+        enum: [
+          "not-requested",
+          "requested",
+          "approved",
+          "rejected",
+          "completed",
+        ],
+
+        default:
+          "not-requested",
+      },
+
+
+      items: {
+        type: [
+          returnItemSchema,
+        ],
+
+        default:
+          [],
+      },
+
+
+      reason: {
+        type:
+          String,
+
+        default:
+          "",
+
+        maxlength:
+          1000,
+      },
+
+
+      requestedAt: {
+        type:
+          Date,
+
+        default:
+          null,
+      },
+
+
+      response: {
+        type:
+          String,
+
+        default:
+          "",
+
+        maxlength:
+          1000,
+      },
+
+
+      respondedAt: {
+        type:
+          Date,
+
+        default:
+          null,
+      },
+
+
+      approvedAt: {
+        type:
+          Date,
+
+        default:
+          null,
+      },
+
+
+      rejectedAt: {
+        type:
+          Date,
+
+        default:
+          null,
+      },
+
+
+      completedAt: {
+        type:
+          Date,
+
+        default:
+          null,
+      },
+
+
+      originalInventoryRestoredAt: {
+        type:
+          Date,
+
+        default:
+          null,
+      },
+
+
+      exchangeInventoryReservedAt: {
+        type:
+          Date,
+
+        default:
+          null,
+      },
+    },
+
+    {
+      _id:
+        false,
+    }
+  );
+
+
+// ======================================================
+// REFUND
+// ======================================================
+
+const refundSchema =
+  new mongoose.Schema(
+    {
+      status: {
+        type:
+          String,
+
+        enum: [
+          "not-requested",
+          "pending",
+          "manual-required",
+          "refunded",
+          "not-applicable",
+        ],
+
+        default:
+          "not-requested",
+      },
+
+
+      amount: {
+        type:
+          Number,
+
+        default:
+          0,
+
+        min:
+          0,
+      },
+
+
+      reference: {
+        type:
+          String,
+
+        default:
+          "",
+
+        maxlength:
+          200,
+      },
+
+
+      requestedAt: {
+        type:
+          Date,
+
+        default:
+          null,
+      },
+
+
+      refundedAt: {
+        type:
+          Date,
+
+        default:
+          null,
+      },
+    },
+
+    {
+      _id:
+        false,
+    }
+  );
+
+
+// ======================================================
+// PAYMENT
+// ======================================================
+
+const paymentSchema =
+  new mongoose.Schema(
+    {
+      // ==================================================
+      // PAYMENT METHOD
+      //
+      // cod
+      // Legacy normal COD orders.
+      //
+      // razorpay
+      // Customer pays full amount online.
+      //
+      // cod-partial
+      // Customer pays 10% online and remaining amount
+      // during delivery.
+      // ==================================================
+
+      method: {
+        type:
+          String,
+
+        enum: [
+          "cod",
+          "razorpay",
+          "cod-partial",
+        ],
+
+        default:
+          "cod",
+      },
+
+
+      // ==================================================
+      // PAYMENT GATEWAY
+      // ==================================================
+
+      gateway: {
+        type:
+          String,
+
+        enum: [
+          "cod",
+          "razorpay",
+        ],
+
+        default:
+          "cod",
+      },
+
+
+      // ==================================================
+      // PAYMENT STATUS
+      //
+      // pending
+      // Nothing successfully paid yet.
+      //
+      // partially-paid
+      // COD advance was successfully paid.
+      //
+      // paid
+      // Full payment completed.
+      //
+      // failed
+      // Online payment failed.
+      //
+      // refunded
+      // Payment was fully refunded.
+      // ==================================================
+
+      status: {
+        type:
+          String,
+
+        enum: [
+          "pending",
+          "partially-paid",
+          "paid",
+          "failed",
+          "refunded",
+        ],
+
+        default:
+          "pending",
+      },
+
+
+      // ==================================================
+      // TOTAL ORDER AMOUNT
+      //
+      // Complete amount customer owes including
+      // applicable shipping.
+      // ==================================================
+
+      totalAmount: {
+        type:
+          Number,
+
+        default:
+          0,
+
+        min:
+          0,
+      },
+
+
+      // ==================================================
+      // AMOUNT ALREADY PAID
+      // ==================================================
+
+      amountPaid: {
+        type:
+          Number,
+
+        default:
+          0,
+
+        min:
+          0,
+      },
+
+
+      // ==================================================
+      // AMOUNT STILL TO COLLECT
+      // ==================================================
+
+      amountDue: {
+        type:
+          Number,
+
+        default:
+          0,
+
+        min:
+          0,
+      },
+
+
+      // ==================================================
+      // COD ADVANCE PERCENTAGE
+      //
+      // GymDrobe currently plans to use 10%.
+      // Backend calculation will control this value.
+      // ==================================================
+
+      advancePercentage: {
+        type:
+          Number,
+
+        default:
+          0,
+
+        min:
+          0,
+
+        max:
+          100,
+      },
+
+
+      // ==================================================
+      // COD ADVANCE AMOUNT
+      // ==================================================
+
+      advanceAmount: {
+        type:
+          Number,
+
+        default:
+          0,
+
+        min:
+          0,
+      },
+
+
+      // ==================================================
+      // ADVANCE PAYMENT TIME
+      // ==================================================
+
+      advancePaidAt: {
+        type:
+          Date,
+
+        default:
+          null,
+      },
+
+
+      // ==================================================
+      // REMAINING COD BALANCE
+      //
+      // not-applicable
+      // Full online payment or legacy normal COD.
+      //
+      // pending
+      // Advance paid, balance must be collected.
+      //
+      // collected
+      // Delivery balance collected.
+      //
+      // waived
+      // Admin intentionally removed balance.
+      // ==================================================
+
+      balanceStatus: {
+        type:
+          String,
+
+        enum: [
+          "not-applicable",
+          "pending",
+          "collected",
+          "waived",
+        ],
+
+        default:
+          "not-applicable",
+      },
+
+
+      // ==================================================
+      // BALANCE COLLECTION TIME
+      // ==================================================
+
+      balanceCollectedAt: {
+        type:
+          Date,
+
+        default:
+          null,
+      },
+
+
+      // ==================================================
+      // GENERIC TRANSACTION ID
+      //
+      // For Razorpay this stores Razorpay Payment ID.
+      // ==================================================
+
+      transactionId: {
+        type:
+          String,
+
+        default:
+          null,
+
+        trim:
+          true,
+      },
+
+
+      // ==================================================
+      // RAZORPAY ORDER ID
+      // ==================================================
+
+      razorpayOrderId: {
+        type:
+          String,
+
+        default:
+          null,
+
+        trim:
+          true,
+      },
+
+
+      // ==================================================
+      // RAZORPAY PAYMENT ID
+      // ==================================================
+
+      razorpayPaymentId: {
+        type:
+          String,
+
+        default:
+          null,
+
+        trim:
+          true,
+      },
+
+
+      // ==================================================
+      // SERVER VERIFICATION TIME
+      // ==================================================
+
+      verifiedAt: {
+        type:
+          Date,
+
+        default:
+          null,
+      },
+
+
+      // ==================================================
+      // FULL PAYMENT TIME
+      //
+      // For full Razorpay orders, set when fully paid.
+      //
+      // For cod-partial orders, advancePaidAt is used for
+      // the 10% online payment and paidAt can later be set
+      // when the remaining COD balance is collected.
+      // ==================================================
+
+      paidAt: {
+        type:
+          Date,
+
+        default:
+          null,
+      },
+
+
+      // ==================================================
+      // FAILED PAYMENT TIME
+      // ==================================================
+
+      failedAt: {
+        type:
+          Date,
+
+        default:
+          null,
+      },
+    },
+
+    {
+      _id:
+        false,
+    }
+  );
+
+
+// ======================================================
 // ORDER
 // ======================================================
 
@@ -464,7 +1031,7 @@ const orderSchema =
   new mongoose.Schema(
     {
       // ==================================================
-      // ORDER ID
+      // IDENTIFIERS
       // ==================================================
 
       orderNumber: {
@@ -482,13 +1049,10 @@ const orderSchema =
       },
 
 
-      // ==================================================
-      // OWNER
-      // ==================================================
-
       user: {
         type:
-          mongoose.Schema.Types.ObjectId,
+          mongoose.Schema.Types
+            .ObjectId,
 
         ref:
           "User",
@@ -500,10 +1064,6 @@ const orderSchema =
           true,
       },
 
-
-      // ==================================================
-      // CHECKOUT IDEMPOTENCY
-      // ==================================================
 
       checkoutToken: {
         type:
@@ -518,7 +1078,7 @@ const orderSchema =
 
 
       // ==================================================
-      // SOURCE
+      // CHECKOUT SOURCE
       // ==================================================
 
       source: {
@@ -538,6 +1098,12 @@ const orderSchema =
 
       // ==================================================
       // ORDER STATUS
+      //
+      // payment-pending:
+      // Waiting for required Razorpay payment.
+      //
+      // confirmed:
+      // Payment requirement completed and order accepted.
       // ==================================================
 
       status: {
@@ -545,6 +1111,7 @@ const orderSchema =
           String,
 
         enum: [
+          "payment-pending",
           "confirmed",
           "processing",
           "shipped",
@@ -562,7 +1129,7 @@ const orderSchema =
 
 
       // ==================================================
-      // OPTIONAL ORDER DETAILS
+      // OPTIONAL ORDER MESSAGES
       // ==================================================
 
       giftMessage: {
@@ -726,48 +1293,63 @@ const orderSchema =
       // ==================================================
 
       payment: {
-        method: {
-          type:
-            String,
+        type:
+          paymentSchema,
 
-          enum: [
-            "cod",
-          ],
+        default:
+          () => ({
+            method:
+              "cod",
 
-          default:
-            "cod",
-        },
+            gateway:
+              "cod",
 
+            status:
+              "pending",
 
-        status: {
-          type:
-            String,
+            totalAmount:
+              0,
 
-          enum: [
-            "pending",
-            "paid",
-            "failed",
-            "refunded",
-          ],
+            amountPaid:
+              0,
 
-          default:
-            "pending",
-        },
+            amountDue:
+              0,
 
+            advancePercentage:
+              0,
 
-        transactionId: {
-          type:
-            String,
+            advanceAmount:
+              0,
 
-          default:
-            null,
-        },
+            advancePaidAt:
+              null,
+
+            balanceStatus:
+              "not-applicable",
+
+            balanceCollectedAt:
+              null,
+          }),
       },
 
+
+      // ==================================================
+      // LEGACY / FRONTEND PAYMENT METHOD
+      //
+      // Kept because existing customer and admin pages
+      // already read order.paymentMethod.
+      // ==================================================
 
       paymentMethod: {
         type:
           String,
+
+        enum: [
+          "cod",
+          "razorpay",
+          "cod-partial",
+        ],
 
         default:
           "cod",
@@ -820,14 +1402,7 @@ const orderSchema =
         },
 
 
-        /*
-          Real delivery timestamp.
-
-          This is important because the
-          7-day return/exchange window starts
-          from delivery, not order creation.
-        */
-
+        // Returns use actual delivery date.
         deliveredAt: {
           type:
             Date,
@@ -935,11 +1510,6 @@ const orderSchema =
         },
 
 
-        /*
-          Prevents cancellation stock from
-          accidentally being restored twice.
-        */
-
         inventoryRestoredAt: {
           type:
             Date,
@@ -951,219 +1521,15 @@ const orderSchema =
 
 
       // ==================================================
-      // RETURN / EXCHANGE REQUEST
+      // RETURN / EXCHANGE
       // ==================================================
 
       returnRequest: {
-        /*
-          Example:
-          RET-MABC123-9F12AA
-        */
+        type:
+          returnRequestSchema,
 
-        id: {
-          type:
-            String,
-
-          default:
-            null,
-        },
-
-
-        /*
-          null before any request exists.
-        */
-
-        type: {
-          type:
-            String,
-
-          default:
-            null,
-
-          validate: {
-            validator(
-              value
-            ) {
-              return (
-                value ==
-                  null ||
-                [
-                  "return",
-                  "exchange",
-                ].includes(
-                  value
-                )
-              );
-            },
-
-            message:
-              "Invalid return request type.",
-          },
-        },
-
-
-        /*
-          Lifecycle:
-
-          not-requested
-                ↓
-             requested
-             ↙      ↘
-        approved   rejected
-            ↓
-        completed
-        */
-
-        status: {
-          type:
-            String,
-
-          enum: [
-            "not-requested",
-            "requested",
-            "approved",
-            "rejected",
-            "completed",
-          ],
-
-          default:
-            "not-requested",
-
-          index:
-            true,
-        },
-
-
-        items: {
-          type: [
-            returnItemSchema,
-          ],
-
-          default:
-            [],
-        },
-
-
-        reason: {
-          type:
-            String,
-
-          default:
-            "",
-
-          maxlength:
-            1000,
-        },
-
-
-        // Customer submitted request.
-
-        requestedAt: {
-          type:
-            Date,
-
-          default:
-            null,
-        },
-
-
-        // Admin message shown to customer.
-
-        response: {
-          type:
-            String,
-
-          default:
-            "",
-
-          maxlength:
-            1000,
-        },
-
-
-        /*
-          Latest time admin responded to
-          this request.
-        */
-
-        respondedAt: {
-          type:
-            Date,
-
-          default:
-            null,
-        },
-
-
-        // ==================================================
-        // ADMIN DECISION TIMESTAMPS
-        // ==================================================
-
-        approvedAt: {
-          type:
-            Date,
-
-          default:
-            null,
-        },
-
-
-        rejectedAt: {
-          type:
-            Date,
-
-          default:
-            null,
-        },
-
-
-        completedAt: {
-          type:
-            Date,
-
-          default:
-            null,
-        },
-
-
-        // ==================================================
-        // INVENTORY SAFETY
-        // ==================================================
-
-        /*
-          Set when the customer's original
-          returned variant has been put back
-          into inventory.
-
-          This prevents stock being restored twice.
-        */
-
-        originalInventoryRestoredAt: {
-          type:
-            Date,
-
-          default:
-            null,
-        },
-
-
-        /*
-          Exchange only.
-
-          Set after the replacement variant
-          has been successfully reserved/deducted.
-
-          This prevents the replacement stock
-          being deducted more than once.
-        */
-
-        exchangeInventoryReservedAt: {
-          type:
-            Date,
-
-          default:
-            null,
-        },
+        default:
+          () => ({}),
       },
 
 
@@ -1172,103 +1538,11 @@ const orderSchema =
       // ==================================================
 
       refund: {
-        /*
-          Refund lifecycle:
+        type:
+          refundSchema,
 
-          not-requested
-                ↓
-              pending
-                ↓
-          manual-required
-                ↓
-             refunded
-
-          Exchanges use:
-          not-applicable
-        */
-
-        status: {
-          type:
-            String,
-
-          enum: [
-            "not-requested",
-            "pending",
-            "manual-required",
-            "refunded",
-            "not-applicable",
-          ],
-
-          default:
-            "not-requested",
-        },
-
-
-        /*
-          Merchandise refund amount.
-
-          Shipping is not automatically
-          included in this amount.
-        */
-
-        amount: {
-          type:
-            Number,
-
-          default:
-            0,
-
-          min:
-            0,
-        },
-
-
-        /*
-          When GymDrobe created the refund
-          requirement.
-        */
-
-        requestedAt: {
-          type:
-            Date,
-
-          default:
-            null,
-        },
-
-
-        /*
-          Reference entered by admin after the
-          real/manual refund has actually been made.
-
-          Example:
-          UTR number / bank reference / internal reference.
-        */
-
-        reference: {
-          type:
-            String,
-
-          default:
-            "",
-
-          maxlength:
-            200,
-        },
-
-
-        /*
-          Only set when the real refund has
-          actually been recorded as completed.
-        */
-
-        refundedAt: {
-          type:
-            Date,
-
-          default:
-            null,
-        },
+        default:
+          () => ({}),
       },
 
 
@@ -1282,7 +1556,7 @@ const orderSchema =
             String,
 
           default:
-            "5.0",
+            "7.0",
         },
 
 
@@ -1296,12 +1570,18 @@ const orderSchema =
 
 
         /*
-          True while the original order's
-          inventory reservation belongs to
-          this order.
+          inventoryReserved prevents the same order from
+          reducing stock more than once.
 
-          Cancellation changes this to false
-          after restoring stock.
+          COD:
+          Existing COD controller may reserve immediately.
+
+          Full Razorpay:
+          Reserve after verified payment.
+
+          10% advance COD:
+          Reserve after the 10% Razorpay payment has been
+          successfully verified.
         */
 
         inventoryReserved: {
@@ -1309,7 +1589,7 @@ const orderSchema =
             Boolean,
 
           default:
-            true,
+            false,
         },
       },
     },
@@ -1324,14 +1604,6 @@ const orderSchema =
 // ======================================================
 // INDEXES
 // ======================================================
-
-/*
-  One checkout token can create only one
-  order for the same customer.
-
-  This protects against duplicate checkout
-  submissions.
-*/
 
 orderSchema.index(
   {
@@ -1349,10 +1621,6 @@ orderSchema.index(
 );
 
 
-/*
-  Customer orders page.
-*/
-
 orderSchema.index({
   user:
     1,
@@ -1362,18 +1630,61 @@ orderSchema.index({
 });
 
 
-/*
-  Admin Returns page.
-
-  Makes it faster to find requested,
-  approved, rejected and completed requests.
-*/
-
 orderSchema.index({
   "returnRequest.status":
     1,
 
   "returnRequest.requestedAt":
+    -1,
+});
+
+
+/*
+  Find a GymDrobe order from a Razorpay Order ID.
+*/
+
+orderSchema.index(
+  {
+    "payment.razorpayOrderId":
+      1,
+  },
+
+  {
+    sparse:
+      true,
+  }
+);
+
+
+/*
+  Useful for payment reconciliation and admin tools.
+*/
+
+orderSchema.index({
+  "payment.status":
+    1,
+
+  createdAt:
+    -1,
+});
+
+
+/*
+  Useful for finding outstanding COD balances.
+
+  Example:
+  payment.method = cod-partial
+  payment.balanceStatus = pending
+*/
+
+orderSchema.index({
+  "payment.method":
+    1,
+
+  "payment.balanceStatus":
+    1,
+
+  createdAt:
     -1,
 });
 

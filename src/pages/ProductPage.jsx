@@ -43,6 +43,10 @@ import {
   useCatalog,
 } from "../context/CatalogContext.jsx";
 
+import {
+  money,
+} from "../utils/productPricing.js";
+
 import useProductReviews from "../hooks/useProductReviews.js";
 
 
@@ -57,29 +61,45 @@ function ProductDetail({
   const {
     compared,
     toggleCompare,
-  } = useShoppingTools();
+  } =
+    useShoppingTools();
+
 
   const {
     notify,
     shoppingKey,
-  } = useStore();
+  } =
+    useStore();
+
 
   const {
     rating,
     count,
-  } = useProductReviews(
-    product
-  );
+  } =
+    useProductReviews(
+      product
+    );
+
+
+  // ====================================================
+  // STORAGE KEYS
+  // ====================================================
 
   const deliveryKey =
     shoppingKey(
       "gymdrobe-delivery-pincode"
     );
 
+
   const recentlyViewedKey =
     shoppingKey(
       "gymdrobe-recently-viewed"
     );
+
+
+  // ====================================================
+  // PRODUCT IMAGES
+  // ====================================================
 
   const images = [
     ...new Set(
@@ -94,7 +114,9 @@ function ProductDetail({
             : []
         ),
       ].filter(
-        (src) =>
+        (
+          src
+        ) =>
           typeof src ===
             "string" &&
           src.trim()
@@ -102,55 +124,96 @@ function ProductDetail({
     ),
   ];
 
+
   const [
     photo,
     setPhoto,
-  ] = useState(
-    images[0] || ""
-  );
+  ] =
+    useState(
+      images[0] ||
+        ""
+    );
+
 
   const [
     zoom,
     setZoom,
-  ] = useState(false);
+  ] =
+    useState(
+      false
+    );
+
+
+  const activePhoto =
+    images.includes(
+      photo
+    )
+      ? photo
+      : images[0] ||
+        "";
+
+
+  const photoIndex =
+    Math.max(
+      0,
+
+      images.indexOf(
+        activePhoto
+      )
+    );
+
+
+  // ====================================================
+  // DELIVERY CHECK
+  // ====================================================
 
   const [
     pincode,
     setPincode,
-  ] = useState(() => {
-    const saved =
-      readStorage(
-        deliveryKey,
-        ""
-      );
+  ] =
+    useState(
+      () => {
+        const saved =
+          readStorage(
+            deliveryKey,
+            ""
+          );
 
-    return typeof saved ===
-      "string"
-      ? saved
-      : "";
-  });
+
+        return typeof saved ===
+          "string"
+          ? saved
+          : "";
+      }
+    );
+
 
   const [
     delivery,
     setDelivery,
-  ] = useState("");
-
-  const activePhoto =
-    images.includes(photo)
-      ? photo
-      : images[0] || "";
-
-  const photoIndex =
-    images.indexOf(
-      activePhoto
+  ] =
+    useState(
+      ""
     );
+
+
+  // ====================================================
+  // PRODUCT DATA
+  // ====================================================
 
   const isCompared =
     compared.some(
-      (item) =>
-        String(item.id) ===
-        String(product.id)
+      (
+        item
+      ) =>
+        String(
+          item.id
+        ) ===
+        String(
+          product.id
+        )
     );
+
 
   const highlights =
     Array.isArray(
@@ -162,6 +225,7 @@ function ProductDetail({
           )
         ? product.features
         : [];
+
 
   const careInstructions =
     Array.isArray(
@@ -180,65 +244,111 @@ function ProductDetail({
         : [];
 
 
-  // ======================================================
-  // PAGE TITLE
-  // ======================================================
-
-  useEffect(() => {
-    document.title =
-      `${product.name} | GymDrobe`;
-  }, [product.name]);
-
-
-  // ======================================================
-  // RECENTLY VIEWED
-  // ======================================================
-
-  useEffect(() => {
-    const saved =
-      readStorage(
-        recentlyViewedKey,
-        []
-      );
-
-    const recentIds =
-      Array.isArray(saved)
-        ? saved
-            .filter(
-              (id) =>
-                id != null
-            )
-            .map(String)
-        : [];
-
-    writeStorage(
-      recentlyViewedKey,
-
-      [
-        ...new Set([
-          String(
-            product.id
-          ),
-
-          ...recentIds.filter(
-            (id) =>
-              id !==
-              String(
-                product.id
-              )
-          ),
-        ]),
-      ].slice(0, 8)
+  const freeDeliveryAbove =
+    Number(
+      product.delivery
+        ?.freeDeliveryAbove
     );
-  }, [
-    product.id,
-    recentlyViewedKey,
-  ]);
 
 
-  // ======================================================
+  const hasFreeDeliveryThreshold =
+    Number.isFinite(
+      freeDeliveryAbove
+    ) &&
+    freeDeliveryAbove >
+      0;
+
+
+  const productBadge =
+    typeof product.badge ===
+      "string"
+      ? product.badge.trim()
+      : "";
+
+
+  // ====================================================
+  // PAGE TITLE
+  // ====================================================
+
+  useEffect(
+    () => {
+      document.title =
+        `${product.name} | GymDrobe`;
+    },
+
+    [
+      product.name,
+    ]
+  );
+
+
+  // ====================================================
+  // RECENTLY VIEWED
+  // ====================================================
+
+  useEffect(
+    () => {
+      const saved =
+        readStorage(
+          recentlyViewedKey,
+          []
+        );
+
+
+      const recentIds =
+        Array.isArray(
+          saved
+        )
+          ? saved
+              .filter(
+                (
+                  id
+                ) =>
+                  id !=
+                  null
+              )
+              .map(
+                String
+              )
+          : [];
+
+
+      writeStorage(
+        recentlyViewedKey,
+
+        [
+          ...new Set([
+            String(
+              product.id
+            ),
+
+            ...recentIds.filter(
+              (
+                id
+              ) =>
+                id !==
+                String(
+                  product.id
+                )
+            ),
+          ]),
+        ].slice(
+          0,
+          8
+        )
+      );
+    },
+
+    [
+      product.id,
+      recentlyViewedKey,
+    ]
+  );
+
+
+  // ====================================================
   // RELATED PRODUCTS
-  // ======================================================
+  // ====================================================
 
   const related =
     rankRelated(
@@ -250,14 +360,15 @@ function ProductDetail({
     );
 
 
-  // ======================================================
-  // DELIVERY
-  // ======================================================
+  // ====================================================
+  // DELIVERY CHECK
+  // ====================================================
 
   function checkDelivery(
     event
   ) {
     event.preventDefault();
+
 
     if (
       !/^[1-9]\d{5}$/.test(
@@ -268,13 +379,16 @@ function ProductDetail({
         "Enter a valid 6-digit pincode."
       );
 
+
       return;
     }
+
 
     writeStorage(
       deliveryKey,
       pincode
     );
+
 
     setDelivery(
       product.delivery
@@ -283,14 +397,14 @@ function ProductDetail({
 
         ? "This product is currently unavailable for delivery."
 
-        : "Pincode format accepted. Delivery serviceability and dates will be confirmed when live shipping is connected."
+        : "Pincode saved. Final serviceability and delivery date will be confirmed during checkout."
     );
   }
 
 
-  // ======================================================
+  // ====================================================
   // SHARE
-  // ======================================================
+  // ====================================================
 
   async function share() {
     try {
@@ -304,6 +418,7 @@ function ProductDetail({
           url:
             window.location.href,
         });
+
       } else {
         await navigator
           .clipboard
@@ -311,17 +426,21 @@ function ProductDetail({
             window.location.href
           );
 
+
         notify(
           "Product link copied."
         );
       }
-    } catch (error) {
+
+    } catch (
+      error
+    ) {
       if (
         error.name !==
         "AbortError"
       ) {
         notify(
-          "Copy this page’s address to share the product.",
+          "Copy this page's address to share the product.",
           "info"
         );
       }
@@ -329,14 +448,15 @@ function ProductDetail({
   }
 
 
-  // ======================================================
+  // ====================================================
   // PAGE
-  // ======================================================
+  // ====================================================
 
   return (
     <div className="product-page">
-
-      {/* BREADCRUMB */}
+      {/* =================================================
+          BREADCRUMB
+      ================================================= */}
 
       <nav
         className="breadcrumb"
@@ -346,7 +466,11 @@ function ProductDetail({
           Home
         </Link>
 
-        <span>/</span>
+
+        <span>
+          /
+        </span>
+
 
         <Link
           to={categoryPath(
@@ -356,7 +480,11 @@ function ProductDetail({
           {product.category}
         </Link>
 
-        <span>/</span>
+
+        <span>
+          /
+        </span>
+
 
         <span>
           {product.name}
@@ -364,14 +492,16 @@ function ProductDetail({
       </nav>
 
 
-      {/* MAIN PRODUCT */}
+      {/* =================================================
+          MAIN PRODUCT
+      ================================================= */}
 
       <div className="product-detail-layout">
-
-        {/* GALLERY */}
+        {/* ===============================================
+            PRODUCT GALLERY
+        =============================================== */}
 
         <div className="gallery">
-
           <button
             className="main-photo"
             type="button"
@@ -379,7 +509,9 @@ function ProductDetail({
               !activePhoto
             }
             onClick={() =>
-              setZoom(true)
+              setZoom(
+                true
+              )
             }
             aria-label={`Enlarge ${product.name} image`}
           >
@@ -397,17 +529,16 @@ function ProductDetail({
 
           {images.length >
             1 && (
-
             <div className="thumbnails">
-
               {images.map(
                 (
                   src,
                   index
                 ) => (
-
                   <button
-                    key={src}
+                    key={
+                      src
+                    }
                     type="button"
                     aria-label={`View product photo ${index + 1}`}
                     aria-pressed={
@@ -432,48 +563,99 @@ function ProductDetail({
                   </button>
                 )
               )}
-
             </div>
           )}
 
+
+          <p className="muted">
+            Select an image to view it larger.
+          </p>
         </div>
 
 
-        {/* PRODUCT INFO */}
+        {/* ===============================================
+            PRODUCT BUYING AREA
+        =============================================== */}
 
         <div className="product-info">
+          {/* ---------------------------------------------
+              BRAND / BADGE
+          --------------------------------------------- */}
 
-          <p className="product-brand">
-            {product.brand}
-          </p>
+          <div className="product-title-meta">
+            <p className="product-brand">
+              {product.brand ||
+                "GymDrobe"}
+            </p>
+
+
+            {productBadge && (
+              <span className="gm-product-badge">
+                {productBadge}
+              </span>
+            )}
+          </div>
+
+
+          {/* ---------------------------------------------
+              PRODUCT NAME
+          --------------------------------------------- */}
 
           <h1>
             {product.name}
           </h1>
 
 
-          {/* RATING */}
+          {/* ---------------------------------------------
+              SHORT PRODUCT CLARITY
+          --------------------------------------------- */}
 
-          {count > 0 && (
-
-            <a
-              className="detail-rating"
-              href="#product-reviews"
-            >
-              {rating}{" "}
-
-              <span>
-                ★
-              </span>
-
-              {" | "}
-
-              {count} reviews
-            </a>
+          {product.description && (
+            <p className="product-summary">
+              {product.description}
+            </p>
           )}
 
 
-          {/* PRODUCT OPTIONS */}
+          {/* ---------------------------------------------
+              REAL SOCIAL PROOF
+          --------------------------------------------- */}
+
+          {count >
+            0 ? (
+            <a
+              className="detail-rating"
+              href="#product-reviews"
+              aria-label={`${rating} out of 5 from ${count} reviews. Jump to reviews.`}
+            >
+              <strong>
+                {rating}
+              </strong>
+
+              {" "}
+
+              <span aria-hidden="true">
+                ★
+              </span>
+
+              {" · "}
+
+              {count}{" "}
+              {count ===
+              1
+                ? "review"
+                : "reviews"}
+            </a>
+          ) : (
+            <p className="muted">
+              No customer reviews yet
+            </p>
+          )}
+
+
+          {/* ---------------------------------------------
+              PURCHASE OPTIONS
+          --------------------------------------------- */}
 
           <ProductOptions
             product={
@@ -482,13 +664,20 @@ function ProductDetail({
           />
 
 
-          {/* DELIVERY */}
+          {/* =============================================
+              PINCODE DELIVERY CHECK
+          ============================================= */}
 
           <div className="delivery-box">
-
             <h2>
-              DELIVERY OPTIONS
+              CHECK DELIVERY
             </h2>
+
+
+            <p className="muted">
+              Enter your pincode to save it for checkout.
+            </p>
+
 
             <form
               onSubmit={
@@ -502,20 +691,21 @@ function ProductDetail({
                 Delivery pincode
               </label>
 
+
               <input
                 id="delivery-pincode"
-                placeholder="Enter pincode"
+                placeholder="Enter 6-digit pincode"
                 value={
                   pincode
                 }
                 maxLength="6"
                 inputMode="numeric"
+                autoComplete="postal-code"
                 onChange={(
                   event
                 ) => {
                   setPincode(
-                    event
-                      .target
+                    event.target
                       .value
                       .replace(
                         /\D/g,
@@ -523,11 +713,13 @@ function ProductDetail({
                       )
                   );
 
+
                   setDelivery(
                     ""
                   );
                 }}
               />
+
 
               <button
                 className="text-link"
@@ -539,32 +731,56 @@ function ProductDetail({
 
 
             {delivery && (
-              <p role="status">
+              <p
+                role="status"
+                aria-live="polite"
+              >
                 {delivery}
               </p>
             )}
 
 
-            <p>
-              Standard delivery
-              is free on
-              qualifying totals
-              of ₹500 or more
-              after coupons.
-            </p>
+            {hasFreeDeliveryThreshold && (
+              <p>
+                Standard delivery is free on qualifying orders of{" "}
+                <strong>
+                  {money(
+                    freeDeliveryAbove
+                  )}
+                </strong>{" "}
+                or more after coupons.
+              </p>
+            )}
 
 
-            <p>
-              {
-                product.returnPolicy ||
-                "Return eligibility is shown with your order."
-              }
-            </p>
+            {product.delivery
+              ?.estimatedDays && (
+              <p>
+                <strong>
+                  Estimated delivery:
+                </strong>{" "}
 
+                {product.delivery
+                  .estimatedDays}
+              </p>
+            )}
+
+
+            {product.returnPolicy && (
+              <p>
+                <strong>
+                  Returns:
+                </strong>{" "}
+
+                {product.returnPolicy}
+              </p>
+            )}
           </div>
 
 
-          {/* PRODUCT DETAILS */}
+          {/* =============================================
+              PRODUCT DETAILS
+          ============================================= */}
 
           <details
             open
@@ -574,31 +790,49 @@ function ProductDetail({
               PRODUCT DETAILS
             </summary>
 
-            <p>
-              {
-                product.description
-              }
-            </p>
+
+            {product.description && (
+              <p>
+                {product.description}
+              </p>
+            )}
 
 
             {highlights.length >
               0 && (
+              <>
+                <h3>
+                  Product benefits
+                </h3>
 
-              <ul>
-                {highlights.map(
-                  (feature) => (
-                    <li
-                      key={
-                        feature
-                      }
-                    >
-                      {
-                        feature
-                      }
-                    </li>
-                  )
-                )}
-              </ul>
+
+                <ul>
+                  {highlights.map(
+                    (
+                      feature
+                    ) => (
+                      <li
+                        key={
+                          feature
+                        }
+                      >
+                        {feature}
+                      </li>
+                    )
+                  )}
+                </ul>
+              </>
+            )}
+
+
+            {product.whatsIncluded && (
+              <p>
+                <strong>
+                  What's included:
+                </strong>{" "}
+
+                {product.whatsIncluded}
+              </p>
             )}
 
 
@@ -612,22 +846,18 @@ function ProductDetail({
                     value,
                   ]
                 ) => (
-
                   <div
                     key={
                       label
                     }
                   >
                     <dt>
-                      {
-                        label
-                      }
+                      {label}
                     </dt>
 
+
                     <dd>
-                      {
-                        value
-                      }
+                      {value}
                     </dd>
                   </div>
                 )
@@ -636,19 +866,23 @@ function ProductDetail({
           </details>
 
 
-          {/* CARE */}
+          {/* =============================================
+              CARE
+          ============================================= */}
 
           <details className="product-description">
             <summary>
               CARE INSTRUCTIONS
             </summary>
 
+
             {careInstructions
               .length ? (
-
               <ul>
                 {careInstructions.map(
-                  (line) => (
+                  (
+                    line
+                  ) => (
                     <li
                       key={
                         line
@@ -661,21 +895,18 @@ function ProductDetail({
               </ul>
 
             ) : (
-
               <p>
-                Follow the care
-                label supplied
-                with the product.
+                Follow the care label supplied with the product.
               </p>
-
             )}
           </details>
 
 
-          {/* COMPARE / HELP */}
+          {/* =============================================
+              SECONDARY PRODUCT TOOLS
+          ============================================= */}
 
           <div className="bag-links">
-
             <button
               className="text-link"
               type="button"
@@ -688,11 +919,9 @@ function ProductDetail({
                 )
               }
             >
-              {
-                isCompared
-                  ? "Remove from comparison"
-                  : "Compare this product"
-              }
+              {isCompared
+                ? "✓ Added to comparison"
+                : "+ Compare product"}
             </button>
 
 
@@ -702,29 +931,27 @@ function ProductDetail({
                 product.id
               )}`}
             >
-              Ask about this
-              product
+              Need help choosing?
             </Link>
 
+
+            <button
+              type="button"
+              className="text-link"
+              onClick={
+                share
+              }
+            >
+              Share product ↗
+            </button>
           </div>
-
-
-          <button
-            type="button"
-            className="text-link"
-            onClick={
-              share
-            }
-          >
-            Share this product ↗
-          </button>
-
         </div>
-
       </div>
 
 
-      {/* REVIEWS */}
+      {/* =================================================
+          REVIEWS
+      ================================================= */}
 
       <ProductReviews
         product={
@@ -733,17 +960,24 @@ function ProductDetail({
       />
 
 
-      {/* RELATED */}
+      {/* =================================================
+          RELATED PRODUCTS
+      ================================================= */}
 
-      <ProductRow
-        title="YOU MAY ALSO LIKE"
-        products={
-          related
-        }
-      />
+      {related.length >
+        0 && (
+        <ProductRow
+          title="COMPLETE YOUR WORKOUT"
+          products={
+            related
+          }
+        />
+      )}
 
 
-      {/* RECENTLY VIEWED */}
+      {/* =================================================
+          RECENTLY VIEWED
+      ================================================= */}
 
       <RecentlyViewed
         exclude={
@@ -752,16 +986,19 @@ function ProductDetail({
       />
 
 
-      {/* IMAGE ZOOM */}
+      {/* =================================================
+          IMAGE ZOOM
+      ================================================= */}
 
       {zoom && (
-
         <Modal
           title={
             product.name
           }
           onClose={() =>
-            setZoom(false)
+            setZoom(
+              false
+            )
           }
           className="image-modal"
         >
@@ -778,9 +1015,7 @@ function ProductDetail({
 
           {images.length >
             1 && (
-
             <div className="pagination">
-
               <button
                 type="button"
                 onClick={() =>
@@ -823,13 +1058,10 @@ function ProductDetail({
               >
                 Next photo
               </button>
-
             </div>
           )}
-
         </Modal>
       )}
-
     </div>
   );
 }
@@ -842,72 +1074,91 @@ function ProductDetail({
 export default function ProductPage() {
   const {
     id,
-  } = useParams();
+  } =
+    useParams();
+
 
   const {
     products,
     loading,
     error,
     refreshProducts,
-  } = useCatalog();
+  } =
+    useCatalog();
 
 
-  // Support MongoDB ID,
-  // old numeric ID and slug.
+  // ====================================================
+  // FIND PRODUCT
+  //
+  // Supports:
+  // MongoDB ID
+  // legacy numeric ID
+  // slug
+  // ====================================================
+
   const product =
     products.find(
-      (item) =>
+      (
+        item
+      ) =>
         String(
           item.id
         ) ===
-          String(id) ||
+          String(
+            id
+          ) ||
 
         String(
           item._id
         ) ===
-          String(id) ||
+          String(
+            id
+          ) ||
 
         String(
           item.legacyId
         ) ===
-          String(id) ||
+          String(
+            id
+          ) ||
 
         String(
           item.slug
         ) ===
-          String(id)
+          String(
+            id
+          )
     );
 
 
-  // ======================================================
+  // ====================================================
   // LOADING
-  // ======================================================
+  // ====================================================
 
-  if (loading) {
+  if (
+    loading
+  ) {
     return (
-      <EmptyState
-        title="Loading product..."
-      >
-        Getting the latest
-        product information
-        from GymDrobe.
+      <EmptyState title="Loading product...">
+        Getting the latest product information from GymDrobe.
       </EmptyState>
     );
   }
 
 
-  // ======================================================
+  // ====================================================
   // ERROR
-  // ======================================================
+  // ====================================================
 
-  if (error) {
+  if (
+    error
+  ) {
     return (
-      <EmptyState
-        title="Unable to load product"
-      >
+      <EmptyState title="Unable to load product">
         <p>
           {error}
         </p>
+
 
         <button
           type="button"
@@ -918,6 +1169,7 @@ export default function ProductPage() {
         >
           Try again
         </button>
+
 
         <p>
           <Link
@@ -932,33 +1184,31 @@ export default function ProductPage() {
   }
 
 
-  // ======================================================
+  // ====================================================
   // NOT FOUND
-  // ======================================================
+  // ====================================================
 
-  if (!product) {
+  if (
+    !product
+  ) {
     return (
-      <EmptyState
-        title="Product not found"
-      >
-        This product may no
-        longer be available.{" "}
+      <EmptyState title="Product not found">
+        This product may no longer be available.{" "}
 
         <Link
           className="text-link"
           to="/shop"
         >
-          Explore our current
-          collection.
+          Explore our current collection.
         </Link>
       </EmptyState>
     );
   }
 
 
-  // ======================================================
+  // ====================================================
   // PRODUCT
-  // ======================================================
+  // ====================================================
 
   return (
     <ProductDetail

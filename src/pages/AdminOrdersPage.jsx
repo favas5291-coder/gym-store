@@ -41,26 +41,37 @@ const STATUS_OPTIONS = [
     value: "all",
     label: "All",
   },
+
+  {
+    value: "payment-pending",
+    label: "Payment pending",
+  },
+
   {
     value: "confirmed",
     label: "Confirmed",
   },
+
   {
     value: "processing",
     label: "Processing",
   },
+
   {
     value: "shipped",
     label: "Shipped",
   },
+
   {
     value: "out-for-delivery",
     label: "Out for delivery",
   },
+
   {
     value: "delivered",
     label: "Delivered",
   },
+
   {
     value: "cancelled",
     label: "Cancelled",
@@ -83,13 +94,26 @@ function statusLabel(
     );
 
 
-  return (
-    match?.label ||
-    String(
-      value ||
+  if (
+    match
+  ) {
+    return match.label;
+  }
+
+
+  return String(
+    value ||
       "Unknown"
+  )
+    .replaceAll(
+      "-",
+      " "
     )
-  );
+    .replace(
+      /\b\w/g,
+      (letter) =>
+        letter.toUpperCase()
+    );
 }
 
 
@@ -98,7 +122,8 @@ function money(
 ) {
   const amount =
     Number(
-      value || 0
+      value ||
+        0
     );
 
 
@@ -123,7 +148,9 @@ function money(
 function formatDate(
   value
 ) {
-  if (!value) {
+  if (
+    !value
+  ) {
     return "—";
   }
 
@@ -159,7 +186,9 @@ function formatDate(
 function dateInputValue(
   value
 ) {
-  if (!value) {
+  if (
+    !value
+  ) {
     return "";
   }
 
@@ -182,6 +211,7 @@ function dateInputValue(
   const year =
     date.getFullYear();
 
+
   const month =
     String(
       date.getMonth() +
@@ -190,6 +220,7 @@ function dateInputValue(
       2,
       "0"
     );
+
 
   const day =
     String(
@@ -260,6 +291,9 @@ function createDraft(
         order?.tracking
           ?.estimatedDelivery
       ),
+
+    codBalanceCollected:
+      false,
   };
 }
 
@@ -272,6 +306,14 @@ function StatusBadge({
   status,
 }) {
   const styles = {
+    "payment-pending": {
+      background:
+        "#fff7ed",
+
+      color:
+        "#9a3412",
+    },
+
     confirmed: {
       background:
         "#eef2ff",
@@ -386,7 +428,9 @@ function AdminOrderCard({
     expanded,
     setExpanded,
   ] =
-    useState(false);
+    useState(
+      false
+    );
 
 
   const [
@@ -402,21 +446,27 @@ function AdminOrderCard({
     loadingDetails,
     setLoadingDetails,
   ] =
-    useState(false);
+    useState(
+      false
+    );
 
 
   const [
     saving,
     setSaving,
   ] =
-    useState(false);
+    useState(
+      false
+    );
 
 
   const [
     error,
     setError,
   ] =
-    useState("");
+    useState(
+      ""
+    );
 
 
   const [
@@ -437,18 +487,22 @@ function AdminOrderCard({
         order
       );
 
+
       setDraft(
         createDraft(
           order
         )
       );
     },
-
     [
       order,
     ]
   );
 
+
+  // ====================================================
+  // DETAILS
+  // ====================================================
 
   async function toggleDetails() {
     if (
@@ -465,6 +519,7 @@ function AdminOrderCard({
     setExpanded(
       true
     );
+
 
     setError(
       ""
@@ -525,6 +580,117 @@ function AdminOrderCard({
   }
 
 
+  // ====================================================
+  // CURRENT ORDER
+  // ====================================================
+
+  const current =
+    detailedOrder ||
+    order;
+
+
+  const cancelled =
+    current?.status ===
+    "cancelled";
+
+
+  const delivered =
+    current?.status ===
+    "delivered";
+
+
+  const paymentPending =
+    current?.status ===
+    "payment-pending";
+
+
+  const currentIndex =
+    STATUS_FLOW.indexOf(
+      current?.status
+    );
+
+
+  // ====================================================
+  // PAYMENT INFORMATION
+  // ====================================================
+
+  const isPartialCod =
+    current?.payment
+      ?.method ===
+      "cod-partial" ||
+    current?.paymentMethod ===
+      "cod-partial";
+
+
+  const isFullOnline =
+    current?.payment
+      ?.method ===
+      "razorpay" ||
+    current?.paymentMethod ===
+      "razorpay";
+
+
+  const advancePercentage =
+    Number(
+      current?.payment
+        ?.advancePercentage ||
+      0
+    );
+
+
+  const advanceAmount =
+    Number(
+      current?.payment
+        ?.advanceAmount ||
+      0
+    );
+
+
+  const amountPaid =
+    Number(
+      current?.payment
+        ?.amountPaid ||
+      0
+    );
+
+
+  const amountDue =
+    Number(
+      current?.payment
+        ?.amountDue ||
+      0
+    );
+
+
+  const totalAmount =
+    Number(
+      current?.payment
+        ?.totalAmount ||
+      current?.pricing
+        ?.finalTotal ||
+      0
+    );
+
+
+  const codBalancePending =
+    isPartialCod &&
+    current?.payment
+      ?.balanceStatus ===
+      "pending" &&
+    amountDue >
+      0;
+
+
+  const deliveryNeedsCodConfirmation =
+    draft.status ===
+      "delivered" &&
+    codBalancePending;
+
+
+  // ====================================================
+  // SAVE ORDER
+  // ====================================================
+
   async function saveOrder(
     event
   ) {
@@ -539,9 +705,26 @@ function AdminOrderCard({
     }
 
 
+    if (
+      draft.status ===
+        "delivered" &&
+      codBalancePending &&
+      !draft.codBalanceCollected
+    ) {
+      setError(
+        `Confirm that ${money(
+          amountDue
+        )} was collected from the customer before marking this order delivered.`
+      );
+
+      return;
+    }
+
+
     setSaving(
       true
     );
+
 
     setError(
       ""
@@ -565,6 +748,15 @@ function AdminOrderCard({
 
             estimatedDelivery:
               draft.estimatedDelivery,
+
+            codBalanceCollected:
+              draft.status ===
+                "delivered" &&
+              codBalancePending
+                ? Boolean(
+                    draft.codBalanceCollected
+                  )
+                : false,
           }
         );
 
@@ -587,7 +779,12 @@ function AdminOrderCard({
 
 
       notify?.(
-        `Order ${id} updated.`
+        isPartialCod &&
+        draft.status ===
+          "delivered" &&
+        codBalancePending
+          ? `Order ${id} delivered and COD balance recorded.`
+          : `Order ${id} updated.`
       );
 
     } catch (
@@ -612,26 +809,9 @@ function AdminOrderCard({
   }
 
 
-  const current =
-    detailedOrder ||
-    order;
-
-
-  const cancelled =
-    current?.status ===
-      "cancelled";
-
-
-  const delivered =
-    current?.status ===
-      "delivered";
-
-
-  const currentIndex =
-    STATUS_FLOW.indexOf(
-      current?.status
-    );
-
+  // ====================================================
+  // PAGE
+  // ====================================================
 
   return (
     <article
@@ -647,6 +827,10 @@ function AdminOrderCard({
           "18px",
       }}
     >
+      {/* ===============================================
+          ORDER HEADER
+      =============================================== */}
+
       <div
         style={{
           display:
@@ -688,12 +872,14 @@ function AdminOrderCard({
               {id}
             </strong>
 
+
             <StatusBadge
               status={
                 current?.status
               }
             />
           </div>
+
 
           <p
             className="muted"
@@ -729,6 +915,7 @@ function AdminOrderCard({
             )}
           </strong>
 
+
           <p
             className="muted"
             style={{
@@ -755,6 +942,10 @@ function AdminOrderCard({
       </div>
 
 
+      {/* ===============================================
+          SUMMARY
+      =============================================== */}
+
       <div
         style={{
           display:
@@ -767,12 +958,15 @@ function AdminOrderCard({
             "14px",
         }}
       >
+        {/* CUSTOMER */}
+
         <div>
           <span
             className="muted"
           >
             Customer
           </span>
+
 
           <div>
             <strong>
@@ -781,6 +975,7 @@ function AdminOrderCard({
               )}
             </strong>
           </div>
+
 
           {customerEmail(
             current
@@ -796,6 +991,8 @@ function AdminOrderCard({
         </div>
 
 
+        {/* PAYMENT */}
+
         <div>
           <span
             className="muted"
@@ -803,29 +1000,125 @@ function AdminOrderCard({
             Payment
           </span>
 
+
           <div>
             <strong>
-              {String(
-                current
-                  ?.payment
-                  ?.method ||
-                current
-                  ?.paymentMethod ||
-                "COD"
-              ).toUpperCase()}
+              {isPartialCod
+                ? "CASH ON DELIVERY"
+                : isFullOnline
+                  ? "FULL ONLINE PAYMENT"
+                  : String(
+                      current
+                        ?.payment
+                        ?.method ||
+                      current
+                        ?.paymentMethod ||
+                      "Unknown"
+                    ).toUpperCase()}
             </strong>
           </div>
+
 
           <div
             className="muted"
           >
-            {current
-              ?.payment
-              ?.status ||
-              "pending"}
+            {statusLabel(
+              current
+                ?.payment
+                ?.status ||
+              "pending"
+            )}
           </div>
+
+
+          {isPartialCod && (
+            <div
+              style={{
+                display:
+                  "grid",
+
+                gap:
+                  "3px",
+
+                marginTop:
+                  "8px",
+              }}
+            >
+              <span>
+                Advance{" "}
+                {advancePercentage >
+                0
+                  ? `(${advancePercentage}%)`
+                  : ""}
+                :{" "}
+
+                <strong>
+                  {money(
+                    advanceAmount
+                  )}
+                </strong>
+              </span>
+
+
+              <span>
+                Paid:{" "}
+
+                <strong>
+                  {money(
+                    amountPaid
+                  )}
+                </strong>
+              </span>
+
+
+              <span>
+                Remaining COD:{" "}
+
+                <strong>
+                  {money(
+                    amountDue
+                  )}
+                </strong>
+              </span>
+
+
+              <span
+                className="muted"
+              >
+                Balance:{" "}
+                {statusLabel(
+                  current
+                    ?.payment
+                    ?.balanceStatus ||
+                  "pending"
+                )}
+              </span>
+            </div>
+          )}
+
+
+          {isFullOnline && (
+            <div
+              style={{
+                marginTop:
+                  "8px",
+              }}
+            >
+              <span>
+                Paid:{" "}
+
+                <strong>
+                  {money(
+                    amountPaid
+                  )}
+                </strong>
+              </span>
+            </div>
+          )}
         </div>
 
+
+        {/* DELIVERY */}
 
         <div>
           <span
@@ -833,6 +1126,7 @@ function AdminOrderCard({
           >
             Delivery
           </span>
+
 
           <div>
             <strong>
@@ -843,6 +1137,7 @@ function AdminOrderCard({
             </strong>
           </div>
 
+
           <div
             className="muted"
           >
@@ -850,7 +1145,9 @@ function AdminOrderCard({
               ?.shippingAddress
               ?.city ||
               "—"}
+
             {" · "}
+
             {current
               ?.shippingAddress
               ?.pincode ||
@@ -859,6 +1156,10 @@ function AdminOrderCard({
         </div>
       </div>
 
+
+      {/* ===============================================
+          ACTIONS
+      =============================================== */}
 
       <div
         style={{
@@ -884,6 +1185,7 @@ function AdminOrderCard({
             : "Manage order"}
         </button>
 
+
         <Link
           className="button secondary"
           to={`/orders/${encodeURIComponent(
@@ -894,6 +1196,10 @@ function AdminOrderCard({
         </Link>
       </div>
 
+
+      {/* ===============================================
+          EXPANDED DETAILS
+      =============================================== */}
 
       {expanded && (
         <div
@@ -917,12 +1223,18 @@ function AdminOrderCard({
             >
               Loading order…
             </p>
+
           ) : (
             <>
+              {/* =======================================
+                  ITEMS
+              ======================================== */}
+
               <section>
                 <h3>
                   Items
                 </h3>
+
 
                 <div
                   style={{
@@ -966,6 +1278,7 @@ function AdminOrderCard({
                             {item.name}
                           </strong>
 
+
                           <div
                             className="muted"
                           >
@@ -981,6 +1294,7 @@ function AdminOrderCard({
                               : ""}
                           </div>
                         </div>
+
 
                         <strong>
                           {money(
@@ -1001,10 +1315,260 @@ function AdminOrderCard({
               </section>
 
 
+              {/* =======================================
+                  PRICE / PAYMENT DETAILS
+              ======================================== */}
+
+              <section>
+                <h3>
+                  Payment details
+                </h3>
+
+
+                <div
+                  className="panel"
+                  style={{
+                    padding:
+                      "16px",
+
+                    display:
+                      "grid",
+
+                    gap:
+                      "10px",
+
+                    maxWidth:
+                      "620px",
+                  }}
+                >
+                  <div
+                    style={{
+                      display:
+                        "flex",
+
+                      justifyContent:
+                        "space-between",
+
+                      gap:
+                        "16px",
+                    }}
+                  >
+                    <span>
+                      Order total
+                    </span>
+
+                    <strong>
+                      {money(
+                        totalAmount
+                      )}
+                    </strong>
+                  </div>
+
+
+                  {isPartialCod && (
+                    <>
+                      <div
+                        style={{
+                          display:
+                            "flex",
+
+                          justifyContent:
+                            "space-between",
+
+                          gap:
+                            "16px",
+                        }}
+                      >
+                        <span>
+                          Advance paid online
+                          {advancePercentage >
+                          0
+                            ? ` (${advancePercentage}%)`
+                            : ""}
+                        </span>
+
+                        <strong>
+                          {money(
+                            advanceAmount
+                          )}
+                        </strong>
+                      </div>
+
+
+                      <div
+                        style={{
+                          display:
+                            "flex",
+
+                          justifyContent:
+                            "space-between",
+
+                          gap:
+                            "16px",
+                        }}
+                      >
+                        <span>
+                          Remaining COD
+                        </span>
+
+                        <strong>
+                          {money(
+                            amountDue
+                          )}
+                        </strong>
+                      </div>
+
+
+                      <div
+                        style={{
+                          display:
+                            "flex",
+
+                          justifyContent:
+                            "space-between",
+
+                          gap:
+                            "16px",
+                        }}
+                      >
+                        <span>
+                          COD balance status
+                        </span>
+
+                        <strong>
+                          {statusLabel(
+                            current
+                              ?.payment
+                              ?.balanceStatus ||
+                            "pending"
+                          )}
+                        </strong>
+                      </div>
+
+
+                      {current
+                        ?.payment
+                        ?.advancePaidAt && (
+                        <p
+                          className="muted"
+                          style={{
+                            margin:
+                              0,
+                          }}
+                        >
+                          Advance paid:{" "}
+                          {formatDate(
+                            current
+                              .payment
+                              .advancePaidAt
+                          )}
+                        </p>
+                      )}
+
+
+                      {current
+                        ?.payment
+                        ?.balanceCollectedAt && (
+                        <p
+                          className="muted"
+                          style={{
+                            margin:
+                              0,
+                          }}
+                        >
+                          COD balance collected:{" "}
+                          {formatDate(
+                            current
+                              .payment
+                              .balanceCollectedAt
+                          )}
+                        </p>
+                      )}
+                    </>
+                  )}
+
+
+                  {isFullOnline && (
+                    <>
+                      <div
+                        style={{
+                          display:
+                            "flex",
+
+                          justifyContent:
+                            "space-between",
+
+                          gap:
+                            "16px",
+                        }}
+                      >
+                        <span>
+                          Online amount paid
+                        </span>
+
+                        <strong>
+                          {money(
+                            amountPaid
+                          )}
+                        </strong>
+                      </div>
+
+
+                      <div
+                        style={{
+                          display:
+                            "flex",
+
+                          justifyContent:
+                            "space-between",
+
+                          gap:
+                            "16px",
+                        }}
+                      >
+                        <span>
+                          Amount due
+                        </span>
+
+                        <strong>
+                          {money(
+                            amountDue
+                          )}
+                        </strong>
+                      </div>
+                    </>
+                  )}
+
+
+                  {current
+                    ?.payment
+                    ?.razorpayPaymentId && (
+                    <p
+                      className="muted"
+                      style={{
+                        margin:
+                          0,
+                      }}
+                    >
+                      Razorpay payment ID:{" "}
+                      {current
+                        .payment
+                        .razorpayPaymentId}
+                    </p>
+                  )}
+                </div>
+              </section>
+
+
+              {/* =======================================
+                  SHIPPING ADDRESS
+              ======================================== */}
+
               <section>
                 <h3>
                   Shipping address
                 </h3>
+
 
                 <p>
                   <strong>
@@ -1018,12 +1582,14 @@ function AdminOrderCard({
                         current
                       )}
                   </strong>
+
                   <br />
 
                   {current
                     ?.shippingAddress
                     ?.addressLine ||
                     ""}
+
                   <br />
 
                   {current
@@ -1036,18 +1602,21 @@ function AdminOrderCard({
                     ?.shippingAddress
                     ?.city ||
                     ""}
+
                   {", "}
 
                   {current
                     ?.shippingAddress
                     ?.state ||
                     ""}
+
                   {" - "}
 
                   {current
                     ?.shippingAddress
                     ?.pincode ||
                     ""}
+
                   <br />
 
                   {current
@@ -1057,6 +1626,10 @@ function AdminOrderCard({
                 </p>
               </section>
 
+
+              {/* =======================================
+                  FULFILMENT
+              ======================================== */}
 
               <section>
                 <h3>
@@ -1070,6 +1643,14 @@ function AdminOrderCard({
                   >
                     This order was cancelled and cannot move through fulfilment.
                   </p>
+
+                ) : paymentPending ? (
+                  <p
+                    className="notice"
+                  >
+                    Payment is still pending. Fulfilment will unlock only after GymDrobe verifies the required Razorpay payment.
+                  </p>
+
                 ) : (
                   <form
                     onSubmit={
@@ -1086,6 +1667,8 @@ function AdminOrderCard({
                         "720px",
                     }}
                   >
+                    {/* STATUS */}
+
                     <div
                       className="field"
                     >
@@ -1094,6 +1677,7 @@ function AdminOrderCard({
                       >
                         Order status
                       </label>
+
 
                       <select
                         id={`status-${id}`}
@@ -1116,38 +1700,70 @@ function AdminOrderCard({
                                 event
                                   .target
                                   .value,
+
+                              codBalanceCollected:
+                                false,
                             })
                           )
                         }
                       >
                         {STATUS_FLOW.map(
                           (
-                            status,
+                            flowStatus,
                             index
                           ) => (
                             <option
                               key={
-                                status
+                                flowStatus
                               }
                               value={
-                                status
+                                flowStatus
                               }
                               disabled={
                                 currentIndex >=
                                   0 &&
-                                index <
-                                  currentIndex
+                                (
+                                  index <
+                                    currentIndex ||
+                                  index >
+                                    currentIndex +
+                                      1
+                                )
                               }
                             >
                               {statusLabel(
-                                status
+                                flowStatus
                               )}
                             </option>
                           )
                         )}
                       </select>
+
+
+                      {!delivered &&
+                        currentIndex >=
+                          0 &&
+                        currentIndex <
+                          STATUS_FLOW.length -
+                            1 && (
+                          <p
+                            className="muted"
+                          >
+                            Next step:{" "}
+                            <strong>
+                              {statusLabel(
+                                STATUS_FLOW[
+                                  currentIndex +
+                                    1
+                                ]
+                              )}
+                            </strong>
+                          </p>
+                        )}
                     </div>
 
+
+                    {/* TRACKING */}
 
                     <div
                       style={{
@@ -1169,6 +1785,7 @@ function AdminOrderCard({
                         >
                           Courier / carrier
                         </label>
+
 
                         <input
                           id={`carrier-${id}`}
@@ -1206,6 +1823,7 @@ function AdminOrderCard({
                           Tracking number
                         </label>
 
+
                         <input
                           id={`tracking-${id}`}
                           type="text"
@@ -1242,6 +1860,7 @@ function AdminOrderCard({
                           Estimated delivery
                         </label>
 
+
                         <input
                           id={`delivery-${id}`}
                           type="date"
@@ -1269,19 +1888,137 @@ function AdminOrderCard({
                     </div>
 
 
+                    {/* =================================
+                        COD COLLECTION CONFIRMATION
+                    ================================== */}
+
+                    {deliveryNeedsCodConfirmation && (
+                      <div
+                        className="notice"
+                        style={{
+                          display:
+                            "grid",
+
+                          gap:
+                            "12px",
+                        }}
+                      >
+                        <div>
+                          <strong>
+                            Remaining COD balance:{" "}
+                            {money(
+                              amountDue
+                            )}
+                          </strong>
+
+
+                          <p
+                            style={{
+                              margin:
+                                "6px 0 0",
+                            }}
+                          >
+                            The customer already paid{" "}
+                            {money(
+                              amountPaid
+                            )}{" "}
+                            online.
+                          </p>
+                        </div>
+
+
+                        <label
+                          className="check"
+                          style={{
+                            alignItems:
+                              "flex-start",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={
+                              Boolean(
+                                draft.codBalanceCollected
+                              )
+                            }
+                            disabled={
+                              saving
+                            }
+                            onChange={(
+                              event
+                            ) =>
+                              setDraft(
+                                (
+                                  currentDraft
+                                ) => ({
+                                  ...currentDraft,
+
+                                  codBalanceCollected:
+                                    event
+                                      .target
+                                      .checked,
+                                })
+                              )
+                            }
+                          />
+
+
+                          <span>
+                            <strong>
+                              I confirm {money(
+                                amountDue
+                              )} was collected from the customer.
+                            </strong>
+
+                            <br />
+
+                            <small
+                              className="muted"
+                            >
+                              Only confirm this after the delivery payment has actually been received.
+                            </small>
+                          </span>
+                        </label>
+                      </div>
+                    )}
+
+
+                    {/* DELIVERED */}
+
                     {delivered && (
-                      <p
+                      <div
                         className="notice"
                       >
+                        <strong>
+                          Delivered
+                        </strong>
+
+                        <br />
+
                         Delivered on{" "}
                         {formatDate(
                           current
                             ?.delivery
                             ?.deliveredAt
                         )}
-                      </p>
+
+
+                        {isPartialCod &&
+                          current
+                            ?.payment
+                            ?.balanceStatus ===
+                            "collected" && (
+                            <>
+                              <br />
+
+                              COD balance collected successfully.
+                            </>
+                          )}
+                      </div>
                     )}
 
+
+                    {/* ERROR */}
 
                     {error && (
                       <p
@@ -1293,19 +2030,29 @@ function AdminOrderCard({
                     )}
 
 
+                    {/* SAVE BUTTON */}
+
                     <div>
                       <button
                         type="submit"
                         className="button"
                         disabled={
-                          saving
+                          saving ||
+                          (
+                            deliveryNeedsCodConfirmation &&
+                            !draft.codBalanceCollected
+                          )
                         }
                       >
                         {saving
                           ? "Saving…"
-                          : delivered
-                            ? "Update tracking"
-                            : "Update order"}
+                          : deliveryNeedsCodConfirmation
+                            ? `Mark delivered · collect ${money(
+                                amountDue
+                              )}`
+                            : delivered
+                              ? "Update tracking"
+                              : "Update order"}
                       </button>
                     </div>
                   </form>
@@ -1313,10 +2060,15 @@ function AdminOrderCard({
               </section>
 
 
+              {/* =======================================
+                  TRACKING HISTORY
+              ======================================== */}
+
               <section>
                 <h3>
                   Tracking history
                 </h3>
+
 
                 {(
                   current
@@ -1363,6 +2115,7 @@ function AdminOrderCard({
                               )}
                             </strong>
 
+
                             <p
                               style={{
                                 margin:
@@ -1372,6 +2125,7 @@ function AdminOrderCard({
                               {event.description ||
                                 "Order update"}
                             </p>
+
 
                             <span
                               className="muted"
@@ -1384,6 +2138,7 @@ function AdminOrderCard({
                         )
                       )}
                   </div>
+
                 ) : (
                   <p
                     className="muted"
@@ -1393,6 +2148,10 @@ function AdminOrderCard({
                 )}
               </section>
 
+
+              {/* =======================================
+                  RETURN / EXCHANGE
+              ======================================== */}
 
               {current
                 ?.returnRequest
@@ -1406,6 +2165,7 @@ function AdminOrderCard({
                       Return / exchange
                     </h3>
 
+
                     <p>
                       <strong>
                         {String(
@@ -1415,13 +2175,16 @@ function AdminOrderCard({
                           ""
                         ).toUpperCase()}
                       </strong>
+
                       {" · "}
+
                       {statusLabel(
                         current
                           .returnRequest
                           .status
                       )}
                     </p>
+
 
                     <Link
                       className="text-link"
@@ -1462,21 +2225,27 @@ export default function AdminOrdersPage() {
     orders,
     setOrders,
   ] =
-    useState([]);
+    useState(
+      []
+    );
 
 
   const [
     loading,
     setLoading,
   ] =
-    useState(true);
+    useState(
+      true
+    );
 
 
   const [
     error,
     setError,
   ] =
-    useState("");
+    useState(
+      ""
+    );
 
 
   const [
@@ -1492,35 +2261,45 @@ export default function AdminOrdersPage() {
     searchInput,
     setSearchInput,
   ] =
-    useState("");
+    useState(
+      ""
+    );
 
 
   const [
     search,
     setSearch,
   ] =
-    useState("");
+    useState(
+      ""
+    );
 
 
   const [
     page,
     setPage,
   ] =
-    useState(1);
+    useState(
+      1
+    );
 
 
   const [
     pages,
     setPages,
   ] =
-    useState(1);
+    useState(
+      1
+    );
 
 
   const [
     total,
     setTotal,
   ] =
-    useState(0);
+    useState(
+      0
+    );
 
 
   // ====================================================
@@ -1542,9 +2321,16 @@ export default function AdminOrdersPage() {
           if (
             !cancelled
           ) {
-            setOrders([]);
-            setLoading(false);
+            setOrders(
+              []
+            );
+
+
+            setLoading(
+              false
+            );
           }
+
 
           return;
         }
@@ -1553,6 +2339,7 @@ export default function AdminOrdersPage() {
         setLoading(
           true
         );
+
 
         setError(
           ""
@@ -1584,24 +2371,45 @@ export default function AdminOrdersPage() {
 
 
           setOrders(
-            result.orders
+            Array.isArray(
+              result.orders
+            )
+              ? result.orders
+              : []
           );
+
 
           setTotal(
-            result.total
+            Number(
+              result.total ||
+              0
+            )
           );
 
+
           setPages(
-            result.pages
+            Math.max(
+              1,
+
+              Number(
+                result.pages ||
+                1
+              )
+            )
           );
 
 
           if (
-            result.page !==
+            Number(
+              result.page
+            ) !==
             page
           ) {
             setPage(
-              result.page
+              Number(
+                result.page ||
+                1
+              )
             );
           }
 
@@ -1617,7 +2425,10 @@ export default function AdminOrdersPage() {
           if (
             !cancelled
           ) {
-            setOrders([]);
+            setOrders(
+              []
+            );
+
 
             setError(
               loadError.message ||
@@ -1645,7 +2456,6 @@ export default function AdminOrdersPage() {
           true;
       };
     },
-
     [
       token,
       user?.role,
@@ -1664,6 +2474,9 @@ export default function AdminOrdersPage() {
     useMemo(
       () => {
         const values = {
+          "payment-pending":
+            0,
+
           confirmed:
             0,
 
@@ -1697,14 +2510,14 @@ export default function AdminOrdersPage() {
           ) {
             values[
               order.status
-            ] += 1;
+            ] +=
+              1;
           }
         }
 
 
         return values;
       },
-
       [
         orders,
       ]
@@ -1737,9 +2550,11 @@ export default function AdminOrdersPage() {
       ""
     );
 
+
     setSearch(
       ""
     );
+
 
     setPage(
       1
@@ -1753,6 +2568,7 @@ export default function AdminOrdersPage() {
     setStatus(
       nextStatus
     );
+
 
     setPage(
       1
@@ -1775,18 +2591,22 @@ export default function AdminOrdersPage() {
       ) =>
         current.map(
           (
-            order
+            item
           ) =>
             orderIdOf(
-              order
+              item
             ) ===
             id
               ? updated
-              : order
+              : item
         )
     );
   }
 
+
+  // ====================================================
+  // PAGE
+  // ====================================================
 
   return (
     <div
@@ -1799,6 +2619,10 @@ export default function AdminOrdersPage() {
           "24px",
       }}
     >
+      {/* ===============================================
+          HEADING
+      =============================================== */}
+
       <div
         className="page-heading"
         style={{
@@ -1829,14 +2653,16 @@ export default function AdminOrdersPage() {
             GymDrobe Admin
           </p>
 
+
           <h1>
             Order management
           </h1>
 
+
           <p
             className="muted"
           >
-            Manage fulfilment, courier tracking and delivery updates from one place.
+            Manage payment verification, COD balances, fulfilment, courier tracking and delivery updates from one place.
           </p>
         </div>
 
@@ -1849,6 +2675,10 @@ export default function AdminOrdersPage() {
         </Link>
       </div>
 
+
+      {/* ===============================================
+          STATS
+      =============================================== */}
 
       <section
         style={{
@@ -1866,6 +2696,13 @@ export default function AdminOrdersPage() {
           [
             "Total results",
             total,
+          ],
+
+          [
+            "Payment pending",
+            stats[
+              "payment-pending"
+            ],
           ],
 
           [
@@ -1921,6 +2758,7 @@ export default function AdminOrdersPage() {
                 {value}
               </strong>
 
+
               <span
                 className="muted"
               >
@@ -1931,6 +2769,10 @@ export default function AdminOrdersPage() {
         )}
       </section>
 
+
+      {/* ===============================================
+          FILTERS
+      =============================================== */}
 
       <section
         className="panel"
@@ -1985,12 +2827,14 @@ export default function AdminOrdersPage() {
             }}
           />
 
+
           <button
             type="submit"
             className="button"
           >
             Search
           </button>
+
 
           {search && (
             <button
@@ -2048,6 +2892,10 @@ export default function AdminOrdersPage() {
       </section>
 
 
+      {/* ===============================================
+          ERROR
+      =============================================== */}
+
       {error && (
         <p
           className="field-error"
@@ -2057,6 +2905,10 @@ export default function AdminOrdersPage() {
         </p>
       )}
 
+
+      {/* ===============================================
+          ORDER RESULTS
+      =============================================== */}
 
       {loading ? (
         <div
@@ -2085,6 +2937,7 @@ export default function AdminOrdersPage() {
           <h2>
             No orders found
           </h2>
+
 
           <p
             className="muted"
@@ -2132,7 +2985,12 @@ export default function AdminOrdersPage() {
       )}
 
 
-      {pages > 1 && (
+      {/* ===============================================
+          PAGINATION
+      =============================================== */}
+
+      {pages >
+        1 && (
         <div
           style={{
             display:
@@ -2155,7 +3013,8 @@ export default function AdminOrdersPage() {
             type="button"
             className="button secondary"
             disabled={
-              page <= 1 ||
+              page <=
+                1 ||
               loading
             }
             onClick={
@@ -2166,6 +3025,7 @@ export default function AdminOrdersPage() {
                   ) =>
                     Math.max(
                       1,
+
                       current -
                         1
                     )
@@ -2198,6 +3058,7 @@ export default function AdminOrdersPage() {
                   ) =>
                     Math.min(
                       pages,
+
                       current +
                         1
                     )

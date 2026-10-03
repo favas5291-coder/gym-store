@@ -34,22 +34,68 @@ const orderRoutes =
     "./routes/orderRoutes"
   );
 
+const paymentRoutes =
+  require(
+    "./routes/paymentRoutes"
+  );
+
+const paymentWebhookRoutes =
+  require(
+    "./routes/paymentWebhookRoutes"
+  );
+
 
 const app =
   express();
 
 
 // ======================================================
-// MIDDLEWARE
+// CORS
 // ======================================================
 
 app.use(
   cors()
 );
 
+
+// ======================================================
+// RAZORPAY WEBHOOK RAW BODY
+//
+// IMPORTANT:
+//
+// This MUST be before express.json().
+//
+// Razorpay signs the exact raw request body.
+// If express.json() parses it first, webhook signature
+// verification will fail.
+// ======================================================
+
+app.use(
+  "/api/payment-webhooks",
+
+  express.raw({
+    type:
+      "application/json",
+
+    limit:
+      "1mb",
+  }),
+
+  paymentWebhookRoutes
+);
+
+
+// ======================================================
+// NORMAL JSON API BODY PARSER
+//
+// All normal GymDrobe API routes below this point use
+// req.body as a JavaScript object.
+// ======================================================
+
 app.use(
   express.json({
-    limit: "1mb",
+    limit:
+      "1mb",
   })
 );
 
@@ -61,11 +107,17 @@ app.use(
 app.get(
   "/api/health",
 
-  (req, res) => {
+  (
+    req,
     res
-      .status(200)
+  ) => {
+    res
+      .status(
+        200
+      )
       .json({
-        success: true,
+        success:
+          true,
 
         message:
           "GymDrobe API is running",
@@ -75,7 +127,7 @@ app.get(
 
 
 // ======================================================
-// ROUTES
+// PRODUCT ROUTES
 // ======================================================
 
 app.use(
@@ -83,15 +135,30 @@ app.use(
   productRoutes
 );
 
+
+// ======================================================
+// AUTH ROUTES
+// ======================================================
+
 app.use(
   "/api/auth",
   authRoutes
 );
 
+
+// ======================================================
+// ADDRESS ROUTES
+// ======================================================
+
 app.use(
   "/api/addresses",
   addressRoutes
 );
+
+
+// ======================================================
+// ORDER ROUTES
+// ======================================================
 
 app.use(
   "/api/orders",
@@ -100,15 +167,43 @@ app.use(
 
 
 // ======================================================
+// PAYMENT ROUTES
+//
+// POST /api/payments/razorpay/order
+// POST /api/payments/razorpay/verify
+// ======================================================
+
+app.use(
+  "/api/payments",
+  paymentRoutes
+);
+
+
+// ======================================================
+// WEBHOOK ROUTE
+//
+// POST /api/payment-webhooks/razorpay
+//
+// Already mounted ABOVE express.json()
+// ======================================================
+
+
+// ======================================================
 // 404
 // ======================================================
 
 app.use(
-  (req, res) => {
+  (
+    req,
     res
-      .status(404)
+  ) => {
+    res
+      .status(
+        404
+      )
       .json({
-        success: false,
+        success:
+          false,
 
         message:
           "API route not found.",
@@ -146,12 +241,22 @@ async function startServer() {
       }
     );
 
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "❌ Server was not started because MongoDB could not connect."
     );
 
-    process.exit(1);
+
+    console.error(
+      error
+    );
+
+
+    process.exit(
+      1
+    );
   }
 }
 

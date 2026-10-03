@@ -35,6 +35,582 @@ import AccountLayout from "../components/AccountLayout.jsx";
 
 
 // ======================================================
+// NUMBER
+// ======================================================
+
+function number(
+  value
+) {
+  const parsed =
+    Number(
+      value
+    );
+
+  return Number.isFinite(
+    parsed
+  )
+    ? parsed
+    : 0;
+}
+
+
+// ======================================================
+// PAYMENT METHOD
+// ======================================================
+
+function paymentMethodLabel(
+  order
+) {
+  const method =
+    order?.payment
+      ?.method ||
+    order?.paymentMethod ||
+    "";
+
+
+  if (
+    method ===
+    "cod-partial"
+  ) {
+    return "COD with 10% advance";
+  }
+
+
+  if (
+    method ===
+    "razorpay"
+  ) {
+    return "Full online payment";
+  }
+
+
+  if (
+    method ===
+    "cod"
+  ) {
+    return "Cash on delivery";
+  }
+
+
+  return "Payment not recorded";
+}
+
+
+// ======================================================
+// PAYMENT STATUS
+// ======================================================
+
+function paymentStatusLabel(
+  order
+) {
+  const status =
+    order?.payment
+      ?.status ||
+    "pending";
+
+
+  if (
+    status ===
+    "partially-paid"
+  ) {
+    return "Advance paid";
+  }
+
+
+  if (
+    status ===
+    "paid"
+  ) {
+    return "Paid";
+  }
+
+
+  if (
+    status ===
+    "failed"
+  ) {
+    return "Payment failed";
+  }
+
+
+  if (
+    status ===
+    "refunded"
+  ) {
+    return "Refunded";
+  }
+
+
+  return "Payment pending";
+}
+
+
+// ======================================================
+// PAYMENT STATUS CLASS
+// ======================================================
+
+function paymentStatusClass(
+  order
+) {
+  const status =
+    order?.payment
+      ?.status ||
+    "pending";
+
+
+  if (
+    status ===
+    "paid"
+  ) {
+    return "success";
+  }
+
+
+  if (
+    status ===
+    "partially-paid"
+  ) {
+    return "partial";
+  }
+
+
+  if (
+    status ===
+      "failed" ||
+    status ===
+      "refunded"
+  ) {
+    return "cancelled";
+  }
+
+
+  return "pending";
+}
+
+
+// ======================================================
+// TOTAL
+// ======================================================
+
+function getOrderTotal(
+  order
+) {
+  const paymentTotal =
+    number(
+      order?.payment
+        ?.totalAmount
+    );
+
+
+  if (
+    paymentTotal >
+    0
+  ) {
+    return paymentTotal;
+  }
+
+
+  const pricingTotal =
+    number(
+      order?.pricing
+        ?.finalTotal
+    );
+
+
+  if (
+    pricingTotal >
+    0
+  ) {
+    return pricingTotal;
+  }
+
+
+  return number(
+    orderTotal(
+      order
+    )
+  );
+}
+
+
+// ======================================================
+// AMOUNT PAID
+// ======================================================
+
+function getAmountPaid(
+  order
+) {
+  return Math.max(
+    0,
+
+    number(
+      order?.payment
+        ?.amountPaid
+    )
+  );
+}
+
+
+// ======================================================
+// AMOUNT DUE
+// ======================================================
+
+function getAmountDue(
+  order
+) {
+  return Math.max(
+    0,
+
+    number(
+      order?.payment
+        ?.amountDue
+    )
+  );
+}
+
+
+// ======================================================
+// PAYMENT SUMMARY
+// ======================================================
+
+function PaymentSummary({
+  order,
+}) {
+  const method =
+    order?.payment
+      ?.method ||
+    order?.paymentMethod ||
+    "";
+
+
+  const paymentStatus =
+    order?.payment
+      ?.status ||
+    "pending";
+
+
+  const amountPaid =
+    getAmountPaid(
+      order
+    );
+
+
+  const amountDue =
+    getAmountDue(
+      order
+    );
+
+
+  const advanceAmount =
+    Math.max(
+      0,
+
+      number(
+        order?.payment
+          ?.advanceAmount
+      )
+    );
+
+
+  const balanceStatus =
+    order?.payment
+      ?.balanceStatus ||
+    "";
+
+
+  const refundStatus =
+    order?.refund
+      ?.status ||
+    "not-requested";
+
+
+  const refundAmount =
+    Math.max(
+      0,
+
+      number(
+        order?.refund
+          ?.amount
+      )
+    );
+
+
+  // ====================================================
+  // CANCELLED / REFUND
+  // ====================================================
+
+  if (
+    order?.status ===
+    "cancelled"
+  ) {
+    if (
+      refundStatus ===
+        "refunded" &&
+      refundAmount >
+        0
+    ) {
+      return (
+        <div className="order-payment-info">
+          <p>
+            <strong>
+              {paymentMethodLabel(
+                order
+              )}
+            </strong>
+          </p>
+
+          <p className="order-payment-refund">
+            Refunded:{" "}
+            <strong>
+              {money(
+                refundAmount
+              )}
+            </strong>
+          </p>
+        </div>
+      );
+    }
+
+
+    if (
+      refundStatus ===
+        "pending" &&
+      refundAmount >
+        0
+    ) {
+      return (
+        <div className="order-payment-info">
+          <p>
+            <strong>
+              {paymentMethodLabel(
+                order
+              )}
+            </strong>
+          </p>
+
+          <p>
+            Refund processing:{" "}
+            <strong>
+              {money(
+                refundAmount
+              )}
+            </strong>
+          </p>
+        </div>
+      );
+    }
+
+
+    if (
+      refundStatus ===
+        "manual-required" &&
+      refundAmount >
+        0
+    ) {
+      return (
+        <div className="order-payment-info">
+          <p>
+            <strong>
+              {paymentMethodLabel(
+                order
+              )}
+            </strong>
+          </p>
+
+          <p>
+            Refund under review:{" "}
+            <strong>
+              {money(
+                refundAmount
+              )}
+            </strong>
+          </p>
+        </div>
+      );
+    }
+
+
+    return (
+      <div className="order-payment-info">
+        <p>
+          <strong>
+            {paymentMethodLabel(
+              order
+            )}
+          </strong>
+        </p>
+      </div>
+    );
+  }
+
+
+  // ====================================================
+  // PARTIAL COD
+  // ====================================================
+
+  if (
+    method ===
+    "cod-partial"
+  ) {
+    const paidAdvance =
+      amountPaid >
+      0
+        ? amountPaid
+        : advanceAmount;
+
+
+    if (
+      paymentStatus ===
+        "paid" ||
+      balanceStatus ===
+        "collected"
+    ) {
+      return (
+        <div className="order-payment-info">
+          <p>
+            <strong>
+              COD with 10% advance
+            </strong>
+          </p>
+
+          <p className="order-payment-success">
+            Payment completed
+          </p>
+
+          <small>
+            Total paid:{" "}
+            {money(
+              getOrderTotal(
+                order
+              )
+            )}
+          </small>
+        </div>
+      );
+    }
+
+
+    if (
+      paymentStatus ===
+      "partially-paid"
+    ) {
+      return (
+        <div className="order-payment-info">
+          <p>
+            <strong>
+              COD with 10% advance
+            </strong>
+          </p>
+
+          <p className="order-payment-success">
+            Advance paid:{" "}
+            <strong>
+              {money(
+                paidAdvance
+              )}
+            </strong>
+          </p>
+
+          {amountDue >
+            0 && (
+            <small>
+              Pay on delivery:{" "}
+              <strong>
+                {money(
+                  amountDue
+                )}
+              </strong>
+            </small>
+          )}
+        </div>
+      );
+    }
+
+
+    return (
+      <div className="order-payment-info">
+        <p>
+          <strong>
+            COD with 10% advance
+          </strong>
+        </p>
+
+        <small>
+          {paymentStatusLabel(
+            order
+          )}
+        </small>
+      </div>
+    );
+  }
+
+
+  // ====================================================
+  // FULL ONLINE
+  // ====================================================
+
+  if (
+    method ===
+    "razorpay"
+  ) {
+    return (
+      <div className="order-payment-info">
+        <p>
+          <strong>
+            Full online payment
+          </strong>
+        </p>
+
+        {paymentStatus ===
+        "paid" ? (
+          <p className="order-payment-success">
+            Paid:{" "}
+            <strong>
+              {money(
+                amountPaid ||
+                  getOrderTotal(
+                    order
+                  )
+              )}
+            </strong>
+          </p>
+        ) : (
+          <small>
+            {paymentStatusLabel(
+              order
+            )}
+          </small>
+        )}
+      </div>
+    );
+  }
+
+
+  // ====================================================
+  // LEGACY COD
+  // ====================================================
+
+  return (
+    <div className="order-payment-info">
+      <p>
+        <strong>
+          {paymentMethodLabel(
+            order
+          )}
+        </strong>
+      </p>
+
+      <small>
+        {paymentStatusLabel(
+          order
+        )}
+      </small>
+    </div>
+  );
+}
+
+
+// ======================================================
 // ORDERS PAGE
 // ======================================================
 
@@ -46,7 +622,8 @@ export default function OrdersPage() {
   const {
     user,
     token,
-  } = useAuth();
+  } =
+    useAuth();
 
 
   // ====================================================
@@ -56,21 +633,26 @@ export default function OrdersPage() {
   const [
     remoteOrders,
     setRemoteOrders,
-  ] = useState([]);
+  ] =
+    useState([]);
 
 
   const [
     loading,
     setLoading,
-  ] = useState(
-    Boolean(user)
-  );
+  ] =
+    useState(
+      Boolean(
+        user
+      )
+    );
 
 
   const [
     loadError,
     setLoadError,
-  ] = useState("");
+  ] =
+    useState("");
 
 
   // ====================================================
@@ -80,145 +662,167 @@ export default function OrdersPage() {
   const [
     query,
     setQuery,
-  ] = useState("");
+  ] =
+    useState("");
 
 
   const [
     status,
     setStatus,
-  ] = useState("");
+  ] =
+    useState("");
 
 
   const [
     days,
     setDays,
-  ] = useState("");
+  ] =
+    useState("");
 
 
   // ====================================================
   // LOAD SIGNED-IN USER ORDERS FROM MONGODB
   // ====================================================
 
-  useEffect(() => {
-    let cancelled =
-      false;
+  useEffect(
+    () => {
+      let cancelled =
+        false;
 
 
-    async function loadOrders() {
-      // Guest:
-      // localStorage orders are used instead.
+      async function loadOrders() {
+        // Guest:
+        // localStorage orders are used instead.
 
-      if (!user) {
-        setRemoteOrders(
-          []
+        if (
+          !user
+        ) {
+          setRemoteOrders(
+            []
+          );
+
+
+          setLoadError(
+            ""
+          );
+
+
+          setLoading(
+            false
+          );
+
+
+          return;
+        }
+
+
+        // Logged-in user should have JWT.
+
+        if (
+          !token
+        ) {
+          setRemoteOrders(
+            []
+          );
+
+
+          setLoading(
+            false
+          );
+
+
+          setLoadError(
+            "Your sign-in session has expired. Please sign in again."
+          );
+
+
+          return;
+        }
+
+
+        setLoading(
+          true
         );
+
 
         setLoadError(
           ""
         );
 
-        setLoading(
-          false
-        );
 
-        return;
-      }
-
-
-      // Logged-in user should have a JWT.
-
-      if (!token) {
-        setRemoteOrders(
-          []
-        );
-
-        setLoading(
-          false
-        );
-
-        setLoadError(
-          "Your sign-in session has expired. Please sign in again."
-        );
-
-        return;
-      }
+        try {
+          const orders =
+            await getRemoteOrders(
+              token
+            );
 
 
-      setLoading(
-        true
-      );
-
-      setLoadError(
-        ""
-      );
+          if (
+            cancelled
+          ) {
+            return;
+          }
 
 
-      try {
-        const orders =
-          await getRemoteOrders(
-            token
+          setRemoteOrders(
+            Array.isArray(
+              orders
+            )
+              ? orders
+              : []
           );
 
-
-        if (cancelled) {
-          return;
-        }
-
-
-        setRemoteOrders(
-          Array.isArray(
-            orders
-          )
-            ? orders
-            : []
-        );
-
-      } catch (
-        error
-      ) {
-        if (cancelled) {
-          return;
-        }
-
-
-        console.error(
-          "Load orders error:",
+        } catch (
           error
-        );
+        ) {
+          if (
+            cancelled
+          ) {
+            return;
+          }
 
 
-        setRemoteOrders(
-          []
-        );
-
-
-        setLoadError(
-          error.message ||
-            "Your orders could not be loaded."
-        );
-
-      } finally {
-        if (!cancelled) {
-          setLoading(
-            false
+          console.error(
+            "Load orders error:",
+            error
           );
+
+
+          setRemoteOrders(
+            []
+          );
+
+
+          setLoadError(
+            error.message ||
+              "Your orders could not be loaded."
+          );
+
+        } finally {
+          if (
+            !cancelled
+          ) {
+            setLoading(
+              false
+            );
+          }
         }
       }
-    }
 
 
-    loadOrders();
+      loadOrders();
 
 
-    return () => {
-      cancelled =
-        true;
-    };
-
-  }, [
-    user?.id,
-    token,
-  ]);
+      return () => {
+        cancelled =
+          true;
+      };
+    },
+    [
+      user?.id,
+      token,
+    ]
+  );
 
 
   // ====================================================
@@ -253,7 +857,9 @@ export default function OrdersPage() {
 
   const matches =
     orders.filter(
-      (order) => {
+      (
+        order
+      ) => {
         const matchesStatus =
           !status ||
           order.status ===
@@ -274,7 +880,9 @@ export default function OrdersPage() {
             ) &&
             Date.now() -
               createdTime <=
-              Number(days) *
+              Number(
+                days
+              ) *
                 86400000
           );
 
@@ -282,20 +890,33 @@ export default function OrdersPage() {
         const searchableText =
           [
             order.id,
+
             order.orderNumber,
+
+            paymentMethodLabel(
+              order
+            ),
+
+            paymentStatusLabel(
+              order
+            ),
 
             ...(
               order.items ||
               []
             ).map(
-              (item) =>
+              (
+                item
+              ) =>
                 item.name
             ),
           ]
             .filter(
               Boolean
             )
-            .join(" ")
+            .join(
+              " "
+            )
             .toLowerCase();
 
 
@@ -321,7 +942,6 @@ export default function OrdersPage() {
 
   return (
     <AccountLayout title="Orders & returns">
-
       <p className="muted">
         {user
           ? "Your signed-in orders are loaded from your GymDrobe account."
@@ -348,7 +968,6 @@ export default function OrdersPage() {
       ================================================= */}
 
       <div className="field order-search">
-
         <label htmlFor="order-search">
           Search your orders
         </label>
@@ -368,7 +987,6 @@ export default function OrdersPage() {
             )
           }
         />
-
       </div>
 
 
@@ -377,7 +995,6 @@ export default function OrdersPage() {
       ================================================= */}
 
       <div className="browse-controls">
-
         <label>
           Status{" "}
 
@@ -399,6 +1016,7 @@ export default function OrdersPage() {
 
 
             {[
+              "payment-pending",
               "confirmed",
               "processing",
               "shipped",
@@ -458,10 +1076,8 @@ export default function OrdersPage() {
             <option value="365">
               Last year
             </option>
-
           </select>
         </label>
-
       </div>
 
 
@@ -469,19 +1085,18 @@ export default function OrdersPage() {
           LOADING
       ================================================= */}
 
-      {loading && user && (
-        <div className="empty-state">
+      {loading &&
+        user && (
+          <div className="empty-state">
+            <h3>
+              Loading your orders…
+            </h3>
 
-          <h3>
-            Loading your orders…
-          </h3>
-
-          <p>
-            Getting your latest GymDrobe orders.
-          </p>
-
-        </div>
-      )}
+            <p>
+              Getting your latest GymDrobe orders.
+            </p>
+          </div>
+        )}
 
 
       {/* =================================================
@@ -490,18 +1105,22 @@ export default function OrdersPage() {
 
       {!loading &&
         matches.map(
-          (order) => (
+          (
+            order
+          ) => (
             <article
               className="order-card"
               key={
-                order.id
+                order.id ||
+                order.orderNumber
               }
             >
+              {/* =========================================
+                  HEADER
+              ========================================= */}
 
               <div className="order-card-head">
-
                 <div>
-
                   <strong>
                     {new Date(
                       order.createdAt
@@ -522,9 +1141,9 @@ export default function OrdersPage() {
 
 
                   <small>
-                    {order.id}
+                    {order.id ||
+                      order.orderNumber}
                   </small>
-
                 </div>
 
 
@@ -533,23 +1152,27 @@ export default function OrdersPage() {
                     order.status ===
                     "cancelled"
                       ? "cancelled"
-                      : ""
+                      : order.status ===
+                        "payment-pending"
+                        ? "pending"
+                        : ""
                   }`}
                 >
-                  {orderStatus(
-                    order
-                  )}
+                  {order.status ===
+                  "payment-pending"
+                    ? "Payment pending"
+                    : orderStatus(
+                        order
+                      )}
                 </span>
-
               </div>
 
 
-              {/* ===========================================
+              {/* =========================================
                   PRODUCT IMAGES
-              =========================================== */}
+              ========================================= */}
 
               <div className="order-preview">
-
                 {(order.items || [])
                   .slice(
                     0,
@@ -561,25 +1184,26 @@ export default function OrdersPage() {
                       index
                     ) => (
                       <ProductImage
-                        key={`${order.id}-${item.id || item.productId || index}`}
+                        key={`${order.id || order.orderNumber}-${item.id || item.productId || index}`}
                         product={
                           item
                         }
                       />
                     )
                   )}
-
               </div>
 
 
-              {/* ===========================================
+              {/* =========================================
                   PRODUCT NAMES
-              =========================================== */}
+              ========================================= */}
 
               <p>
                 {(order.items || [])
                   .map(
-                    (item) =>
+                    (
+                      item
+                    ) =>
                       item.name
                   )
                   .join(
@@ -588,32 +1212,66 @@ export default function OrdersPage() {
               </p>
 
 
-              {/* ===========================================
+              {/* =========================================
+                  PAYMENT
+              ========================================= */}
+
+              <PaymentSummary
+                order={
+                  order
+                }
+              />
+
+
+              {/* =========================================
+                  PAYMENT STATUS BADGE
+              ========================================= */}
+
+              {user && (
+                <div className="order-payment-status-row">
+                  <span
+                    className={`status-pill ${paymentStatusClass(
+                      order
+                    )}`}
+                  >
+                    {paymentStatusLabel(
+                      order
+                    )}
+                  </span>
+                </div>
+              )}
+
+
+              {/* =========================================
                   TOTAL + DETAILS
-              =========================================== */}
+              ========================================= */}
 
               <div className="order-card-bottom">
+                <div>
+                  <small className="muted">
+                    Order total
+                  </small>
 
-                <strong>
-                  {money(
-                    orderTotal(
-                      order
-                    )
-                  )}
-                </strong>
+                  <strong>
+                    {money(
+                      getOrderTotal(
+                        order
+                      )
+                    )}
+                  </strong>
+                </div>
 
 
                 <Link
                   className="text-link"
                   to={`/orders/${encodeURIComponent(
-                    order.id
+                    order.id ||
+                      order.orderNumber
                   )}`}
                 >
                   View details →
                 </Link>
-
               </div>
-
             </article>
           )
         )}
@@ -626,7 +1284,6 @@ export default function OrdersPage() {
       {!loading &&
         !matches.length && (
           <div className="empty-state">
-
             <h3>
               {orders.length
                 ? "No matching orders"
@@ -649,10 +1306,8 @@ export default function OrdersPage() {
             >
               Explore the collection
             </Link>
-
           </div>
         )}
-
     </AccountLayout>
   );
 }

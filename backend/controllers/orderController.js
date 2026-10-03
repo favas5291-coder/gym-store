@@ -144,8 +144,8 @@ function cleanAddress(
 
 
   if (
-    address.fullName
-      .length < 2
+    address.fullName.length <
+    2
   ) {
     throw httpError(
       400,
@@ -179,8 +179,8 @@ function cleanAddress(
 
 
   if (
-    address.addressLine
-      .length < 5
+    address.addressLine.length <
+    5
   ) {
     throw httpError(
       400,
@@ -521,24 +521,20 @@ function getDeliveredAt(
 
   for (
     let index =
-      events.length -
-      1;
+      events.length - 1;
 
-    index >=
-    0;
+    index >= 0;
 
     index--
   ) {
     if (
-      events[
-        index
-      ]?.status ===
+      events[index]
+        ?.status ===
       "delivered"
     ) {
       return (
-        events[
-          index
-        ].timestamp ||
+        events[index]
+          .timestamp ||
         null
       );
     }
@@ -1001,6 +997,15 @@ async function loadProductForInventory(
 
 // ======================================================
 // CREATE ORDER
+//
+// IMPORTANT:
+//
+// New GymDrobe orders are created by paymentController.
+//
+// This route is kept only for compatibility / idempotent
+// lookup of an order already created using checkoutToken.
+//
+// Free COD checkout is no longer allowed.
 // ======================================================
 
 async function createOrder(
@@ -1023,9 +1028,7 @@ async function createOrder(
     !checkoutToken
   ) {
     return res
-      .status(
-        400
-      )
+      .status(400)
       .json({
         success:
           false,
@@ -1050,9 +1053,7 @@ async function createOrder(
       existing
     ) {
       return res
-        .status(
-          200
-        )
+        .status(200)
         .json({
           success:
             true,
@@ -1068,641 +1069,36 @@ async function createOrder(
     }
 
 
-    const requestedItems =
-      normalizeRequestedItems(
-        req.body?.items
-      );
-
-
-    const shippingAddress =
-      cleanAddress(
-        req.body
-          ?.shippingAddress
-      );
-
-
-    const deliveryMethod =
-      req.body
-        ?.deliveryMethod ===
-      "express"
-        ? "express"
-        : "standard";
-
-
-    const source =
-      [
-        "cart",
-        "selection",
-        "buy-now",
-      ].includes(
-        req.body?.source
-      )
-        ? req.body.source
-        : "cart";
-
-
-    const coupon =
-      resolveCoupon(
-        req.body?.coupon
-      );
-
-
-    const expectedTotal =
-      Number(
-        req.body
-          ?.expectedTotal
-      );
-
-
-    const giftMessage =
-      cleanString(
-        req.body
-          ?.giftMessage,
-        250
-      );
-
-
-    const orderNote =
-      cleanString(
-        req.body
-          ?.orderNote,
-        300
-      );
-
-
-    const session =
-      await mongoose
-        .startSession();
-
-
-    let savedOrder =
-      null;
-
-
-    let wasExisting =
-      false;
-
-
-    try {
-      await session
-        .withTransaction(
-          async () => {
-            const duplicate =
-              await Order
-                .findOne({
-                  user:
-                    userId,
-
-                  checkoutToken,
-                })
-                .session(
-                  session
-                );
-
-
-            if (
-              duplicate
-            ) {
-              savedOrder =
-                duplicate;
-
-
-              wasExisting =
-                true;
-
-
-              return;
-            }
-
-
-            const productCache =
-              new Map();
-
-
-            const touchedProducts =
-              new Map();
-
-
-            const orderItems =
-              [];
-
-
-            for (
-              const requested
-              of requestedItems
-            ) {
-              let product =
-                productCache.get(
-                  requested.id
-                );
-
-
-              if (
-                !product
-              ) {
-                product =
-                  await findProduct(
-                    requested.id,
-                    session
-                  );
-
-
-                if (
-                  !product
-                ) {
-                  throw httpError(
-                    409,
-                    "A product in your bag is no longer available."
-                  );
-                }
-
-
-                productCache.set(
-                  requested.id,
-                  product
-                );
-              }
-
-
-              if (
-                product.isActive ===
-                false
-              ) {
-                throw httpError(
-                  409,
-                  `${product.name} is no longer available.`
-                );
-              }
-
-
-              const sizes =
-                (
-                  product.sizes ||
-                  []
-                ).map(
-                  String
-                );
-
-
-              const colors =
-                (
-                  product.colors ||
-                  []
-                ).map(
-                  String
-                );
-
-
-              const selectedSize =
-                sizes.length
-                  ? requested
-                      .selectedSize
-                  : null;
-
-
-              const selectedColor =
-                colors.length
-                  ? requested
-                      .selectedColor
-                  : null;
-
-
-              const available =
-                getVariantStock(
-                  product,
-                  selectedSize,
-                  selectedColor
-                );
-
-
-              if (
-                available <
-                requested.quantity
-              ) {
-                throw httpError(
-                  409,
-
-                  available >
-                  0
-                    ? `Only ${available} available for ${product.name}.`
-                    : `${product.name} is out of stock for this selection.`
-                );
-              }
-
-
-              const originalPrice =
-                getOriginalPrice(
-                  product
-                );
-
-
-              const price =
-                getDiscountedPrice(
-                  product
-                );
-
-
-              orderItems.push({
-                product:
-                  product._id,
-
-                legacyId:
-                  product.legacyId ??
-                  null,
-
-                slug:
-                  product.slug ||
-                  "",
-
-                sku:
-                  product.sku ||
-                  "",
-
-                name:
-                  product.name,
-
-                brand:
-                  product.brand ||
-                  "",
-
-                image:
-                  product.image ||
-                  "",
-
-                originalPrice,
-
-                price,
-
-                discount:
-                  Math.max(
-                    0,
-
-                    Math.min(
-                      100,
-
-                      Number(
-                        product.discount ||
-                        0
-                      )
-                    )
-                  ),
-
-                quantity:
-                  requested.quantity,
-
-                selectedSize,
-
-                selectedColor,
-
-                returnPolicy:
-                  product.returnPolicy ||
-                  "",
-              });
-
-
-              reserveVariantStock(
-                product,
-                requested.quantity,
-                selectedSize,
-                selectedColor
-              );
-
-
-              touchedProducts.set(
-                String(
-                  product._id
-                ),
-
-                product
-              );
-            }
-
-
-            const pricing =
-              calculateOrderPricing({
-                cart:
-                  orderItems,
-
-                coupon,
-
-                deliveryMethod,
-              });
-
-
-            if (
-              Number.isFinite(
-                expectedTotal
-              ) &&
-              Math.abs(
-                roundMoney(
-                  expectedTotal
-                ) -
-                  pricing.finalTotal
-              ) >
-                0.01
-            ) {
-              throw httpError(
-                409,
-
-                "Your order total changed. Review the latest total and place the order again."
-              );
-            }
-
-
-            for (
-              const product
-              of touchedProducts.values()
-            ) {
-              await product.save({
-                session,
-              });
-            }
-
-
-            const created =
-              await Order.create(
-                [
-                  {
-                    orderNumber:
-                      generateOrderNumber(),
-
-                    user:
-                      userId,
-
-                    checkoutToken,
-
-                    source,
-
-                    status:
-                      "confirmed",
-
-                    giftMessage,
-
-                    orderNote,
-
-                    customer: {
-                      name:
-                        shippingAddress.fullName,
-
-                      email:
-                        shippingAddress.email,
-
-                      phone:
-                        shippingAddress.phone,
-                    },
-
-                    shippingAddress,
-
-                    items:
-                      orderItems,
-
-                    pricing: {
-                      ...pricing,
-
-                      currency:
-                        "INR",
-                    },
-
-                    coupon:
-                      safeCoupon(
-                        coupon
-                      ),
-
-                    payment: {
-                      method:
-                        "cod",
-
-                      status:
-                        "pending",
-
-                      transactionId:
-                        null,
-                    },
-
-                    paymentMethod:
-                      "cod",
-
-                    delivery: {
-                      method:
-                        deliveryMethod,
-
-                      status:
-                        "pending",
-
-                      label:
-                        deliveryMethod ===
-                        "express"
-                          ? "Express delivery"
-                          : "Standard delivery",
-
-                      estimatedTime:
-                        null,
-
-                      deliveredAt:
-                        null,
-                    },
-
-                    deliveryMethod,
-
-                    tracking: {
-                      carrier:
-                        null,
-
-                      trackingNumber:
-                        null,
-
-                      estimatedDelivery:
-                        null,
-
-                      events: [
-                        {
-                          status:
-                            "confirmed",
-
-                          description:
-                            "Order confirmed by GymDrobe.",
-
-                          timestamp:
-                            new Date(),
-                        },
-                      ],
-                    },
-
-                    cancellation: {
-                      status:
-                        "not-cancelled",
-
-                      reason:
-                        "",
-
-                      cancelledAt:
-                        null,
-
-                      inventoryRestoredAt:
-                        null,
-                    },
-
-                    returnRequest: {
-                      id:
-                        null,
-
-                      type:
-                        null,
-
-                      status:
-                        "not-requested",
-
-                      items:
-                        [],
-
-                      reason:
-                        "",
-
-                      requestedAt:
-                        null,
-
-                      response:
-                        "",
-
-                      respondedAt:
-                        null,
-
-                      approvedAt:
-                        null,
-
-                      rejectedAt:
-                        null,
-
-                      completedAt:
-                        null,
-
-                      originalInventoryRestoredAt:
-                        null,
-
-                      exchangeInventoryReservedAt:
-                        null,
-                    },
-
-                    refund:
-                      blankRefund(),
-
-                    metadata: {
-                      version:
-                        "5.0",
-
-                      demo:
-                        true,
-
-                      inventoryReserved:
-                        true,
-                    },
-                  },
-                ],
-
-                {
-                  session,
-                }
-              );
-
-
-            savedOrder =
-              created[
-                0
-              ];
-          }
-        );
-
-    } finally {
-      await session
-        .endSession();
-    }
-
-
-    if (
-      !savedOrder
-    ) {
-      throw new Error(
-        "Order was not created."
-      );
-    }
-
-
     return res
-      .status(
-        wasExisting
-          ? 200
-          : 201
-      )
+      .status(409)
       .json({
         success:
+          false,
+
+        paymentRequired:
           true,
 
-        existing:
-          wasExisting,
-
-        order:
-          safeOrder(
-            savedOrder
-          ),
+        message:
+          "Direct Cash on Delivery checkout is disabled. Complete payment through GymDrobe checkout first.",
       });
 
   } catch (
     error
   ) {
     console.error(
-      "Create order error:",
+      "Direct order lookup error:",
       error
     );
 
 
-    if (
-      error?.code ===
-      11000
-    ) {
-      const existing =
-        await Order.findOne({
-          user:
-            userId,
-
-          checkoutToken,
-        });
-
-
-      if (
-        existing
-      ) {
-        return res
-          .status(
-            200
-          )
-          .json({
-            success:
-              true,
-
-            existing:
-              true,
-
-            order:
-              safeOrder(
-                existing
-              ),
-          });
-      }
-    }
-
-
     return res
-      .status(
-        error.status ||
-        500
-      )
+      .status(500)
       .json({
         success:
           false,
 
         message:
-          error.message ||
-          "Unable to place order.",
+          "Unable to verify this checkout attempt.",
       });
   }
 }
@@ -1730,9 +1126,7 @@ async function getOrders(
 
 
     return res
-      .status(
-        200
-      )
+      .status(200)
       .json({
         success:
           true,
@@ -1756,9 +1150,7 @@ async function getOrders(
 
 
     return res
-      .status(
-        500
-      )
+      .status(500)
       .json({
         success:
           false,
@@ -1802,9 +1194,7 @@ async function getOrderById(
       !order
     ) {
       return res
-        .status(
-          404
-        )
+        .status(404)
         .json({
           success:
             false,
@@ -1816,9 +1206,7 @@ async function getOrderById(
 
 
     return res
-      .status(
-        200
-      )
+      .status(200)
       .json({
         success:
           true,
@@ -1839,9 +1227,7 @@ async function getOrderById(
 
 
     return res
-      .status(
-        500
-      )
+      .status(500)
       .json({
         success:
           false,
@@ -1855,6 +1241,19 @@ async function getOrderById(
 
 // ======================================================
 // CANCEL ORDER
+//
+// Supports:
+//
+// 1. Full Razorpay payment
+//    → refund full amount paid
+//
+// 2. COD with 10% advance
+//    → refund only the online advance paid
+//
+// 3. Old/legacy COD
+//    → no online refund
+//
+// Inventory is restored only once.
 // ======================================================
 
 async function cancelOrder(
@@ -1884,9 +1283,7 @@ async function cancelOrder(
     5
   ) {
     return res
-      .status(
-        400
-      )
+      .status(400)
       .json({
         success:
           false,
@@ -1911,6 +1308,10 @@ async function cancelOrder(
 
 
   try {
+    // ==================================================
+    // CANCEL ORDER + RESTORE STOCK
+    // ==================================================
+
     await session
       .withTransaction(
         async () => {
@@ -1978,6 +1379,10 @@ async function cancelOrder(
             new Date();
 
 
+          // ============================================
+          // RESTORE INVENTORY
+          // ============================================
+
           if (
             order.metadata
               ?.inventoryReserved !==
@@ -2033,6 +1438,14 @@ async function cancelOrder(
             }
 
 
+            if (
+              !order.metadata
+            ) {
+              order.metadata =
+                {};
+            }
+
+
             order.metadata
               .inventoryReserved =
               false;
@@ -2043,6 +1456,10 @@ async function cancelOrder(
               now;
           }
 
+
+          // ============================================
+          // CANCEL
+          // ============================================
 
           order.status =
             "cancelled";
@@ -2068,6 +1485,74 @@ async function cancelOrder(
           }
 
 
+          // ============================================
+          // PAYMENT / REFUND
+          // ============================================
+
+          const paymentMethod =
+            order.payment
+              ?.method ||
+            order.paymentMethod;
+
+
+          const onlinePayment =
+            [
+              "razorpay",
+              "cod-partial",
+            ].includes(
+              paymentMethod
+            );
+
+
+          const amountPaid =
+            roundMoney(
+              Math.max(
+                0,
+
+                Number(
+                  order.payment
+                    ?.amountPaid ||
+                    0
+                )
+              )
+            );
+
+
+          if (
+            onlinePayment &&
+            amountPaid >
+              0 &&
+            order.payment
+              ?.status !==
+              "refunded"
+          ) {
+            order.refund.status =
+              order.refund
+                ?.status ===
+                "refunded"
+                ? "refunded"
+                : "pending";
+
+
+            order.refund.amount =
+              amountPaid;
+
+
+            order.refund.requestedAt =
+              order.refund
+                ?.requestedAt ||
+              now;
+
+
+            order.payment.amountDue =
+              0;
+
+
+            order.payment.balanceStatus =
+              "not-applicable";
+          }
+
+
           ensureTracking(
             order
           );
@@ -2080,7 +1565,11 @@ async function cancelOrder(
                 "cancelled",
 
               description:
-                "Order cancelled by customer.",
+                onlinePayment &&
+                amountPaid >
+                  0
+                  ? `Order cancelled by customer. Refund of ₹${amountPaid} requested.`
+                  : "Order cancelled by customer.",
 
               timestamp:
                 now,
@@ -2107,10 +1596,420 @@ async function cancelOrder(
     }
 
 
+    // ==================================================
+    // AUTOMATIC RAZORPAY REFUND
+    // ==================================================
+
+    let latestOrder =
+      savedOrder;
+
+
+    const paymentMethod =
+      latestOrder.payment
+        ?.method ||
+      latestOrder.paymentMethod;
+
+
+    const onlinePayment =
+      [
+        "razorpay",
+        "cod-partial",
+      ].includes(
+        paymentMethod
+      );
+
+
+    const refundAmount =
+      roundMoney(
+        Math.max(
+          0,
+
+          Number(
+            latestOrder.refund
+              ?.amount ||
+              0
+          )
+        )
+      );
+
+
+    const paymentId =
+      latestOrder.payment
+        ?.razorpayPaymentId ||
+      latestOrder.payment
+        ?.transactionId ||
+      "";
+
+
+    const refundAlreadyFinished =
+      latestOrder.refund
+        ?.status ===
+        "refunded";
+
+
+    const refundAlreadyStarted =
+      latestOrder.refund
+        ?.status ===
+        "pending" &&
+      Boolean(
+        latestOrder.refund
+          ?.reference
+      );
+
+
+    const refundNeedsManualReview =
+      latestOrder.refund
+        ?.status ===
+        "manual-required";
+
+
+    if (
+      onlinePayment &&
+      refundAmount >
+        0 &&
+      !refundAlreadyFinished &&
+      !refundAlreadyStarted &&
+      !refundNeedsManualReview
+    ) {
+      const refundNow =
+        new Date();
+
+
+      if (
+        !paymentId
+      ) {
+        const current =
+          await Order.findById(
+            latestOrder._id
+          );
+
+
+        if (
+          current
+        ) {
+          current.refund.status =
+            "manual-required";
+
+
+          current.refund.amount =
+            refundAmount;
+
+
+          current.refund.requestedAt =
+            current.refund
+              ?.requestedAt ||
+            refundNow;
+
+
+          current.payment.amountDue =
+            0;
+
+
+          current.payment.balanceStatus =
+            "not-applicable";
+
+
+          ensureTracking(
+            current
+          );
+
+
+          current.tracking
+            .events
+            .push({
+              status:
+                "refund-manual-required",
+
+              description:
+                `Refund of ₹${refundAmount} requires manual processing because the Razorpay payment ID is missing.`,
+
+              timestamp:
+                refundNow,
+            });
+
+
+          await current.save();
+
+
+          latestOrder =
+            current;
+        }
+
+      } else {
+        try {
+          const {
+            getRazorpayClient,
+          } =
+            require(
+              "../config/razorpay"
+            );
+
+
+          const razorpay =
+            getRazorpayClient();
+
+
+          const refundPaise =
+            Math.round(
+              refundAmount *
+                100
+            );
+
+
+          if (
+            !Number.isSafeInteger(
+              refundPaise
+            ) ||
+            refundPaise <
+              1
+          ) {
+            throw new Error(
+              "Refund amount is invalid."
+            );
+          }
+
+
+          const razorpayRefund =
+            await razorpay
+              .payments
+              .refund(
+                paymentId,
+                {
+                  amount:
+                    refundPaise,
+
+                  notes: {
+                    reason:
+                      "customer_cancellation",
+
+                    gymdrobe_order:
+                      latestOrder
+                        .orderNumber,
+
+                    payment_method:
+                      paymentMethod,
+                  },
+                }
+              );
+
+
+          const processed =
+            razorpayRefund
+              ?.status ===
+            "processed";
+
+
+          const current =
+            await Order.findById(
+              latestOrder._id
+            );
+
+
+          if (
+            current
+          ) {
+            current.refund.status =
+              processed
+                ? "refunded"
+                : "pending";
+
+
+            current.refund.amount =
+              refundAmount;
+
+
+            current.refund.reference =
+              razorpayRefund
+                ?.id ||
+              current.refund
+                ?.reference ||
+              "";
+
+
+            current.refund.requestedAt =
+              current.refund
+                ?.requestedAt ||
+              refundNow;
+
+
+            current.refund.refundedAt =
+              processed
+                ? refundNow
+                : null;
+
+
+            current.payment.amountDue =
+              0;
+
+
+            current.payment.balanceStatus =
+              "not-applicable";
+
+
+            if (
+              processed
+            ) {
+              current.payment.status =
+                "refunded";
+
+
+              current.payment.amountPaid =
+                0;
+            }
+
+
+            ensureTracking(
+              current
+            );
+
+
+            current.tracking
+              .events
+              .push({
+                status:
+                  processed
+                    ? "refund-completed"
+                    : "refund-requested",
+
+                description:
+                  processed
+                    ? `Refund of ₹${refundAmount} completed through Razorpay.`
+                    : `Refund of ₹${refundAmount} submitted to Razorpay.`,
+
+                timestamp:
+                  refundNow,
+              });
+
+
+            await current.save();
+
+
+            latestOrder =
+              current;
+          }
+
+        } catch (
+          refundError
+        ) {
+          console.error(
+            "Cancellation refund error:",
+            refundError
+          );
+
+
+          const current =
+            await Order.findById(
+              latestOrder._id
+            );
+
+
+          if (
+            current
+          ) {
+            current.refund.status =
+              "manual-required";
+
+
+            current.refund.amount =
+              refundAmount;
+
+
+            current.refund.requestedAt =
+              current.refund
+                ?.requestedAt ||
+              refundNow;
+
+
+            current.payment.amountDue =
+              0;
+
+
+            current.payment.balanceStatus =
+              "not-applicable";
+
+
+            ensureTracking(
+              current
+            );
+
+
+            current.tracking
+              .events
+              .push({
+                status:
+                  "refund-manual-required",
+
+                description:
+                  `Automatic Razorpay refund of ₹${refundAmount} failed and requires manual review.`,
+
+                timestamp:
+                  refundNow,
+              });
+
+
+            await current.save();
+
+
+            latestOrder =
+              current;
+          }
+        }
+      }
+    }
+
+
+    let message =
+      alreadyCancelled
+        ? "This order is already cancelled."
+        : "Order cancelled successfully.";
+
+
+    if (
+      latestOrder.refund
+        ?.status ===
+        "refunded"
+    ) {
+      message =
+        `Order cancelled successfully. ₹${roundMoney(
+          Number(
+            latestOrder.refund
+              ?.amount ||
+            0
+          )
+        )} refund completed.`;
+
+    } else if (
+      latestOrder.refund
+        ?.status ===
+        "pending"
+    ) {
+      message =
+        `Order cancelled successfully. Refund of ₹${roundMoney(
+          Number(
+            latestOrder.refund
+              ?.amount ||
+            0
+          )
+        )} is being processed.`;
+
+    } else if (
+      latestOrder.refund
+        ?.status ===
+        "manual-required"
+    ) {
+      message =
+        `Order cancelled successfully. Refund of ₹${roundMoney(
+          Number(
+            latestOrder.refund
+              ?.amount ||
+            0
+          )
+        )} requires manual review.`;
+    }
+
+
     return res
-      .status(
-        200
-      )
+      .status(200)
       .json({
         success:
           true,
@@ -2118,14 +2017,28 @@ async function cancelOrder(
         existing:
           alreadyCancelled,
 
-        message:
-          alreadyCancelled
-            ? "This order is already cancelled."
-            : "Order cancelled successfully.",
+        refundStatus:
+          latestOrder.refund
+            ?.status ||
+          "not-requested",
+
+        refundAmount:
+          Number(
+            latestOrder.refund
+              ?.amount ||
+              0
+          ),
+
+        manualReviewRequired:
+          latestOrder.refund
+            ?.status ===
+          "manual-required",
+
+        message,
 
         order:
           safeOrder(
-            savedOrder
+            latestOrder
           ),
       });
 
@@ -2209,9 +2122,7 @@ async function requestReturn(
     )
   ) {
     return res
-      .status(
-        400
-      )
+      .status(400)
       .json({
         success:
           false,
@@ -2227,9 +2138,7 @@ async function requestReturn(
     5
   ) {
     return res
-      .status(
-        400
-      )
+      .status(400)
       .json({
         success:
           false,
@@ -2244,9 +2153,7 @@ async function requestReturn(
     !requestedItems.length
   ) {
     return res
-      .status(
-        400
-      )
+      .status(400)
       .json({
         success:
           false,
@@ -2262,9 +2169,7 @@ async function requestReturn(
     50
   ) {
     return res
-      .status(
-        400
-      )
+      .status(400)
       .json({
         success:
           false,
@@ -2706,9 +2611,7 @@ async function requestReturn(
 
 
     return res
-      .status(
-        201
-      )
+      .status(201)
       .json({
         success:
           true,
@@ -2790,9 +2693,7 @@ async function getAdminReturnRequests(
       )
     ) {
       return res
-        .status(
-          400
-        )
+        .status(400)
         .json({
           success:
             false,
@@ -2833,9 +2734,7 @@ async function getAdminReturnRequests(
 
 
     return res
-      .status(
-        200
-      )
+      .status(200)
       .json({
         success:
           true,
@@ -2859,9 +2758,7 @@ async function getAdminReturnRequests(
 
 
     return res
-      .status(
-        500
-      )
+      .status(500)
       .json({
         success:
           false,
@@ -2888,34 +2785,44 @@ async function getAdminOrders(
         40
       ).toLowerCase();
 
+
     const search =
       cleanString(
         req.query?.search,
         120
       );
 
+
     const page =
       Math.max(
         1,
+
         Number.parseInt(
           req.query?.page,
           10
-        ) || 1
+        ) ||
+        1
       );
+
 
     const limit =
       Math.min(
         100,
+
         Math.max(
           1,
+
           Number.parseInt(
             req.query?.limit,
             10
-          ) || 25
+          ) ||
+          25
         )
       );
 
+
     const allowedStatuses = [
+      "payment-pending",
       "confirmed",
       "processing",
       "shipped",
@@ -2923,6 +2830,7 @@ async function getAdminOrders(
       "delivered",
       "cancelled",
     ];
+
 
     if (
       requestedStatus &&
@@ -2933,9 +2841,7 @@ async function getAdminOrders(
       )
     ) {
       return res
-        .status(
-          400
-        )
+        .status(400)
         .json({
           success:
             false,
@@ -2945,7 +2851,10 @@ async function getAdminOrders(
         });
     }
 
-    const query = {};
+
+    const query =
+      {};
+
 
     if (
       requestedStatus &&
@@ -2956,12 +2865,16 @@ async function getAdminOrders(
         requestedStatus;
     }
 
-    if (search) {
+
+    if (
+      search
+    ) {
       const escapedSearch =
         search.replace(
           /[.*+?^${}()|[\]\\]/g,
           "\\$&"
         );
+
 
       const searchRegex =
         new RegExp(
@@ -2969,27 +2882,33 @@ async function getAdminOrders(
           "i"
         );
 
+
       query.$or = [
         {
           orderNumber:
             searchRegex,
         },
+
         {
           "customer.name":
             searchRegex,
         },
+
         {
           "customer.email":
             searchRegex,
         },
+
         {
           "customer.phone":
             searchRegex,
         },
+
         {
           "shippingAddress.city":
             searchRegex,
         },
+
         {
           "shippingAddress.pincode":
             searchRegex,
@@ -2997,9 +2916,14 @@ async function getAdminOrders(
       ];
     }
 
+
     const skip =
-      (page - 1) *
+      (
+        page -
+        1
+      ) *
       limit;
+
 
     const [
       orders,
@@ -3030,10 +2954,9 @@ async function getAdminOrders(
         ),
       ]);
 
+
     return res
-      .status(
-        200
-      )
+      .status(200)
       .json({
         success:
           true,
@@ -3048,6 +2971,7 @@ async function getAdminOrders(
         pages:
           Math.max(
             1,
+
             Math.ceil(
               total /
               limit
@@ -3070,10 +2994,9 @@ async function getAdminOrders(
       error
     );
 
+
     return res
-      .status(
-        500
-      )
+      .status(500)
       .json({
         success:
           false,
@@ -3100,6 +3023,7 @@ async function getAdminOrderById(
         150
       );
 
+
     const order =
       await Order
         .findOne({
@@ -3113,13 +3037,12 @@ async function getAdminOrderById(
           "name email role"
         );
 
+
     if (
       !order
     ) {
       return res
-        .status(
-          404
-        )
+        .status(404)
         .json({
           success:
             false,
@@ -3129,10 +3052,9 @@ async function getAdminOrderById(
         });
     }
 
+
     return res
-      .status(
-        200
-      )
+      .status(200)
       .json({
         success:
           true,
@@ -3151,10 +3073,9 @@ async function getAdminOrderById(
       error
     );
 
+
     return res
-      .status(
-        500
-      )
+      .status(500)
       .json({
         success:
           false,
@@ -3180,11 +3101,13 @@ async function updateAdminOrderStatus(
       150
     );
 
+
   const status =
     cleanString(
       req.body?.status,
       40
     ).toLowerCase();
+
 
   const statusFlow = [
     "confirmed",
@@ -3194,15 +3117,14 @@ async function updateAdminOrderStatus(
     "delivered",
   ];
 
+
   if (
     !statusFlow.includes(
       status
     )
   ) {
     return res
-      .status(
-        400
-      )
+      .status(400)
       .json({
         success:
           false,
@@ -3212,53 +3134,84 @@ async function updateAdminOrderStatus(
       });
   }
 
+
   const hasCarrier =
     Object.prototype
       .hasOwnProperty.call(
-        req.body || {},
+        req.body ||
+          {},
         "carrier"
       );
+
 
   const hasTrackingNumber =
     Object.prototype
       .hasOwnProperty.call(
-        req.body || {},
+        req.body ||
+          {},
         "trackingNumber"
       );
+
 
   const hasEstimatedDelivery =
     Object.prototype
       .hasOwnProperty.call(
-        req.body || {},
+        req.body ||
+          {},
         "estimatedDelivery"
       );
+
+
+  const hasCodBalanceCollected =
+    Object.prototype
+      .hasOwnProperty.call(
+        req.body ||
+          {},
+        "codBalanceCollected"
+      );
+
 
   const carrier =
     hasCarrier
       ? cleanString(
           req.body?.carrier,
           100
-        ) || null
+        ) ||
+        null
       : undefined;
+
 
   const trackingNumber =
     hasTrackingNumber
       ? cleanString(
-          req.body?.trackingNumber,
+          req.body
+            ?.trackingNumber,
           150
-        ) || null
+        ) ||
+        null
       : undefined;
 
+
+  const codBalanceCollected =
+    hasCodBalanceCollected &&
+    req.body
+      ?.codBalanceCollected ===
+      true;
+
+
   let estimatedDelivery;
+
 
   if (
     hasEstimatedDelivery
   ) {
     const rawEstimatedDelivery =
       cleanString(
-        req.body?.estimatedDelivery,
+        req.body
+          ?.estimatedDelivery,
         100
       );
+
 
     if (
       rawEstimatedDelivery
@@ -3268,15 +3221,14 @@ async function updateAdminOrderStatus(
           rawEstimatedDelivery
         );
 
+
       if (
         Number.isNaN(
           parsed.getTime()
         )
       ) {
         return res
-          .status(
-            400
-          )
+          .status(400)
           .json({
             success:
               false,
@@ -3286,6 +3238,7 @@ async function updateAdminOrderStatus(
           });
       }
 
+
       estimatedDelivery =
         parsed;
 
@@ -3294,6 +3247,7 @@ async function updateAdminOrderStatus(
         null;
     }
   }
+
 
   try {
     const order =
@@ -3309,13 +3263,12 @@ async function updateAdminOrderStatus(
           "name email role"
         );
 
+
     if (
       !order
     ) {
       return res
-        .status(
-          404
-        )
+        .status(404)
         .json({
           success:
             false,
@@ -3325,6 +3278,7 @@ async function updateAdminOrderStatus(
         });
     }
 
+
     if (
       order.status ===
         "cancelled" ||
@@ -3333,9 +3287,7 @@ async function updateAdminOrderStatus(
         "cancelled"
     ) {
       return res
-        .status(
-          409
-        )
+        .status(409)
         .json({
           success:
             false,
@@ -3345,24 +3297,41 @@ async function updateAdminOrderStatus(
         });
     }
 
+
+    if (
+      order.status ===
+      "payment-pending"
+    ) {
+      return res
+        .status(409)
+        .json({
+          success:
+            false,
+
+          message:
+            "This order is still waiting for payment verification.",
+        });
+    }
+
+
     const currentIndex =
       statusFlow.indexOf(
         order.status
       );
+
 
     const nextIndex =
       statusFlow.indexOf(
         status
       );
 
+
     if (
       currentIndex ===
-        -1
+      -1
     ) {
       return res
-        .status(
-          409
-        )
+        .status(409)
         .json({
           success:
             false,
@@ -3372,14 +3341,13 @@ async function updateAdminOrderStatus(
         });
     }
 
+
     if (
       nextIndex <
       currentIndex
     ) {
       return res
-        .status(
-          409
-        )
+        .status(409)
         .json({
           success:
             false,
@@ -3389,16 +3357,116 @@ async function updateAdminOrderStatus(
         });
     }
 
+
+    if (
+      nextIndex >
+      currentIndex +
+        1
+    ) {
+      return res
+        .status(409)
+        .json({
+          success:
+            false,
+
+          message:
+            "Complete the current fulfilment step before moving to the next status.",
+        });
+    }
+
+
+    const isPartialCod =
+      order.payment
+        ?.method ===
+        "cod-partial" ||
+      order.paymentMethod ===
+        "cod-partial";
+
+
+    const balanceDue =
+      roundMoney(
+        Math.max(
+          0,
+
+          Number(
+            order.payment
+              ?.amountDue ||
+            0
+          )
+        )
+      );
+
+
+    const balancePending =
+      isPartialCod &&
+      order.payment
+        ?.balanceStatus ===
+        "pending" &&
+      balanceDue >
+        0;
+
+
+    if (
+      status ===
+        "delivered" &&
+      isPartialCod &&
+      ![
+        "partially-paid",
+        "paid",
+      ].includes(
+        order.payment
+          ?.status
+      )
+    ) {
+      return res
+        .status(409)
+        .json({
+          success:
+            false,
+
+          message:
+            "This Cash on Delivery order does not have a verified advance payment.",
+        });
+    }
+
+
+    if (
+      status ===
+        "delivered" &&
+      balancePending &&
+      !codBalanceCollected
+    ) {
+      return res
+        .status(409)
+        .json({
+          success:
+            false,
+
+          requiresCodBalanceConfirmation:
+            true,
+
+          amountDue:
+            balanceDue,
+
+          message:
+            `Confirm that the remaining ₹${balanceDue} COD balance was collected before marking this order delivered.`,
+        });
+    }
+
+
     const now =
       new Date();
+
 
     const statusChanged =
       order.status !==
       status;
 
+
     ensureTracking(
       order
     );
+
 
     if (
       hasCarrier
@@ -3406,6 +3474,7 @@ async function updateAdminOrderStatus(
       order.tracking.carrier =
         carrier;
     }
+
 
     if (
       hasTrackingNumber
@@ -3415,6 +3484,7 @@ async function updateAdminOrderStatus(
         trackingNumber;
     }
 
+
     if (
       hasEstimatedDelivery
     ) {
@@ -3423,14 +3493,141 @@ async function updateAdminOrderStatus(
         estimatedDelivery;
     }
 
+
+    if (
+      status ===
+      "shipped"
+    ) {
+      const finalCarrier =
+        String(
+          order.tracking
+            ?.carrier ||
+          ""
+        ).trim();
+
+
+      const finalTrackingNumber =
+        String(
+          order.tracking
+            ?.trackingNumber ||
+          ""
+        ).trim();
+
+
+      if (
+        !finalCarrier ||
+        !finalTrackingNumber
+      ) {
+        return res
+          .status(409)
+          .json({
+            success:
+              false,
+
+            message:
+              "Enter the carrier and tracking number before marking this order shipped.",
+          });
+      }
+    }
+
+
+    let codBalanceWasCollected =
+      false;
+
+
+    if (
+      status ===
+        "delivered" &&
+      isPartialCod &&
+      balancePending &&
+      codBalanceCollected
+    ) {
+      const totalAmount =
+        roundMoney(
+          Number(
+            order.payment
+              ?.totalAmount ||
+            order.pricing
+              ?.finalTotal ||
+            0
+          )
+        );
+
+
+      if (
+        totalAmount <=
+        0
+      ) {
+        return res
+          .status(409)
+          .json({
+            success:
+              false,
+
+            message:
+              "The order total is invalid. COD balance cannot be recorded.",
+          });
+      }
+
+
+      order.payment.totalAmount =
+        totalAmount;
+
+
+      order.payment.amountPaid =
+        totalAmount;
+
+
+      order.payment.amountDue =
+        0;
+
+
+      order.payment.balanceStatus =
+        "collected";
+
+
+      order.payment.balanceCollectedAt =
+        now;
+
+
+      order.payment.status =
+        "paid";
+
+
+      order.payment.paidAt =
+        now;
+
+
+      codBalanceWasCollected =
+        true;
+
+
+      order.tracking
+        .events
+        .push({
+          status:
+            "cod-balance-collected",
+
+          description:
+            `Remaining COD balance of ₹${balanceDue} collected on delivery.`,
+
+          timestamp:
+            now,
+        });
+    }
+
+
     order.status =
       status;
+
 
     if (
       !order.delivery
     ) {
-      order.delivery = {};
+      order.delivery =
+        {};
     }
+
 
     order.delivery.status =
       status ===
@@ -3438,9 +3635,10 @@ async function updateAdminOrderStatus(
         ? "pending"
         : status;
 
+
     if (
       status ===
-      "delivered" &&
+        "delivered" &&
       !order.delivery
         .deliveredAt
     ) {
@@ -3448,6 +3646,7 @@ async function updateAdminOrderStatus(
         .deliveredAt =
         now;
     }
+
 
     if (
       statusChanged
@@ -3466,8 +3665,11 @@ async function updateAdminOrderStatus(
           "Order is out for delivery.",
 
         delivered:
-          "Order delivered successfully.",
+          isPartialCod
+            ? "Order delivered successfully. COD payment completed."
+            : "Order delivered successfully.",
       };
+
 
       order.tracking
         .events
@@ -3502,20 +3704,41 @@ async function updateAdminOrderStatus(
         });
     }
 
+
     await order.save();
 
+
+    let message;
+
+
+    if (
+      codBalanceWasCollected
+    ) {
+      message =
+        `Order delivered and remaining COD balance of ₹${balanceDue} recorded as collected.`;
+
+    } else if (
+      statusChanged
+    ) {
+      message =
+        `Order status updated to ${status}.`;
+
+    } else {
+      message =
+        "Order tracking information updated.";
+    }
+
+
     return res
-      .status(
-        200
-      )
+      .status(200)
       .json({
         success:
           true,
 
-        message:
-          statusChanged
-            ? `Order status updated to ${status}.`
-            : "Order tracking information updated.",
+        codBalanceCollected:
+          codBalanceWasCollected,
+
+        message,
 
         order:
           safeOrder(
@@ -3530,6 +3753,7 @@ async function updateAdminOrderStatus(
       "Admin order update error:",
       error
     );
+
 
     return res
       .status(
@@ -3549,7 +3773,7 @@ async function updateAdminOrderStatus(
 
 
 // ======================================================
-// ADMIN — APPROVE / REJECT REQUEST
+// ADMIN — APPROVE / REJECT RETURN / EXCHANGE
 // ======================================================
 
 async function reviewReturnRequest(
@@ -3586,9 +3810,7 @@ async function reviewReturnRequest(
     )
   ) {
     return res
-      .status(
-        400
-      )
+      .status(400)
       .json({
         success:
           false,
@@ -3715,10 +3937,6 @@ async function reviewReturnRequest(
             new Date();
 
 
-          // ==========================================
-          // REJECT
-          // ==========================================
-
           if (
             decision ===
             "reject"
@@ -3807,9 +4025,6 @@ async function reviewReturnRequest(
 
           // ==========================================
           // APPROVE EXCHANGE
-          //
-          // IMPORTANT:
-          // replacement stock is reserved NOW.
           // ==========================================
 
           if (
@@ -4062,9 +4277,7 @@ async function reviewReturnRequest(
 
 
     return res
-      .status(
-        200
-      )
+      .status(200)
       .json({
         success:
           true,
@@ -4242,10 +4455,6 @@ async function completeReturnRequest(
 
           // ==========================================
           // LEGACY EXCHANGE SAFETY
-          //
-          // If an older approved exchange did not
-          // reserve replacement stock during approval,
-          // reserve it here exactly once.
           // ==========================================
 
           if (
@@ -4346,9 +4555,7 @@ async function completeReturnRequest(
 
 
           // ==========================================
-          // RESTORE ORIGINAL RETURNED ITEMS
-          //
-          // Done only once.
+          // RESTORE RETURNED ORIGINAL ITEMS
           // ==========================================
 
           if (
@@ -4444,10 +4651,6 @@ async function completeReturnRequest(
           }
 
 
-          // ==========================================
-          // NORMAL RETURN
-          // ==========================================
-
           if (
             type ===
             "return"
@@ -4506,10 +4709,6 @@ async function completeReturnRequest(
                 : "not-applicable";
 
           } else {
-            // ========================================
-            // EXCHANGE
-            // ========================================
-
             order.refund = {
               status:
                 "not-applicable",
@@ -4579,9 +4778,7 @@ async function completeReturnRequest(
 
 
     return res
-      .status(
-        200
-      )
+      .status(200)
       .json({
         success:
           true,
@@ -4667,9 +4864,7 @@ async function recordReturnRefund(
     3
   ) {
     return res
-      .status(
-        400
-      )
+      .status(400)
       .json({
         success:
           false,
@@ -4855,9 +5050,7 @@ async function recordReturnRefund(
 
 
     return res
-      .status(
-        200
-      )
+      .status(200)
       .json({
         success:
           true,

@@ -15,7 +15,9 @@ async function request(
     body,
   } = {}
 ) {
-  if (!token) {
+  if (
+    !token
+  ) {
     throw new Error(
       "Admin login is required."
     );
@@ -46,14 +48,17 @@ async function request(
     );
 
 
-  let data = {};
+  let data =
+    {};
 
 
   try {
     data =
       await response.json();
+
   } catch {
-    data = {};
+    data =
+      {};
   }
 
 
@@ -233,7 +238,7 @@ export async function getAdminOrderById(
 
 
 // ======================================================
-// ADMIN — UPDATE ORDER STATUS / TRACKING
+// ADMIN — UPDATE ORDER STATUS / TRACKING / COD BALANCE
 // ======================================================
 
 export async function updateAdminOrderStatus(
@@ -244,6 +249,7 @@ export async function updateAdminOrderStatus(
     carrier,
     trackingNumber,
     estimatedDelivery,
+    codBalanceCollected,
   } = {}
 ) {
   if (
@@ -269,16 +275,25 @@ export async function updateAdminOrderStatus(
   };
 
 
+  // ====================================================
+  // COURIER / CARRIER
+  // ====================================================
+
   if (
     carrier !==
     undefined
   ) {
     body.carrier =
       String(
-        carrier || ""
+        carrier ||
+        ""
       ).trim();
   }
 
+
+  // ====================================================
+  // TRACKING NUMBER
+  // ====================================================
 
   if (
     trackingNumber !==
@@ -292,6 +307,10 @@ export async function updateAdminOrderStatus(
   }
 
 
+  // ====================================================
+  // ESTIMATED DELIVERY
+  // ====================================================
+
   if (
     estimatedDelivery !==
     undefined
@@ -299,6 +318,33 @@ export async function updateAdminOrderStatus(
     body.estimatedDelivery =
       estimatedDelivery ||
       "";
+  }
+
+
+  // ====================================================
+  // COD BALANCE COLLECTION
+  //
+  // Used only for:
+  //
+  // payment.method = "cod-partial"
+  //
+  // When true, the backend is allowed to mark:
+  //
+  // amountDue = 0
+  // balanceStatus = "collected"
+  // payment.status = "paid"
+  //
+  // IMPORTANT:
+  // The backend still validates everything.
+  // ====================================================
+
+  if (
+    codBalanceCollected !==
+    undefined
+  ) {
+    body.codBalanceCollected =
+      codBalanceCollected ===
+      true;
   }
 
 
@@ -367,6 +413,24 @@ export async function reviewReturnRequest(
     response = "",
   }
 ) {
+  if (
+    !orderId
+  ) {
+    throw new Error(
+      "Order ID is required."
+    );
+  }
+
+
+  if (
+    !decision
+  ) {
+    throw new Error(
+      "A return decision is required."
+    );
+  }
+
+
   const data =
     await request(
       `/orders/admin/returns/${encodeURIComponent(
@@ -380,6 +444,7 @@ export async function reviewReturnRequest(
 
         body: {
           decision,
+
           response,
         },
       }
@@ -401,6 +466,15 @@ export async function completeReturnRequest(
     response = "",
   } = {}
 ) {
+  if (
+    !orderId
+  ) {
+    throw new Error(
+      "Order ID is required."
+    );
+  }
+
+
   const data =
     await request(
       `/orders/admin/returns/${encodeURIComponent(
@@ -434,9 +508,19 @@ export async function recordReturnRefund(
     reference,
   }
 ) {
+  if (
+    !orderId
+  ) {
+    throw new Error(
+      "Order ID is required."
+    );
+  }
+
+
   const cleanReference =
     String(
-      reference || ""
+      reference ||
+        ""
     ).trim();
 
 

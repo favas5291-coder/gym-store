@@ -71,18 +71,14 @@ export default function ProductOptions({
     guide,
     setGuide,
   ] =
-    useState(
-      false
-    );
+    useState(false);
 
 
   const [
     added,
     setAdded,
   ] =
-    useState(
-      false
-    );
+    useState(false);
 
 
   // ====================================================
@@ -96,12 +92,8 @@ export default function ProductOptions({
           product?.sizes
         )
           ? product.sizes
-              .map(
-                String
-              )
-              .filter(
-                Boolean
-              )
+              .map(String)
+              .filter(Boolean)
           : [],
 
       [
@@ -117,12 +109,8 @@ export default function ProductOptions({
           product?.colors
         )
           ? product.colors
-              .map(
-                String
-              )
-              .filter(
-                Boolean
-              )
+              .map(String)
+              .filter(Boolean)
           : [],
 
       [
@@ -139,6 +127,27 @@ export default function ProductOptions({
   const hasColors =
     colors.length >
     0;
+
+
+  // ====================================================
+  // PRODUCT BENEFITS
+  // ====================================================
+
+  const benefits =
+    useMemo(
+      () =>
+        Array.isArray(
+          product?.highlights
+        )
+          ? product.highlights
+              .filter(Boolean)
+              .slice(0, 4)
+          : [],
+
+      [
+        product?.highlights,
+      ]
+    );
 
 
   // ====================================================
@@ -180,13 +189,11 @@ export default function ProductOptions({
     quantity,
     setQuantity,
   ] =
-    useState(
-      1
-    );
+    useState(1);
 
 
   // ====================================================
-  // RESET SELECTION WHEN PRODUCT CHANGES
+  // RESET WHEN PRODUCT CHANGES
   // ====================================================
 
   useEffect(
@@ -228,7 +235,7 @@ export default function ProductOptions({
 
 
   // ====================================================
-  // TOTAL PRODUCT STOCK
+  // STOCK
   // ====================================================
 
   const totalStock =
@@ -242,28 +249,66 @@ export default function ProductOptions({
     0;
 
 
-  // ====================================================
-  // SELECTED VARIANT STOCK
-  //
-  // Colour + Size:
-  // variants[colour][size]
-  //
-  // Colour only:
-  // variants[colour].default
-  //
-  // Size only:
-  // variants[size]
-  //
-  // No options:
-  // product.stock
-  // ====================================================
-
   const stock =
     getVariantStock(
       product,
       size,
       color
     );
+
+
+  const lowStock =
+    stock >
+      0 &&
+    stock <=
+      5;
+
+
+  // ====================================================
+  // PRICE
+  // ====================================================
+
+  const sellingPrice =
+    getDiscountedPrice(
+      product
+    );
+
+
+  const originalPrice =
+    getOriginalPrice(
+      product
+    );
+
+
+  const discount =
+    getDiscountPercentage(
+      product
+    );
+
+
+  // ====================================================
+  // DELIVERY / RETURNS
+  // ====================================================
+
+  const deliveryEstimate =
+    String(
+      product?.delivery
+        ?.estimatedDays ||
+        ""
+    ).trim();
+
+
+  const deliveryAvailable =
+    product?.delivery
+      ?.available !==
+    false;
+
+
+  const returnPolicy =
+    String(
+      product?.returnPolicy ||
+        ""
+    ).trim();
 
 
   // ====================================================
@@ -316,10 +361,6 @@ export default function ProductOptions({
     }
 
 
-    // --------------------------------------------
-    // COLOUR + SIZE PRODUCT
-    // --------------------------------------------
-
     if (
       hasSizes
     ) {
@@ -339,10 +380,6 @@ export default function ProductOptions({
       );
     }
 
-
-    // --------------------------------------------
-    // COLOUR ONLY PRODUCT
-    // --------------------------------------------
 
     return getVariantStock(
       product,
@@ -399,21 +436,14 @@ export default function ProductOptions({
     );
 
 
-    // --------------------------------------------
-    // COLOUR + SIZE PRODUCT
-    //
-    // If the currently selected size does not
-    // exist for the new colour, automatically
-    // select the first available size.
-    // --------------------------------------------
-
     if (
       hasSizes &&
       getVariantStock(
         product,
         size,
         nextColor
-      ) <= 0
+      ) <=
+        0
     ) {
       const firstAvailableSize =
         sizes.find(
@@ -564,6 +594,7 @@ export default function ProductOptions({
 
     return Math.min(
       next,
+
       Math.max(
         1,
         stock
@@ -579,6 +610,7 @@ export default function ProductOptions({
   function handleTryOnSelection({
     color:
       nextColor,
+
     size:
       nextSize,
   }) {
@@ -592,9 +624,9 @@ export default function ProductOptions({
       size;
 
 
-    // --------------------------------------------
+    // --------------------------------------------------
     // VALIDATE COLOUR
-    // --------------------------------------------
+    // --------------------------------------------------
 
     if (
       hasColors
@@ -607,7 +639,8 @@ export default function ProductOptions({
         ) ||
         getColorStock(
           finalColor
-        ) <= 0
+        ) <=
+          0
       ) {
         finalColor =
           colors.find(
@@ -622,15 +655,16 @@ export default function ProductOptions({
           colors[0] ||
           null;
       }
+
     } else {
       finalColor =
         null;
     }
 
 
-    // --------------------------------------------
+    // --------------------------------------------------
     // VALIDATE SIZE
-    // --------------------------------------------
+    // --------------------------------------------------
 
     if (
       hasSizes
@@ -645,7 +679,8 @@ export default function ProductOptions({
           product,
           finalSize,
           finalColor
-        ) <= 0
+        ) <=
+          0
       ) {
         finalSize =
           sizes.find(
@@ -662,6 +697,7 @@ export default function ProductOptions({
           sizes[0] ||
           null;
       }
+
     } else {
       finalSize =
         null;
@@ -774,60 +810,76 @@ export default function ProductOptions({
   // ====================================================
 
   return (
-    <div
-      className="product-options"
-    >
+    <div className="product-options">
       {/* ===============================================
           PRICE
       =============================================== */}
 
-      <div
-        className="detail-price"
-      >
+      <div className="detail-price">
         <strong>
           {money(
-            getDiscountedPrice(
-              product
-            )
+            sellingPrice
           )}
         </strong>
 
 
-        {getDiscountPercentage(
-          product
-        ) >
+        {discount >
           0 && (
           <>
             <del>
               MRP{" "}
               {money(
-                getOriginalPrice(
-                  product
-                )
+                originalPrice
               )}
             </del>
 
+
             <span>
-              (
-              {getDiscountPercentage(
-                product
-              )}
-              % OFF)
+              {discount}% OFF
             </span>
           </>
         )}
       </div>
 
 
-      <p
-        className="tax-note"
-      >
+      <p className="tax-note">
         Price includes applicable taxes
       </p>
 
 
       {/* ===============================================
-          COLOUR OPTIONS
+          BENEFIT SUMMARY
+      =============================================== */}
+
+      {benefits.length >
+        0 && (
+        <div className="panel product-buying-benefits">
+          <p className="eyebrow">
+            WHY YOU'LL LIKE IT
+          </p>
+
+
+          <ul>
+            {benefits.map(
+              (
+                benefit
+              ) => (
+                <li
+                  key={
+                    benefit
+                  }
+                >
+                  {benefit}
+                </li>
+              )
+            )}
+          </ul>
+        </div>
+      )}
+
+
+      {/* ===============================================
+          COLOUR
       =============================================== */}
 
       {hasColors && (
@@ -838,17 +890,13 @@ export default function ProductOptions({
             {color && (
               <span>
                 {" "}
-                {
-                  color
-                }
+                {color}
               </span>
             )}
           </legend>
 
 
-          <div
-            className="option-list"
-          >
+          <div className="option-list">
             {colors.map(
               (
                 option
@@ -895,9 +943,7 @@ export default function ProductOptions({
                       )
                     }
                   >
-                    {
-                      option
-                    }
+                    {option}
                   </button>
                 );
               }
@@ -908,7 +954,7 @@ export default function ProductOptions({
 
 
       {/* ===============================================
-          SIZE OPTIONS
+          SIZE
       =============================================== */}
 
       {hasSizes && (
@@ -919,9 +965,7 @@ export default function ProductOptions({
             {size && (
               <span>
                 {" "}
-                {
-                  size
-                }
+                {size}
               </span>
             )}
           </legend>
@@ -940,9 +984,7 @@ export default function ProductOptions({
           </button>
 
 
-          <div
-            className="option-list sizes"
-          >
+          <div className="option-list sizes">
             {sizes.map(
               (
                 option
@@ -991,9 +1033,7 @@ export default function ProductOptions({
                       )
                     }
                   >
-                    {
-                      option
-                    }
+                    {option}
                   </button>
                 );
               }
@@ -1004,32 +1044,10 @@ export default function ProductOptions({
 
 
       {/* ===============================================
-          VIRTUAL TRY ON
+          STOCK + QUANTITY
       =============================================== */}
 
-      <VirtualTryOnButton
-        product={
-          product
-        }
-        color={
-          color
-        }
-        size={
-          size
-        }
-        onSelectionChange={
-          handleTryOnSelection
-        }
-      />
-
-
-      {/* ===============================================
-          QUANTITY + STOCK
-      =============================================== */}
-
-      <div
-        className="quantity-line"
-      >
+      <div className="quantity-line">
         <label
           htmlFor={`quantity-${product.id}`}
         >
@@ -1055,14 +1073,13 @@ export default function ProductOptions({
           value={
             quantity
           }
-          onChange={
-            (
-              event
-            ) =>
-              changeQuantity(
-                event.target
-                  .value
-              )
+          onChange={(
+            event
+          ) =>
+            changeQuantity(
+              event.target
+                .value
+            )
           }
           onBlur={() => {
             if (
@@ -1081,24 +1098,63 @@ export default function ProductOptions({
         />
 
 
-        <span>
+        <span
+          aria-live="polite"
+        >
           {!available
             ? "Out of stock"
-            : stock >
+            : stock <=
                 0
-              ? `${stock} available`
-              : "This selection is unavailable"}
+              ? "This selection is unavailable"
+              : lowStock
+                ? `Only ${stock} left for this selection`
+                : `${stock} available`}
         </span>
       </div>
 
 
       {/* ===============================================
-          PURCHASE ACTIONS
+          DELIVERY + RETURN TRUST
       =============================================== */}
 
-      <div
-        className="purchase-actions"
-      >
+      <div className="panel product-purchase-trust">
+        {deliveryAvailable &&
+          deliveryEstimate && (
+          <p>
+            <strong>
+              Delivery:
+            </strong>{" "}
+
+            {deliveryEstimate}
+          </p>
+        )}
+
+
+        {returnPolicy && (
+          <p>
+            <strong>
+              Returns:
+            </strong>{" "}
+
+            {returnPolicy}
+          </p>
+        )}
+
+
+        {stock >
+          0 && (
+          <p className="muted">
+            Availability is based on your selected size and colour.
+          </p>
+        )}
+      </div>
+
+
+      {/* ===============================================
+          PRIMARY PURCHASE ACTIONS
+      =============================================== */}
+
+      <div className="purchase-actions product-primary-actions">
         <button
           type="button"
           className="button"
@@ -1121,29 +1177,16 @@ export default function ProductOptions({
 
         <button
           type="button"
-          className={`button secondary ${
-            saved
-              ? "saved"
-              : ""
-          }`}
-          aria-pressed={
-            saved
+          className="button secondary buy-now"
+          disabled={
+            stock <=
+            0
           }
-          onClick={() =>
-            toggleWishlist(
-              product
-            )
+          onClick={
+            handleBuyNow
           }
         >
-          <Heart
-            filled={
-              saved
-            }
-          />
-
-          {saved
-            ? "Wishlisted"
-            : "Wishlist"}
+          Buy now
         </button>
       </div>
 
@@ -1161,9 +1204,8 @@ export default function ProductOptions({
             ✓ Added to your bag
           </span>
 
-          <Link
-            to="/cart"
-          >
+
+          <Link to="/cart">
             View bag & checkout →
           </Link>
         </div>
@@ -1171,21 +1213,57 @@ export default function ProductOptions({
 
 
       {/* ===============================================
-          BUY NOW
+          WISHLIST
       =============================================== */}
 
-      {stock >
-        0 && (
-        <button
-          type="button"
-          className="button secondary full buy-now"
-          onClick={
-            handleBuyNow
+      <button
+        type="button"
+        className={`button secondary full ${
+          saved
+            ? "saved"
+            : ""
+        }`}
+        aria-pressed={
+          saved
+        }
+        onClick={() =>
+          toggleWishlist(
+            product
+          )
+        }
+      >
+        <Heart
+          filled={
+            saved
           }
-        >
-          Buy now
-        </button>
-      )}
+        />
+
+        {saved
+          ? "Wishlisted"
+          : "Save to wishlist"}
+      </button>
+
+
+      {/* ===============================================
+          VIRTUAL TRY-ON
+      =============================================== */}
+
+      <div className="product-secondary-tool">
+        <VirtualTryOnButton
+          product={
+            product
+          }
+          color={
+            color
+          }
+          size={
+            size
+          }
+          onSelectionChange={
+            handleTryOnSelection
+          }
+        />
+      </div>
 
 
       {/* ===============================================
@@ -1222,41 +1300,41 @@ export default function ProductOptions({
           color={
             color
           }
-          onSelectSize={
-            (
-              next
-            ) => {
-              const optionStock =
-                getVariantStock(
-                  product,
-                  next,
-                  color
-                );
+          onSelectSize={(
+            next
+          ) => {
+            const optionStock =
+              getVariantStock(
+                product,
+                next,
+                color
+              );
 
 
-              if (
-                optionStock >
-                0
-              ) {
-                setSize(
-                  next
-                );
-
-                setQuantity(
-                  1
-                );
-
-                setAdded(
-                  false
-                );
-              }
+            if (
+              optionStock >
+              0
+            ) {
+              setSize(
+                next
+              );
 
 
-              setGuide(
+              setQuantity(
+                1
+              );
+
+
+              setAdded(
                 false
               );
             }
-          }
+
+
+            setGuide(
+              false
+            );
+          }}
           onClose={() =>
             setGuide(
               false
