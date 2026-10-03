@@ -1,141 +1,473 @@
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
 import { useCatalog } from "./CatalogContext.jsx";
 import { useAuth } from "./AuthContext.jsx";
-import { getCartItemKey, normalizeCartItem, revalidateCart, validateCartItem } from "../utils/cartUtils.js";
+
+import {
+  getCartItemKey,
+  normalizeCartItem,
+  revalidateCart,
+  validateCartItem,
+} from "../utils/cartUtils.js";
+
 import { readStorage, writeStorage } from "../utils/storage.js";
-import { shoppingKey, readSession, writeSession } from "../utils/shopperStorage.js";
+import {
+  shoppingKey,
+  readSession,
+  writeSession,
+} from "../utils/shopperStorage.js";
 import { resolveCoupon } from "../utils/orderCalculations.js";
+
 const StoreContext = createContext(null);
 
+function readArray(key) {
+  const saved = readStorage(key, []);
+  return Array.isArray(saved) ? saved.filter(Boolean) : [];
+}
+
+function readBuyNow(key) {
+  const saved = readSession(key, []);
+  return Array.isArray(saved) ? saved[0] || null : null;
+}
+
+function resolveWishlist(saved, products) {
+  const ids = new Set(
+    saved.filter(Boolean).map((item) => String(item.id ?? item))
+  );
+
+  return products.filter((product) =>
+    [product.id, product._id, product.legacyId]
+      .filter((id) => id != null)
+      .some((id) => ids.has(String(id)))
+  );
+}
+
 export default function StoreProvider({ children }) {
-  const { products, getLatestProducts } = useCatalog();
+  const {
+    products,
+    loading,
+    error,
+    getLatestProducts,
+  } = useCatalog();
+
   const { user } = useAuth();
   const key = (name) => shoppingKey(name, user);
-  const cartKey = key("gymdrobe-cart"), wishlistKey = key("gymdrobe-wishlist"), couponKey = key("gymdrobe-coupon"), buyNowKey = key("gymdrobe-buy-now");
-  const restoreCart = () => revalidateCart(readStorage(cartKey, []), products);
-  const restoreWishlist = () => {
-    const saved = readStorage(wishlistKey, []);
-    const ids = new Set((Array.isArray(saved) ? saved : []).filter(Boolean).map(item => String(item.id ?? item)));
-    return products.filter(p => ids.has(String(p.id)));
-  };
-  const [restored] = useState(restoreCart);
-  const [cart, setCartState] = useState(restored.cart), cartRef = useRef(cart);
-  const [wishlist, setWishlistState] = useState(restoreWishlist);
-  const wishlistRef = useRef(wishlist), wishlistMemory = useRef(false);
-  const [coupon, setCouponState] = useState(() => resolveCoupon(readStorage(couponKey, null)));
-  const [buyNowItem, setBuyNowItem] = useState(() => revalidateCart(readSession(buyNowKey, []), products).cart[0] || null);
-  const [toast, setToast] = useState(null), toastId = useRef(0), memoryOnly = useRef(false);
-  function notify(message, type = "success") { setToast({ message, type, id: ++toastId.current }); }
-  useEffect(() => {
-    if (restored.changes.length) notify("Your bag was updated to current prices and available stock.", "info");
-  }, [restored]);
+
+  const cartKey = key("gymdrobe-cart");
+  const wishlistKey = key("gymdrobe-wishlist");
+  const couponKey = key("gymdrobe-coupon");
+  const buyNowKey = key("gymdrobe-buy-now");
+
+  const catalogReady = !loading && !error;
+
+  // Restore saved data without checking an unfinished catalog.
+  const [cart, setCartState] = useState(() => readArray(cartKey));
+  const cartRef = useRef(cart);
+  const memoryOnly = useRef(false);
+
+  const [wishlist, setWishlistState] = useState([]);
+  const wishlistRef = useRef(wishlist);
+  const wishlistMemory = useRef(false);
+
+  const [coupon, setCouponState] = useState(() =>
+    resolveCoupon(readStorage(couponKey, null))
+  );
+
+  const [buyNowItem, setBuyNowItem] = useState(() =>
+    readBuyNow(buyNowKey)
+  );
+  const buyNowRef = useRef(buyNowItem);
+
+  const [toast, setToast] = useState(null);
+  const toastId = useRef(0);
+
+  function notify(message, type = "success") {
+    setToast({ message, type, id: ++toastId.current });
+  }
+
   useEffect(() => {
     if (!toast) return;
+
     const timer = setTimeout(() => setToast(null), 4500);
     return () => clearTimeout(timer);
   }, [toast?.id]);
+
+  function requireCatalog() {
+    if (catalogReady) return true;
+
+    notify(
+      error
+        ? "Products could not be loaded. Please retry before changing your bag."
+        : "Products are loading. Please wait a moment.",
+      error ? "error" : "info"
+    );
+
+    return false;
+  }
+
   function commitCart(next) {
     const saved = writeStorage(cartKey, next);
+
     memoryOnly.current = !saved;
     cartRef.current = next;
     setCartState(next);
-    if (!saved) notify("Bag updated for this visit. Browser storage is unavailable.", "warning");
+
+    if (!saved) {
+      notify(
+        "Bag updated for this visit. Browser storage is unavailable.",
+        "warning"
+      );
+    }
+
     return saved;
   }
+
   function latestCart() {
-    return revalidateCart(memoryOnly.current ? cartRef.current : readStorage(cartKey, cartRef.current), getLatestProducts()).cart;
+    const saved = memoryOnly.current
+      ? cartRef.current
+      : readStorage(cartKey, cartRef.current);
+
+    const rows = Array.isArray(saved) ? saved.filter(Boolean) : [];
+
+    // A failed or pending catalog must not remove saved items.
+    if (!catalogReady) return rows;
+
+    return revalidateCart(rows, getLatestProducts()).cart;
   }
+
+  function refreshBuyNow(item) {
+    const next = item || null;
+    buyNowRef.current = next;
+    setBuyNowItem(next);
+    writeSession(buyNowKey, next ? [next] : []);
+  }
+
+  function clearBuyNow() {
+    refreshBuyNow(null);
+  }
+
+  // Reconcile only after a successful catalog response.
+  // A successfully loaded empty catalog is still authoritative.
   useEffect(() => {
-    const checked = revalidateCart(cartRef.current, products);
+    if (!catalogReady) return;
+
+    const savedCart = memoryOnly.current
+      ? cartRef.current
+      : readStorage(cartKey, cartRef.current);
+
+    const checked = revalidateCart(savedCart, products);
+
     cartRef.current = checked.cart;
     setCartState(checked.cart);
+
     if (checked.changes.length) {
       if (commitCart(checked.cart)) {
-        notify("Your bag was updated to current prices and stock.", "info");
+        notify(
+          "Your bag was updated to current prices and available stock.",
+          "info"
+        );
       }
     }
-    const next = wishlistRef.current.map(item => products.find(p => String(p.id) === String(item.id))).filter(Boolean);
-    wishlistRef.current = next;
-    setWishlistState(next);
-    setBuyNowItem(current => current ? revalidateCart([current], products).cart[0] || null : null);
-  }, [products]);
-  useEffect(() => { writeSession(buyNowKey, buyNowItem ? [buyNowItem] : []); }, [buyNowItem, buyNowKey]);
+
+    const savedWishlist = wishlistMemory.current
+      ? wishlistRef.current
+      : readArray(wishlistKey);
+
+    const nextWishlist = resolveWishlist(savedWishlist, products);
+
+    wishlistRef.current = nextWishlist;
+    setWishlistState(nextWishlist);
+
+    const nextBuyNow = buyNowRef.current
+      ? revalidateCart([buyNowRef.current], products).cart[0] || null
+      : null;
+
+    refreshBuyNow(nextBuyNow);
+  }, [catalogReady, products, cartKey, wishlistKey, buyNowKey]);
+
+  // Keep other browser tabs in sync without validating against
+  // a catalog that is still loading.
   useEffect(() => {
     function sync(event) {
       if (event.key === cartKey || event.key === null) {
-        const next = restoreCart().cart;
-        cartRef.current = next; setCartState(next); memoryOnly.current = false;
+        const saved = readArray(cartKey);
+        const checked = catalogReady
+          ? revalidateCart(saved, products)
+          : { cart: saved, changes: [] };
+
+        memoryOnly.current = false;
+        cartRef.current = checked.cart;
+        setCartState(checked.cart);
+
+        if (catalogReady && checked.changes.length) {
+          commitCart(checked.cart);
+        }
       }
+
       if (event.key === wishlistKey || event.key === null) {
-        const next = restoreWishlist(); wishlistRef.current = next; setWishlistState(next);
         wishlistMemory.current = false;
+
+        if (catalogReady) {
+          const next = resolveWishlist(readArray(wishlistKey), products);
+          wishlistRef.current = next;
+          setWishlistState(next);
+        }
       }
-      if (event.key === couponKey || event.key === null) setCouponState(resolveCoupon(readStorage(couponKey, null)));
+
+      if (event.key === couponKey || event.key === null) {
+        setCouponState(resolveCoupon(readStorage(couponKey, null)));
+      }
     }
+
     window.addEventListener("storage", sync);
     return () => window.removeEventListener("storage", sync);
-  }, [products, cartKey, wishlistKey, couponKey]);
+  }, [catalogReady, products, cartKey, wishlistKey, couponKey]);
+
   function setCart(value) {
-    const next = typeof value === "function" ? value(latestCart()) : value;
-    return commitCart(revalidateCart(next, getLatestProducts()).cart);
+    if (!requireCatalog()) return false;
+
+    const next =
+      typeof value === "function" ? value(latestCart()) : value;
+
+    return commitCart(
+      revalidateCart(next, getLatestProducts()).cart
+    );
   }
-  function addToCart(product, quantity = 1, size = null, color = null) {
-    const canonical = getLatestProducts().find(p => String(p.id) === String(product?.id));
+
+  function addToCart(
+    product,
+    quantity = 1,
+    size = null,
+    color = null
+  ) {
+    if (!requireCatalog()) return false;
+
+    const canonical = getLatestProducts().find(
+      (item) => String(item.id) === String(product?.id)
+    );
+
     const basic = validateCartItem(canonical, quantity, size, color);
-    if (!basic.valid) { notify(basic.message, "error"); return false; }
+
+    if (!basic.valid) {
+      notify(basic.message, "error");
+      return false;
+    }
+
     const rows = latestCart();
-    const itemKey = getCartItemKey({ id: canonical.id, selectedSize: size, selectedColor: color });
-    const existing = rows.find(row => getCartItemKey(row) === itemKey);
+
+    const itemKey = getCartItemKey({
+      id: canonical.id,
+      selectedSize: size,
+      selectedColor: color,
+    });
+
+    const existing = rows.find(
+      (row) => getCartItemKey(row) === itemKey
+    );
+
     const total = Number(quantity) + (existing?.quantity || 0);
-    const validation = validateCartItem(canonical, total, size, color);
-    if (!validation.valid) { notify(validation.message, "error"); return false; }
+
+    const validation = validateCartItem(
+      canonical,
+      total,
+      size,
+      color
+    );
+
+    if (!validation.valid) {
+      notify(validation.message, "error");
+      return false;
+    }
+
     const item = normalizeCartItem(canonical, total, size, color);
-    const saved = commitCart(existing ? rows.map(row => getCartItemKey(row) === itemKey ? item : row) : [...rows, item]);
+
+    const saved = commitCart(
+      existing
+        ? rows.map((row) =>
+            getCartItemKey(row) === itemKey ? item : row
+          )
+        : [...rows, item]
+    );
+
     if (saved) notify("Added to your bag.");
+
+    // Adding still succeeds in memory if browser storage fails.
     return true;
   }
+
   function updateQuantity(itemKey, quantity) {
-    const rows = latestCart(), row = rows.find(item => getCartItemKey(item) === itemKey);
+    if (!requireCatalog()) return;
+
+    const rows = latestCart();
+    const row = rows.find(
+      (item) => getCartItemKey(item) === itemKey
+    );
+
     if (!row) return;
-    const product = getLatestProducts().find(p => String(p.id) === String(row.id));
-    const result = validateCartItem(product, quantity, row.selectedSize, row.selectedColor);
-    if (!result.valid) { notify(result.message, "error"); return; }
-    commitCart(rows.map(item => getCartItemKey(item) === itemKey ? normalizeCartItem(product, Number(quantity), row.selectedSize, row.selectedColor) : item));
+
+    const product = getLatestProducts().find(
+      (item) => String(item.id) === String(row.id)
+    );
+
+    const result = validateCartItem(
+      product,
+      quantity,
+      row.selectedSize,
+      row.selectedColor
+    );
+
+    if (!result.valid) {
+      notify(result.message, "error");
+      return;
+    }
+
+    commitCart(
+      rows.map((item) =>
+        getCartItemKey(item) === itemKey
+          ? normalizeCartItem(
+              product,
+              Number(quantity),
+              row.selectedSize,
+              row.selectedColor
+            )
+          : item
+      )
+    );
   }
+
   function removeFromCart(itemKey) {
-    if (commitCart(latestCart().filter(item => getCartItemKey(item) !== itemKey))) {
+    if (!requireCatalog()) return;
+
+    if (
+      commitCart(
+        latestCart().filter(
+          (item) => getCartItemKey(item) !== itemKey
+        )
+      )
+    ) {
       notify("Removed from your bag.", "info");
     }
   }
+
   function toggleWishlist(product) {
-    const canonical = products.find(p => String(p.id) === String(product?.id));
+    if (!requireCatalog()) return false;
+
+    const latestProducts = getLatestProducts();
+    const canonical = latestProducts.find(
+      (item) => String(item.id) === String(product?.id)
+    );
+
     if (!canonical) return false;
-    const rows = wishlistMemory.current ? wishlistRef.current : restoreWishlist();
-    const exists = rows.some(p => String(p.id) === String(canonical.id));
-    const next = exists ? rows.filter(p => String(p.id) !== String(canonical.id)) : [...rows, canonical];
-    wishlistRef.current = next; setWishlistState(next);
-    const saved = writeStorage(wishlistKey, next.map(({id}) => ({id})));
+
+    const rows = wishlistMemory.current
+      ? wishlistRef.current
+      : resolveWishlist(readArray(wishlistKey), latestProducts);
+
+    const exists = rows.some(
+      (item) => String(item.id) === String(canonical.id)
+    );
+
+    const next = exists
+      ? rows.filter(
+          (item) => String(item.id) !== String(canonical.id)
+        )
+      : [...rows, canonical];
+
+    wishlistRef.current = next;
+    setWishlistState(next);
+
+    const saved = writeStorage(
+      wishlistKey,
+      next.map(({ id }) => ({ id }))
+    );
+
     wishlistMemory.current = !saved;
-    notify(saved ? exists ? "Removed from wishlist." : "Saved to wishlist." : "Wishlist updated for this visit. Browser storage is unavailable.", saved ? "success" : "warning");
+
+    notify(
+      saved
+        ? exists
+          ? "Removed from wishlist."
+          : "Saved to wishlist."
+        : "Wishlist updated for this visit. Browser storage is unavailable.",
+      saved ? "success" : "warning"
+    );
+
     return saved;
   }
+
   function setCoupon(value) {
-    const next = resolveCoupon(value); setCouponState(next);
-    writeStorage(couponKey, next ? {code: next.code} : null);
+    const next = resolveCoupon(value);
+    setCouponState(next);
+    writeStorage(couponKey, next ? { code: next.code } : null);
   }
+
   function buyNow(product, quantity, size, color) {
-    const canonical = getLatestProducts().find(p => String(p.id) === String(product?.id));
-    const result = validateCartItem(canonical, quantity, size, color);
-    if (!result.valid) { notify(result.message, "error"); return false; }
-    const item = normalizeCartItem(canonical, quantity, size, color);
-    setBuyNowItem(item); writeSession(buyNowKey, [item]); return true;
+    if (!requireCatalog()) return false;
+
+    const canonical = getLatestProducts().find(
+      (item) => String(item.id) === String(product?.id)
+    );
+
+    const result = validateCartItem(
+      canonical,
+      quantity,
+      size,
+      color
+    );
+
+    if (!result.valid) {
+      notify(result.message, "error");
+      return false;
+    }
+
+    refreshBuyNow(
+      normalizeCartItem(canonical, quantity, size, color)
+    );
+
+    return true;
   }
-  function refreshBuyNow(item) { setBuyNowItem(item || null); writeSession(buyNowKey, item ? [item] : []); }
-  function clearBuyNow() { refreshBuyNow(null); }
-  return <StoreContext.Provider value={{cart, setCart, addToCart, updateQuantity, removeFromCart, wishlist, toggleWishlist, coupon, setCoupon, buyNowItem, buyNow, clearBuyNow, refreshBuyNow, notify, toast, closeToast: () => setToast(null), shoppingKey: key, latestCart}}>{children}</StoreContext.Provider>;
+
+  return (
+    <StoreContext.Provider
+      value={{
+        cart,
+        setCart,
+        addToCart,
+        updateQuantity,
+        removeFromCart,
+        wishlist,
+        toggleWishlist,
+        coupon,
+        setCoupon,
+        buyNowItem,
+        buyNow,
+        clearBuyNow,
+        refreshBuyNow,
+        notify,
+        toast,
+        closeToast: () => setToast(null),
+        shoppingKey: key,
+        latestCart,
+        catalogReady,
+      }}
+    >
+      {children}
+    </StoreContext.Provider>
+  );
 }
+
 export function useStore() {
   const value = useContext(StoreContext);
-  if (!value) throw new Error("StoreProvider is missing.");
+
+  if (!value) {
+    throw new Error("StoreProvider is missing.");
+  }
+
   return value;
 }
