@@ -1,32 +1,13 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-
-import {
-  Link,
-} from "react-router-dom";
-
-import {
-  useAuth,
-} from "../context/AuthContext.jsx";
-
-import {
-  useStore,
-} from "../context/StoreContext.jsx";
-
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
+import { useStore } from "../context/StoreContext.jsx";
 import {
   getAdminOrders,
   getAdminOrderById,
   updateAdminOrderStatus,
 } from "../services/adminOrderApi.js";
-
-
-// ======================================================
-// STATUS SETTINGS
-// ======================================================
-
+import "./AdminOrdersPage.css";
 const STATUS_FLOW = [
   "confirmed",
   "processing",
@@ -34,2022 +15,950 @@ const STATUS_FLOW = [
   "out-for-delivery",
   "delivered",
 ];
-
-
 const STATUS_OPTIONS = [
   {
     value: "all",
     label: "All",
   },
-
   {
     value: "payment-pending",
     label: "Payment pending",
   },
-
   {
     value: "confirmed",
     label: "Confirmed",
   },
-
   {
     value: "processing",
     label: "Processing",
   },
-
   {
     value: "shipped",
     label: "Shipped",
   },
-
   {
     value: "out-for-delivery",
     label: "Out for delivery",
   },
-
   {
     value: "delivered",
     label: "Delivered",
   },
-
   {
     value: "cancelled",
     label: "Cancelled",
   },
 ];
-
-
-// ======================================================
-// HELPERS
-// ======================================================
-
-function statusLabel(
-  value
-) {
-  const match =
-    STATUS_OPTIONS.find(
-      (item) =>
-        item.value ===
-        value
-    );
-
-
-  if (
-    match
-  ) {
+function statusLabel(value) {
+  const match = STATUS_OPTIONS.find((item) => item.value === value);
+  if (match) {
     return match.label;
   }
-
-
-  return String(
-    value ||
-      "Unknown"
-  )
-    .replaceAll(
-      "-",
-      " "
-    )
-    .replace(
-      /\b\w/g,
-      (letter) =>
-        letter.toUpperCase()
-    );
+  return String(value || "Unknown")
+    .replaceAll("-", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
-
-
-function money(
-  value
-) {
-  const amount =
-    Number(
-      value ||
-        0
-    );
-
-
-  return new Intl.NumberFormat(
-    "en-IN",
-    {
-      style:
-        "currency",
-
-      currency:
-        "INR",
-
-      maximumFractionDigits:
-        0,
-    }
-  ).format(
-    amount
-  );
+function recordedAmount(value) {
+  if (value == null || value === "") return null;
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount >= 0 ? amount : null;
 }
-
-
-function formatDate(
-  value
-) {
-  if (
-    !value
-  ) {
+function money(value) {
+  const amount = recordedAmount(value);
+  return amount === null
+    ? "Not recorded"
+    : new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+        maximumFractionDigits: 2,
+      }).format(amount);
+}
+function formatDate(value) {
+  if (!value) {
     return "—";
   }
-
-
-  const date =
-    new Date(
-      value
-    );
-
-
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
     return "—";
   }
-
-
-  return date.toLocaleString(
-    "en-IN",
-    {
-      dateStyle:
-        "medium",
-
-      timeStyle:
-        "short",
-    }
-  );
+  return date.toLocaleString("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 }
-
-
-function dateInputValue(
-  value
-) {
-  if (
-    !value
-  ) {
+function dateInputValue(value) {
+  if (!value) {
     return "";
   }
-
-
-  const date =
-    new Date(
-      value
-    );
-
-
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
     return "";
   }
-
-
-  const year =
-    date.getFullYear();
-
-
-  const month =
-    String(
-      date.getMonth() +
-        1
-    ).padStart(
-      2,
-      "0"
-    );
-
-
-  const day =
-    String(
-      date.getDate()
-    ).padStart(
-      2,
-      "0"
-    );
-
-
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
-
-
-function orderIdOf(
-  order
-) {
-  return (
-    order?.orderNumber ||
-    order?.id ||
-    ""
-  );
+function orderIdOf(order) {
+  return order?.orderNumber || order?.id || "";
 }
-
-
-function customerName(
-  order
-) {
+function customerName(order) {
   return (
     order?.customer?.name ||
     order?.user?.name ||
+    order?.shippingAddress?.fullName ||
     "Customer"
   );
 }
-
-
-function customerEmail(
-  order
-) {
-  return (
-    order?.customer?.email ||
-    order?.user?.email ||
-    ""
-  );
+function customerEmail(order) {
+  return order?.customer?.email || order?.user?.email || "";
 }
-
-
-function createDraft(
-  order
-) {
+function createDraft(order) {
   return {
-    status:
-      order?.status ||
-      "confirmed",
-
-    carrier:
-      order?.tracking
-        ?.carrier ||
-      "",
-
-    trackingNumber:
-      order?.tracking
-        ?.trackingNumber ||
-      "",
-
-    estimatedDelivery:
-      dateInputValue(
-        order?.tracking
-          ?.estimatedDelivery
-      ),
-
-    codBalanceCollected:
-      false,
+    status: order?.status || "confirmed",
+    carrier: order?.tracking?.carrier || "",
+    trackingNumber: order?.tracking?.trackingNumber || "",
+    estimatedDelivery: dateInputValue(order?.tracking?.estimatedDelivery),
+    codBalanceCollected: false,
   };
 }
-
-
-// ======================================================
-// STATUS BADGE
-// ======================================================
-
-function StatusBadge({
-  status,
-}) {
+function StatusBadge({ status }) {
   const styles = {
     "payment-pending": {
-      background:
-        "#fff7ed",
-
-      color:
-        "#9a3412",
+      background: "#fff7ed",
+      color: "#9a3412",
     },
-
     confirmed: {
-      background:
-        "#eef2ff",
-
-      color:
-        "#3730a3",
+      background: "#eef2ff",
+      color: "#3730a3",
     },
-
     processing: {
-      background:
-        "#fff7ed",
-
-      color:
-        "#9a3412",
+      background: "#fff7ed",
+      color: "#9a3412",
     },
-
     shipped: {
-      background:
-        "#eff6ff",
-
-      color:
-        "#1d4ed8",
+      background: "#eff6ff",
+      color: "#1d4ed8",
     },
-
     "out-for-delivery": {
-      background:
-        "#fefce8",
-
-      color:
-        "#854d0e",
+      background: "#fefce8",
+      color: "#854d0e",
     },
-
     delivered: {
-      background:
-        "#ecfdf5",
-
-      color:
-        "#047857",
+      background: "#ecfdf5",
+      color: "#047857",
     },
-
     cancelled: {
-      background:
-        "#fef2f2",
-
-      color:
-        "#b91c1c",
+      background: "#fef2f2",
+      color: "#b91c1c",
     },
   };
-
-
-  const selectedStyle =
-    styles[
-      status
-    ] || {
-      background:
-        "#f4f4f5",
-
-      color:
-        "#3f3f46",
-    };
-
-
+  const selectedStyle = styles[status] || {
+    background: "#f4f4f5",
+    color: "#3f3f46",
+  };
   return (
     <span
       style={{
-        display:
-          "inline-flex",
-
-        alignItems:
-          "center",
-
-        padding:
-          "6px 10px",
-
-        borderRadius:
-          "999px",
-
-        fontSize:
-          "12px",
-
-        fontWeight:
-          800,
-
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "6px 10px",
+        borderRadius: "999px",
+        fontSize: "12px",
+        fontWeight: 800,
         ...selectedStyle,
       }}
     >
-      {statusLabel(
-        status
-      )}
+      {statusLabel(status)}
     </span>
   );
 }
-
-
-// ======================================================
-// ADMIN ORDER CARD
-// ======================================================
-
-function AdminOrderCard({
-  order,
-  token,
-  notify,
-  onUpdated,
-}) {
-  const id =
-    orderIdOf(
-      order
-    );
-
-
-  const [
-    expanded,
-    setExpanded,
-  ] =
-    useState(
-      false
-    );
-
-
-  const [
-    detailedOrder,
-    setDetailedOrder,
-  ] =
-    useState(
-      order
-    );
-
-
-  const [
-    loadingDetails,
-    setLoadingDetails,
-  ] =
-    useState(
-      false
-    );
-
-
-  const [
-    saving,
-    setSaving,
-  ] =
-    useState(
-      false
-    );
-
-
-  const [
-    error,
-    setError,
-  ] =
-    useState(
-      ""
-    );
-
-
-  const [
-    draft,
-    setDraft,
-  ] =
-    useState(
-      () =>
-        createDraft(
-          order
-        )
-    );
-
-
-  useEffect(
-    () => {
-      setDetailedOrder(
-        order
-      );
-
-
-      setDraft(
-        createDraft(
-          order
-        )
-      );
-    },
-    [
-      order,
-    ]
-  );
-
-
-  // ====================================================
-  // DETAILS
-  // ====================================================
-
+function AdminOrderCard({ order, token, notify, onUpdated }) {
+  const id = orderIdOf(order);
+  const [expanded, setExpanded] = useState(false);
+  const [detailsReady, setDetailsReady] = useState(false);
+  const mounted = useRef(false);
+  const generation = useRef(0);
+  const saveLock = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      generation.current++;
+    };
+  }, []);
+  const [detailedOrder, setDetailedOrder] = useState(order);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [draft, setDraft] = useState(() => createDraft(order));
+  useEffect(() => {
+    if (expanded || saveLock.current) return;
+    generation.current++;
+    setLoadingDetails(false);
+    setDetailedOrder(order);
+    setDetailsReady(false);
+    setDraft(createDraft(order));
+  }, [order]);
   async function toggleDetails() {
-    if (
-      expanded
-    ) {
-      setExpanded(
-        false
-      );
-
+    if (saveLock.current || loadingDetails) return;
+    if (expanded) {
+      if (
+        JSON.stringify(draft) !== JSON.stringify(createDraft(current)) &&
+        !window.confirm("Discard the unsaved order changes?")
+      )
+        return;
+      setExpanded(false);
       return;
     }
-
-
-    setExpanded(
-      true
-    );
-
-
-    setError(
-      ""
-    );
-
-
-    if (
-      !token ||
-      !id
-    ) {
+    setExpanded(true);
+    setError("");
+    if (!token || !id) {
       return;
     }
-
-
-    setLoadingDetails(
-      true
-    );
-
-
+    const version = ++generation.current;
+    setDetailsReady(false);
+    setLoadingDetails(true);
     try {
-      const fresh =
-        await getAdminOrderById(
-          token,
-          id
+      const fresh = await getAdminOrderById(token, id);
+      if (!mounted.current || version !== generation.current) return;
+      if (!fresh || !orderIdOf(fresh))
+        throw new Error(
+          "The order details were not returned. Reload before editing.",
         );
-
-
-      setDetailedOrder(
-        fresh
-      );
-
-
-      setDraft(
-        createDraft(
-          fresh
-        )
-      );
-
-    } catch (
-      loadError
-    ) {
-      console.error(
-        "Load admin order error:",
-        loadError
-      );
-
-
-      setError(
-        loadError.message ||
-          "Unable to load this order."
-      );
-
+      setDetailedOrder(fresh);
+      setDraft(createDraft(fresh));
+      setDetailsReady(true);
+    } catch (loadError) {
+      console.error("Load admin order error:", loadError);
+      if (mounted.current && version === generation.current)
+        setError(loadError.message || "Unable to load this order.");
     } finally {
-      setLoadingDetails(
-        false
-      );
+      if (mounted.current && version === generation.current)
+        setLoadingDetails(false);
     }
   }
-
-
-  // ====================================================
-  // CURRENT ORDER
-  // ====================================================
-
-  const current =
-    detailedOrder ||
-    order;
-
-
-  const cancelled =
-    current?.status ===
-    "cancelled";
-
-
-  const delivered =
-    current?.status ===
-    "delivered";
-
-
-  const paymentPending =
-    current?.status ===
-    "payment-pending";
-
-
-  const currentIndex =
-    STATUS_FLOW.indexOf(
-      current?.status
-    );
-
-
-  // ====================================================
-  // PAYMENT INFORMATION
-  // ====================================================
-
+  const current = detailedOrder || order;
+  const cancelled = current?.status === "cancelled";
+  const delivered = current?.status === "delivered";
+  const paymentPending = current?.status === "payment-pending";
+  const currentIndex = STATUS_FLOW.indexOf(current?.status);
   const isPartialCod =
-    current?.payment
-      ?.method ===
-      "cod-partial" ||
-    current?.paymentMethod ===
-      "cod-partial";
-
-
+    current?.payment?.method === "cod-partial" ||
+    current?.paymentMethod === "cod-partial";
   const isFullOnline =
-    current?.payment
-      ?.method ===
-      "razorpay" ||
-    current?.paymentMethod ===
-      "razorpay";
-
-
-  const advancePercentage =
-    Number(
-      current?.payment
-        ?.advancePercentage ||
-      0
-    );
-
-
-  const advanceAmount =
-    Number(
-      current?.payment
-        ?.advanceAmount ||
-      0
-    );
-
-
-  const amountPaid =
-    Number(
-      current?.payment
-        ?.amountPaid ||
-      0
-    );
-
-
-  const amountDue =
-    Number(
-      current?.payment
-        ?.amountDue ||
-      0
-    );
-
-
-  const totalAmount =
-    Number(
-      current?.payment
-        ?.totalAmount ||
-      current?.pricing
-        ?.finalTotal ||
-      0
-    );
-
-
+    current?.payment?.method === "razorpay" ||
+    current?.paymentMethod === "razorpay";
+  const advancePercentage = Number(current?.payment?.advancePercentage || 0);
+  const advanceAmount = recordedAmount(current?.payment?.advanceAmount);
+  const amountPaid = recordedAmount(current?.payment?.amountPaid);
+  const amountDue = recordedAmount(current?.payment?.amountDue);
+  const totalAmount = recordedAmount(
+    current?.payment?.totalAmount ?? current?.pricing?.finalTotal,
+  );
   const codBalancePending =
     isPartialCod &&
-    current?.payment
-      ?.balanceStatus ===
-      "pending" &&
-    amountDue >
-      0;
-
-
+    current?.payment?.balanceStatus === "pending" &&
+    amountDue > 0;
   const deliveryNeedsCodConfirmation =
-    draft.status ===
-      "delivered" &&
-    codBalancePending;
-
-
-  // ====================================================
-  // SAVE ORDER
-  // ====================================================
-
-  async function saveOrder(
-    event
-  ) {
+    draft.status === "delivered" && codBalancePending;
+  async function saveOrder(event) {
     event.preventDefault();
-
-
+    if (!token || !id || saveLock.current || !detailsReady) return;
     if (
-      !token ||
-      !id
+      currentIndex < 0 ||
+      STATUS_FLOW.indexOf(draft.status) < currentIndex ||
+      STATUS_FLOW.indexOf(draft.status) > currentIndex + 1
     ) {
+      setError("Choose the current status or the next fulfilment step.");
       return;
     }
-
-
     if (
-      draft.status ===
-        "delivered" &&
+      draft.status === "shipped" &&
+      (!draft.carrier.trim() || !draft.trackingNumber.trim())
+    ) {
+      setError(
+        "Enter the courier and tracking number before marking the order shipped.",
+      );
+      return;
+    }
+    if (
+      draft.status === "delivered" &&
+      isPartialCod &&
+      (amountDue === null ||
+        amountPaid === null ||
+        !["partially-paid", "paid"].includes(current?.payment?.status))
+    ) {
+      setError(
+        "Reconcile the verified advance, amount paid and COD balance before marking this order delivered.",
+      );
+      return;
+    }
+    if (
+      draft.status === "delivered" &&
       codBalancePending &&
       !draft.codBalanceCollected
     ) {
       setError(
         `Confirm that ${money(
-          amountDue
-        )} was collected from the customer before marking this order delivered.`
+          amountDue,
+        )} was collected from the customer before marking this order delivered.`,
       );
-
       return;
     }
-
-
-    setSaving(
-      true
-    );
-
-
-    setError(
-      ""
-    );
-
-
+    saveLock.current = true;
+    setSaving(true);
+    setError("");
     try {
-      const updated =
-        await updateAdminOrderStatus(
-          token,
-          id,
-          {
-            status:
-              draft.status,
-
-            carrier:
-              draft.carrier,
-
-            trackingNumber:
-              draft.trackingNumber,
-
-            estimatedDelivery:
-              draft.estimatedDelivery,
-
-            codBalanceCollected:
-              draft.status ===
-                "delivered" &&
-              codBalancePending
-                ? Boolean(
-                    draft.codBalanceCollected
-                  )
-                : false,
-          }
+      const updated = await updateAdminOrderStatus(token, id, {
+        status: draft.status,
+        carrier: draft.carrier,
+        trackingNumber: draft.trackingNumber,
+        estimatedDelivery: draft.estimatedDelivery,
+        codBalanceCollected:
+          draft.status === "delivered" && codBalancePending
+            ? Boolean(draft.codBalanceCollected)
+            : false,
+      });
+      if (!mounted.current) return;
+      if (!updated || !orderIdOf(updated))
+        throw new Error(
+          "The update response did not include the order. Reload its details to check the saved status.",
         );
-
-
-      setDetailedOrder(
-        updated
-      );
-
-
-      setDraft(
-        createDraft(
-          updated
-        )
-      );
-
-
-      onUpdated(
-        updated
-      );
-
-
+      setDetailedOrder(updated);
+      setDraft(createDraft(updated));
+      onUpdated(updated);
       notify?.(
-        isPartialCod &&
-        draft.status ===
-          "delivered" &&
-        codBalancePending
+        isPartialCod && draft.status === "delivered" && codBalancePending
           ? `Order ${id} delivered and COD balance recorded.`
-          : `Order ${id} updated.`
+          : `Order ${id} updated.`,
       );
-
-    } catch (
-      saveError
-    ) {
-      console.error(
-        "Update admin order error:",
-        saveError
-      );
-
-
-      setError(
-        saveError.message ||
-          "Unable to update this order."
-      );
-
+    } catch (saveError) {
+      console.error("Update admin order error:", saveError);
+      if (mounted.current)
+        setError(
+          saveError.message ||
+            "Unable to update this order. Reload its details before retrying.",
+        );
     } finally {
-      setSaving(
-        false
-      );
+      saveLock.current = false;
+      if (mounted.current) setSaving(false);
     }
   }
-
-
-  // ====================================================
-  // PAGE
-  // ====================================================
-
   return (
     <article
-      className="panel"
+      className="panel ao-card"
+      aria-busy={saving}
       style={{
-        padding:
-          "20px",
-
-        display:
-          "grid",
-
-        gap:
-          "18px",
+        padding: "20px",
+        display: "grid",
+        gap: "18px",
       }}
     >
-      {/* ===============================================
-          ORDER HEADER
-      =============================================== */}
-
       <div
         style={{
-          display:
-            "flex",
-
-          justifyContent:
-            "space-between",
-
-          alignItems:
-            "flex-start",
-
-          gap:
-            "16px",
-
-          flexWrap:
-            "wrap",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: "16px",
+          flexWrap: "wrap",
         }}
       >
         <div>
           <div
             style={{
-              display:
-                "flex",
-
-              alignItems:
-                "center",
-
-              gap:
-                "10px",
-
-              flexWrap:
-                "wrap",
-
-              marginBottom:
-                "8px",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              flexWrap: "wrap",
+              marginBottom: "8px",
             }}
           >
-            <strong>
-              {id}
-            </strong>
-
-
-            <StatusBadge
-              status={
-                current?.status
-              }
-            />
+            <strong>{id}</strong>
+            <StatusBadge status={current?.status} />
           </div>
-
-
           <p
             className="muted"
             style={{
-              margin:
-                0,
+              margin: 0,
             }}
           >
-            {formatDate(
-              current
-                ?.createdAt
-            )}
+            {formatDate(current?.createdAt)}
           </p>
         </div>
-
-
         <div
           style={{
-            textAlign:
-              "right",
+            textAlign: "right",
           }}
         >
           <strong
             style={{
-              fontSize:
-                "18px",
+              fontSize: "18px",
             }}
           >
-            {money(
-              current
-                ?.pricing
-                ?.finalTotal
-            )}
+            {money(current?.pricing?.finalTotal)}
           </strong>
-
-
           <p
             className="muted"
             style={{
-              margin:
-                "4px 0 0",
+              margin: "4px 0 0",
             }}
           >
-            {current
-              ?.items
-              ?.length ||
-              0}{" "}
-            item
-            {(
-              current
-                ?.items
-                ?.length ||
-              0
-            ) ===
-            1
-              ? ""
-              : "s"}
+            {(current?.items || []).reduce(
+              (sum, item) => sum + Number(item.quantity || 0),
+              0,
+            )}{" "}
+            units · {current?.items?.length || 0} order lines
           </p>
         </div>
       </div>
-
-
-      {/* ===============================================
-          SUMMARY
-      =============================================== */}
-
       <div
         style={{
-          display:
-            "grid",
-
-          gridTemplateColumns:
-            "repeat(auto-fit, minmax(180px, 1fr))",
-
-          gap:
-            "14px",
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: "14px",
         }}
       >
-        {/* CUSTOMER */}
-
         <div>
-          <span
-            className="muted"
-          >
-            Customer
-          </span>
-
-
+          <span className="muted">Customer</span>
           <div>
-            <strong>
-              {customerName(
-                current
-              )}
-            </strong>
+            <strong>{customerName(current)}</strong>
           </div>
-
-
-          {customerEmail(
-            current
-          ) && (
-            <div
-              className="muted"
-            >
-              {customerEmail(
-                current
-              )}
-            </div>
+          {customerEmail(current) && (
+            <div className="muted">{customerEmail(current)}</div>
           )}
         </div>
-
-
-        {/* PAYMENT */}
-
         <div>
-          <span
-            className="muted"
-          >
-            Payment
-          </span>
-
-
+          <span className="muted">Payment</span>
           <div>
             <strong>
               {isPartialCod
-                ? "CASH ON DELIVERY"
+                ? "COD WITH ONLINE ADVANCE"
                 : isFullOnline
                   ? "FULL ONLINE PAYMENT"
                   : String(
-                      current
-                        ?.payment
-                        ?.method ||
-                      current
-                        ?.paymentMethod ||
-                      "Unknown"
+                      current?.payment?.method ||
+                        current?.paymentMethod ||
+                        "Unknown",
                     ).toUpperCase()}
             </strong>
           </div>
-
-
-          <div
-            className="muted"
-          >
-            {statusLabel(
-              current
-                ?.payment
-                ?.status ||
-              "pending"
-            )}
+          <div className="muted">
+            {statusLabel(current?.payment?.status || "pending")}
           </div>
-
-
           {isPartialCod && (
             <div
               style={{
-                display:
-                  "grid",
-
-                gap:
-                  "3px",
-
-                marginTop:
-                  "8px",
+                display: "grid",
+                gap: "3px",
+                marginTop: "8px",
               }}
             >
               <span>
-                Advance{" "}
-                {advancePercentage >
-                0
-                  ? `(${advancePercentage}%)`
-                  : ""}
-                :{" "}
-
-                <strong>
-                  {money(
-                    advanceAmount
-                  )}
-                </strong>
+                Required advance{" "}
+                {advancePercentage > 0 ? `(${advancePercentage}%)` : ""}:{" "}
+                <strong>{money(advanceAmount)}</strong>
               </span>
-
-
               <span>
-                Paid:{" "}
-
-                <strong>
-                  {money(
-                    amountPaid
-                  )}
-                </strong>
+                Paid: <strong>{money(amountPaid)}</strong>
               </span>
-
-
               <span>
-                Remaining COD:{" "}
-
-                <strong>
-                  {money(
-                    amountDue
-                  )}
-                </strong>
+                Remaining COD: <strong>{money(amountDue)}</strong>
               </span>
-
-
-              <span
-                className="muted"
-              >
+              <span className="muted">
                 Balance:{" "}
-                {statusLabel(
-                  current
-                    ?.payment
-                    ?.balanceStatus ||
-                  "pending"
-                )}
+                {statusLabel(current?.payment?.balanceStatus || "pending")}
               </span>
             </div>
           )}
-
-
           {isFullOnline && (
             <div
               style={{
-                marginTop:
-                  "8px",
+                marginTop: "8px",
               }}
             >
               <span>
-                Paid:{" "}
-
-                <strong>
-                  {money(
-                    amountPaid
-                  )}
-                </strong>
+                Paid: <strong>{money(amountPaid)}</strong>
               </span>
             </div>
           )}
         </div>
-
-
-        {/* DELIVERY */}
-
-        <div>
-          <span
-            className="muted"
-          >
-            Delivery
-          </span>
-
-
+        {!isPartialCod && !isFullOnline && (
           <div>
-            <strong>
-              {current
-                ?.delivery
-                ?.label ||
-                "Standard delivery"}
-            </strong>
+            <span className="muted">Recorded amounts</span>
+            <p>
+              Paid: <strong>{money(amountPaid)}</strong>
+            </p>
+            <p>
+              Due: <strong>{money(amountDue)}</strong>
+            </p>
           </div>
-
-
-          <div
-            className="muted"
-          >
-            {current
-              ?.shippingAddress
-              ?.city ||
-              "—"}
-
+        )}
+        <div>
+          <span className="muted">Delivery</span>
+          <div>
+            <strong>{current?.delivery?.label || "Standard delivery"}</strong>
+          </div>
+          <div className="muted">
+            {current?.shippingAddress?.city || "—"}
             {" · "}
-
-            {current
-              ?.shippingAddress
-              ?.pincode ||
-              "—"}
+            {current?.shippingAddress?.pincode || "—"}
           </div>
         </div>
       </div>
-
-
-      {/* ===============================================
-          ACTIONS
-      =============================================== */}
-
       <div
         style={{
-          display:
-            "flex",
-
-          gap:
-            "10px",
-
-          flexWrap:
-            "wrap",
+          display: "flex",
+          gap: "10px",
+          flexWrap: "wrap",
         }}
       >
         <button
           type="button"
           className="button secondary"
-          onClick={
-            toggleDetails
-          }
+          onClick={toggleDetails}
+          disabled={saving || loadingDetails}
+          aria-expanded={expanded}
         >
-          {expanded
-            ? "Hide details"
-            : "Manage order"}
+          {expanded ? "Hide details" : "Manage order"}
         </button>
-
-
         <Link
           className="button secondary"
-          to={`/orders/${encodeURIComponent(
-            id
-          )}`}
+          to={`/orders/${encodeURIComponent(id)}`}
         >
           Customer view
         </Link>
       </div>
-
-
-      {/* ===============================================
-          EXPANDED DETAILS
-      =============================================== */}
-
+      {error && (
+        <p className="field-error" role="alert">
+          {error}
+        </p>
+      )}
       {expanded && (
         <div
           style={{
-            display:
-              "grid",
-
-            gap:
-              "22px",
-
-            borderTop:
-              "1px solid #e4e4e7",
-
-            paddingTop:
-              "20px",
+            display: "grid",
+            gap: "22px",
+            borderTop: "1px solid #e4e4e7",
+            paddingTop: "20px",
           }}
         >
           {loadingDetails ? (
-            <p
-              className="muted"
-            >
+            <p className="muted" role="status">
               Loading order…
             </p>
-
+          ) : !detailsReady ? (
+            <div>
+              <p>Current order details are required before editing.</p>
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => setExpanded(false)}
+              >
+                Close and reopen to retry
+              </button>
+            </div>
           ) : (
             <>
-              {/* =======================================
-                  ITEMS
-              ======================================== */}
-
               <section>
-                <h3>
-                  Items
-                </h3>
-
-
+                <h3>1. Ordered items</h3>
                 <div
                   style={{
-                    display:
-                      "grid",
-
-                    gap:
-                      "12px",
+                    display: "grid",
+                    gap: "12px",
                   }}
                 >
-                  {(
-                    current
-                      ?.items ||
-                    []
-                  ).map(
-                    (
-                      item,
-                      index
-                    ) => (
-                      <div
-                        key={`${item.productId || item.id}-${index}`}
-                        style={{
-                          display:
-                            "flex",
-
-                          justifyContent:
-                            "space-between",
-
-                          gap:
-                            "16px",
-
-                          padding:
-                            "12px 0",
-
-                          borderBottom:
-                            "1px solid #f1f1f1",
-                        }}
-                      >
-                        <div>
-                          <strong>
-                            {item.name}
-                          </strong>
-
-
-                          <div
-                            className="muted"
-                          >
-                            Qty:{" "}
-                            {item.quantity}
-
-                            {item.selectedSize
-                              ? ` · Size: ${item.selectedSize}`
-                              : ""}
-
-                            {item.selectedColor
-                              ? ` · Colour: ${item.selectedColor}`
-                              : ""}
-                          </div>
+                  {(current?.items || []).map((item, index) => (
+                    <div
+                      key={`${item.productId || item.id}-${index}`}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: "16px",
+                        padding: "12px 0",
+                        borderBottom: "1px solid #f1f1f1",
+                      }}
+                    >
+                      <div>
+                        <strong>{item.name}</strong>
+                        <div className="muted">
+                          Qty: {item.quantity}
+                          {item.selectedSize
+                            ? ` · Size: ${item.selectedSize}`
+                            : ""}
+                          {item.selectedColor
+                            ? ` · Colour: ${item.selectedColor}`
+                            : ""}
                         </div>
-
-
-                        <strong>
-                          {money(
-                            Number(
-                              item.price ||
-                              0
-                            ) *
-                              Number(
-                                item.quantity ||
-                                0
-                              )
-                          )}
-                        </strong>
                       </div>
-                    )
-                  )}
+                      <strong>
+                        {money(
+                          Number(item.price || 0) * Number(item.quantity || 0),
+                        )}
+                      </strong>
+                    </div>
+                  ))}
                 </div>
               </section>
-
-
-              {/* =======================================
-                  PRICE / PAYMENT DETAILS
-              ======================================== */}
-
               <section>
-                <h3>
-                  Payment details
-                </h3>
-
-
+                <h3>2. Payment details</h3>
                 <div
                   className="panel"
                   style={{
-                    padding:
-                      "16px",
-
-                    display:
-                      "grid",
-
-                    gap:
-                      "10px",
-
-                    maxWidth:
-                      "620px",
+                    padding: "16px",
+                    display: "grid",
+                    gap: "10px",
+                    maxWidth: "620px",
                   }}
                 >
                   <div
                     style={{
-                      display:
-                        "flex",
-
-                      justifyContent:
-                        "space-between",
-
-                      gap:
-                        "16px",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: "16px",
                     }}
                   >
-                    <span>
-                      Order total
-                    </span>
-
-                    <strong>
-                      {money(
-                        totalAmount
-                      )}
-                    </strong>
+                    <span>Order total</span>
+                    <strong>{money(totalAmount)}</strong>
                   </div>
-
-
                   {isPartialCod && (
                     <>
                       <div
                         style={{
-                          display:
-                            "flex",
-
-                          justifyContent:
-                            "space-between",
-
-                          gap:
-                            "16px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: "16px",
                         }}
                       >
                         <span>
-                          Advance paid online
-                          {advancePercentage >
-                          0
+                          Required online advance
+                          {advancePercentage > 0
                             ? ` (${advancePercentage}%)`
                             : ""}
                         </span>
-
-                        <strong>
-                          {money(
-                            advanceAmount
-                          )}
-                        </strong>
+                        <strong>{money(advanceAmount)}</strong>
                       </div>
-
-
                       <div
                         style={{
-                          display:
-                            "flex",
-
-                          justifyContent:
-                            "space-between",
-
-                          gap:
-                            "16px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: "16px",
                         }}
                       >
-                        <span>
-                          Remaining COD
-                        </span>
-
-                        <strong>
-                          {money(
-                            amountDue
-                          )}
-                        </strong>
+                        <span>Remaining COD</span>
+                        <strong>{money(amountDue)}</strong>
                       </div>
-
-
                       <div
                         style={{
-                          display:
-                            "flex",
-
-                          justifyContent:
-                            "space-between",
-
-                          gap:
-                            "16px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: "16px",
                         }}
                       >
-                        <span>
-                          COD balance status
-                        </span>
-
+                        <span>COD balance status</span>
                         <strong>
                           {statusLabel(
-                            current
-                              ?.payment
-                              ?.balanceStatus ||
-                            "pending"
+                            current?.payment?.balanceStatus || "pending",
                           )}
                         </strong>
                       </div>
-
-
-                      {current
-                        ?.payment
-                        ?.advancePaidAt && (
+                      {current?.payment?.advancePaidAt && (
                         <p
                           className="muted"
                           style={{
-                            margin:
-                              0,
+                            margin: 0,
                           }}
                         >
                           Advance paid:{" "}
-                          {formatDate(
-                            current
-                              .payment
-                              .advancePaidAt
-                          )}
+                          {formatDate(current.payment.advancePaidAt)}
                         </p>
                       )}
-
-
-                      {current
-                        ?.payment
-                        ?.balanceCollectedAt && (
+                      {current?.payment?.balanceCollectedAt && (
                         <p
                           className="muted"
                           style={{
-                            margin:
-                              0,
+                            margin: 0,
                           }}
                         >
                           COD balance collected:{" "}
-                          {formatDate(
-                            current
-                              .payment
-                              .balanceCollectedAt
-                          )}
+                          {formatDate(current.payment.balanceCollectedAt)}
                         </p>
                       )}
                     </>
                   )}
-
-
                   {isFullOnline && (
                     <>
                       <div
                         style={{
-                          display:
-                            "flex",
-
-                          justifyContent:
-                            "space-between",
-
-                          gap:
-                            "16px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: "16px",
                         }}
                       >
-                        <span>
-                          Online amount paid
-                        </span>
-
-                        <strong>
-                          {money(
-                            amountPaid
-                          )}
-                        </strong>
+                        <span>Online amount paid</span>
+                        <strong>{money(amountPaid)}</strong>
                       </div>
-
-
                       <div
                         style={{
-                          display:
-                            "flex",
-
-                          justifyContent:
-                            "space-between",
-
-                          gap:
-                            "16px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: "16px",
                         }}
                       >
-                        <span>
-                          Amount due
-                        </span>
-
-                        <strong>
-                          {money(
-                            amountDue
-                          )}
-                        </strong>
+                        <span>Amount due</span>
+                        <strong>{money(amountDue)}</strong>
                       </div>
                     </>
                   )}
-
-
-                  {current
-                    ?.payment
-                    ?.razorpayPaymentId && (
+                  {current?.payment?.razorpayPaymentId && (
                     <p
                       className="muted"
                       style={{
-                        margin:
-                          0,
+                        margin: 0,
                       }}
                     >
-                      Razorpay payment ID:{" "}
-                      {current
-                        .payment
-                        .razorpayPaymentId}
+                      Razorpay payment ID: {current.payment.razorpayPaymentId}
                     </p>
                   )}
                 </div>
               </section>
-
-
-              {/* =======================================
-                  SHIPPING ADDRESS
-              ======================================== */}
-
               <section>
-                <h3>
-                  Shipping address
-                </h3>
-
-
+                <h3>3. Shipping address</h3>
                 <p>
                   <strong>
-                    {current
-                      ?.shippingAddress
-                      ?.fullName ||
-                      current
-                        ?.shippingAddress
-                        ?.name ||
-                      customerName(
-                        current
-                      )}
+                    {current?.shippingAddress?.fullName ||
+                      current?.shippingAddress?.name ||
+                      customerName(current)}
                   </strong>
-
                   <br />
-
-                  {current
-                    ?.shippingAddress
-                    ?.addressLine ||
+                  {current?.shippingAddress?.addressLine ||
+                    current?.shippingAddress?.addressLine1 ||
                     ""}
-
+                  {current?.shippingAddress?.addressLine2 && (
+                    <>
+                      <br />
+                      {current.shippingAddress.addressLine2}
+                    </>
+                  )}
                   <br />
-
-                  {current
-                    ?.shippingAddress
-                    ?.landmark
+                  {current?.shippingAddress?.landmark
                     ? `${current.shippingAddress.landmark}, `
                     : ""}
-
-                  {current
-                    ?.shippingAddress
-                    ?.city ||
-                    ""}
-
+                  {current?.shippingAddress?.city || ""}
                   {", "}
-
-                  {current
-                    ?.shippingAddress
-                    ?.state ||
-                    ""}
-
+                  {current?.shippingAddress?.state || ""}
                   {" - "}
-
-                  {current
-                    ?.shippingAddress
-                    ?.pincode ||
-                    ""}
-
+                  {current?.shippingAddress?.pincode || ""}
                   <br />
-
-                  {current
-                    ?.shippingAddress
-                    ?.phone ||
-                    ""}
+                  {current?.shippingAddress?.phone || ""}
                 </p>
               </section>
-
-
-              {/* =======================================
-                  FULFILMENT
-              ======================================== */}
-
               <section>
-                <h3>
-                  Fulfilment
-                </h3>
-
-
+                <h3>4. Shipping and status update</h3>
                 {cancelled ? (
-                  <p
-                    className="notice"
-                  >
+                  <p className="notice">
                     This order was cancelled and cannot move through fulfilment.
                   </p>
-
                 ) : paymentPending ? (
-                  <p
-                    className="notice"
-                  >
-                    Payment is still pending. Fulfilment will unlock only after GymDrobe verifies the required Razorpay payment.
+                  <p className="notice">
+                    Payment is still pending. Fulfilment will unlock only after
+                    GymDrobe verifies the required Razorpay payment.
                   </p>
-
+                ) : currentIndex < 0 ? (
+                  <p className="notice">
+                    This status has no supported fulfilment transition.
+                    Reconcile the order before editing.
+                  </p>
                 ) : (
                   <form
-                    onSubmit={
-                      saveOrder
-                    }
+                    onSubmit={saveOrder}
                     style={{
-                      display:
-                        "grid",
-
-                      gap:
-                        "16px",
-
-                      maxWidth:
-                        "720px",
+                      display: "grid",
+                      gap: "16px",
+                      maxWidth: "720px",
                     }}
                   >
-                    {/* STATUS */}
-
-                    <div
-                      className="field"
-                    >
-                      <label
-                        htmlFor={`status-${id}`}
-                      >
-                        Order status
-                      </label>
-
-
+                    <div className="field">
+                      <label htmlFor={`status-${id}`}>Order status</label>
                       <select
                         id={`status-${id}`}
-                        value={
-                          draft.status
-                        }
-                        disabled={
-                          delivered
-                        }
-                        onChange={(
-                          event
-                        ) =>
-                          setDraft(
-                            (
-                              currentDraft
-                            ) => ({
-                              ...currentDraft,
-
-                              status:
-                                event
-                                  .target
-                                  .value,
-
-                              codBalanceCollected:
-                                false,
-                            })
-                          )
+                        value={draft.status}
+                        disabled={delivered || saving}
+                        onChange={(event) =>
+                          setDraft((currentDraft) => ({
+                            ...currentDraft,
+                            status: event.target.value,
+                            codBalanceCollected: false,
+                          }))
                         }
                       >
-                        {STATUS_FLOW.map(
-                          (
-                            flowStatus,
-                            index
-                          ) => (
-                            <option
-                              key={
-                                flowStatus
-                              }
-                              value={
-                                flowStatus
-                              }
-                              disabled={
-                                currentIndex >=
-                                  0 &&
-                                (
-                                  index <
-                                    currentIndex ||
-                                  index >
-                                    currentIndex +
-                                      1
-                                )
-                              }
-                            >
-                              {statusLabel(
-                                flowStatus
-                              )}
-                            </option>
-                          )
-                        )}
-                      </select>
-
-
-                      {!delivered &&
-                        currentIndex >=
-                          0 &&
-                        currentIndex <
-                          STATUS_FLOW.length -
-                            1 && (
-                          <p
-                            className="muted"
+                        {STATUS_FLOW.map((flowStatus, index) => (
+                          <option
+                            key={flowStatus}
+                            value={flowStatus}
+                            disabled={
+                              currentIndex >= 0 &&
+                              (index < currentIndex || index > currentIndex + 1)
+                            }
                           >
+                            {statusLabel(flowStatus)}
+                          </option>
+                        ))}
+                      </select>
+                      {!delivered &&
+                        currentIndex >= 0 &&
+                        currentIndex < STATUS_FLOW.length - 1 && (
+                          <p className="muted">
                             Next step:{" "}
                             <strong>
-                              {statusLabel(
-                                STATUS_FLOW[
-                                  currentIndex +
-                                    1
-                                ]
-                              )}
+                              {statusLabel(STATUS_FLOW[currentIndex + 1])}
                             </strong>
                           </p>
                         )}
                     </div>
-
-
-                    {/* TRACKING */}
-
                     <div
                       style={{
-                        display:
-                          "grid",
-
+                        display: "grid",
                         gridTemplateColumns:
                           "repeat(auto-fit, minmax(200px, 1fr))",
-
-                        gap:
-                          "14px",
+                        gap: "14px",
                       }}
                     >
-                      <div
-                        className="field"
-                      >
-                        <label
-                          htmlFor={`carrier-${id}`}
-                        >
+                      <div className="field">
+                        <label htmlFor={`carrier-${id}`}>
                           Courier / carrier
                         </label>
-
-
                         <input
                           id={`carrier-${id}`}
                           type="text"
                           placeholder="Example: Delhivery"
-                          value={
-                            draft.carrier
-                          }
-                          onChange={(
-                            event
-                          ) =>
-                            setDraft(
-                              (
-                                currentDraft
-                              ) => ({
-                                ...currentDraft,
-
-                                carrier:
-                                  event
-                                    .target
-                                    .value,
-                              })
-                            )
+                          value={draft.carrier}
+                          disabled={saving}
+                          onChange={(event) =>
+                            setDraft((currentDraft) => ({
+                              ...currentDraft,
+                              carrier: event.target.value,
+                            }))
                           }
                         />
                       </div>
-
-
-                      <div
-                        className="field"
-                      >
-                        <label
-                          htmlFor={`tracking-${id}`}
-                        >
+                      <div className="field">
+                        <label htmlFor={`tracking-${id}`}>
                           Tracking number
                         </label>
-
-
                         <input
                           id={`tracking-${id}`}
                           type="text"
                           placeholder="Tracking number"
-                          value={
-                            draft.trackingNumber
-                          }
-                          onChange={(
-                            event
-                          ) =>
-                            setDraft(
-                              (
-                                currentDraft
-                              ) => ({
-                                ...currentDraft,
-
-                                trackingNumber:
-                                  event
-                                    .target
-                                    .value,
-                              })
-                            )
+                          value={draft.trackingNumber}
+                          disabled={saving}
+                          onChange={(event) =>
+                            setDraft((currentDraft) => ({
+                              ...currentDraft,
+                              trackingNumber: event.target.value,
+                            }))
                           }
                         />
                       </div>
-
-
-                      <div
-                        className="field"
-                      >
-                        <label
-                          htmlFor={`delivery-${id}`}
-                        >
+                      <div className="field">
+                        <label htmlFor={`delivery-${id}`}>
                           Estimated delivery
                         </label>
-
-
                         <input
                           id={`delivery-${id}`}
                           type="date"
-                          value={
-                            draft.estimatedDelivery
-                          }
-                          onChange={(
-                            event
-                          ) =>
-                            setDraft(
-                              (
-                                currentDraft
-                              ) => ({
-                                ...currentDraft,
-
-                                estimatedDelivery:
-                                  event
-                                    .target
-                                    .value,
-                              })
-                            )
+                          value={draft.estimatedDelivery}
+                          disabled={saving}
+                          onChange={(event) =>
+                            setDraft((currentDraft) => ({
+                              ...currentDraft,
+                              estimatedDelivery: event.target.value,
+                            }))
                           }
                         />
                       </div>
                     </div>
-
-
-                    {/* =================================
-                        COD COLLECTION CONFIRMATION
-                    ================================== */}
-
                     {deliveryNeedsCodConfirmation && (
                       <div
                         className="notice"
                         style={{
-                          display:
-                            "grid",
-
-                          gap:
-                            "12px",
+                          display: "grid",
+                          gap: "12px",
                         }}
                       >
                         <div>
                           <strong>
-                            Remaining COD balance:{" "}
-                            {money(
-                              amountDue
-                            )}
+                            Remaining COD balance: {money(amountDue)}
                           </strong>
-
-
                           <p
                             style={{
-                              margin:
-                                "6px 0 0",
+                              margin: "6px 0 0",
                             }}
                           >
-                            The customer already paid{" "}
-                            {money(
-                              amountPaid
-                            )}{" "}
-                            online.
+                            Recorded amount paid: {money(amountPaid)}.
                           </p>
                         </div>
-
-
                         <label
                           className="check"
                           style={{
-                            alignItems:
-                              "flex-start",
+                            alignItems: "flex-start",
                           }}
                         >
                           <input
                             type="checkbox"
-                            checked={
-                              Boolean(
-                                draft.codBalanceCollected
-                              )
-                            }
-                            disabled={
-                              saving
-                            }
-                            onChange={(
-                              event
-                            ) =>
-                              setDraft(
-                                (
-                                  currentDraft
-                                ) => ({
-                                  ...currentDraft,
-
-                                  codBalanceCollected:
-                                    event
-                                      .target
-                                      .checked,
-                                })
-                              )
+                            checked={Boolean(draft.codBalanceCollected)}
+                            disabled={saving}
+                            onChange={(event) =>
+                              setDraft((currentDraft) => ({
+                                ...currentDraft,
+                                codBalanceCollected: event.target.checked,
+                              }))
                             }
                           />
-
-
                           <span>
                             <strong>
-                              I confirm {money(
-                                amountDue
-                              )} was collected from the customer.
+                              I confirm {money(amountDue)} was collected from
+                              the customer.
                             </strong>
-
                             <br />
-
-                            <small
-                              className="muted"
-                            >
-                              Only confirm this after the delivery payment has actually been received.
+                            <small className="muted">
+                              Only confirm this after the delivery payment has
+                              actually been received.
                             </small>
                           </span>
                         </label>
                       </div>
                     )}
-
-
-                    {/* DELIVERED */}
-
                     {delivered && (
-                      <div
-                        className="notice"
-                      >
-                        <strong>
-                          Delivered
-                        </strong>
-
+                      <div className="notice">
+                        <strong>Delivered</strong>
                         <br />
-
                         Delivered on{" "}
-                        {formatDate(
-                          current
-                            ?.delivery
-                            ?.deliveredAt
-                        )}
-
-
+                        {formatDate(current?.delivery?.deliveredAt)}
                         {isPartialCod &&
-                          current
-                            ?.payment
-                            ?.balanceStatus ===
-                            "collected" && (
+                          current?.payment?.balanceStatus === "collected" && (
                             <>
                               <br />
-
                               COD balance collected successfully.
                             </>
                           )}
                       </div>
                     )}
-
-
-                    {/* ERROR */}
-
-                    {error && (
-                      <p
-                        className="field-error"
-                        role="alert"
-                      >
-                        {error}
-                      </p>
-                    )}
-
-
-                    {/* SAVE BUTTON */}
-
                     <div>
                       <button
                         type="submit"
                         className="button"
                         disabled={
                           saving ||
-                          (
-                            deliveryNeedsCodConfirmation &&
-                            !draft.codBalanceCollected
-                          )
+                          !detailsReady ||
+                          (deliveryNeedsCodConfirmation &&
+                            !draft.codBalanceCollected)
                         }
                       >
                         {saving
                           ? "Saving…"
                           : deliveryNeedsCodConfirmation
-                            ? `Mark delivered · collect ${money(
-                                amountDue
-                              )}`
+                            ? `Record ${money(amountDue)} collected & mark delivered`
                             : delivered
                               ? "Update tracking"
                               : "Update order"}
@@ -2058,138 +967,78 @@ function AdminOrderCard({
                   </form>
                 )}
               </section>
-
-
-              {/* =======================================
-                  TRACKING HISTORY
-              ======================================== */}
-
               <section>
-                <h3>
-                  Tracking history
-                </h3>
-
-
-                {(
-                  current
-                    ?.tracking
-                    ?.events ||
-                  []
-                ).length ? (
+                <h3>5. Tracking history</h3>
+                {(current?.tracking?.events || []).length ? (
                   <div
                     style={{
-                      display:
-                        "grid",
-
-                      gap:
-                        "12px",
+                      display: "grid",
+                      gap: "12px",
                     }}
                   >
-                    {[
-                      ...(
-                        current
-                          ?.tracking
-                          ?.events ||
-                        []
-                      ),
-                    ]
+                    {[...(current?.tracking?.events || [])]
                       .reverse()
-                      .map(
-                        (
-                          event,
-                          index
-                        ) => (
-                          <div
-                            key={`${event.status}-${event.timestamp}-${index}`}
+                      .map((event, index) => (
+                        <div
+                          key={`${event.status}-${event.timestamp}-${index}`}
+                          style={{
+                            borderLeft: "3px solid #18181b",
+                            paddingLeft: "14px",
+                          }}
+                        >
+                          <strong>{statusLabel(event.status)}</strong>
+                          <p
                             style={{
-                              borderLeft:
-                                "3px solid #18181b",
-
-                              paddingLeft:
-                                "14px",
+                              margin: "4px 0",
                             }}
                           >
-                            <strong>
-                              {statusLabel(
-                                event.status
-                              )}
-                            </strong>
-
-
-                            <p
-                              style={{
-                                margin:
-                                  "4px 0",
-                              }}
-                            >
-                              {event.description ||
-                                "Order update"}
-                            </p>
-
-
-                            <span
-                              className="muted"
-                            >
-                              {formatDate(
-                                event.timestamp
-                              )}
-                            </span>
-                          </div>
-                        )
-                      )}
+                            {event.description || "Order update"}
+                          </p>
+                          <span className="muted">
+                            {formatDate(event.timestamp)}
+                          </span>
+                        </div>
+                      ))}
                   </div>
-
                 ) : (
-                  <p
-                    className="muted"
-                  >
-                    No tracking events yet.
-                  </p>
+                  <p className="muted">No tracking events yet.</p>
                 )}
               </section>
-
-
-              {/* =======================================
-                  RETURN / EXCHANGE
-              ======================================== */}
-
-              {current
-                ?.returnRequest
-                ?.status &&
-                current
-                  .returnRequest
-                  .status !==
-                  "not-requested" && (
+              {current?.refund?.status &&
+                current.refund.status !== "not-requested" && (
                   <section>
-                    <h3>
-                      Return / exchange
-                    </h3>
-
-
+                    <h3>Refund record</h3>
+                    <p>
+                      Status:{" "}
+                      <strong>{statusLabel(current.refund.status)}</strong>
+                    </p>
+                    <p>
+                      Amount: <strong>{money(current.refund.amount)}</strong>
+                    </p>
+                    {current.refund.reference && (
+                      <p>Reference: {current.refund.reference}</p>
+                    )}
+                    {current.refund.refundedAt && (
+                      <p>Recorded: {formatDate(current.refund.refundedAt)}</p>
+                    )}
+                    <p className="muted">
+                      A return refund is managed in the returns dashboard.
+                      Recording a manual refund does not send money.
+                    </p>
+                  </section>
+                )}
+              {current?.returnRequest?.status &&
+                current.returnRequest.status !== "not-requested" && (
+                  <section>
+                    <h3>Return / exchange</h3>
                     <p>
                       <strong>
-                        {String(
-                          current
-                            .returnRequest
-                            .type ||
-                          ""
-                        ).toUpperCase()}
+                        {String(current.returnRequest.type || "").toUpperCase()}
                       </strong>
-
                       {" · "}
-
-                      {statusLabel(
-                        current
-                          .returnRequest
-                          .status
-                      )}
+                      {statusLabel(current.returnRequest.status)}
                     </p>
-
-
-                    <Link
-                      className="text-link"
-                      to="/admin/returns"
-                    >
+                    <Link className="text-link" to="/admin/returns">
                       Open returns dashboard →
                     </Link>
                   </section>
@@ -2201,874 +1050,380 @@ function AdminOrderCard({
     </article>
   );
 }
-
-
-// ======================================================
-// MAIN PAGE
-// ======================================================
-
-export default function AdminOrdersPage() {
-  const {
-    user,
-    token,
-  } =
-    useAuth();
-
-
-  const {
-    notify,
-  } =
-    useStore();
-
-
-  const [
-    orders,
-    setOrders,
-  ] =
-    useState(
-      []
-    );
-
-
-  const [
-    loading,
-    setLoading,
-  ] =
-    useState(
-      true
-    );
-
-
-  const [
-    error,
-    setError,
-  ] =
-    useState(
-      ""
-    );
-
-
-  const [
-    status,
-    setStatus,
-  ] =
-    useState(
-      "all"
-    );
-
-
-  const [
-    searchInput,
-    setSearchInput,
-  ] =
-    useState(
-      ""
-    );
-
-
-  const [
-    search,
-    setSearch,
-  ] =
-    useState(
-      ""
-    );
-
-
-  const [
-    page,
-    setPage,
-  ] =
-    useState(
-      1
-    );
-
-
-  const [
-    pages,
-    setPages,
-  ] =
-    useState(
-      1
-    );
-
-
-  const [
-    total,
-    setTotal,
-  ] =
-    useState(
-      0
-    );
-
-
-  // ====================================================
-  // LOAD ORDERS
-  // ====================================================
-
-  useEffect(
-    () => {
-      let cancelled =
-        false;
-
-
-      async function load() {
-        if (
-          !token ||
-          user?.role !==
-            "admin"
-        ) {
-          if (
-            !cancelled
-          ) {
-            setOrders(
-              []
-            );
-
-
-            setLoading(
-              false
-            );
-          }
-
-
+function AdminOrdersWorkspace({ user, token }) {
+  const { notify } = useStore();
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [status, setStatus] = useState("all");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [revision, setRevision] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (!token || user?.role !== "admin") {
+        if (!cancelled) {
+          setOrders([]);
+          setLoading(false);
+        }
+        return;
+      }
+      setLoading(true);
+      setError("");
+      try {
+        const result = await getAdminOrders(token, {
+          status,
+          search,
+          page,
+          limit: 25,
+        });
+        if (cancelled) {
           return;
         }
-
-
-        setLoading(
-          true
+        setOrders(Array.isArray(result.orders) ? result.orders : []);
+        setTotal(Number(result.total || 0));
+        setPages(Math.max(1, Number(result.pages || 1)));
+        const lastPage = Math.max(1, Number(result.pages || 1));
+        const nextPage = Math.min(
+          lastPage,
+          Math.max(1, Number(result.page || page)),
         );
-
-
-        setError(
-          ""
-        );
-
-
-        try {
-          const result =
-            await getAdminOrders(
-              token,
-              {
-                status,
-
-                search,
-
-                page,
-
-                limit:
-                  25,
-              }
-            );
-
-
-          if (
-            cancelled
-          ) {
-            return;
-          }
-
-
-          setOrders(
-            Array.isArray(
-              result.orders
-            )
-              ? result.orders
-              : []
-          );
-
-
-          setTotal(
-            Number(
-              result.total ||
-              0
-            )
-          );
-
-
-          setPages(
-            Math.max(
-              1,
-
-              Number(
-                result.pages ||
-                1
-              )
-            )
-          );
-
-
-          if (
-            Number(
-              result.page
-            ) !==
-            page
-          ) {
-            setPage(
-              Number(
-                result.page ||
-                1
-              )
-            );
-          }
-
-        } catch (
-          loadError
-        ) {
-          console.error(
-            "Load admin orders error:",
-            loadError
-          );
-
-
-          if (
-            !cancelled
-          ) {
-            setOrders(
-              []
-            );
-
-
-            setError(
-              loadError.message ||
-                "Unable to load orders."
-            );
-          }
-
-        } finally {
-          if (
-            !cancelled
-          ) {
-            setLoading(
-              false
-            );
-          }
+        if (nextPage !== page) setPage(nextPage);
+      } catch (loadError) {
+        console.error("Load admin orders error:", loadError);
+        if (!cancelled) {
+          setOrders([]);
+          setError(loadError.message || "Unable to load orders.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
         }
       }
-
-
-      load();
-
-
-      return () => {
-        cancelled =
-          true;
-      };
-    },
-    [
-      token,
-      user?.role,
-      status,
-      search,
-      page,
-    ]
-  );
-
-
-  // ====================================================
-  // DASHBOARD TOTALS FOR CURRENT RESULT PAGE
-  // ====================================================
-
-  const stats =
-    useMemo(
-      () => {
-        const values = {
-          "payment-pending":
-            0,
-
-          confirmed:
-            0,
-
-          processing:
-            0,
-
-          shipped:
-            0,
-
-          "out-for-delivery":
-            0,
-
-          delivered:
-            0,
-
-          cancelled:
-            0,
-        };
-
-
-        for (
-          const order
-          of orders
-        ) {
-          if (
-            Object.prototype
-              .hasOwnProperty.call(
-                values,
-                order.status
-              )
-          ) {
-            values[
-              order.status
-            ] +=
-              1;
-          }
-        }
-
-
-        return values;
-      },
-      [
-        orders,
-      ]
-    );
-
-
-  // ====================================================
-  // SEARCH
-  // ====================================================
-
-  function submitSearch(
-    event
-  ) {
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, user?.role, status, search, page, revision]);
+  const stats = useMemo(() => {
+    const values = {
+      "payment-pending": 0,
+      confirmed: 0,
+      processing: 0,
+      shipped: 0,
+      "out-for-delivery": 0,
+      delivered: 0,
+      cancelled: 0,
+    };
+    for (const order of orders) {
+      if (Object.prototype.hasOwnProperty.call(values, order.status)) {
+        values[order.status] += 1;
+      }
+    }
+    return values;
+  }, [orders]);
+  function submitSearch(event) {
     event.preventDefault();
-
-
-    setPage(
-      1
-    );
-
-
-    setSearch(
-      searchInput.trim()
-    );
+    setPage(1);
+    setSearch(searchInput.trim());
   }
-
-
   function clearSearch() {
-    setSearchInput(
-      ""
-    );
-
-
-    setSearch(
-      ""
-    );
-
-
-    setPage(
-      1
-    );
+    setSearchInput("");
+    setSearch("");
+    setPage(1);
   }
-
-
-  function changeStatus(
-    nextStatus
-  ) {
-    setStatus(
-      nextStatus
-    );
-
-
-    setPage(
-      1
-    );
+  function changeStatus(nextStatus) {
+    setStatus(nextStatus);
+    setPage(1);
   }
-
-
-  function replaceOrder(
-    updated
-  ) {
-    const id =
-      orderIdOf(
-        updated
+  function replaceOrder(updated) {
+    const id = orderIdOf(updated);
+    if (status !== "all" && updated.status !== status) {
+      setOrders((current) => current.filter((item) => orderIdOf(item) !== id));
+      setTotal((current) => Math.max(0, current - 1));
+      const remaining = Math.max(0, total - 1);
+      const lastPage = Math.max(1, Math.ceil(remaining / 25));
+      setPages(lastPage);
+      if (page > lastPage) setPage(lastPage);
+      else setRevision((current) => current + 1);
+    } else {
+      setOrders((current) =>
+        current.map((item) => (orderIdOf(item) === id ? updated : item)),
       );
-
-
-    setOrders(
-      (
-        current
-      ) =>
-        current.map(
-          (
-            item
-          ) =>
-            orderIdOf(
-              item
-            ) ===
-            id
-              ? updated
-              : item
-        )
-    );
+    }
   }
-
-
-  // ====================================================
-  // PAGE
-  // ====================================================
-
   return (
     <div
-      className="page"
+      className="page ao-admin"
       style={{
-        display:
-          "grid",
-
-        gap:
-          "24px",
+        display: "grid",
+        gap: "24px",
       }}
     >
-      {/* ===============================================
-          HEADING
-      =============================================== */}
-
       <div
         className="page-heading"
         style={{
-          display:
-            "flex",
-
-          justifyContent:
-            "space-between",
-
-          alignItems:
-            "flex-start",
-
-          gap:
-            "16px",
-
-          flexWrap:
-            "wrap",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: "16px",
+          flexWrap: "wrap",
         }}
       >
         <div>
           <p
             className="muted"
             style={{
-              marginBottom:
-                "6px",
+              marginBottom: "6px",
             }}
           >
             GymDrobe Admin
           </p>
-
-
-          <h1>
-            Order management
-          </h1>
-
-
-          <p
-            className="muted"
-          >
-            Manage payment verification, COD balances, fulfilment, courier tracking and delivery updates from one place.
+          <h1>Order management</h1>
+          <p className="muted">
+            Manage payment verification, COD balances, fulfilment, courier
+            tracking and delivery updates from one place.
           </p>
         </div>
-
-
-        <Link
-          to="/admin/returns"
-          className="button secondary"
-        >
+        <Link className="button secondary" to="/admin/products">
+          Products & stock
+        </Link>
+        <Link to="/admin/returns" className="button secondary">
           Returns & exchanges
         </Link>
       </div>
-
-
-      {/* ===============================================
-          STATS
-      =============================================== */}
-
+      <p className="muted">
+        Total results match your filters. Status counts below are for the
+        current page only.
+      </p>
       <section
         style={{
-          display:
-            "grid",
-
-          gridTemplateColumns:
-            "repeat(auto-fit, minmax(130px, 1fr))",
-
-          gap:
-            "12px",
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+          gap: "12px",
         }}
       >
         {[
-          [
-            "Total results",
-            total,
-          ],
-
-          [
-            "Payment pending",
-            stats[
-              "payment-pending"
-            ],
-          ],
-
-          [
-            "Confirmed",
-            stats.confirmed,
-          ],
-
-          [
-            "Processing",
-            stats.processing,
-          ],
-
-          [
-            "Shipped",
-            stats.shipped,
-          ],
-
-          [
-            "Out for delivery",
-            stats[
-              "out-for-delivery"
-            ],
-          ],
-
-          [
-            "Delivered",
-            stats.delivered,
-          ],
-        ].map(
-          ([
-            label,
-            value,
-          ]) => (
-            <div
-              key={
-                label
-              }
-              className="panel"
+          ["Total results", total],
+          ["Payment pending", stats["payment-pending"]],
+          ["Confirmed", stats.confirmed],
+          ["Processing", stats.processing],
+          ["Shipped", stats.shipped],
+          ["Out for delivery", stats["out-for-delivery"]],
+          ["Delivered", stats.delivered],
+          ["Cancelled", stats.cancelled],
+        ].map(([label, value]) => (
+          <div
+            key={label}
+            className="panel"
+            style={{
+              padding: "16px",
+            }}
+          >
+            <strong
               style={{
-                padding:
-                  "16px",
+                display: "block",
+                fontSize: "22px",
               }}
             >
-              <strong
-                style={{
-                  display:
-                    "block",
-
-                  fontSize:
-                    "22px",
-                }}
-              >
-                {value}
-              </strong>
-
-
-              <span
-                className="muted"
-              >
-                {label}
-              </span>
-            </div>
-          )
-        )}
+              {value}
+            </strong>
+            <span className="muted">{label}</span>
+          </div>
+        ))}
       </section>
-
-
-      {/* ===============================================
-          FILTERS
-      =============================================== */}
-
       <section
         className="panel"
         style={{
-          padding:
-            "18px",
-
-          display:
-            "grid",
-
-          gap:
-            "16px",
+          padding: "18px",
+          display: "grid",
+          gap: "16px",
         }}
       >
         <form
-          onSubmit={
-            submitSearch
-          }
+          onSubmit={submitSearch}
           style={{
-            display:
-              "flex",
-
-            gap:
-              "10px",
-
-            flexWrap:
-              "wrap",
+            display: "flex",
+            gap: "10px",
+            flexWrap: "wrap",
           }}
         >
           <input
             type="search"
             aria-label="Search orders"
             placeholder="Search order, customer, email, phone, city or pincode"
-            value={
-              searchInput
-            }
-            onChange={(
-              event
-            ) =>
-              setSearchInput(
-                event
-                  .target
-                  .value
-              )
-            }
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
             style={{
-              flex:
-                "1 1 280px",
-
-              minHeight:
-                "44px",
+              flex: "1 1 280px",
+              minHeight: "44px",
             }}
           />
-
-
-          <button
-            type="submit"
-            className="button"
-          >
+          <button type="submit" className="button">
             Search
           </button>
-
-
-          {search && (
+          {(search || searchInput) && (
             <button
               type="button"
               className="button secondary"
-              onClick={
-                clearSearch
-              }
+              onClick={clearSearch}
             >
               Clear
             </button>
           )}
         </form>
-
-
         <div
           style={{
-            display:
-              "flex",
-
-            gap:
-              "8px",
-
-            flexWrap:
-              "wrap",
+            display: "flex",
+            gap: "8px",
+            flexWrap: "wrap",
           }}
         >
-          {STATUS_OPTIONS.map(
-            (
-              item
-            ) => (
-              <button
-                key={
-                  item.value
-                }
-                type="button"
-                className={
-                  status ===
-                  item.value
-                    ? "button"
-                    : "button secondary"
-                }
-                onClick={
-                  () =>
-                    changeStatus(
-                      item.value
-                    )
-                }
-              >
-                {item.label}
-              </button>
-            )
-          )}
+          <button
+            type="button"
+            className="button secondary"
+            disabled={loading}
+            onClick={() => setRevision((current) => current + 1)}
+          >
+            Refresh orders
+          </button>
+          {STATUS_OPTIONS.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              className={status === item.value ? "button" : "button secondary"}
+              aria-pressed={status === item.value}
+              onClick={() => changeStatus(item.value)}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
       </section>
-
-
-      {/* ===============================================
-          ERROR
-      =============================================== */}
-
       {error && (
-        <p
-          className="field-error"
-          role="alert"
-        >
-          {error}
-        </p>
+        <div className="panel">
+          <p className="field-error" role="alert">
+            {error}
+          </p>
+          <button
+            type="button"
+            className="button secondary"
+            disabled={loading}
+            onClick={() => setRevision((current) => current + 1)}
+          >
+            Retry loading orders
+          </button>
+        </div>
       )}
-
-
-      {/* ===============================================
-          ORDER RESULTS
-      =============================================== */}
-
       {loading ? (
         <div
           className="panel"
           style={{
-            padding:
-              "24px",
+            padding: "24px",
           }}
         >
-          <p
-            className="muted"
-          >
-            Loading orders…
-          </p>
+          <p className="muted">Loading orders…</p>
         </div>
-
-      ) : orders.length ===
-        0 ? (
+      ) : error ? null : orders.length === 0 ? (
         <div
           className="panel"
           style={{
-            padding:
-              "28px",
+            padding: "28px",
           }}
         >
-          <h2>
-            No orders found
-          </h2>
-
-
-          <p
-            className="muted"
-          >
-            Try another status filter or search.
-          </p>
+          <h2>No orders found</h2>
+          <p className="muted">Try another status filter or search.</p>
         </div>
-
       ) : (
         <section
           style={{
-            display:
-              "grid",
-
-            gap:
-              "16px",
+            display: "grid",
+            gap: "16px",
           }}
         >
-          {orders.map(
-            (
-              order
-            ) => (
-              <AdminOrderCard
-                key={
-                  orderIdOf(
-                    order
-                  )
-                }
-                order={
-                  order
-                }
-                token={
-                  token
-                }
-                notify={
-                  notify
-                }
-                onUpdated={
-                  replaceOrder
-                }
-              />
-            )
-          )}
+          {orders.map((order) => (
+            <AdminOrderCard
+              key={orderIdOf(order)}
+              order={order}
+              token={token}
+              notify={notify}
+              onUpdated={replaceOrder}
+            />
+          ))}
         </section>
       )}
-
-
-      {/* ===============================================
-          PAGINATION
-      =============================================== */}
-
-      {pages >
-        1 && (
+      {pages > 1 && (
         <div
           style={{
-            display:
-              "flex",
-
-            justifyContent:
-              "center",
-
-            alignItems:
-              "center",
-
-            gap:
-              "12px",
-
-            marginTop:
-              "8px",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: "12px",
+            marginTop: "8px",
           }}
         >
           <button
             type="button"
             className="button secondary"
-            disabled={
-              page <=
-                1 ||
-              loading
-            }
-            onClick={
-              () =>
-                setPage(
-                  (
-                    current
-                  ) =>
-                    Math.max(
-                      1,
-
-                      current -
-                        1
-                    )
-                )
-            }
+            disabled={page <= 1 || loading}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
           >
             Previous
           </button>
-
-
           <strong>
-            Page {page} of{" "}
-            {pages}
+            Page {page} of {pages}
           </strong>
-
-
           <button
             type="button"
             className="button secondary"
-            disabled={
-              page >=
-                pages ||
-              loading
-            }
-            onClick={
-              () =>
-                setPage(
-                  (
-                    current
-                  ) =>
-                    Math.min(
-                      pages,
-
-                      current +
-                        1
-                    )
-                )
-            }
+            disabled={page >= pages || loading}
+            onClick={() => setPage((current) => Math.min(pages, current + 1))}
           >
             Next
           </button>
         </div>
       )}
     </div>
+  );
+}
+export default function AdminOrdersPage() {
+  const { user, token, authLoading = false } = useAuth();
+  if (authLoading)
+    return (
+      <div className="page panel" role="status">
+        Checking admin session…
+      </div>
+    );
+  if (!user || !token)
+    return (
+      <div className="page narrow panel">
+        <h1>Admin orders</h1>
+        <p>Sign in with an admin account to continue.</p>
+        <Link className="button" to="/login">
+          Sign in
+        </Link>
+      </div>
+    );
+  if (user.role !== "admin")
+    return (
+      <div className="page narrow panel">
+        <h1>Admin access required</h1>
+        <p>This page is available to GymDrobe administrators.</p>
+        <Link className="button" to="/">
+          Go home
+        </Link>
+      </div>
+    );
+  return (
+    <AdminOrdersWorkspace
+      key={`${user.id || user._id || "admin"}:${token}`}
+      user={user}
+      token={token}
+    />
   );
 }

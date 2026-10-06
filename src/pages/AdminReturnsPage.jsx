@@ -1,1539 +1,647 @@
-import {
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
-
-import {
-  Link,
-} from "react-router-dom";
-
-import {
-  useAuth,
-} from "../context/AuthContext.jsx";
-
-import {
-  useStore,
-} from "../context/StoreContext.jsx";
-
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
+import { useStore } from "../context/StoreContext.jsx";
 import {
   getAdminReturnRequests,
   reviewReturnRequest,
   completeReturnRequest,
   recordReturnRefund,
 } from "../services/adminOrderApi.js";
-
-import {
-  money,
-} from "../utils/productPricing.js";
-
-
-// ======================================================
-// ADMIN RETURNS / EXCHANGES
-// ======================================================
-
-export default function AdminReturnsPage() {
-  const {
-    user,
-    token,
-  } = useAuth();
-
-
-  const {
-    notify,
-  } = useStore();
-
-
-  const [
-    orders,
-    setOrders,
-  ] = useState([]);
-
-
-  const [
-    filter,
-    setFilter,
-  ] = useState(
-    "requested"
-  );
-
-
-  const [
-    loading,
-    setLoading,
-  ] = useState(
-    true
-  );
-
-
-  const [
-    error,
-    setError,
-  ] = useState(
-    ""
-  );
-
-
-  const [
-    workingId,
-    setWorkingId,
-  ] = useState(
-    ""
-  );
-
-
-  const [
-    responses,
-    setResponses,
-  ] = useState(
-    {}
-  );
-
-
-  const [
-    refundReferences,
-    setRefundReferences,
-  ] = useState(
-    {}
-  );
-
-
-  // ====================================================
-  // LOAD REQUESTS
-  // ====================================================
-
-  const loadRequests =
-    useCallback(
-      async () => {
-        if (
-          !token
-        ) {
-          setOrders(
-            []
-          );
-
-          setLoading(
-            false
-          );
-
-          return;
-        }
-
-
-        setLoading(
-          true
-        );
-
-        setError(
-          ""
-        );
-
-
-        try {
-          const rows =
-            await getAdminReturnRequests(
-              token,
-
-              filter ===
-                "all"
-                ? ""
-                : filter
-            );
-
-
-          setOrders(
-            rows
-          );
-
-        } catch (
-          loadError
-        ) {
-          console.error(
-            "Load admin return requests error:",
-            loadError
-          );
-
-
-          setOrders(
-            []
-          );
-
-
-          setError(
-            loadError.message ||
-              "Unable to load return requests."
-          );
-
-        } finally {
-          setLoading(
-            false
-          );
-        }
-      },
-
-      [
-        token,
-        filter,
-      ]
-    );
-
-
-  useEffect(
-    () => {
-      loadRequests();
-    },
-
-    [
-      loadRequests,
-    ]
-  );
-
-
-  // ====================================================
-  // ADMIN RESPONSE
-  // ====================================================
-
-  function getResponse(
-    order
-  ) {
-    return (
-      responses[
-        order.id
-      ] ??
-      order.returnRequest
-        ?.response ??
-      ""
-    );
-  }
-
-
-  function changeResponse(
-    orderId,
-    value
-  ) {
-    setResponses(
-      (
-        current
-      ) => ({
-        ...current,
-
-        [orderId]:
-          value,
-      })
-    );
-  }
-
-
-  // ====================================================
-  // REFUND REFERENCE
-  // ====================================================
-
-  function getRefundReference(
-    order
-  ) {
-    return (
-      refundReferences[
-        order.id
-      ] ??
-      order.refund
-        ?.reference ??
-      ""
-    );
-  }
-
-
-  function changeRefundReference(
-    orderId,
-    value
-  ) {
-    setRefundReferences(
-      (
-        current
-      ) => ({
-        ...current,
-
-        [orderId]:
-          value,
-      })
-    );
-  }
-
-
-  // ====================================================
-  // APPROVE / REJECT
-  // ====================================================
-
-  async function review(
-    order,
-    decision
-  ) {
-    if (
-      workingId
-    ) {
-      return;
-    }
-
-
-    setWorkingId(
-      order.id
-    );
-
-
-    setError(
-      ""
-    );
-
-
-    try {
-      await reviewReturnRequest(
-        token,
-        order.id,
-        {
-          decision,
-
-          response:
-            getResponse(
-              order
-            ).trim(),
-        }
-      );
-
-
-      notify(
-        decision ===
-          "approve"
-          ? "Request approved successfully."
-          : "Request rejected successfully.",
-        "success"
-      );
-
-
-      await loadRequests();
-
-    } catch (
-      reviewError
-    ) {
-      console.error(
-        "Review return request error:",
-        reviewError
-      );
-
-
-      setError(
-        reviewError.message ||
-          "Unable to review this request."
-      );
-
-    } finally {
-      setWorkingId(
-        ""
-      );
-    }
-  }
-
-
-  // ====================================================
-  // COMPLETE RETURN / EXCHANGE
-  // ====================================================
-
-  async function complete(
-    order
-  ) {
-    if (
-      workingId
-    ) {
-      return;
-    }
-
-
-    setWorkingId(
-      order.id
-    );
-
-
-    setError(
-      ""
-    );
-
-
-    try {
-      await completeReturnRequest(
-        token,
-        order.id,
-        {
-          response:
-            getResponse(
-              order
-            ).trim(),
-        }
-      );
-
-
-      notify(
-        order.returnRequest
-          ?.type ===
-          "exchange"
-          ? "Exchange completed successfully."
-          : "Return completed successfully.",
-        "success"
-      );
-
-
-      await loadRequests();
-
-    } catch (
-      completeError
-    ) {
-      console.error(
-        "Complete return request error:",
-        completeError
-      );
-
-
-      setError(
-        completeError.message ||
-          "Unable to complete this request."
-      );
-
-    } finally {
-      setWorkingId(
-        ""
-      );
-    }
-  }
-
-
-  // ====================================================
-  // RECORD REFUND
-  // ====================================================
-
-  async function recordRefund(
-    order
-  ) {
-    if (
-      workingId
-    ) {
-      return;
-    }
-
-
-    const reference =
-      getRefundReference(
-        order
-      ).trim();
-
-
-    if (
-      reference.length <
-      3
-    ) {
-      setError(
-        "Enter the refund transaction or reference number."
-      );
-
-      return;
-    }
-
-
-    setWorkingId(
-      order.id
-    );
-
-
-    setError(
-      ""
-    );
-
-
-    try {
-      await recordReturnRefund(
-        token,
-        order.id,
-        {
-          reference,
-        }
-      );
-
-
-      notify(
-        "Refund recorded successfully.",
-        "success"
-      );
-
-
-      setRefundReferences(
-        (
-          current
-        ) => {
-          const next = {
-            ...current,
-          };
-
-
-          delete next[
-            order.id
-          ];
-
-
-          return next;
-        }
-      );
-
-
-      await loadRequests();
-
-    } catch (
-      refundError
-    ) {
-      console.error(
-        "Record refund error:",
-        refundError
-      );
-
-
-      setError(
-        refundError.message ||
-          "Unable to record this refund."
-      );
-
-    } finally {
-      setWorkingId(
-        ""
-      );
-    }
-  }
-
-
-  // ====================================================
-  // ACCESS
-  // ====================================================
-
-  if (
-    !user
-  ) {
-    return (
-      <div className="page narrow">
-
-        <div className="panel">
-
-          <h1>
-            Admin returns
-          </h1>
-
-          <p>
-            Sign in with an admin account to continue.
-          </p>
-
-          <Link
-            className="button"
-            to="/login"
-          >
-            Sign in
-          </Link>
-
-        </div>
-
-      </div>
-    );
-  }
-
-
-  if (
-    user.role !==
-    "admin"
-  ) {
-    return (
-      <div className="page narrow">
-
-        <div className="panel">
-
-          <h1>
-            Admin access required
-          </h1>
-
-          <p>
-            This page is available only to GymDrobe administrators.
-          </p>
-
-          <Link
-            className="button"
-            to="/"
-          >
-            Go home
-          </Link>
-
-        </div>
-
-      </div>
-    );
-  }
-
-
-  // ====================================================
-  // PAGE
-  // ====================================================
-
+import { money } from "../utils/productPricing.js";
+import "./AdminReturnsPage.css";
+
+const FILTERS = ["requested", "approved", "completed", "rejected", "all"];
+function label(value) {
+  return String(value || "Unknown")
+    .replaceAll("-", " ")
+    .replace(/^./, (character) => character.toUpperCase());
+}
+function date(value) {
+  const parsed = new Date(value);
+  return value && !Number.isNaN(parsed.getTime())
+    ? parsed.toLocaleString("en-IN")
+    : "—";
+}
+function recordedAmount(value) {
+  return value != null &&
+    value !== "" &&
+    Number.isFinite(Number(value)) &&
+    Number(value) >= 0
+    ? Number(value)
+    : null;
+}
+function paymentMethod(order) {
+  const method = order.payment?.method || order.paymentMethod;
+  if (method === "cod-partial") return "COD with online advance";
+  if (method === "cod") return "Cash on delivery";
+  if (["razorpay", "online"].includes(method)) return "Online payment";
+  return label(method);
+}
+function variant(color, size) {
   return (
-    <div className="page narrow">
+    [color, size && `Size ${size}`].filter(Boolean).join(" · ") ||
+    "Default variant"
+  );
+}
+function nextStep(order) {
+  const request = order.returnRequest || {};
+  if (request.status === "requested")
+    return "Review the reason and items, then approve or reject.";
+  if (request.status === "approved")
+    return "Receive and inspect the original items before completing this request.";
+  if (request.status === "rejected")
+    return "Request rejected. No further action on this request.";
+  if (request.status === "completed" && request.type === "exchange")
+    return "Exchange completed. Check replacement dispatch in your fulfillment workflow.";
+  if (
+    request.status === "completed" &&
+    ["pending", "manual-required"].includes(order.refund?.status) &&
+    Number(order.refund?.amount) > 0
+  )
+    return "Send the refund outside GymDrobe, then record the transaction reference.";
+  if (order.refund?.status === "refunded") return "Refund has been recorded.";
+  if (order.refund?.status === "not-applicable")
+    return "Return completed. No refund amount is due.";
+  return "Check the recorded request and payment status.";
+}
 
-      <div className="page-heading">
-
+function RequestCard({
+  order,
+  busy,
+  working,
+  response,
+  reference,
+  onResponse,
+  onReference,
+  onAction,
+}) {
+  const request = order.returnRequest || {};
+  const refund = order.refund || {};
+  const exchange = request.type === "exchange";
+  const paid = recordedAmount(order.payment?.amountPaid);
+  const due = recordedAmount(order.payment?.amountDue);
+  const refundAmount = recordedAmount(refund.amount);
+  const needsRefund =
+    !exchange &&
+    request.status === "completed" &&
+    ["manual-required", "pending"].includes(refund.status) &&
+    refundAmount > 0;
+  const refundAllowed =
+    paid !== null && refundAmount !== null && refundAmount <= paid;
+  const customer = order.customer || {};
+  return (
+    <article className="panel ar-card" aria-busy={working}>
+      <header className="ar-heading">
         <div>
-
-          <h1>
-            Returns & exchanges
-          </h1>
-
+          <h2>
+            {exchange ? "Exchange" : "Return"} · {order.id}
+          </h2>
           <p className="muted">
-            Review, complete and refund customer requests.
+            Request {request.id || "—"} · {date(request.requestedAt)}
           </p>
-
         </div>
-
-      </div>
-
-
-      {/* =================================================
-          FILTERS
-      ================================================= */}
-
-      <div className="panel">
-
-        <div className="purchase-actions">
-
-          {[
-            [
-              "requested",
-              "Requested",
-            ],
-
-            [
-              "approved",
-              "Approved",
-            ],
-
-            [
-              "rejected",
-              "Rejected",
-            ],
-
-            [
-              "completed",
-              "Completed",
-            ],
-
-            [
-              "all",
-              "All",
-            ],
-          ].map(
-            ([
-              value,
-              label,
-            ]) => (
-              <button
-                key={
-                  value
-                }
-                type="button"
-                className={
-                  filter ===
-                  value
-                    ? "button"
-                    : "button secondary"
-                }
-                disabled={
-                  loading ||
-                  Boolean(
-                    workingId
-                  )
-                }
-                onClick={() =>
-                  setFilter(
-                    value
-                  )
-                }
-              >
-                {label}
-              </button>
-            )
+        <span className="status-pill">{label(request.status)}</span>
+      </header>
+      <p className="notice">
+        <strong>Next step:</strong> {nextStep(order)}
+      </p>
+      <div className="ar-columns">
+        <section>
+          <h3>Customer and request</h3>
+          <p>
+            <strong>
+              {customer.name ||
+                order.user?.name ||
+                order.shippingAddress?.fullName ||
+                "Customer"}
+            </strong>
+          </p>
+          {(customer.email || order.user?.email) && (
+            <p>{customer.email || order.user?.email}</p>
           )}
-
-        </div>
-
+          {(customer.phone || order.shippingAddress?.phone) && (
+            <p>{customer.phone || order.shippingAddress?.phone}</p>
+          )}
+          <p>
+            <strong>Reason:</strong> {request.reason || "No reason provided."}
+          </p>
+          <Link
+            className="text-link"
+            to={`/orders/${encodeURIComponent(order.id)}`}
+          >
+            View order details
+          </Link>
+        </section>
+        <section>
+          <h3>Recorded payment</h3>
+          <dl className="ar-facts">
+            <div>
+              <dt>Method</dt>
+              <dd>{paymentMethod(order)}</dd>
+            </div>
+            <div>
+              <dt>Payment status</dt>
+              <dd>{label(order.payment?.status)}</dd>
+            </div>
+            <div>
+              <dt>Amount paid</dt>
+              <dd>{paid === null ? "Not recorded" : money(paid)}</dd>
+            </div>
+            <div>
+              <dt>Balance due</dt>
+              <dd>{due === null ? "Not recorded" : money(due)}</dd>
+            </div>
+          </dl>
+          <p className="muted">
+            Refunds are limited to the eligible returned-item value and recorded
+            amount paid. The server applies coupon adjustments; shipping is
+            excluded.
+          </p>
+        </section>
       </div>
+      <section className="ar-section">
+        <h3>Requested items</h3>
+        {!request.items?.length && (
+          <p className="field-error">No requested items are recorded.</p>
+        )}
+        {(request.items || []).map((row, index) => {
+          const item = order.items?.[row.index];
+          if (!item)
+            return (
+              <p className="field-error" key={index}>
+                Original item {row.index} could not be found. Reconcile the
+                order before processing.
+              </p>
+            );
+          return (
+            <div className="ar-item" key={`${row.index}-${index}`}>
+              <strong>{item.name}</strong>
+              <p>
+                Requested quantity: {row.quantity} · Ordered: {item.quantity}
+              </p>
+              <p className="muted">
+                Original: {variant(item.selectedColor, item.selectedSize)}
+              </p>
+              {exchange ? (
+                <p>
+                  <strong>Replacement:</strong> {variant(row.color, row.size)}
+                </p>
+              ) : (
+                <p>
+                  Item value before coupon allocation:{" "}
+                  {money(Number(item.price || 0) * Number(row.quantity || 0))}
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </section>
+      <section className="ar-section">
+        <h3>Inventory and request history</h3>
+        {exchange && (
+          <p>
+            Replacement stock reserved:{" "}
+            <strong>
+              {request.exchangeInventoryReservedAt ? "Yes" : "Not recorded"}
+            </strong>{" "}
+            {request.exchangeInventoryReservedAt &&
+              `· ${date(request.exchangeInventoryReservedAt)}`}
+          </p>
+        )}
+        <p>
+          Original stock restored:{" "}
+          <strong>
+            {request.originalInventoryRestoredAt ? "Yes" : "Not recorded"}
+          </strong>{" "}
+          {request.originalInventoryRestoredAt &&
+            `· ${date(request.originalInventoryRestoredAt)}`}
+        </p>
+        {[
+          ["approvedAt", "Approved"],
+          ["rejectedAt", "Rejected"],
+          ["completedAt", "Completed"],
+        ].map(
+          ([key, title]) =>
+            request[key] && (
+              <p className="muted" key={key}>
+                {title}: {date(request[key])}
+              </p>
+            ),
+        )}
+      </section>
+      {!exchange && (
+        <section className="ar-section">
+          <h3>Refund</h3>
+          <dl className="ar-facts">
+            <div>
+              <dt>Status</dt>
+              <dd>{label(refund.status || "not-requested")}</dd>
+            </div>
+            <div>
+              <dt>Server-recorded amount</dt>
+              <dd>
+                {refundAmount === null ? "Not recorded" : money(refundAmount)}
+              </dd>
+            </div>
+          </dl>
+          {request.status !== "completed" && (
+            <p className="muted">
+              Any amount shown before completion is provisional. Check the final
+              amount after completing the return.
+            </p>
+          )}
+          {refund.requestedAt && (
+            <p className="muted">Refund created: {date(refund.requestedAt)}</p>
+          )}
+          {needsRefund && (
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                onAction(order, "refund");
+              }}
+            >
+              <p className="notice">
+                Send {money(refundAmount)} through your payment provider or
+                agreed refund method first. This button records the refund; it
+                does not transfer money.
+              </p>
+              {!refundAllowed && (
+                <p className="field-error">
+                  The amount paid is missing or this refund exceeds it.
+                  Reconcile the payment record before recording a refund.
+                </p>
+              )}
+              <label className="ar-field">
+                Refund transaction reference
+                <input
+                  required
+                  minLength={3}
+                  maxLength={200}
+                  autoComplete="off"
+                  placeholder="Example: UTR123456789"
+                  value={reference}
+                  disabled={busy || !refundAllowed}
+                  onChange={(event) => onReference(event.target.value)}
+                />
+              </label>
+              <button className="button" disabled={busy || !refundAllowed}>
+                {working ? "Processing…" : "Record refund already sent"}
+              </button>
+            </form>
+          )}
+          {refund.status === "refunded" && (
+            <div className="notice">
+              <strong>Refund recorded</strong>
+              <p>Reference: {refund.reference || "Not recorded"}</p>
+              <p>Recorded: {date(refund.refundedAt)}</p>
+            </div>
+          )}
+        </section>
+      )}
+      {["requested", "approved"].includes(request.status) && (
+        <section className="ar-section">
+          <h3>
+            {request.status === "requested"
+              ? "Review request"
+              : "Complete request"}
+          </h3>
+          <label className="ar-field">
+            Message to customer (optional)
+            <textarea
+              rows={3}
+              maxLength={1000}
+              value={response}
+              disabled={busy}
+              placeholder="This message is visible to the customer."
+              onChange={(event) => onResponse(event.target.value)}
+            />
+          </label>
+          {request.status === "requested" ? (
+            <div className="ar-actions">
+              <button
+                type="button"
+                className="button"
+                disabled={busy}
+                onClick={() => onAction(order, "approve")}
+              >
+                {working ? "Processing…" : "Approve request"}
+              </button>
+              <button
+                type="button"
+                className="button secondary"
+                disabled={busy}
+                onClick={() => onAction(order, "reject")}
+              >
+                Reject request
+              </button>
+            </div>
+          ) : (
+            <>
+              <p className="notice">
+                Complete only after the returned items have been received and
+                accepted for restocking. Completion restores original stock
+                {exchange
+                  ? " and finalizes the exchange."
+                  : "; the refund must be processed separately."}
+              </p>
+              <button
+                type="button"
+                className="button"
+                disabled={busy}
+                onClick={() => onAction(order, "complete")}
+              >
+                {working
+                  ? "Processing…"
+                  : `Complete ${exchange ? "exchange" : "return"}`}
+              </button>
+            </>
+          )}
+        </section>
+      )}
+      {["completed", "rejected"].includes(request.status) &&
+        request.response && (
+          <p className="notice">
+            <strong>Customer message:</strong> {request.response}
+          </p>
+        )}
+    </article>
+  );
+}
 
-
-      {/* =================================================
-          ERROR
-      ================================================= */}
-
-      {error && (
-        <p
-          className="field-error"
-          role="alert"
-        >
-          {error}
+function ReturnsWorkspace({ token }) {
+  const { notify } = useStore();
+  const [orders, setOrders] = useState([]);
+  const [filter, setFilter] = useState("requested");
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [workingId, setWorkingId] = useState("");
+  const [responses, setResponses] = useState({});
+  const [references, setReferences] = useState({});
+  const mounted = useRef(false);
+  const generation = useRef(0);
+  const lock = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      generation.current++;
+    };
+  }, []);
+  const loadRequests = useCallback(async () => {
+    const version = ++generation.current;
+    setLoading(true);
+    setError("");
+    try {
+      const rows = await getAdminReturnRequests(
+        token,
+        filter === "all" ? "" : filter,
+      );
+      if (mounted.current && version === generation.current) setOrders(rows);
+    } catch (failure) {
+      if (mounted.current && version === generation.current) {
+        setOrders([]);
+        setError(failure.message || "Unable to load requests.");
+      }
+    } finally {
+      if (mounted.current && version === generation.current) setLoading(false);
+    }
+  }, [token, filter]);
+  useEffect(() => {
+    loadRequests();
+  }, [loadRequests]);
+  async function act(order, action) {
+    if (lock.current || !token) return;
+    const response = (
+      responses[order.id] ??
+      order.returnRequest?.response ??
+      ""
+    ).trim();
+    const reference = (references[order.id] ?? "").trim();
+    if (action === "refund" && reference.length < 3) {
+      setError("Enter the transaction reference for the refund already sent.");
+      return;
+    }
+    const confirmations = {
+      reject: `Reject the request for ${order.id}?`,
+      complete: `Complete the request for ${order.id}? Confirm the original items were received and accepted for restocking.`,
+      refund: `Confirm you already sent ${money(order.refund?.amount)} for ${order.id}. Record reference ${reference}?`,
+    };
+    if (confirmations[action] && !window.confirm(confirmations[action])) return;
+    lock.current = true;
+    setWorkingId(order.id);
+    setError("");
+    setSuccess("");
+    try {
+      if (action === "complete")
+        await completeReturnRequest(token, order.id, { response });
+      else if (action === "refund")
+        await recordReturnRefund(token, order.id, { reference });
+      else
+        await reviewReturnRequest(token, order.id, {
+          decision: action,
+          response,
+        });
+      if (!mounted.current) return;
+      const message =
+        action === "refund"
+          ? "Refund recorded. No money was transferred by this action."
+          : action === "complete"
+            ? "Request completed. Check the recorded inventory and refund details."
+            : `Request ${action === "approve" ? "approved" : "rejected"}.`;
+      setSuccess(message);
+      notify(message, "success");
+      setReferences((current) => {
+        const next = { ...current };
+        delete next[order.id];
+        return next;
+      });
+      setResponses((current) => {
+        const next = { ...current };
+        delete next[order.id];
+        return next;
+      });
+      await loadRequests();
+    } catch (failure) {
+      if (mounted.current)
+        setError(
+          failure.message ||
+            "Unable to process this request. Refresh to check its current status before retrying.",
+        );
+    } finally {
+      lock.current = false;
+      if (mounted.current) setWorkingId("");
+    }
+  }
+  const query = search.trim().toLowerCase();
+  const visible = orders.filter((order) =>
+    [
+      order.id,
+      order.returnRequest?.id,
+      order.customer?.name,
+      order.customer?.email,
+      order.user?.name,
+      order.user?.email,
+    ].some((value) =>
+      String(value || "")
+        .toLowerCase()
+        .includes(query),
+    ),
+  );
+  const busy = Boolean(workingId);
+  return (
+    <div className="page ar-admin">
+      <header className="ar-heading">
+        <div>
+          <p className="eyebrow">GYMDROBE ADMIN</p>
+          <h1>Returns and exchanges</h1>
+          <p>
+            Review requests, receive the original items, then complete the
+            return or exchange.
+          </p>
+        </div>
+        <div className="ar-actions">
+          <Link className="button secondary" to="/admin/products">
+            Products
+          </Link>
+          <Link className="button secondary" to="/admin/orders">
+            Orders
+          </Link>
+        </div>
+      </header>
+      <section className="panel">
+        <div className="ar-actions" aria-label="Request status filters">
+          {FILTERS.map((value) => (
+            <button
+              type="button"
+              key={value}
+              className={filter === value ? "button" : "button secondary"}
+              aria-pressed={filter === value}
+              disabled={loading || busy}
+              onClick={() => {
+                setFilter(value);
+                setSuccess("");
+              }}
+            >
+              {label(value)}
+            </button>
+          ))}
+        </div>
+        <div className="ar-search">
+          <label className="ar-field">
+            Search within this status
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Order ID, request ID, customer name or email"
+            />
+          </label>
+          <button
+            type="button"
+            className="button secondary"
+            disabled={loading || busy}
+            onClick={loadRequests}
+          >
+            Refresh
+          </button>
+        </div>
+        {!loading && !error && (
+          <p className="muted">
+            Showing {visible.length} of {orders.length} loaded requests.
+          </p>
+        )}
+      </section>
+      {success && (
+        <p className="notice" role="status">
+          {success}
         </p>
       )}
-
-
-      {/* =================================================
-          LOADING
-      ================================================= */}
-
-      {loading ? (
+      {error && (
         <div className="panel">
-
-          <p>
-            Loading requests…
+          <p className="field-error" role="alert">
+            {error}
           </p>
-
+          <button
+            type="button"
+            className="button secondary"
+            disabled={busy || loading}
+            onClick={loadRequests}
+          >
+            Reload requests
+          </button>
         </div>
-
-      ) : orders.length ===
-        0 ? (
-        <div className="panel">
-
-          <h2>
-            No requests found
-          </h2>
-
-          <p className="muted">
-            There are no return or exchange requests in this section.
-          </p>
-
-        </div>
-
-      ) : (
-        orders.map(
-          (
-            order
-          ) => {
-            const request =
-              order.returnRequest ||
-              {};
-
-
-            const refund =
-              order.refund ||
-              {};
-
-
-            const isWorking =
-              workingId ===
-              order.id;
-
-
-            const isReturn =
-              request.type ===
-              "return";
-
-
-            const isExchange =
-              request.type ===
-              "exchange";
-
-
-            const needsRefund =
-              isReturn &&
-              request.status ===
-                "completed" &&
-              refund.status ===
-                "manual-required" &&
-              Number(
-                refund.amount ||
-                0
-              ) >
-                0;
-
-
-            const isRefunded =
-              isReturn &&
-              refund.status ===
-                "refunded";
-
-
-            return (
-              <section
-                className="panel"
-                key={
-                  order.id
-                }
-              >
-
-                {/* =====================================
-                    HEADER
-                ===================================== */}
-
-                <div className="page-heading">
-
-                  <div>
-
-                    <h2>
-                      {isExchange
-                        ? "Exchange request"
-                        : "Return request"}
-                    </h2>
-
-
-                    <p className="order-id">
-                      {request.id ||
-                        "No request ID"}
-                    </p>
-
-
-                    <p className="muted">
-                      Order:{" "}
-
-                      <Link
-                        className="text-link"
-                        to={`/orders/${encodeURIComponent(
-                          order.id
-                        )}`}
-                      >
-                        {
-                          order.id
-                        }
-                      </Link>
-                    </p>
-
-                  </div>
-
-
-                  <span className="status-pill">
-                    {request.status ||
-                      "unknown"}
-                  </span>
-
-                </div>
-
-
-                {/* =====================================
-                    CUSTOMER
-                ===================================== */}
-
-                <div className="panel">
-
-                  <h3>
-                    Customer
-                  </h3>
-
-
-                  <p>
-                    <strong>
-                      {order.customer
-                        ?.name ||
-                        order.user
-                          ?.name ||
-                        order.shippingAddress
-                          ?.fullName ||
-                        "Customer"}
-                    </strong>
-                  </p>
-
-
-                  {(order.customer
-                    ?.email ||
-                    order.user
-                      ?.email) && (
-                    <p>
-                      {order.customer
-                        ?.email ||
-                        order.user
-                          ?.email}
-                    </p>
-                  )}
-
-
-                  {order.customer
-                    ?.phone && (
-                    <p>
-                      {
-                        order.customer
-                          .phone
-                      }
-                    </p>
-                  )}
-
-                </div>
-
-
-                {/* =====================================
-                    REQUEST DETAILS
-                ===================================== */}
-
-                <div className="panel">
-
-                  <h3>
-                    Request details
-                  </h3>
-
-
-                  <p>
-                    <strong>
-                      Type:
-                    </strong>{" "}
-
-                    {isExchange
-                      ? "Exchange"
-                      : "Return"}
-                  </p>
-
-
-                  <p>
-                    <strong>
-                      Reason:
-                    </strong>{" "}
-
-                    {request.reason ||
-                      "No reason provided."}
-                  </p>
-
-
-                  {request.requestedAt && (
-                    <p className="muted">
-
-                      Requested:{" "}
-
-                      {new Date(
-                        request.requestedAt
-                      ).toLocaleString(
-                        "en-IN"
-                      )}
-
-                    </p>
-                  )}
-
-
-                  {request.approvedAt && (
-                    <p className="muted">
-
-                      Approved:{" "}
-
-                      {new Date(
-                        request.approvedAt
-                      ).toLocaleString(
-                        "en-IN"
-                      )}
-
-                    </p>
-                  )}
-
-
-                  {request.rejectedAt && (
-                    <p className="muted">
-
-                      Rejected:{" "}
-
-                      {new Date(
-                        request.rejectedAt
-                      ).toLocaleString(
-                        "en-IN"
-                      )}
-
-                    </p>
-                  )}
-
-
-                  {request.completedAt && (
-                    <p className="muted">
-
-                      Completed:{" "}
-
-                      {new Date(
-                        request.completedAt
-                      ).toLocaleString(
-                        "en-IN"
-                      )}
-
-                    </p>
-                  )}
-
-                </div>
-
-
-                {/* =====================================
-                    ITEMS
-                ===================================== */}
-
-                <div className="panel">
-
-                  <h3>
-                    Items
-                  </h3>
-
-
-                  {(
-                    request.items ||
-                    []
-                  ).map(
-                    (
-                      row,
-                      requestIndex
-                    ) => {
-                      const item =
-                        order.items?.[
-                          row.index
-                        ];
-
-
-                      if (
-                        !item
-                      ) {
-                        return (
-                          <p
-                            key={
-                              requestIndex
-                            }
-                            className="field-error"
-                          >
-                            Original order item could not be found.
-                          </p>
-                        );
-                      }
-
-
-                      return (
-                        <div
-                          key={`${order.id}-${row.index}-${requestIndex}`}
-                          className="bag-item"
-                        >
-
-                          <div className="bag-copy">
-
-                            <strong>
-                              {
-                                item.name
-                              }
-                            </strong>
-
-
-                            <p>
-                              Quantity:{" "}
-                              {
-                                row.quantity
-                              }
-                            </p>
-
-
-                            <p className="muted">
-
-                              Original:{" "}
-
-                              {[
-                                item.selectedColor,
-
-                                item.selectedSize &&
-                                  `Size ${item.selectedSize}`,
-                              ]
-                                .filter(
-                                  Boolean
-                                )
-                                .join(
-                                  " · "
-                                ) ||
-                                "Default variant"}
-
-                            </p>
-
-
-                            {isExchange && (
-                              <p>
-
-                                <strong>
-                                  Replacement:
-                                </strong>{" "}
-
-                                {[
-                                  row.color,
-
-                                  row.size &&
-                                    `Size ${row.size}`,
-                                ]
-                                  .filter(
-                                    Boolean
-                                  )
-                                  .join(
-                                    " · "
-                                  ) ||
-                                  "Default variant"}
-
-                              </p>
-                            )}
-
-
-                            {isReturn && (
-                              <p>
-
-                                Item value:{" "}
-
-                                <strong>
-                                  {money(
-                                    Number(
-                                      item.price ||
-                                        0
-                                    ) *
-                                      Number(
-                                        row.quantity ||
-                                          0
-                                      )
-                                  )}
-                                </strong>
-
-                              </p>
-                            )}
-
-                          </div>
-
-                        </div>
-                      );
-                    }
-                  )}
-
-                </div>
-
-
-                {/* =====================================
-                    INVENTORY PROCESSING
-                ===================================== */}
-
-                {isExchange && (
-                  <div className="panel">
-
-                    <h3>
-                      Exchange inventory
-                    </h3>
-
-
-                    <p>
-
-                      Replacement reserved:{" "}
-
-                      <strong>
-                        {request.exchangeInventoryReservedAt
-                          ? "Yes"
-                          : "No"}
-                      </strong>
-
-                    </p>
-
-
-                    {request.exchangeInventoryReservedAt && (
-                      <p className="muted">
-
-                        Reserved:{" "}
-
-                        {new Date(
-                          request.exchangeInventoryReservedAt
-                        ).toLocaleString(
-                          "en-IN"
-                        )}
-
-                      </p>
-                    )}
-
-
-                    <p>
-
-                      Original item restored:{" "}
-
-                      <strong>
-                        {request.originalInventoryRestoredAt
-                          ? "Yes"
-                          : "No"}
-                      </strong>
-
-                    </p>
-
-                  </div>
-                )}
-
-
-                {isReturn &&
-                  request.status ===
-                    "completed" && (
-                    <div className="panel">
-
-                      <h3>
-                        Returned inventory
-                      </h3>
-
-
-                      <p>
-
-                        Original stock restored:{" "}
-
-                        <strong>
-                          {request.originalInventoryRestoredAt
-                            ? "Yes"
-                            : "No"}
-                        </strong>
-
-                      </p>
-
-
-                      {request.originalInventoryRestoredAt && (
-                        <p className="muted">
-
-                          Restored:{" "}
-
-                          {new Date(
-                            request.originalInventoryRestoredAt
-                          ).toLocaleString(
-                            "en-IN"
-                          )}
-
-                        </p>
-                      )}
-
-                    </div>
-                  )}
-
-
-                {/* =====================================
-                    REFUND
-                ===================================== */}
-
-                {isReturn && (
-                  <div className="panel">
-
-                    <h3>
-                      Refund
-                    </h3>
-
-
-                    <p>
-
-                      Status:{" "}
-
-                      <strong>
-                        {refund.status ||
-                          "not-requested"}
-                      </strong>
-
-                    </p>
-
-
-                    <p>
-
-                      Amount:{" "}
-
-                      <strong>
-                        {money(
-                          Number(
-                            refund.amount ||
-                              0
-                          )
-                        )}
-                      </strong>
-
-                    </p>
-
-
-                    {refund.requestedAt && (
-                      <p className="muted">
-
-                        Refund created:{" "}
-
-                        {new Date(
-                          refund.requestedAt
-                        ).toLocaleString(
-                          "en-IN"
-                        )}
-
-                      </p>
-                    )}
-
-
-                    {/* =================================
-                        MANUAL REFUND FORM
-                    ================================= */}
-
-                    {needsRefund && (
-                      <div>
-
-                        <p className="notice">
-                          The returned item has been processed. Complete the real COD refund outside GymDrobe, then enter its transaction or reference number here.
-                        </p>
-
-
-                        <div className="field">
-
-                          <label
-                            htmlFor={`refund-reference-${order.id}`}
-                          >
-                            Refund reference
-                          </label>
-
-
-                          <input
-                            id={`refund-reference-${order.id}`}
-                            type="text"
-                            maxLength="200"
-                            autoComplete="off"
-                            disabled={
-                              isWorking
-                            }
-                            placeholder="Example: UTR123456789"
-                            value={
-                              getRefundReference(
-                                order
-                              )
-                            }
-                            onChange={(
-                              event
-                            ) =>
-                              changeRefundReference(
-                                order.id,
-                                event.target
-                                  .value
-                              )
-                            }
-                          />
-
-                        </div>
-
-
-                        <button
-                          type="button"
-                          className="button"
-                          disabled={
-                            isWorking
-                          }
-                          onClick={() =>
-                            recordRefund(
-                              order
-                            )
-                          }
-                        >
-                          {isWorking
-                            ? "Recording refund..."
-                            : "Record refund"}
-                        </button>
-
-                      </div>
-                    )}
-
-
-                    {/* =================================
-                        REFUND COMPLETED
-                    ================================= */}
-
-                    {isRefunded && (
-                      <div className="notice">
-
-                        <p>
-                          <strong>
-                            Refund completed
-                          </strong>
-                        </p>
-
-
-                        {refund.reference && (
-                          <p>
-                            Reference:{" "}
-                            <strong>
-                              {
-                                refund.reference
-                              }
-                            </strong>
-                          </p>
-                        )}
-
-
-                        {refund.refundedAt && (
-                          <p className="muted">
-
-                            Recorded:{" "}
-
-                            {new Date(
-                              refund.refundedAt
-                            ).toLocaleString(
-                              "en-IN"
-                            )}
-
-                          </p>
-                        )}
-
-                      </div>
-                    )}
-
-                  </div>
-                )}
-
-
-                {/* =====================================
-                    ADMIN RESPONSE
-                ===================================== */}
-
-                {[
-                  "requested",
-                  "approved",
-                ].includes(
-                  request.status
-                ) && (
-                  <div className="field">
-
-                    <label
-                      htmlFor={`admin-return-response-${order.id}`}
-                    >
-                      Admin response / note
-                    </label>
-
-
-                    <textarea
-                      id={`admin-return-response-${order.id}`}
-                      rows="3"
-                      maxLength="1000"
-                      disabled={
-                        isWorking
-                      }
-                      placeholder={
-                        request.status ===
-                        "requested"
-                          ? "Optional message for the customer"
-                          : "Optional completion note"
-                      }
-                      value={
-                        getResponse(
-                          order
-                        )
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        changeResponse(
-                          order.id,
-                          event.target
-                            .value
-                        )
-                      }
-                    />
-
-                  </div>
-                )}
-
-
-                {/* =====================================
-                    REQUESTED ACTIONS
-                ===================================== */}
-
-                {request.status ===
-                  "requested" && (
-                  <div className="purchase-actions">
-
-                    <button
-                      type="button"
-                      className="button"
-                      disabled={
-                        isWorking
-                      }
-                      onClick={() =>
-                        review(
-                          order,
-                          "approve"
-                        )
-                      }
-                    >
-                      {isWorking
-                        ? "Processing..."
-                        : "Approve"}
-                    </button>
-
-
-                    <button
-                      type="button"
-                      className="button secondary"
-                      disabled={
-                        isWorking
-                      }
-                      onClick={() =>
-                        review(
-                          order,
-                          "reject"
-                        )
-                      }
-                    >
-                      {isWorking
-                        ? "Processing..."
-                        : "Reject"}
-                    </button>
-
-                  </div>
-                )}
-
-
-                {/* =====================================
-                    APPROVED ACTION
-                ===================================== */}
-
-                {request.status ===
-                  "approved" && (
-                  <div>
-
-                    <p className="notice">
-
-                      {isExchange
-                        ? "The replacement stock is reserved. Complete the exchange only after receiving the customer's original item."
-                        : "Complete the return only after the customer's returned item has been received and accepted."}
-
-                    </p>
-
-
-                    <button
-                      type="button"
-                      className="button"
-                      disabled={
-                        isWorking
-                      }
-                      onClick={() =>
-                        complete(
-                          order
-                        )
-                      }
-                    >
-                      {isWorking
-                        ? "Completing..."
-                        : isExchange
-                          ? "Complete exchange"
-                          : "Complete return"}
-                    </button>
-
-                  </div>
-                )}
-
-
-                {/* =====================================
-                    ADMIN RESPONSE DISPLAY
-                ===================================== */}
-
-                {[
-                  "rejected",
-                  "completed",
-                ].includes(
-                  request.status
-                ) &&
-                  request.response && (
-                  <div className="notice">
-
-                    <strong>
-                      Admin response:
-                    </strong>{" "}
-
-                    {
-                      request.response
-                    }
-
-                  </div>
-                )}
-
-              </section>
-            );
-          }
-        )
       )}
-
+      {loading ? (
+        <p className="panel" role="status">
+          Loading requests…
+        </p>
+      ) : !error && !visible.length ? (
+        <div className="panel">
+          <h2>No matching requests</h2>
+          <p>Choose another status or clear your search.</p>
+        </div>
+      ) : (
+        <div className="ar-list">
+          {visible.map((order) => (
+            <RequestCard
+              key={order.id}
+              order={order}
+              busy={busy}
+              working={workingId === order.id}
+              response={
+                responses[order.id] ?? order.returnRequest?.response ?? ""
+              }
+              reference={references[order.id] ?? ""}
+              onResponse={(value) =>
+                setResponses((current) => ({ ...current, [order.id]: value }))
+              }
+              onReference={(value) =>
+                setReferences((current) => ({ ...current, [order.id]: value }))
+              }
+              onAction={act}
+            />
+          ))}
+        </div>
+      )}
     </div>
+  );
+}
+
+export default function AdminReturnsPage() {
+  const { user, token, authLoading = false } = useAuth();
+  if (authLoading)
+    return (
+      <div className="page panel" role="status">
+        Checking admin session…
+      </div>
+    );
+  if (!user || !token)
+    return (
+      <div className="page narrow panel">
+        <h1>Admin returns</h1>
+        <p>Sign in with an admin account to continue.</p>
+        <Link className="button" to="/login">
+          Sign in
+        </Link>
+      </div>
+    );
+  if (user.role !== "admin")
+    return (
+      <div className="page narrow panel">
+        <h1>Admin access required</h1>
+        <p>This page is available to GymDrobe administrators.</p>
+        <Link className="button" to="/">
+          Go home
+        </Link>
+      </div>
+    );
+  return (
+    <ReturnsWorkspace
+      key={`${user.id || user._id || "admin"}:${token}`}
+      token={token}
+    />
   );
 }

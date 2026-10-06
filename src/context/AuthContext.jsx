@@ -1,3 +1,5 @@
+import { importGuestShopping, shoppingKey, readSession, writeSession } from "../utils/shopperStorage.js";
+
 import {
   createContext,
   useCallback,
@@ -6,7 +8,6 @@ import {
   useMemo,
   useState,
 } from "react";
-
 import {
   changeUserPassword,
   getCurrentUser,
@@ -14,20 +15,13 @@ import {
   registerUser,
   updateUserProfile,
 } from "../services/authApi.js";
-
-
 const AuthContext =
   createContext(null);
-
-
 const TOKEN_KEY =
   "gymdrobe-auth-token";
-
-
 // ======================================================
 // TOKEN STORAGE
 // ======================================================
-
 function readStoredToken() {
   try {
     return (
@@ -35,13 +29,10 @@ function readStoredToken() {
         TOKEN_KEY
       ) || null
     );
-
   } catch {
     return null;
   }
 }
-
-
 function storeToken(
   value
 ) {
@@ -53,25 +44,19 @@ function storeToken(
         TOKEN_KEY,
         value
       );
-
     } else {
       localStorage.removeItem(
         TOKEN_KEY
       );
     }
-
     return true;
-
   } catch {
     return false;
   }
 }
-
-
 // ======================================================
 // PROVIDER
 // ======================================================
-
 export default function AuthProvider({
   children,
 }) {
@@ -80,8 +65,6 @@ export default function AuthProvider({
     setUser,
   ] =
     useState(null);
-
-
   const [
     token,
     setToken,
@@ -89,25 +72,27 @@ export default function AuthProvider({
     useState(
       readStoredToken
     );
-
-
   const [
     loading,
     setLoading,
   ] =
     useState(true);
+  const [authError, setAuthError] = useState(null);
+  const [restoreAttempt, setRestoreAttempt] = useState(0);
+  const retrySession = useCallback(() => setRestoreAttempt(value => value + 1), []);
 
+  useEffect(() => {
+    window.addEventListener("online", retrySession);
+    return () => window.removeEventListener("online", retrySession);
+  }, [retrySession]);
 
   // ====================================================
   // RESTORE USER
   // ====================================================
-
   useEffect(
     () => {
       let cancelled =
         false;
-
-
       async function restoreUser() {
         if (
           !token
@@ -118,35 +103,26 @@ export default function AuthProvider({
             setUser(
               null
             );
-
             setLoading(
               false
             );
           }
-
           return;
         }
-
-
         try {
+          setAuthError(null);
           setLoading(
             true
           );
-
-
           const data =
             await getCurrentUser(
               token
             );
-
-
           if (
             cancelled
           ) {
             return;
           }
-
-
           if (
             !data?.user
           ) {
@@ -154,38 +130,20 @@ export default function AuthProvider({
               "Unable to restore your account."
             );
           }
-
-
           setUser(
             data.user
           );
-
-        } catch (
-          error
-        ) {
-          console.error(
-            "Auth restore error:",
-            error
-          );
-
-
-          storeToken(
-            null
-          );
-
-
-          if (
-            !cancelled
-          ) {
-            setToken(
-              null
-            );
-
-            setUser(
-              null
-            );
+        } catch (error) {
+          if (cancelled) return;
+          if (error.status === 401 || error.status === 403) {
+            storeToken(null);
+            setToken(null);
+            setUser(null);
+            setAuthError(null);
+          } else {
+            // Retain the token; a network failure does not invalidate a session.
+            setAuthError(error.message || "Unable to verify your session. Please retry.");
           }
-
         } finally {
           if (
             !cancelled
@@ -196,27 +154,20 @@ export default function AuthProvider({
           }
         }
       }
-
-
       restoreUser();
-
-
       return () => {
         cancelled =
           true;
       };
     },
-
     [
       token,
+      restoreAttempt,
     ]
   );
-
-
   // ====================================================
   // SAVE SESSION
   // ====================================================
-
   const saveSession =
     useCallback(
       (
@@ -230,14 +181,10 @@ export default function AuthProvider({
             "Invalid authentication response."
           );
         }
-
-
         const saved =
           storeToken(
             data.token
           );
-
-
         if (
           !saved
         ) {
@@ -245,31 +192,29 @@ export default function AuthProvider({
             "Unable to save your login session."
           );
         }
-
-
+        importGuestShopping(data.user);
+        const guestBuyNow = readSession("gymdrobe-buy-now", []);
+        if (Array.isArray(guestBuyNow) && guestBuyNow.length) {
+          if (writeSession(shoppingKey("gymdrobe-buy-now", data.user), guestBuyNow)) {
+            writeSession("gymdrobe-buy-now", []);
+          }
+        }
+        setAuthError(null);
         setToken(
           data.token
         );
-
-
         setUser(
           data.user
         );
-
-
         return (
           data.user
         );
       },
-
       []
     );
-
-
   // ====================================================
   // REGISTER
   // ====================================================
-
   const register =
     useCallback(
       async ({
@@ -285,26 +230,18 @@ export default function AuthProvider({
             password,
             phone,
           });
-
-
         saveSession(
           data
         );
-
-
         return data;
       },
-
       [
         saveSession,
       ]
     );
-
-
   // ====================================================
   // LOGIN
   // ====================================================
-
   const login =
     useCallback(
       async ({
@@ -316,26 +253,18 @@ export default function AuthProvider({
             email,
             password,
           });
-
-
         saveSession(
           data
         );
-
-
         return data;
       },
-
       [
         saveSession,
       ]
     );
-
-
   // ====================================================
   // UPDATE PROFILE
   // ====================================================
-
   const updateProfile =
     useCallback(
       async ({
@@ -349,12 +278,8 @@ export default function AuthProvider({
             "Your sign-in session has expired. Please sign in again."
           );
         }
-
-
         const payload =
           {};
-
-
         if (
           name !==
           undefined
@@ -364,8 +289,6 @@ export default function AuthProvider({
               name ?? ""
             ).trim();
         }
-
-
         if (
           phone !==
           undefined
@@ -378,15 +301,11 @@ export default function AuthProvider({
               ""
             );
         }
-
-
         const data =
           await updateUserProfile(
             token,
             payload
           );
-
-
         if (
           !data?.user
         ) {
@@ -394,26 +313,18 @@ export default function AuthProvider({
             "Profile was updated but the new account information was not returned."
           );
         }
-
-
         setUser(
           data.user
         );
-
-
         return data;
       },
-
       [
         token,
       ]
     );
-
-
   // ====================================================
   // CHANGE PASSWORD
   // ====================================================
-
   const changePassword =
     useCallback(
       async (
@@ -426,13 +337,10 @@ export default function AuthProvider({
           return {
             success:
               false,
-
             message:
               "Your sign-in session has expired. Please sign in again.",
           };
         }
-
-
         try {
           const result =
             await changeUserPassword(
@@ -442,19 +350,15 @@ export default function AuthProvider({
                 newPassword,
               }
             );
-
-
           return {
             success:
               Boolean(
                 result.success
               ),
-
             message:
               result.message ||
               "Password changed successfully.",
           };
-
         } catch (
           error
         ) {
@@ -462,29 +366,22 @@ export default function AuthProvider({
             "Change password error:",
             error
           );
-
-
           return {
             success:
               false,
-
             message:
               error.message ||
               "Unable to change password.",
           };
         }
       },
-
       [
         token,
       ]
     );
-
-
   // ====================================================
   // REFRESH USER
   // ====================================================
-
   const refreshUser =
     useCallback(
       async () => {
@@ -493,14 +390,10 @@ export default function AuthProvider({
         ) {
           return null;
         }
-
-
         const data =
           await getCurrentUser(
             token
           );
-
-
         if (
           !data?.user
         ) {
@@ -508,89 +401,65 @@ export default function AuthProvider({
             "Unable to refresh account information."
           );
         }
-
-
         setUser(
           data.user
         );
-
-
         return (
           data.user
         );
       },
-
       [
         token,
       ]
     );
-
-
   // ====================================================
   // LOGOUT
   // ====================================================
-
   const logout =
     useCallback(
       async () => {
         storeToken(
           null
         );
-
-
         setToken(
           null
         );
-
-
         setUser(
           null
         );
-
-
         return true;
       },
-
       []
     );
-
-
   // ====================================================
   // CONTEXT VALUE
   // ====================================================
-
   const value =
     useMemo(
       () => ({
         user,
-
         token,
-
         loading,
-
+        authError,
+        retrySession,
         isAuthenticated:
           Boolean(
             user &&
             token
           ),
-
         login,
-
         register,
-
         logout,
-
         updateProfile,
-
         changePassword,
-
         refreshUser,
       }),
-
       [
         user,
         token,
         loading,
+        authError,
+        retrySession,
         login,
         register,
         logout,
@@ -599,8 +468,6 @@ export default function AuthProvider({
         refreshUser,
       ]
     );
-
-
   return (
     <AuthContext.Provider
       value={
@@ -613,19 +480,14 @@ export default function AuthProvider({
     </AuthContext.Provider>
   );
 }
-
-
 // ======================================================
 // HOOK
 // ======================================================
-
 export function useAuth() {
   const context =
     useContext(
       AuthContext
     );
-
-
   if (
     !context
   ) {
@@ -633,7 +495,5 @@ export function useAuth() {
       "AuthProvider is missing."
     );
   }
-
-
   return context;
 }

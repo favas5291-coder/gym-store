@@ -1,28 +1,58 @@
-import { readStorage } from "./storage.js";
-export function reviewStats(product) {
-  const saved = readStorage("gymdrobe-reviews", {});
-  const local =
-    saved && typeof saved === "object" && Array.isArray(saved[product?.id])
-      ? saved[product.id]
-      : [];
-  const reviews = [
-    ...local,
-    ...(Array.isArray(product?.reviews) ? product.reviews : []),
-  ].filter(
-    (item) =>
-      item &&
-      typeof item.name === "string" &&
-      typeof item.comment === "string" &&
-      Number.isInteger(Number(item.rating)) &&
-      Number(item.rating) >= 1 &&
-      Number(item.rating) <= 5,
+const reviewCache = new Map();
+
+export function updateProductReviews(
+  productId,
+  reviews,
+) {
+  reviewCache.set(
+    String(productId),
+    Array.isArray(reviews) ? reviews : [],
   );
-  const rating = reviews.length
+
+  window.dispatchEvent(
+    new Event("gymdrobe-reviews-updated"),
+  );
+}
+
+export function reviewStats(product) {
+  const productId = String(
+    product?.id || product?._id || "",
+  );
+
+  const source =
+    reviewCache.get(productId) ??
+    product?.reviews ??
+    [];
+
+  const reviews = (
+    Array.isArray(source) ? source : []
+  ).filter(
+    (review) =>
+      review &&
+      typeof review.name === "string" &&
+      typeof review.comment === "string" &&
+      Number.isInteger(Number(review.rating)) &&
+      Number(review.rating) >= 1 &&
+      Number(review.rating) <= 5,
+  );
+
+  const count = reviews.length;
+
+  const rating = count
     ? Math.round(
-        (reviews.reduce((n, item) => n + Number(item.rating), 0) /
-          reviews.length) *
+        (reviews.reduce(
+          (total, review) =>
+            total + Number(review.rating),
+          0,
+        ) /
+          count) *
           10,
       ) / 10
     : 0;
-  return { reviews, rating, count: reviews.length };
+
+  return {
+    reviews,
+    rating,
+    count,
+  };
 }

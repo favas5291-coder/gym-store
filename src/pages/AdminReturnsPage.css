@@ -1,0 +1,117 @@
+.ar-admin {
+  max-width: 1180px;
+  margin-inline: auto;
+}
+.ar-admin .ar-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.ar-admin .ar-heading h1,
+.ar-admin .ar-heading h2 {
+  margin-top: 0;
+  overflow-wrap: anywhere;
+}
+.ar-admin .ar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.ar-admin .ar-actions .button,
+.ar-admin button {
+  min-height: 44px;
+}
+.ar-admin .ar-list {
+  display: grid;
+  gap: 20px;
+  margin-top: 20px;
+}
+.ar-admin .ar-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.ar-admin .ar-section {
+  border-top: 1px solid #d1d5db;
+  padding-top: 18px;
+  margin-top: 20px;
+}
+.ar-admin .ar-item {
+  padding: 12px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+.ar-admin .ar-facts {
+  display: grid;
+  gap: 10px;
+}
+.ar-admin .ar-facts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.ar-admin .ar-facts dt {
+  color: #4b5563;
+}
+.ar-admin .ar-facts dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
+}
+.ar-admin .ar-field {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+  font-weight: 600;
+  min-width: 0;
+}
+.ar-admin .ar-field input,
+.ar-admin .ar-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid #9ca3af;
+  border-radius: 8px;
+  min-height: 46px;
+  background: white;
+  color: #111827;
+  font: inherit;
+}
+.ar-admin .ar-field textarea {
+  resize: vertical;
+}
+.ar-admin .ar-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+}
+.ar-admin .ar-card p,
+.ar-admin .ar-card dd,
+.ar-admin .notice {
+  overflow-wrap: anywhere;
+}
+.ar-admin .ar-card p {
+  line-height: 1.6;
+}
+.ar-admin button:focus-visible,
+.ar-admin input:focus-visible,
+.ar-admin textarea:focus-visible,
+.ar-admin a:focus-visible {
+  outline: 3px solid #c2410c;
+  outline-offset: 3px;
+}
+@media (max-width: 650px) {
+  .ar-admin .ar-columns,
+  .ar-admin .ar-search {
+    grid-template-columns: 1fr;
+  }
+  .ar-admin .ar-actions .button {
+    flex-grow: 1;
+  }
+  .ar-admin .ar-facts > div {
+    flex-wrap: wrap;
+  }
+}

@@ -1,0 +1,83 @@
+.ao-admin {
+  max-width: 1240px;
+  margin-inline: auto;
+}
+.ao-admin .ao-card {
+  min-width: 0;
+}
+.ao-admin .ao-card strong,
+.ao-admin .ao-card p,
+.ao-admin .ao-card .muted {
+  overflow-wrap: anywhere;
+}
+.ao-admin .ao-card h3 {
+  margin: 0 0 14px;
+  font-size: 20px;
+}
+.ao-admin .ao-card section {
+  min-width: 0;
+}
+.ao-admin .ao-card form {
+  background: #f8fafc;
+  border: 1px solid #d1d5db;
+  padding: 20px;
+  border-radius: 12px;
+}
+.ao-admin .ao-card .field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.ao-admin .ao-card .field label {
+  font-weight: 700;
+}
+.ao-admin input:not([type="checkbox"]),
+.ao-admin select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid #9ca3af;
+  border-radius: 8px;
+  min-height: 46px;
+  background: #fff;
+  color: #111827;
+  font: inherit;
+}
+.ao-admin .check {
+  display: flex;
+  gap: 12px;
+  min-height: 44px;
+}
+.ao-admin input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.ao-admin .button {
+  min-height: 44px;
+  white-space: normal;
+}
+.ao-admin .ao-card form .button {
+  width: 100%;
+}
+.ao-admin input:focus-visible,
+.ao-admin select:focus-visible,
+.ao-admin button:focus-visible,
+.ao-admin a:focus-visible {
+  outline: 3px solid #c2410c;
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .ao-admin .ao-card {
+    padding: 16px !important;
+  }
+  .ao-admin .ao-card form {
+    padding: 14px;
+  }
+  .ao-admin .ao-card form > div {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .ao-admin .ao-card .notice {
+    padding: 12px;
+  }
+}

@@ -1,0 +1,254 @@
+.ap-admin {
+  max-width: 1240px;
+  margin-inline: auto;
+}
+.ap-admin .ap-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.ap-admin .ap-heading h1,
+.ap-admin .ap-heading h2,
+.ap-admin .ap-heading h3 {
+  margin-top: 0;
+}
+.ap-admin .ap-actions,
+.ap-admin .ap-section-links {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.ap-admin .ap-editor {
+  margin-bottom: 28px;
+}
+.ap-admin .ap-section-links {
+  padding: 16px 0 22px;
+}
+.ap-admin .ap-section-links a {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  color: #1f2937;
+  text-decoration: none;
+  background: #fff;
+}
+.ap-admin .ap-form-fields {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  min-width: 0;
+}
+.ap-admin .ap-section {
+  padding: 24px 0;
+  border-top: 1px solid #e5e7eb;
+  scroll-margin-top: 110px;
+}
+.ap-admin .ap-section h3 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+.ap-admin .ap-help,
+.ap-admin .ap-field small {
+  color: #4b5563;
+  line-height: 1.6;
+}
+.ap-admin .ap-help {
+  margin-bottom: 20px;
+}
+.ap-admin .ap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 18px;
+}
+.ap-admin .ap-field {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-width: 0;
+}
+.ap-admin .ap-field > span {
+  font-weight: 700;
+}
+.ap-admin .ap-field input,
+.ap-admin .ap-field select,
+.ap-admin .ap-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #9ca3af;
+  border-radius: 8px;
+  background: #fff;
+  color: #111827;
+  padding: 12px;
+  min-height: 46px;
+  font: inherit;
+}
+.ap-admin .ap-field textarea {
+  resize: vertical;
+}
+.ap-admin input:focus-visible,
+.ap-admin select:focus-visible,
+.ap-admin textarea:focus-visible,
+.ap-admin button:focus-visible,
+.ap-admin a:focus-visible {
+  outline: 3px solid #c2410c;
+  outline-offset: 3px;
+}
+.ap-admin .ap-stock-box {
+  padding: 18px;
+  margin-top: 20px;
+  background: #f8fafc;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+}
+.ap-admin .ap-stock-box h4 {
+  margin: 0 0 8px;
+}
+.ap-admin .ap-price-preview {
+  padding: 16px;
+  background: #fff7ed;
+  border-radius: 8px;
+}
+.ap-admin .ap-price-preview strong {
+  margin-left: 8px;
+  font-size: 24px;
+}
+.ap-admin .ap-preview {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 20px;
+  padding: 20px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+}
+.ap-admin .ap-preview-image,
+.ap-admin .ap-product-image {
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #f3f4f6;
+}
+.ap-admin .ap-preview-image img,
+.ap-admin .ap-product-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.ap-admin .ap-preview h4 {
+  font-size: 22px;
+  margin: 8px 0;
+}
+.ap-admin .ap-preview p {
+  overflow-wrap: anywhere;
+}
+.ap-admin .ap-flags {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+.ap-admin .ap-check {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 10px;
+}
+.ap-admin .ap-check input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.ap-admin .ap-save-bar {
+  padding-top: 20px;
+  border-top: 1px solid #d1d5db;
+}
+.ap-admin .ap-save-bar .button,
+.ap-admin .ap-actions .button {
+  min-height: 44px;
+}
+.ap-admin .ap-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin: 24px 0;
+}
+.ap-admin .ap-stats strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 28px;
+}
+.ap-admin .ap-filters {
+  margin-bottom: 20px;
+}
+.ap-admin .ap-filters .ap-actions {
+  margin-top: 16px;
+}
+.ap-admin .ap-product-list {
+  display: grid;
+  gap: 16px;
+}
+.ap-admin .ap-product {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 20px;
+}
+.ap-admin .ap-product-content {
+  min-width: 0;
+}
+.ap-admin .ap-product h3 {
+  overflow-wrap: anywhere;
+}
+.ap-admin .ap-product-stats {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.ap-admin .ap-product-stats dt {
+  font-size: 13px;
+  color: #4b5563;
+}
+.ap-admin .ap-product-stats dd {
+  margin: 5px 0 0;
+  font-weight: 700;
+}
+.ap-admin .ap-status {
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.ap-admin .ap-pagination {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
+@media (max-width: 600px) {
+  .ap-admin .ap-preview {
+    grid-template-columns: 1fr;
+    padding: 14px;
+  }
+  .ap-admin .ap-preview-image {
+    max-width: 220px;
+    width: 100%;
+  }
+  .ap-admin .ap-product {
+    grid-template-columns: 1fr;
+  }
+  .ap-admin .ap-product-image {
+    width: 110px;
+  }
+  .ap-admin .ap-save-bar .ap-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .ap-admin .ap-section-links a {
+    flex-grow: 1;
+  }
+}

@@ -1,59 +1,134 @@
 import { useState } from "react";
+
 import ProductArtwork from "./ProductArtwork.jsx";
+
 import {
   getDiscountPercentage,
   getDiscountedPrice,
   getOriginalPrice,
   money,
 } from "../utils/productPricing.js";
-import { getTotalStock } from "../utils/cartUtils.js";
+
+import {
+  getTotalStock,
+} from "../utils/cartUtils.js";
+
 export { money };
-export const productPath = (id) => `/product/${encodeURIComponent(id)}`;
+
+// ======================================================
+// PRODUCT AND CATEGORY LINKS
+// ======================================================
+
+export const productPath = (id) =>
+  `/product/${encodeURIComponent(id)}`;
+
 export const categoryPath = (name) =>
-  `/shop?${new URLSearchParams({ category: name })}`;
+  `/shop?${new URLSearchParams({
+    category: name,
+  })}`;
+
+// ======================================================
+// PRODUCT PRICING
+// ======================================================
+
 export function priceDetails(product) {
   return {
     valid:
       product?.price != null &&
       Number.isFinite(Number(product.price)) &&
       Number(product.price) >= 0,
+
     price: getOriginalPrice(product),
+
     discount: getDiscountPercentage(product),
+
     selling: getDiscountedPrice(product),
   };
 }
-export const inStock = (product) => getTotalStock(product) > 0;
+
+// ======================================================
+// PRODUCT AVAILABILITY
+// ======================================================
+
+export const inStock = (product) =>
+  getTotalStock(product) > 0;
+
 export const validProducts = (list) =>
-  (Array.isArray(list) ? list : []).filter((p) => p && p.id != null && p.name);
+  (Array.isArray(list) ? list : []).filter(
+    (product) =>
+      product &&
+      product.id != null &&
+      product.name
+  );
+
+// ======================================================
+// PRODUCT IMAGE
+//
+// Images load lazily by default.
+// Main product images can use eager loading and
+// fetchPriority="high".
+// ======================================================
+
 export function ProductImage({
   product,
   className = "",
   eager = false,
   decorative = false,
+  fetchPriority = "auto",
 }) {
-  const source = typeof product?.image === "string" ? product.image : "";
+  const source =
+    typeof product?.image === "string"
+      ? product.image
+      : "";
+
   const [failed, setFailed] = useState(null);
-  return source && failed !== source ? (
-    <img
-      src={source}
-      className={className}
-      alt={decorative ? "" : product?.name || "Product"}
-      loading={eager ? "eager" : "lazy"}
-      decoding="async"
-      onError={() => setFailed(source)}
-    />
-  ) : (
+
+  if (source && failed !== source) {
+    return (
+      <img
+        src={source}
+        className={className}
+        alt={
+          decorative
+            ? ""
+            : product?.name || "Product"
+        }
+        loading={eager ? "eager" : "lazy"}
+        decoding="async"
+        fetchPriority={fetchPriority}
+        onError={() => setFailed(source)}
+      />
+    );
+  }
+
+  return (
     <span
       className={`gm-image-fallback ${className}`}
       aria-hidden={decorative || undefined}
     >
-      <ProductArtwork category={product?.category} name={product?.name} />
-      <span className="sr-only">{product?.name || "GymDrobe"}</span>
-      <small>Illustration · photo unavailable</small>
+      <ProductArtwork
+        category={product?.category}
+        name={product?.name}
+      />
+
+      <span className="sr-only">
+        {product?.name || "GymDrobe"}
+      </span>
+
+      <small>
+        Illustration · photo unavailable
+      </small>
     </span>
   );
 }
-export function Arrow({ direction = "right" }) {
+
+// ======================================================
+// ARROW ICON
+// ======================================================
+
+export function Arrow({
+  direction = "right",
+}) {
   return (
     <svg
       width="20"
@@ -63,13 +138,26 @@ export function Arrow({ direction = "right" }) {
       stroke="currentColor"
       strokeWidth="1.8"
       aria-hidden="true"
-      style={direction === "left" ? { transform: "rotate(180deg)" } : undefined}
+      style={
+        direction === "left"
+          ? {
+              transform: "rotate(180deg)",
+            }
+          : undefined
+      }
     >
       <path d="M4 12h16m-6-6 6 6-6 6" />
     </svg>
   );
 }
-export function Heart({ filled = false }) {
+
+// ======================================================
+// WISHLIST ICON
+// ======================================================
+
+export function Heart({
+  filled = false,
+}) {
   return (
     <svg
       width="20"

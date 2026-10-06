@@ -1,34 +1,13 @@
-import useOrderUpdates from "../hooks/useOrderUpdates.js";
+import { Link, useParams } from "react-router-dom";
 
-import {
-  useEffect,
-  useState,
-} from "react";
-
-import {
-  Link,
-  useParams,
-} from "react-router-dom";
-
-import {
-  useAuth,
-} from "../context/AuthContext.jsx";
-
-import {
-  getOrder as getLocalOrder,
-  orderStatus,
-} from "../utils/customerData.js";
-
-import {
-  getOrderById,
-} from "../services/orderApi.js";
+import useCustomerOrder from "../hooks/useCustomerOrder.js";
 
 import EmptyState from "../components/EmptyState.jsx";
 
-
-// ======================================================
-// TRACKING STAGES
-// ======================================================
+import OrderPaymentDetails, {
+  formatOrderDate,
+  formatOrderStatus,
+} from "../components/OrderPaymentDetails.jsx";
 
 const stages = [
   "confirmed",
@@ -38,627 +17,75 @@ const stages = [
   "delivered",
 ];
 
+const messages = {
+  confirmed:
+    "Your order is confirmed and awaiting preparation.",
+  processing:
+    "Your order is being prepared for dispatch.",
+  shipped:
+    "Your order has been dispatched.",
+  "out-for-delivery":
+    "Your order is out for delivery. Keep your phone available for the delivery partner.",
+  delivered:
+    "Your order is recorded as delivered.",
+};
 
-// ======================================================
-// HELPERS
-// ======================================================
-
-function statusLabel(
-  status
-) {
-  const labels = {
-    confirmed:
-      "Confirmed",
-
-    processing:
-      "Processing",
-
-    shipped:
-      "Shipped",
-
-    "out-for-delivery":
-      "Out for delivery",
-
-    delivered:
-      "Delivered",
-
-    cancelled:
-      "Cancelled",
-
-    packed:
-      "Processing",
-  };
-
-
-  return (
-    labels[
-      status
-    ] ||
-    String(
-      status ||
-        "Order update"
-    )
-      .replaceAll(
-        "-",
-        " "
-      )
-  );
+function eventTime(value) {
+  const timestamp = Date.parse(value || "");
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }
-
-
-function formatDate(
-  value
-) {
-  if (!value) {
-    return "";
-  }
-
-
-  const date =
-    new Date(
-      value
-    );
-
-
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
-    return "";
-  }
-
-
-  return date.toLocaleDateString(
-    "en-IN",
-    {
-      day:
-        "numeric",
-
-      month:
-        "short",
-
-      year:
-        "numeric",
-    }
-  );
-}
-
-
-function formatDateTime(
-  value
-) {
-  if (!value) {
-    return "";
-  }
-
-
-  const date =
-    new Date(
-      value
-    );
-
-
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
-    return "";
-  }
-
-
-  return date.toLocaleString(
-    "en-IN",
-    {
-      day:
-        "numeric",
-
-      month:
-        "short",
-
-      year:
-        "numeric",
-
-      hour:
-        "numeric",
-
-      minute:
-        "2-digit",
-    }
-  );
-}
-
-
-// ======================================================
-// ORDER TRACKING PAGE
-// ======================================================
 
 export default function OrderTrackingPage() {
-  const revision =
-    useOrderUpdates();
-
+  const { orderId } = useParams();
 
   const {
-    orderId,
-  } =
-    useParams();
-
-
-  const {
-    user,
-    token,
-  } =
-    useAuth();
-
-
-  const [
     order,
-    setOrder,
-  ] =
-    useState(
-      null
-    );
-
-
-  const [
     loading,
-    setLoading,
-  ] =
-    useState(
-      Boolean(
-        user
-      )
-    );
-
-
-  const [
     refreshing,
-    setRefreshing,
-  ] =
-    useState(
-      false
-    );
-
-
-  const [
     error,
-    setError,
-  ] =
-    useState("");
-
-
-  const [
     refreshError,
-    setRefreshError,
-  ] =
-    useState("");
-
-
-  const [
     lastUpdated,
-    setLastUpdated,
-  ] =
-    useState(
-      null
-    );
-
-
-  // ====================================================
-  // LOAD ORDER
-  //
-  // SIGNED IN:
-  // MongoDB
-  //
-  // GUEST:
-  // localStorage
-  // ====================================================
-
-  useEffect(
-    () => {
-      let cancelled =
-        false;
-
-
-      async function loadOrder() {
-        setError(
-          ""
-        );
-
-
-        // ----------------------------------------------
-        // GUEST ORDER
-        // ----------------------------------------------
-
-        if (
-          !user
-        ) {
-          const local =
-            getLocalOrder(
-              orderId,
-              null
-            );
-
-
-          if (
-            !cancelled
-          ) {
-            setOrder(
-              local
-            );
-
-            setLoading(
-              false
-            );
-
-            setLastUpdated(
-              new Date()
-            );
-          }
-
-
-          return;
-        }
-
-
-        // ----------------------------------------------
-        // LOGGED-IN USER WITHOUT TOKEN
-        // ----------------------------------------------
-
-        if (
-          !token
-        ) {
-          if (
-            !cancelled
-          ) {
-            setOrder(
-              null
-            );
-
-            setLoading(
-              false
-            );
-
-            setError(
-              "Your sign-in session has expired. Please sign in again."
-            );
-          }
-
-
-          return;
-        }
-
-
-        // ----------------------------------------------
-        // MONGODB ORDER
-        // ----------------------------------------------
-
-        setLoading(
-          true
-        );
-
-
-        try {
-          const remoteOrder =
-            await getOrderById(
-              token,
-              orderId
-            );
-
-
-          if (
-            cancelled
-          ) {
-            return;
-          }
-
-
-          setOrder(
-            remoteOrder ||
-              null
-          );
-
-
-          setLastUpdated(
-            new Date()
-          );
-
-        } catch (
-          loadError
-        ) {
-          if (
-            cancelled
-          ) {
-            return;
-          }
-
-
-          console.error(
-            "Order tracking load error:",
-            loadError
-          );
-
-
-          setOrder(
-            null
-          );
-
-
-          setError(
-            loadError.message ||
-              "Tracking information could not be loaded."
-          );
-
-        } finally {
-          if (
-            !cancelled
-          ) {
-            setLoading(
-              false
-            );
-          }
-        }
-      }
-
-
-      loadOrder();
-
-
-      return () => {
-        cancelled =
-          true;
-      };
-    },
-
-    [
-      orderId,
-      user?.id,
-      token,
-      revision,
-    ]
-  );
-
-
-  // ====================================================
-  // SILENT REMOTE REFRESH
-  // ====================================================
-
-  async function refreshRemoteOrder({
-    showLoading = false,
-  } = {}) {
-    if (
-      !user ||
-      !token ||
-      !orderId
-    ) {
-      return;
-    }
-
-
-    if (
-      showLoading
-    ) {
-      setRefreshing(
-        true
-      );
-    }
-
-
-    setRefreshError(
-      ""
-    );
-
-
-    try {
-      const remoteOrder =
-        await getOrderById(
-          token,
-          orderId
-        );
-
-
-      setOrder(
-        remoteOrder ||
-          null
-      );
-
-
-      setLastUpdated(
-        new Date()
-      );
-
-    } catch (
-      refreshLoadError
-    ) {
-      console.error(
-        "Tracking refresh error:",
-        refreshLoadError
-      );
-
-
-      setRefreshError(
-        refreshLoadError.message ||
-          "Could not refresh tracking right now."
-      );
-
-    } finally {
-      if (
-        showLoading
-      ) {
-        setRefreshing(
-          false
-        );
-      }
-    }
-  }
-
-
-  // ====================================================
-  // AUTO REFRESH
-  //
-  // Checks MongoDB while this tracking page is open.
-  // ====================================================
-
-  useEffect(
-    () => {
-      if (
-        !user ||
-        !token ||
-        !orderId
-      ) {
-        return undefined;
-      }
-
-
-      const interval =
-        window.setInterval(
-          () => {
-            if (
-              document.visibilityState ===
-              "visible"
-            ) {
-              refreshRemoteOrder();
-            }
-          },
-
-          30000
-        );
-
-
-      return () => {
-        window.clearInterval(
-          interval
-        );
-      };
-    },
-
-    [
-      user?.id,
-      token,
-      orderId,
-    ]
-  );
-
-
-  // ====================================================
-  // REFRESH WHEN CUSTOMER RETURNS TO TAB
-  // ====================================================
-
-  useEffect(
-    () => {
-      if (
-        !user ||
-        !token
-      ) {
-        return undefined;
-      }
-
-
-      function refreshOnFocus() {
-        refreshRemoteOrder();
-      }
-
-
-      function refreshOnVisibility() {
-        if (
-          document.visibilityState ===
-          "visible"
-        ) {
-          refreshRemoteOrder();
-        }
-      }
-
-
-      window.addEventListener(
-        "focus",
-        refreshOnFocus
-      );
-
-
-      document.addEventListener(
-        "visibilitychange",
-        refreshOnVisibility
-      );
-
-
-      return () => {
-        window.removeEventListener(
-          "focus",
-          refreshOnFocus
-        );
-
-
-        document.removeEventListener(
-          "visibilitychange",
-          refreshOnVisibility
-        );
-      };
-    },
-
-    [
-      user?.id,
-      token,
-      orderId,
-    ]
-  );
-
-
-  // ====================================================
-  // LOADING
-  // ====================================================
-
-  if (
-    loading &&
-    user
-  ) {
+    isAccountOrder,
+    refresh,
+  } = useCustomerOrder(orderId, {
+    autoRefresh: true,
+  });
+
+  if (loading) {
     return (
-      <div
-        className="page narrow tracking-page"
-      >
-        <div
-          className="empty-state"
-        >
-          <h3>
-            Loading tracking…
-          </h3>
-
-          <p>
-            Getting the latest information for your GymDrobe order.
-          </p>
+      <div className="page narrow tracking-page">
+        <div className="empty-state" role="status">
+          <h3>Loading tracking…</h3>
+          <p>Getting the latest order information.</p>
         </div>
       </div>
     );
   }
 
-
-  // ====================================================
-  // ERROR
-  // ====================================================
-
-  if (
-    error
-  ) {
+  if (error) {
     return (
-      <EmptyState
-        title="Tracking could not be loaded"
-        to="/orders"
-        label="My orders"
-      >
-        {
-          error
-        }
-      </EmptyState>
+      <div className="page narrow tracking-page">
+        <EmptyState
+          title="Tracking could not be loaded"
+          to="/orders"
+          label="My orders"
+        >
+          {error}
+        </EmptyState>
+
+        <button
+          className="button secondary"
+          type="button"
+          disabled={refreshing}
+          onClick={refresh}
+        >
+          {refreshing ? "Retrying…" : "Retry"}
+        </button>
+      </div>
     );
   }
 
-
-  // ====================================================
-  // ORDER NOT FOUND
-  // ====================================================
-
-  if (
-    !order
-  ) {
+  if (!order) {
     return (
       <EmptyState
         title="Order not found"
@@ -670,486 +97,255 @@ export default function OrderTrackingPage() {
     );
   }
 
+  const displayId =
+    order.orderNumber || order.id || orderId;
 
-  // ====================================================
-  // STATUS
-  // ====================================================
-
-  const progressStatus =
-    order.status ===
-    "packed"
+  const status =
+    order.status === "packed"
       ? "processing"
       : order.status;
 
+  const currentIndex = stages.indexOf(status);
 
-  const currentIndex =
-    stages.indexOf(
-      progressStatus
-    );
+  const cancelled = status === "cancelled";
+  const pending = status === "payment-pending";
 
+  const paymentReceived =
+    order.payment?.status === "paid" ||
+    order.payment?.status === "partially-paid";
 
-  // ====================================================
-  // TRACKING EVENTS
-  // ====================================================
-
-  const events =
-    Array.isArray(
-      order.tracking
-        ?.events
-    )
-      ? order.tracking
-          .events
-      : [];
-
-
-  const sortedEvents = [
-    ...events,
-  ].sort(
-    (
-      a,
-      b
-    ) =>
-      Date.parse(
-        b.timestamp ||
-          0
-      ) -
-      Date.parse(
-        a.timestamp ||
-          0
-      )
+  const events = (
+    Array.isArray(order.tracking?.events)
+      ? [...order.tracking.events]
+      : []
+  ).sort(
+    (a, b) =>
+      eventTime(b.timestamp) -
+      eventTime(a.timestamp),
   );
 
-
-  // ====================================================
-  // PAGE
-  // ====================================================
+  const address = order.shippingAddress;
 
   return (
-    <div
-      className="page narrow tracking-page"
-    >
+    <div className="page narrow tracking-page">
       <Link
         className="text-link"
-        to={`/orders/${encodeURIComponent(
-          order.id
-        )}`}
+        to={`/orders/${encodeURIComponent(displayId)}`}
       >
         ← Order details
       </Link>
 
-
-      <div
-        style={{
-          display:
-            "flex",
-
-          justifyContent:
-            "space-between",
-
-          alignItems:
-            "flex-start",
-
-          gap:
-            "16px",
-
-          flexWrap:
-            "wrap",
-        }}
-      >
+      <div className="page-heading">
         <div>
-          <h1>
-            Track your order
-          </h1>
-
-          <p
-            className="order-id"
-          >
-            {
-              order.id
-            }
-          </p>
+          <h1>Track your order</h1>
+          <p className="order-id">{displayId}</p>
 
           <span
             className={`status-pill ${
-              order.status ===
-              "cancelled"
-                ? "cancelled"
-                : ""
+              cancelled ? "cancelled" : ""
             }`}
           >
-            {orderStatus(
-              order
-            )}
+            {formatOrderStatus(status)}
           </span>
         </div>
 
-
-        {user && (
-          <button
-            type="button"
-            className="button secondary"
-            disabled={
-              refreshing
-            }
-            onClick={
-              () =>
-                refreshRemoteOrder({
-                  showLoading:
-                    true,
-                })
-            }
-          >
-            {refreshing
-              ? "Refreshing…"
-              : "Refresh tracking"}
-          </button>
-        )}
+        <button
+          type="button"
+          className="button secondary"
+          disabled={refreshing}
+          onClick={refresh}
+        >
+          {refreshing
+            ? "Refreshing…"
+            : "Refresh tracking"}
+        </button>
       </div>
 
-
-      {/* =================================================
-          DATA SOURCE
-      ================================================= */}
-
-      <div
-        className="notice"
-      >
-        {user
-          ? "Tracking information is synced with your GymDrobe account."
-          : "Guest tracking information is stored on this device."}
+      <div className="notice">
+        {isAccountOrder
+          ? "Tracking details are synced with your GymDrobe account."
+          : "Guest tracking details are stored on this device."}
 
         {lastUpdated && (
           <>
             {" "}
-            Last updated{" "}
-            {formatDateTime(
-              lastUpdated
-            )}
-            .
+            Last checked:{" "}
+            {formatOrderDate(lastUpdated)}.
           </>
         )}
       </div>
 
-
       {refreshError && (
-        <p
-          className="field-error"
-          role="alert"
-        >
-          {
-            refreshError
-          }
+        <p className="field-error" role="alert">
+          {refreshError} Showing the last
+          successfully loaded details.
         </p>
       )}
 
+      {cancelled ? (
+        <div className="notice">
+          This order has been cancelled and will
+          not be fulfilled.
 
-      {/* =================================================
-          CANCELLED
-      ================================================= */}
-
-      {order.status ===
-      "cancelled" ? (
-        <div
-          className="notice"
-        >
-          This order has been cancelled.
+          {order.cancellation?.reason && (
+            <p>{order.cancellation.reason}</p>
+          )}
         </div>
+      ) : pending ? (
+        <div className="notice">
+          {paymentReceived
+            ? "Payment has been recorded, but order confirmation is pending. Do not pay again."
+            : "This order is awaiting payment confirmation. Delivery progress will appear after confirmation."}
 
-      ) : (
+          <p>
+            Open your order details to check the
+            latest payment status and available
+            actions.
+          </p>
+        </div>
+      ) : currentIndex >= 0 ? (
         <>
-          {/* =============================================
-              PROGRESS
-          ============================================= */}
-
           <ol
             className="tracking-steps"
+            aria-label="Delivery progress"
           >
-            {stages.map(
-              (
-                stage,
-                index
-              ) => {
-                const completed =
-                  currentIndex >=
-                    0 &&
-                  index <=
-                    currentIndex;
+            {stages.map((stage, index) => (
+              <li
+                key={stage}
+                className={
+                  index <= currentIndex
+                    ? "done"
+                    : ""
+                }
+                aria-current={
+                  stage === status
+                    ? "step"
+                    : undefined
+                }
+              >
+                <span aria-hidden="true">
+                  {index < currentIndex
+                    ? "✓"
+                    : index + 1}
+                </span>
 
-
-                const isCurrent =
-                  stage ===
-                  progressStatus;
-
-
-                return (
-                  <li
-                    key={
-                      stage
-                    }
-                    className={
-                      completed
-                        ? "done"
-                        : ""
-                    }
-                    aria-current={
-                      isCurrent
-                        ? "step"
-                        : undefined
-                    }
-                  >
-                    <span
-                      aria-hidden="true"
-                    >
-                      {currentIndex >
-                      index
-                        ? "✓"
-                        : index +
-                          1}
-                    </span>
-
-                    <strong>
-                      {statusLabel(
-                        stage
-                      )}
-                    </strong>
-                  </li>
-                );
-              }
-            )}
+                <strong>
+                  {formatOrderStatus(stage)}
+                </strong>
+              </li>
+            ))}
           </ol>
 
+          <section className="panel">
+            <h2>ORDER STATUS</h2>
+            <p>{messages[status]}</p>
 
-          {/* =============================================
-              CURRENT DELIVERY MESSAGE
-          ============================================= */}
-
-          <section
-            className="panel"
-          >
-            <h2>
-              ORDER STATUS
-            </h2>
-
-
-            {progressStatus ===
-              "confirmed" && (
-              <p>
-                Your order has been confirmed. GymDrobe will begin preparing it for dispatch.
-              </p>
-            )}
-
-
-            {progressStatus ===
-              "processing" && (
-              <p>
-                Your order is being prepared and packed for dispatch.
-              </p>
-            )}
-
-
-            {progressStatus ===
-              "shipped" && (
-              <p>
-                Your order has left GymDrobe and is on its way to you.
-              </p>
-            )}
-
-
-            {progressStatus ===
-              "out-for-delivery" && (
-              <p>
-                Your order is out for delivery. Please keep your phone available for the delivery partner.
-              </p>
-            )}
-
-
-            {progressStatus ===
-              "delivered" && (
-              <p>
-                Your order has been delivered successfully.
-              </p>
-            )}
-
-
-            {order.delivery
-              ?.deliveredAt && (
-              <p
-                className="muted"
-              >
+            {order.delivery?.deliveredAt && (
+              <p className="muted">
                 Delivered:{" "}
-                {formatDateTime(
-                  order.delivery
-                    .deliveredAt
+                {formatOrderDate(
+                  order.delivery.deliveredAt,
                 )}
               </p>
             )}
           </section>
         </>
+      ) : (
+        <div className="notice">
+          Delivery progress is not available for
+          this order status yet.
+        </div>
       )}
 
+      <OrderPaymentDetails order={order} />
 
-      {/* =================================================
-          SHIPMENT INFORMATION
-      ================================================= */}
+      <section className="panel">
+        <h2>SHIPMENT INFORMATION</h2>
 
-      <section
-        className="panel"
-      >
-        <h2>
-          SHIPMENT INFORMATION
-        </h2>
-
-
-        {order.tracking
-          ?.carrier ? (
+        {order.tracking?.carrier ? (
           <p>
-            <strong>
-              Carrier:
-            </strong>{" "}
-            {
-              order.tracking
-                .carrier
-            }
+            <strong>Carrier:</strong>{" "}
+            {order.tracking.carrier}
           </p>
         ) : (
           <p>
-            A carrier has not been assigned yet.
+            {cancelled
+              ? "This order is cancelled."
+              : pending
+                ? "Shipment information is awaiting order confirmation."
+                : "A carrier has not been assigned yet."}
           </p>
         )}
 
-
-        {order.tracking
-          ?.trackingNumber && (
+        {order.tracking?.trackingNumber && (
           <p>
-            <strong>
-              Tracking number:
-            </strong>{" "}
-            {
-              order.tracking
-                .trackingNumber
-            }
+            <strong>Tracking number:</strong>{" "}
+            {order.tracking.trackingNumber}
           </p>
         )}
 
-
-        {order.tracking
-          ?.estimatedDelivery && (
-          <p>
-            <strong>
-              Estimated delivery:
-            </strong>{" "}
-            {formatDate(
-              order.tracking
-                .estimatedDelivery
-            )}
-          </p>
-        )}
-
-
-        {order.delivery
-          ?.label && (
-          <p>
-            <strong>
-              Delivery method:
-            </strong>{" "}
-            {
-              order.delivery
-                .label
-            }
-          </p>
-        )}
-
-
-        {order.delivery
-          ?.status && (
-          <p>
-            <strong>
-              Delivery status:
-            </strong>{" "}
-            {statusLabel(
-              order.delivery
-                .status
-            )}
-          </p>
-        )}
-
-
-        {!order.tracking
-          ?.carrier &&
-          !order.tracking
-            ?.trackingNumber &&
-          progressStatus ===
-            "confirmed" && (
-            <p
-              className="muted"
-            >
-              Courier information will appear here after your order is prepared for shipment.
+        {!cancelled &&
+          !pending &&
+          order.tracking?.estimatedDelivery && (
+            <p>
+              <strong>Estimated delivery:</strong>{" "}
+              {formatOrderDate(
+                order.tracking.estimatedDelivery,
+              )}
             </p>
           )}
 
+        {order.delivery?.label && (
+          <p>
+            <strong>Delivery method:</strong>{" "}
+            {order.delivery.label}
+          </p>
+        )}
 
-        <p
-          className="muted"
-        >
-          This page shows fulfilment and tracking information recorded by GymDrobe. Courier-level live location tracking can be connected later through a shipping provider.
+        {order.delivery?.status && (
+          <p>
+            <strong>Recorded delivery status:</strong>{" "}
+            {formatOrderStatus(
+              order.delivery.status,
+            )}
+          </p>
+        )}
+
+        <p className="muted">
+          Tracking updates reflect information
+          recorded for your order.
         </p>
       </section>
 
+      <section className="panel">
+        <h2>ORDER ACTIVITY</h2>
 
-      {/* =================================================
-          ORDER ACTIVITY
-      ================================================= */}
+        {events.length ? (
+          events.map((event, index) => (
+            <div
+              className="tracking-event"
+              key={`${
+                event.status || "event"
+              }-${event.timestamp || index}-${index}`}
+            >
+              <strong>
+                {event.description ||
+                  formatOrderStatus(event.status)}
+              </strong>
 
-      <section
-        className="panel"
-      >
-        <h2>
-          ORDER ACTIVITY
-        </h2>
+              {event.status && (
+                <p className="muted">
+                  {formatOrderStatus(event.status)}
+                </p>
+              )}
 
-
-        {sortedEvents.length ? (
-          <div>
-            {sortedEvents.map(
-              (
-                event,
-                index
-              ) => (
-                <div
-                  className="tracking-event"
-                  key={`${event.status || "event"}-${event.timestamp || index}`}
-                >
-                  <strong>
-                    {event.description ||
-                      statusLabel(
-                        event.status
-                      ) ||
-                      "Order update"}
-                  </strong>
-
-
-                  {event.status && (
-                    <p
-                      className="muted"
-                    >
-                      {statusLabel(
-                        event.status
-                      )}
-                    </p>
-                  )}
-
-
-                  {event.timestamp && (
-                    <p>
-                      {formatDateTime(
-                        event.timestamp
-                      )}
-                    </p>
-                  )}
-                </div>
-              )
-            )}
-          </div>
+              {event.timestamp && (
+                <p>
+                  {formatOrderDate(event.timestamp)}
+                </p>
+              )}
+            </div>
+          ))
         ) : (
           <p>
             No tracking events have been recorded yet.
@@ -1157,105 +353,56 @@ export default function OrderTrackingPage() {
         )}
       </section>
 
-
-      {/* =================================================
-          DELIVERY ADDRESS
-      ================================================= */}
-
-      {order.shippingAddress && (
-        <section
-          className="panel"
-        >
-          <h2>
-            DELIVERY ADDRESS
-          </h2>
-
+      {address && (
+        <section className="panel">
+          <h2>DELIVERY ADDRESS</h2>
 
           <p>
             <strong>
-              {order.shippingAddress
-                .fullName ||
-                order.customer
-                  ?.name ||
+              {address.fullName ||
+                address.name ||
+                order.customer?.name ||
                 "Customer"}
             </strong>
 
             <br />
 
-            {order.shippingAddress
-              .addressLine ||
-              ""}
+            {address.addressLine || address.address}
 
-            {order.shippingAddress
-              .landmark && (
+            {address.landmark && (
               <>
                 <br />
-                {
-                  order.shippingAddress
-                    .landmark
-                }
+                {address.landmark}
               </>
             )}
 
             <br />
 
-            {order.shippingAddress
-              .city ||
-              ""}
-
-            {order.shippingAddress
-              .state
-              ? `, ${order.shippingAddress.state}`
-              : ""}
-
-            {order.shippingAddress
-              .pincode
-              ? ` - ${order.shippingAddress.pincode}`
-              : ""}
+            {[
+              address.city,
+              address.state,
+              address.pincode,
+            ]
+              .filter(Boolean)
+              .join(", ")}
           </p>
 
-
-          {order.shippingAddress
-            .phone && (
+          {address.phone && (
             <p>
-              <strong>
-                Phone:
-              </strong>{" "}
-              {
-                order.shippingAddress
-                  .phone
-              }
+              <strong>Phone:</strong>{" "}
+              {address.phone}
             </p>
           )}
         </section>
       )}
 
-
-      {/* =================================================
-          CUSTOMER ACTIONS
-      ================================================= */}
-
-      <div
-        style={{
-          display:
-            "flex",
-
-          gap:
-            "12px",
-
-          flexWrap:
-            "wrap",
-        }}
-      >
+      <div className="purchase-actions">
         <Link
           className="button secondary"
-          to={`/orders/${encodeURIComponent(
-            order.id
-          )}`}
+          to={`/orders/${encodeURIComponent(displayId)}`}
         >
           View order details
         </Link>
-
 
         <Link
           className="button secondary"
@@ -1264,11 +411,7 @@ export default function OrderTrackingPage() {
           All orders
         </Link>
 
-
-        <Link
-          className="button"
-          to="/shop"
-        >
+        <Link className="button" to="/shop">
           Continue shopping
         </Link>
       </div>

@@ -1,22 +1,7 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-
-import {
-  Link,
-} from "react-router-dom";
-
-import {
-  useAuth,
-} from "../context/AuthContext.jsx";
-
-import {
-  useCatalog,
-} from "../context/CatalogContext.jsx";
-
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
+import { useCatalog } from "../context/CatalogContext.jsx";
 import {
   getAdminProducts,
   createProduct,
@@ -25,4677 +10,1234 @@ import {
   archiveProduct,
   restoreProduct,
 } from "../services/productApi.js";
-
-
-// ======================================================
-// CONSTANTS
-// ======================================================
-
+import { ProductImage } from "../components/StorefrontShared.jsx";
+import { money, getDiscountedPrice } from "../utils/productPricing.js";
+import "./AdminProductsPage.css";
 const PAGE_SIZE = 25;
-
-
 const EMPTY_DRAFT = {
   id: "",
   _id: "",
-
   name: "",
   slug: "",
   sku: "",
-
   category: "",
   subcategory: "",
-
   brand: "GymDrobe",
   gender: "Unisex",
-
   price: "",
   discount: "0",
-
   badge: "",
-
   description: "",
   material: "",
   whatsIncluded: "",
   returnPolicy: "",
-
   image: "",
-
   imagesText: "",
-
   tagsText: "",
   highlightsText: "",
   careInstructionsText: "",
-
   sizesText: "",
   colorsText: "",
-
   specificationsText: "",
-
   stock: "0",
-
   variants: {},
-
   isFeatured: false,
   isBestSeller: false,
   isNew: false,
   isActive: true,
-
   deliveryAvailable: true,
-
-  estimatedDays:
-    "3–7 business days",
-
-  freeDeliveryAbove:
-    "500",
+  estimatedDays: "3–7 business days",
+  freeDeliveryAbove: "500",
 };
-
-
-// ======================================================
-// HELPERS
-// ======================================================
-
-function productId(
-  product
-) {
-  return (
-    product?._id ||
-    product?.id ||
-    product?.slug ||
-    ""
-  );
+function productId(product) {
+  return product?._id || product?.id || product?.slug || "";
 }
-
-
-function splitComma(
-  value
-) {
-  return String(
-    value || ""
-  )
+function splitComma(value) {
+  return String(value || "")
     .split(",")
-    .map(
-      (item) =>
-        item.trim()
-    )
-    .filter(
-      Boolean
-    );
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
-
-
-function splitLines(
-  value
-) {
-  return String(
-    value || ""
-  )
-    .split(
-      /\r?\n/
-    )
-    .map(
-      (item) =>
-        item.trim()
-    )
-    .filter(
-      Boolean
-    );
+function splitLines(value) {
+  return String(value || "")
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
-
-
-function joinComma(
-  value
-) {
-  return Array.isArray(
-    value
-  )
-    ? value.join(
-        ", "
-      )
-    : "";
+function joinComma(value) {
+  return Array.isArray(value) ? value.join(", ") : "";
 }
-
-
-function joinLines(
-  value
-) {
-  return Array.isArray(
-    value
-  )
-    ? value.join(
-        "\n"
-      )
-    : "";
+function joinLines(value) {
+  return Array.isArray(value) ? value.join("\n") : "";
 }
-
-
-function money(
-  value
-) {
-  return new Intl.NumberFormat(
-    "en-IN",
-    {
-      style:
-        "currency",
-
-      currency:
-        "INR",
-
-      maximumFractionDigits:
-        0,
-    }
-  ).format(
-    Number(
-      value ||
-        0
-    )
-  );
+function safeNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
 }
-
-
-function safeNumber(
-  value,
-  fallback = 0
-) {
-  const number =
-    Number(
-      value
-    );
-
-
-  return Number.isFinite(
-    number
-  )
-    ? number
-    : fallback;
-}
-
-
-function stockLabel(
-  status
-) {
+function stockLabel(status) {
   const labels = {
-    "in-stock":
-      "In stock",
-
-    "low-stock":
-      "Low stock",
-
-    "out-of-stock":
-      "Out of stock",
+    "in-stock": "In stock",
+    "low-stock": "Low stock",
+    "out-of-stock": "Out of stock",
   };
-
-
-  return (
-    labels[
-      status
-    ] ||
-    "Unknown"
-  );
+  return labels[status] || "Unknown";
 }
-
-
-function formatDate(
-  value
-) {
-  if (
-    !value
-  ) {
+function formatDate(value) {
+  if (!value) {
     return "";
   }
-
-
-  const date =
-    new Date(
-      value
-    );
-
-
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
     return "";
   }
-
-
-  return date.toLocaleString(
-    "en-IN",
-    {
-      day:
-        "numeric",
-
-      month:
-        "short",
-
-      year:
-        "numeric",
-
-      hour:
-        "numeric",
-
-      minute:
-        "2-digit",
-    }
-  );
+  return date.toLocaleString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
-
-
-function parseSpecifications(
-  value
-) {
-  const result =
-    {};
-
-
-  const lines =
-    splitLines(
-      value
-    );
-
-
-  for (
-    const line
-    of lines
-  ) {
-    const index =
-      line.indexOf(
-        ":"
-      );
-
-
-    if (
-      index ===
-      -1
-    ) {
+function parseSpecifications(value) {
+  const result = {};
+  const lines = splitLines(value);
+  for (const line of lines) {
+    const index = line.indexOf(":");
+    if (index === -1) {
       continue;
     }
-
-
-    const key =
-      line
-        .slice(
-          0,
-          index
-        )
-        .trim();
-
-
-    const itemValue =
-      line
-        .slice(
-          index +
-            1
-        )
-        .trim();
-
-
-    if (
-      key
-    ) {
-      result[
-        key
-      ] =
-        itemValue;
+    const key = line.slice(0, index).trim();
+    const itemValue = line.slice(index + 1).trim();
+    if (key) {
+      result[key] = itemValue;
     }
   }
-
-
   return result;
 }
-
-
-function stringifySpecifications(
-  value
-) {
-  if (
-    !value ||
-    typeof value !==
-      "object" ||
-    Array.isArray(
-      value
-    )
-  ) {
+function stringifySpecifications(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
     return "";
   }
-
-
-  return Object.entries(
-    value
-  )
-    .map(
-      (
-        [
-          key,
-          itemValue,
-        ]
-      ) =>
-        `${key}: ${String(
-          itemValue ??
-            ""
-        )}`
-    )
-    .join(
-      "\n"
-    );
+  return Object.entries(value)
+    .map(([key, itemValue]) => `${key}: ${String(itemValue ?? "")}`)
+    .join("\n");
 }
-
-
-function cloneVariants(
-  value
-) {
-  if (
-    !value ||
-    typeof value !==
-      "object"
-  ) {
+function cloneVariants(value) {
+  if (!value || typeof value !== "object") {
     return {};
   }
-
-
   try {
-    return structuredClone(
-      value
-    );
-
+    return structuredClone(value);
   } catch {
-    return JSON.parse(
-      JSON.stringify(
-        value
-      )
-    );
+    return JSON.parse(JSON.stringify(value));
   }
 }
-
-
-// ======================================================
-// CREATE EDITOR DRAFT
-// ======================================================
-
-function makeDraft(
-  product
-) {
-  if (
-    !product
-  ) {
+function makeDraft(product) {
+  if (!product) {
     return {
       ...EMPTY_DRAFT,
-
-      variants:
-        {},
+      variants: {},
     };
   }
-
-
   return {
-    id:
-      product.id ||
-      product._id ||
-      "",
-
-    _id:
-      product._id ||
-      product.id ||
-      "",
-
-    name:
-      product.name ||
-      "",
-
-    slug:
-      product.slug ||
-      "",
-
-    sku:
-      product.sku ||
-      "",
-
-    category:
-      product.category ||
-      "",
-
-    subcategory:
-      product.subcategory ||
-      "",
-
-    brand:
-      product.brand ||
-      "GymDrobe",
-
-    gender:
-      product.gender ||
-      "Unisex",
-
-    price:
-      String(
-        product.price ??
-          ""
-      ),
-
-    discount:
-      String(
-        product.discount ??
-          0
-      ),
-
-    badge:
-      product.badge ||
-      "",
-
-    description:
-      product.description ||
-      "",
-
-    material:
-      product.material ||
-      "",
-
-    whatsIncluded:
-      product.whatsIncluded ||
-      "",
-
-    returnPolicy:
-      product.returnPolicy ||
-      "",
-
-    image:
-      product.image ||
-      "",
-
-    imagesText:
-      joinLines(
-        product.images
-      ),
-
-    tagsText:
-      joinComma(
-        product.tags
-      ),
-
-    highlightsText:
-      joinLines(
-        product.highlights
-      ),
-
-    careInstructionsText:
-      joinLines(
-        product.careInstructions
-      ),
-
-    sizesText:
-      joinComma(
-        product.sizes
-      ),
-
-    colorsText:
-      joinComma(
-        product.colors
-      ),
-
-    specificationsText:
-      stringifySpecifications(
-        product.specifications
-      ),
-
-    stock:
-      String(
-        product.stock ??
-          0
-      ),
-
-    variants:
-      cloneVariants(
-        product.variants
-      ),
-
-    isFeatured:
-      Boolean(
-        product.isFeatured
-      ),
-
-    isBestSeller:
-      Boolean(
-        product.isBestSeller
-      ),
-
-    isNew:
-      Boolean(
-        product.isNew
-      ),
-
-    isActive:
-      product.isActive !==
-      false,
-
-    deliveryAvailable:
-      product.delivery
-        ?.available !==
-      false,
-
-    estimatedDays:
-      product.delivery
-        ?.estimatedDays ||
-      "",
-
-    freeDeliveryAbove:
-      String(
-        product.delivery
-          ?.freeDeliveryAbove ??
-          500
-      ),
+    id: product.id || product._id || "",
+    _id: product._id || product.id || "",
+    name: product.name || "",
+    slug: product.slug || "",
+    sku: product.sku || "",
+    category: product.category || "",
+    subcategory: product.subcategory || "",
+    brand: product.brand || "GymDrobe",
+    gender: product.gender || "Unisex",
+    price: String(product.price ?? ""),
+    discount: String(product.discount ?? 0),
+    badge: product.badge || "",
+    description: product.description || "",
+    material: product.material || "",
+    whatsIncluded: product.whatsIncluded || "",
+    returnPolicy: product.returnPolicy || "",
+    image: product.image || "",
+    imagesText: joinLines(product.images),
+    tagsText: joinComma(product.tags),
+    highlightsText: joinLines(product.highlights),
+    careInstructionsText: joinLines(product.careInstructions),
+    sizesText: joinComma(product.sizes),
+    colorsText: joinComma(product.colors),
+    specificationsText: stringifySpecifications(product.specifications),
+    stock: String(product.stock ?? 0),
+    variants: cloneVariants(product.variants),
+    isFeatured: Boolean(product.isFeatured),
+    isBestSeller: Boolean(product.isBestSeller),
+    isNew: Boolean(product.isNew),
+    isActive: product.isActive !== false,
+    deliveryAvailable: product.delivery?.available !== false,
+    estimatedDays: product.delivery?.estimatedDays || "",
+    freeDeliveryAbove: String(product.delivery?.freeDeliveryAbove ?? 500),
   };
 }
-
-
-// ======================================================
-// BUILD VARIANTS
-//
-// SUPPORTED:
-//
-// 1. Colour + Size
-//    variants[color][size]
-//
-// 2. Colour only
-//    variants[color].default
-//
-// 3. Size only
-//    variants[size]
-//
-// 4. No options
-//    normal stock field
-// ======================================================
-
-function buildVariants(
-  draft
-) {
-  const colors =
-    splitComma(
-      draft.colorsText
-    );
-
-
-  const sizes =
-    splitComma(
-      draft.sizesText
-    );
-
-
+function buildVariants(draft) {
+  const colors = splitComma(draft.colorsText);
+  const sizes = splitComma(draft.sizesText);
   const previous =
-    draft.variants &&
-    typeof draft.variants ===
-      "object"
-      ? draft.variants
-      : {};
-
-
-  function quantity(
-    value
-  ) {
-    return Math.max(
-      0,
-
-      Math.floor(
-        safeNumber(
-          value,
-          0
-        )
-      )
-    );
+    draft.variants && typeof draft.variants === "object" ? draft.variants : {};
+  function quantity(value) {
+    return Math.max(0, Math.floor(safeNumber(value, 0)));
   }
-
-
-  // ====================================================
-  // NO COLOUR + NO SIZE
-  // ====================================================
-
-  if (
-    colors.length ===
-      0 &&
-    sizes.length ===
-      0
-  ) {
+  if (colors.length === 0 && sizes.length === 0) {
     return null;
   }
-
-
-  const variants =
-    {};
-
-
-  // ====================================================
-  // COLOUR + SIZE
-  // variants[color][size]
-  // ====================================================
-
-  if (
-    colors.length >
-      0 &&
-    sizes.length >
-      0
-  ) {
-    for (
-      const color
-      of colors
-    ) {
-      variants[
-        color
-      ] =
-        {};
-
-
-      for (
-        const size
-        of sizes
-      ) {
-        variants[
-          color
-        ][
-          size
-        ] =
-          quantity(
-            previous?.[
-              color
-            ]?.[
-              size
-            ]
-          );
+  const variants = {};
+  if (colors.length > 0 && sizes.length > 0) {
+    for (const color of colors) {
+      variants[color] = {};
+      for (const size of sizes) {
+        variants[color][size] = quantity(previous?.[color]?.[size]);
       }
     }
-
-
     return variants;
   }
-
-
-  // ====================================================
-  // COLOUR ONLY
-  // variants[color].default
-  // ====================================================
-
-  if (
-    colors.length >
-    0
-  ) {
-    for (
-      const color
-      of colors
-    ) {
-      variants[
-        color
-      ] = {
-        default:
-          quantity(
-            previous?.[
-              color
-            ]?.default
-          ),
+  if (colors.length > 0) {
+    for (const color of colors) {
+      variants[color] = {
+        default: quantity(previous?.[color]?.default),
       };
     }
-
-
     return variants;
   }
-
-
-  // ====================================================
-  // SIZE ONLY
-  // variants[size]
-  // ====================================================
-
-  for (
-    const size
-    of sizes
-  ) {
-    variants[
-      size
-    ] =
-      quantity(
-        previous?.[
-          size
-        ]
-      );
+  for (const size of sizes) {
+    variants[size] = quantity(previous?.[size]);
   }
-
-
   return variants;
 }
-
-
-// ======================================================
-// PRODUCT PAYLOAD
-// ======================================================
-
-function buildProductPayload(
-  draft,
-  {
-    creating = false,
-  } = {}
-) {
-  const variants =
-    buildVariants(
-      draft
-    );
-
-
+function buildProductPayload(draft, { creating = false } = {}) {
+  const variants = buildVariants(draft);
   const payload = {
-    name:
-      draft.name.trim(),
-
-    sku:
-      draft.sku
-        .trim()
-        .toUpperCase(),
-
-    category:
-      draft.category.trim(),
-
-    subcategory:
-      draft.subcategory.trim(),
-
-    brand:
-      draft.brand.trim() ||
-      "GymDrobe",
-
-    gender:
-      draft.gender.trim() ||
-      "Unisex",
-
-    price:
-      safeNumber(
-        draft.price
-      ),
-
-    discount:
-      safeNumber(
-        draft.discount
-      ),
-
-    badge:
-      draft.badge.trim(),
-
-    description:
-      draft.description.trim(),
-
-    material:
-      draft.material.trim(),
-
-    whatsIncluded:
-      draft.whatsIncluded.trim(),
-
-    returnPolicy:
-      draft.returnPolicy.trim(),
-
-    image:
-      draft.image.trim(),
-
-    images:
-      splitLines(
-        draft.imagesText
-      ),
-
-    tags:
-      splitComma(
-        draft.tagsText
-      ),
-
-    highlights:
-      splitLines(
-        draft.highlightsText
-      ),
-
-    careInstructions:
-      splitLines(
-        draft.careInstructionsText
-      ),
-
-    sizes:
-      splitComma(
-        draft.sizesText
-      ),
-
-    colors:
-      splitComma(
-        draft.colorsText
-      ),
-
-    specifications:
-      parseSpecifications(
-        draft.specificationsText
-      ),
-
-    isFeatured:
-      Boolean(
-        draft.isFeatured
-      ),
-
-    isBestSeller:
-      Boolean(
-        draft.isBestSeller
-      ),
-
-    isNew:
-      Boolean(
-        draft.isNew
-      ),
-
-    isActive:
-      Boolean(
-        draft.isActive
-      ),
-
+    name: draft.name.trim(),
+    sku: draft.sku.trim().toUpperCase(),
+    category: draft.category.trim(),
+    subcategory: draft.subcategory.trim(),
+    brand: draft.brand.trim() || "GymDrobe",
+    gender: draft.gender.trim() || "Unisex",
+    price: safeNumber(draft.price),
+    discount: safeNumber(draft.discount),
+    badge: draft.badge.trim(),
+    description: draft.description.trim(),
+    material: draft.material.trim(),
+    whatsIncluded: draft.whatsIncluded.trim(),
+    returnPolicy: draft.returnPolicy.trim(),
+    image: draft.image.trim(),
+    images: splitLines(draft.imagesText),
+    tags: splitComma(draft.tagsText),
+    highlights: splitLines(draft.highlightsText),
+    careInstructions: splitLines(draft.careInstructionsText),
+    sizes: splitComma(draft.sizesText),
+    colors: splitComma(draft.colorsText),
+    specifications: parseSpecifications(draft.specificationsText),
+    isFeatured: Boolean(draft.isFeatured),
+    isBestSeller: Boolean(draft.isBestSeller),
+    isNew: Boolean(draft.isNew),
+    isActive: Boolean(draft.isActive),
     delivery: {
-      available:
-        Boolean(
-          draft.deliveryAvailable
-        ),
-
-      estimatedDays:
-        draft.estimatedDays
-          .trim() ||
-        null,
-
-      freeDeliveryAbove:
-        Math.max(
-          0,
-
-          safeNumber(
-            draft.freeDeliveryAbove,
-            500
-          )
-        ),
+      available: Boolean(draft.deliveryAvailable),
+      estimatedDays: draft.estimatedDays.trim() || null,
+      freeDeliveryAbove: Math.max(0, safeNumber(draft.freeDeliveryAbove, 500)),
     },
   };
-
-
-  if (
-    draft.slug.trim()
-  ) {
-    payload.slug =
-      draft.slug.trim();
+  if (draft.slug.trim()) {
+    payload.slug = draft.slug.trim();
   }
-
-
-  if (
-    variants
-  ) {
-    payload.variants =
-      variants;
-
+  if (variants) {
+    payload.variants = variants;
   } else {
-    payload.variants =
-      {};
-
-    payload.stock =
-      Math.max(
-        0,
-
-        Math.floor(
-          safeNumber(
-            draft.stock
-          )
-        )
-      );
+    payload.variants = {};
+    payload.stock = Math.max(0, Math.floor(safeNumber(draft.stock)));
   }
-
-
-  if (
-    creating
-  ) {
+  if (creating) {
     delete payload.isActive;
-
-    payload.isActive =
-      true;
+    payload.isActive = true;
   }
-
-
   return payload;
 }
 
+const SECTIONS = [
+  {
+    id: "basic",
+    title: "1. Basic details",
+    help: "Start with the name, category and your unique product code.",
+    fields: [
+      ["name", "Product name", "Training T-shirt", "text", true],
+      [
+        "sku",
+        "Product code (SKU)",
+        "GD-TSHIRT-001",
+        "text",
+        true,
+        "Use a different code for each product.",
+      ],
+      ["category", "Category", "Workout Clothes", "text", true],
+      ["subcategory", "Subcategory", "T-shirts"],
+      ["brand", "Brand", "GymDrobe"],
+      ["gender", "Who is it for?", "", "gender"],
+      [
+        "slug",
+        "Product URL name",
+        "training-t-shirt",
+        "text",
+        false,
+        "Optional. Leave blank for automatic generation when creating.",
+      ],
+      [
+        "badge",
+        "Product label",
+        "New arrival",
+        "text",
+        false,
+        "Optional label shown on the product. Use accurate claims.",
+      ],
+    ],
+  },
+  {
+    id: "pricing",
+    title: "2. Price",
+    help: "Enter the original price in rupees. The preview uses the same rounding as your shop.",
+    fields: [
+      ["price", "Original price (₹)", "999", "price", true],
+      [
+        "discount",
+        "Discount (%)",
+        "0",
+        "discount",
+        false,
+        "Use 0 when there is no discount.",
+      ],
+    ],
+  },
+  {
+    id: "photos",
+    title: "3. Product photos",
+    help: "Use a hosted image URL or a public image path. This form currently saves links, not uploaded files.",
+    fields: [
+      [
+        "image",
+        "Main photo",
+        "https://your-image-host.com/photo.jpg",
+        "text",
+        false,
+        "Or a public path such as /images/training-shirt.jpg.",
+      ],
+      [
+        "imagesText",
+        "Additional photos",
+        "One image URL or path per line",
+        "textarea",
+      ],
+    ],
+  },
+  {
+    id: "options",
+    title: "4. Sizes, colours and stock",
+    help: "Leave sizes and colours blank for a simple product. Otherwise, enter the available options and set stock below.",
+    fields: [
+      [
+        "sizesText",
+        "Available sizes",
+        "S, M, L, XL",
+        "text",
+        false,
+        "Separate sizes with commas.",
+      ],
+      [
+        "colorsText",
+        "Available colours",
+        "Black, White, Blue",
+        "text",
+        false,
+        "Separate colours with commas. Editing option names changes the stock combinations.",
+      ],
+    ],
+  },
+  {
+    id: "details",
+    title: "5. Product description",
+    help: "Explain what the customer receives. The extra details are optional.",
+    fields: [
+      [
+        "description",
+        "Description",
+        "Describe the product, fit and intended use",
+        "textarea",
+      ],
+      [
+        "highlightsText",
+        "Main benefits",
+        "Write one benefit per line",
+        "textarea",
+      ],
+      ["material", "Material", "Cotton blend"],
+      ["whatsIncluded", "What's included", "1 training T-shirt"],
+      [
+        "tagsText",
+        "Search tags",
+        "training, lightweight, tshirt",
+        "text",
+        false,
+        "Separate tags with commas.",
+      ],
+      [
+        "specificationsText",
+        "Specifications",
+        "Material: Cotton\nFit: Regular",
+        "textarea",
+        false,
+        "One Name: Value entry per line.",
+      ],
+      [
+        "careInstructionsText",
+        "Care instructions",
+        "Write one instruction per line",
+        "textarea",
+      ],
+    ],
+  },
+  {
+    id: "delivery",
+    title: "6. Delivery and returns",
+    help: "Enter the delivery estimate and return information that applies to this product.",
+    fields: [
+      ["estimatedDays", "Delivery estimate", "3–7 business days"],
+      ["freeDeliveryAbove", "Free delivery threshold (₹)", "500", "price"],
+      [
+        "returnPolicy",
+        "Return policy",
+        "Describe the applicable return conditions",
+        "textarea",
+        false,
+        "The current request system uses a 7-day window after delivery. Keep your published policy consistent with that setup.",
+      ],
+    ],
+  },
+];
 
-// ======================================================
-// FIELD COMPONENT
-// ======================================================
-
-function Field({
-  label,
-  children,
-  help,
-}) {
+function Field({ label, help, children }) {
   return (
-    <label
-      style={{
-        display:
-          "grid",
-
-        gap:
-          "7px",
-      }}
-    >
-      <strong>
-        {
-          label
-        }
-      </strong>
-
-      {
-        children
-      }
-
-      {help && (
-        <small
-          className="muted"
-        >
-          {
-            help
-          }
-        </small>
-      )}
+    <label className="ap-field">
+      <span>{label}</span>
+      {children}
+      {help && <small>{help}</small>}
     </label>
   );
 }
 
-
-// ======================================================
-// CHECKBOX COMPONENT
-// ======================================================
-
-function Checkbox({
-  checked,
-  onChange,
-  children,
-}) {
-  return (
-    <label
-      style={{
-        display:
-          "flex",
-
-        gap:
-          "10px",
-
-        alignItems:
-          "center",
-      }}
-    >
-      <input
-        type="checkbox"
-        checked={
-          checked
-        }
-        onChange={
-          (
-            event
-          ) =>
-            onChange(
-              event.target
-                .checked
-            )
-        }
-      />
-
-      <span>
-        {
-          children
-        }
-      </span>
-    </label>
+function totalDraftStock(draft) {
+  const variants = buildVariants(draft);
+  if (!variants) return Math.max(0, Math.floor(safeNumber(draft.stock)));
+  return Object.values(variants).reduce(
+    (total, group) =>
+      total +
+      (typeof group === "number"
+        ? group
+        : Object.values(group).reduce((sum, value) => sum + value, 0)),
+    0,
   );
 }
 
-
-// ======================================================
-// STATUS BADGE
-// ======================================================
-
-function StatusBadge({
-  product,
-}) {
-  const archived =
-    product.isActive ===
-    false;
-
-
-  const text =
-    archived
-      ? "Archived"
-      : stockLabel(
-          product.stockStatus
-        );
-
-
-  return (
-    <span
-      style={{
-        display:
-          "inline-flex",
-
-        padding:
-          "5px 9px",
-
-        borderRadius:
-          "999px",
-
-        border:
-          "1px solid currentColor",
-
-        fontSize:
-          "12px",
-
-        fontWeight:
-          "700",
-
-        opacity:
-          archived
-            ? 0.65
-            : 1,
-      }}
-    >
-      {
-        text
-      }
-    </span>
-  );
-}
-
-
-// ======================================================
-// INVENTORY EDITOR
-// ======================================================
-
-function InventoryEditor({
-  draft,
-  setDraft,
-}) {
-  const colors =
-    splitComma(
-      draft.colorsText
-    );
-
-
-  const sizes =
-    splitComma(
-      draft.sizesText
-    );
-
-
-  function stockQuantity(
-    value
-  ) {
-    return Math.max(
-      0,
-
-      Math.floor(
-        safeNumber(
-          value,
-          0
-        )
+function InventoryEditor({ draft, setDraft }) {
+  const sizes = [...new Set(splitComma(draft.sizesText))];
+  const colors = [...new Set(splitComma(draft.colorsText))];
+  const rows = colors.length
+    ? colors.flatMap((color) =>
+        (sizes.length ? sizes : [null]).map((size) => ({ color, size })),
       )
-    );
+    : (sizes.length ? sizes : [null]).map((size) => ({ color: null, size }));
+  function quantityFor(color, size) {
+    if (color && size) return draft.variants?.[color]?.[size] ?? 0;
+    if (color) return draft.variants?.[color]?.default ?? 0;
+    if (size) return draft.variants?.[size] ?? 0;
+    return draft.stock;
   }
-
-
-  // ====================================================
-  // COLOUR + SIZE STOCK
-  // ====================================================
-
-  function setColorSizeStock(
-    color,
-    size,
-    value
-  ) {
-    const quantity =
-      stockQuantity(
-        value
-      );
-
-
-    setDraft(
-      (
-        current
-      ) => {
-        const variants =
-          cloneVariants(
-            current.variants
-          );
-
-
-        if (
-          !variants[
-            color
-          ] ||
-          typeof variants[
-            color
-          ] !==
-            "object"
-        ) {
-          variants[
-            color
-          ] =
-            {};
-        }
-
-
-        variants[
-          color
-        ][
-          size
-        ] =
-          quantity;
-
-
-        return {
-          ...current,
-
-          variants,
+  function changeStock(color, size, value) {
+    setDraft((current) => {
+      if (!color && !size) return { ...current, stock: value };
+      const variants = cloneVariants(current.variants);
+      const count = value === "" ? "" : Number(value);
+      if (color)
+        variants[color] = {
+          ...(variants[color] && typeof variants[color] === "object"
+            ? variants[color]
+            : {}),
+          [size || "default"]: count,
         };
-      }
-    );
+      else variants[size] = count;
+      return { ...current, variants };
+    });
   }
-
-
-  // ====================================================
-  // COLOUR ONLY STOCK
-  // ====================================================
-
-  function setColorStock(
-    color,
-    value
-  ) {
-    const quantity =
-      stockQuantity(
-        value
-      );
-
-
-    setDraft(
-      (
-        current
-      ) => {
-        const variants =
-          cloneVariants(
-            current.variants
-          );
-
-
-        variants[
-          color
-        ] = {
-          ...(
-            variants[
-              color
-            ] &&
-            typeof variants[
-              color
-            ] ===
-              "object"
-              ? variants[
-                  color
-                ]
-              : {}
-          ),
-
-          default:
-            quantity,
-        };
-
-
-        return {
-          ...current,
-
-          variants,
-        };
-      }
-    );
-  }
-
-
-  // ====================================================
-  // SIZE ONLY STOCK
-  // ====================================================
-
-  function setSizeStock(
-    size,
-    value
-  ) {
-    const quantity =
-      stockQuantity(
-        value
-      );
-
-
-    setDraft(
-      (
-        current
-      ) => {
-        const variants =
-          cloneVariants(
-            current.variants
-          );
-
-
-        variants[
-          size
-        ] =
-          quantity;
-
-
-        return {
-          ...current,
-
-          variants,
-        };
-      }
-    );
-  }
-
-
-  // ====================================================
-  // NO COLOUR + NO SIZE
-  // ====================================================
-
-  if (
-    colors.length ===
-      0 &&
-    sizes.length ===
-      0
-  ) {
-    return (
-      <div
-        className="panel"
-      >
-        <h3>
-          INVENTORY
-        </h3>
-
-        <p
-          className="muted"
-        >
-          This product has no size or colour options, so use one total stock quantity.
-        </p>
-
-        <Field
-          label="Total stock"
-        >
-          <input
-            className="field"
-            type="number"
-            min="0"
-            step="1"
-            value={
-              draft.stock
-            }
-            onChange={
-              (
-                event
-              ) =>
-                setDraft(
-                  (
-                    current
-                  ) => ({
-                    ...current,
-
-                    stock:
-                      event.target
-                        .value,
-                  })
-                )
-            }
-          />
-        </Field>
-      </div>
-    );
-  }
-
-
-  // ====================================================
-  // SIZE ONLY
-  // ====================================================
-
-  if (
-    colors.length ===
-      0 &&
-    sizes.length >
-      0
-  ) {
-    return (
-      <div
-        className="panel"
-      >
-        <h3>
-          SIZE INVENTORY
-        </h3>
-
-        <p
-          className="muted"
-        >
-          Set the available quantity for each size. Total stock is calculated automatically.
-        </p>
-
-        <div
-          style={{
-            display:
-              "grid",
-
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(120px, 1fr))",
-
-            gap:
-              "12px",
-
-            marginTop:
-              "16px",
-          }}
-        >
-          {sizes.map(
-            (
-              size
-            ) => (
-              <Field
-                key={
-                  size
-                }
-                label={`Size ${size}`}
-              >
-                <input
-                  className="field"
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={
-                    draft
-                      .variants?.[
-                        size
-                      ] ??
-                    0
-                  }
-                  onChange={
-                    (
-                      event
-                    ) =>
-                      setSizeStock(
-                        size,
-                        event.target
-                          .value
-                      )
-                  }
-                />
-              </Field>
-            )
-          )}
-        </div>
-      </div>
-    );
-  }
-
-
-  // ====================================================
-  // COLOUR ONLY
-  // ====================================================
-
-  if (
-    colors.length >
-      0 &&
-    sizes.length ===
-      0
-  ) {
-    return (
-      <div
-        className="panel"
-      >
-        <h3>
-          COLOUR INVENTORY
-        </h3>
-
-        <p
-          className="muted"
-        >
-          Set the available quantity for each colour. Total stock is calculated automatically.
-        </p>
-
-        <div
-          style={{
-            display:
-              "grid",
-
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(160px, 1fr))",
-
-            gap:
-              "12px",
-
-            marginTop:
-              "16px",
-          }}
-        >
-          {colors.map(
-            (
-              color
-            ) => (
-              <Field
-                key={
-                  color
-                }
-                label={
-                  color
-                }
-              >
-                <input
-                  className="field"
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={
-                    draft
-                      .variants?.[
-                        color
-                      ]?.default ??
-                    0
-                  }
-                  onChange={
-                    (
-                      event
-                    ) =>
-                      setColorStock(
-                        color,
-                        event.target
-                          .value
-                      )
-                  }
-                />
-              </Field>
-            )
-          )}
-        </div>
-      </div>
-    );
-  }
-
-
-  // ====================================================
-  // COLOUR + SIZE
-  // ====================================================
-
   return (
-    <div
-      className="panel"
-    >
-      <h3>
-        VARIANT INVENTORY
-      </h3>
-
-      <p
-        className="muted"
-      >
-        Set stock for every colour and size combination. Total stock is calculated automatically.
+    <div className="ap-stock-box">
+      <h4>How many units can customers buy?</h4>
+      <p>
+        Enter a whole number for each option. Use 0 for an unavailable option.
+        Total stock: <strong>{totalDraftStock(draft)}</strong>.
       </p>
-
-      <div
-        style={{
-          display:
-            "grid",
-
-          gap:
-            "18px",
-
-          marginTop:
-            "16px",
-        }}
-      >
-        {colors.map(
-          (
-            color
-          ) => (
-            <div
-              key={
-                color
-              }
-              style={{
-                border:
-                  "1px solid #e5e7eb",
-
-                borderRadius:
-                  "12px",
-
-                padding:
-                  "14px",
-              }}
-            >
-              <strong>
-                {
-                  color
-                }
-              </strong>
-
-              <div
-                style={{
-                  display:
-                    "grid",
-
-                  gridTemplateColumns:
-                    "repeat(auto-fit, minmax(120px, 1fr))",
-
-                  gap:
-                    "10px",
-
-                  marginTop:
-                    "12px",
-                }}
-              >
-                {sizes.map(
-                  (
-                    size
-                  ) => (
-                    <Field
-                      key={
-                        `${color}-${size}`
-                      }
-                      label={`Size ${size}`}
-                    >
-                      <input
-                        className="field"
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={
-                          draft
-                            .variants?.[
-                              color
-                            ]?.[
-                              size
-                            ] ??
-                          0
-                        }
-                        onChange={
-                          (
-                            event
-                          ) =>
-                            setColorSizeStock(
-                              color,
-                              size,
-                              event.target
-                                .value
-                            )
-                        }
-                      />
-                    </Field>
-                  )
-                )}
-              </div>
-            </div>
-          )
-        )}
+      <div className="ap-grid">
+        {rows.map(({ color, size }) => (
+          <Field
+            key={JSON.stringify([color, size])}
+            label={[color, size].filter(Boolean).join(" / ") || "Total stock"}
+          >
+            <input
+              type="number"
+              min="0"
+              step="1"
+              required
+              inputMode="numeric"
+              value={quantityFor(color, size)}
+              onChange={(event) => changeStock(color, size, event.target.value)}
+            />
+          </Field>
+        ))}
       </div>
     </div>
   );
 }
-
-
-// ======================================================
-// PRODUCT EDITOR
-// ======================================================
 
 function ProductEditor({
   draft,
   setDraft,
   mode,
   busy,
+  stage,
   error,
   onSave,
   onCancel,
 }) {
-  const creating =
-    mode ===
-    "create";
-
-
-  function field(
+  const creating = mode === "create";
+  function field(name, value) {
+    setDraft((current) => ({ ...current, [name]: value }));
+  }
+  function renderField([
     name,
-    value
-  ) {
-    setDraft(
-      (
-        current
-      ) => ({
-        ...current,
-
-        [
-          name
-        ]:
-          value,
-      })
+    label,
+    placeholder = "",
+    kind = "text",
+    required = false,
+    help = "",
+  ]) {
+    const props = {
+      value: draft[name],
+      required,
+      placeholder,
+      onChange: (event) =>
+        field(
+          name,
+          name === "sku"
+            ? event.target.value.toUpperCase()
+            : event.target.value,
+        ),
+    };
+    let control;
+    if (kind === "textarea")
+      control = <textarea {...props} rows={name === "description" ? 5 : 3} />;
+    else if (kind === "gender")
+      control = (
+        <select {...props}>
+          {["Unisex", "Men", "Women", "Kids"].map((value) => (
+            <option key={value}>{value}</option>
+          ))}
+        </select>
+      );
+    else
+      control = (
+        <input
+          {...props}
+          type={kind === "price" || kind === "discount" ? "number" : "text"}
+          min={kind === "price" || kind === "discount" ? 0 : undefined}
+          max={kind === "discount" ? 100 : undefined}
+          step={kind === "price" || kind === "discount" ? 1 : undefined}
+        />
+      );
+    return (
+      <Field key={name} label={`${label}${required ? " *" : ""}`} help={help}>
+        {control}
+      </Field>
     );
   }
-
-
   return (
-    <section
-      className="panel"
-      style={{
-        marginBottom:
-          "28px",
-      }}
-    >
-      <div
-        style={{
-          display:
-            "flex",
-
-          justifyContent:
-            "space-between",
-
-          gap:
-            "14px",
-
-          flexWrap:
-            "wrap",
-
-          alignItems:
-            "center",
-        }}
-      >
+    <section className="ap-editor panel">
+      <div className="ap-heading">
         <div>
-          <p
-            className="eyebrow"
-          >
-            ADMIN PRODUCT EDITOR
-          </p>
-
+          <p className="eyebrow">PRODUCT EDITOR</p>
           <h2>
-            {creating
-              ? "Add new product"
-              : `Edit ${draft.name || "product"}`}
+            {creating ? "Add a new product" : `Edit ${draft.name || "product"}`}
           </h2>
+          <p>
+            Fields marked * are required. Work through the sections, then review
+            and save.
+          </p>
         </div>
-
-
         <button
-          type="button"
           className="button secondary"
-          disabled={
-            busy
-          }
-          onClick={
-            onCancel
-          }
+          type="button"
+          disabled={busy}
+          onClick={onCancel}
         >
-          Cancel
+          Close editor
         </button>
       </div>
-
-
+      <nav className="ap-section-links" aria-label="Product form sections">
+        {SECTIONS.map((section) => (
+          <a key={section.id} href={`#ap-${section.id}`}>
+            {section.title}
+          </a>
+        ))}
+        <a href="#ap-review">7. Review and save</a>
+      </nav>
       {error && (
-        <p
-          className="field-error"
-          role="alert"
-        >
-          {
-            error
-          }
+        <p className="field-error" role="alert">
+          {error}
         </p>
       )}
-
-
       <form
-        onSubmit={
-          (
-            event
-          ) => {
-            event.preventDefault();
-
-            onSave();
-          }
-        }
-        style={{
-          display:
-            "grid",
-
-          gap:
-            "22px",
-
-          marginTop:
-            "22px",
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSave();
         }}
+        aria-busy={busy}
       >
-        {/* BASIC INFORMATION */}
-
-        <div
-          style={{
-            display:
-              "grid",
-
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(220px, 1fr))",
-
-            gap:
-              "16px",
-          }}
-        >
-          <Field
-            label="Product name *"
-          >
-            <input
-              className="field"
-              value={
-                draft.name
-              }
-              required
-              onChange={
-                (
-                  event
-                ) =>
-                  field(
-                    "name",
-                    event.target
-                      .value
-                  )
-              }
-            />
-          </Field>
-
-
-          <Field
-            label="SKU *"
-            help="Example: GD-TSHIRT-002"
-          >
-            <input
-              className="field"
-              value={
-                draft.sku
-              }
-              required
-              onChange={
-                (
-                  event
-                ) =>
-                  field(
-                    "sku",
-
-                    event.target
-                      .value
-                      .toUpperCase()
-                  )
-              }
-            />
-          </Field>
-
-
-          <Field
-            label="Slug"
-            help="Leave blank when creating and GymDrobe will generate it from the product name."
-          >
-            <input
-              className="field"
-              value={
-                draft.slug
-              }
-              onChange={
-                (
-                  event
-                ) =>
-                  field(
-                    "slug",
-
-                    event.target
-                      .value
-                  )
-              }
-            />
-          </Field>
-
-
-          <Field
-            label="Brand"
-          >
-            <input
-              className="field"
-              value={
-                draft.brand
-              }
-              onChange={
-                (
-                  event
-                ) =>
-                  field(
-                    "brand",
-
-                    event.target
-                      .value
-                  )
-              }
-            />
-          </Field>
-
-
-          <Field
-            label="Category *"
-            help="Example: Workout Clothes"
-          >
-            <input
-              className="field"
-              value={
-                draft.category
-              }
-              required
-              onChange={
-                (
-                  event
-                ) =>
-                  field(
-                    "category",
-
-                    event.target
-                      .value
-                  )
-              }
-            />
-          </Field>
-
-
-          <Field
-            label="Subcategory"
-          >
-            <input
-              className="field"
-              value={
-                draft.subcategory
-              }
-              onChange={
-                (
-                  event
-                ) =>
-                  field(
-                    "subcategory",
-
-                    event.target
-                      .value
-                  )
-              }
-            />
-          </Field>
-
-
-          <Field
-            label="Gender"
-          >
-            <select
-              className="field"
-              value={
-                draft.gender
-              }
-              onChange={
-                (
-                  event
-                ) =>
-                  field(
-                    "gender",
-
-                    event.target
-                      .value
-                  )
-              }
+        <fieldset className="ap-form-fields" disabled={busy}>
+          <legend className="sr-only">Product information</legend>
+          {SECTIONS.map((section) => (
+            <section
+              className="ap-section"
+              id={`ap-${section.id}`}
+              key={section.id}
             >
-              <option
-                value="Unisex"
-              >
-                Unisex
-              </option>
-
-              <option
-                value="Men"
-              >
-                Men
-              </option>
-
-              <option
-                value="Women"
-              >
-                Women
-              </option>
-
-              <option
-                value="Kids"
-              >
-                Kids
-              </option>
-            </select>
-          </Field>
-
-
-          <Field
-            label="Badge"
-            help="Example: BESTSELLER"
-          >
-            <input
-              className="field"
-              value={
-                draft.badge
-              }
-              onChange={
-                (
-                  event
-                ) =>
-                  field(
-                    "badge",
-
-                    event.target
-                      .value
-                  )
-              }
-            />
-          </Field>
-        </div>
-
-
-        {/* PRICING */}
-
-        <div
-          className="panel"
-        >
-          <h3>
-            PRICING
-          </h3>
-
-          <div
-            style={{
-              display:
-                "grid",
-
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(180px, 1fr))",
-
-              gap:
-                "16px",
-            }}
-          >
-            <Field
-              label="Original price (₹) *"
-            >
-              <input
-                className="field"
-                type="number"
-                min="0"
-                step="1"
-                required
-                value={
-                  draft.price
-                }
-                onChange={
-                  (
-                    event
-                  ) =>
-                    field(
-                      "price",
-
-                      event.target
-                        .value
-                    )
-                }
-              />
-            </Field>
-
-
-            <Field
-              label="Discount (%)"
-            >
-              <input
-                className="field"
-                type="number"
-                min="0"
-                max="100"
-                step="1"
-                value={
-                  draft.discount
-                }
-                onChange={
-                  (
-                    event
-                  ) =>
-                    field(
-                      "discount",
-
-                      event.target
-                        .value
-                    )
-                }
-              />
-            </Field>
-
-
-            <div>
-              <strong>
-                Selling price
-              </strong>
-
-              <p
-                style={{
-                  fontSize:
-                    "24px",
-
-                  fontWeight:
-                    "800",
-
-                  marginTop:
-                    "10px",
-                }}
-              >
-                {money(
-                  safeNumber(
-                    draft.price
-                  ) *
-                    (
-                      1 -
-                      safeNumber(
-                        draft.discount
-                      ) /
-                        100
-                    )
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
-
-
-        {/* OPTIONS */}
-
-        <div
-          className="panel"
-        >
-          <h3>
-            PRODUCT OPTIONS
-          </h3>
-
-
-          <div
-            style={{
-              display:
-                "grid",
-
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(240px, 1fr))",
-
-              gap:
-                "16px",
-            }}
-          >
-            <Field
-              label="Colours"
-              help="Separate with commas. Example: Black, White, Blue"
-            >
-              <input
-                className="field"
-                value={
-                  draft.colorsText
-                }
-                onChange={
-                  (
-                    event
-                  ) =>
-                    field(
-                      "colorsText",
-
-                      event.target
-                        .value
-                    )
-                }
-              />
-            </Field>
-
-
-            <Field
-              label="Sizes"
-              help="Separate with commas. Example: S, M, L, XL"
-            >
-              <input
-                className="field"
-                value={
-                  draft.sizesText
-                }
-                onChange={
-                  (
-                    event
-                  ) =>
-                    field(
-                      "sizesText",
-
-                      event.target
-                        .value
-                    )
-                }
-              />
-            </Field>
-          </div>
-        </div>
-
-
-        <InventoryEditor
-          draft={
-            draft
-          }
-          setDraft={
-            setDraft
-          }
-        />
-
-
-        {/* PRODUCT DETAILS */}
-
-        <div
-          className="panel"
-        >
-          <h3>
-            PRODUCT DETAILS
-          </h3>
-
-
-          <div
-            style={{
-              display:
-                "grid",
-
-              gap:
-                "16px",
-            }}
-          >
-            <Field
-              label="Description"
-            >
-              <textarea
-                className="field"
-                rows="5"
-                value={
-                  draft.description
-                }
-                onChange={
-                  (
-                    event
-                  ) =>
-                    field(
-                      "description",
-
-                      event.target
-                        .value
-                    )
-                }
-              />
-            </Field>
-
-
-            <Field
-              label="Material"
-            >
-              <input
-                className="field"
-                value={
-                  draft.material
-                }
-                onChange={
-                  (
-                    event
-                  ) =>
-                    field(
-                      "material",
-
-                      event.target
-                        .value
-                    )
-                }
-              />
-            </Field>
-
-
-            <Field
-              label="What's included"
-            >
-              <input
-                className="field"
-                value={
-                  draft.whatsIncluded
-                }
-                onChange={
-                  (
-                    event
-                  ) =>
-                    field(
-                      "whatsIncluded",
-
-                      event.target
-                        .value
-                    )
-                }
-              />
-            </Field>
-
-
-            <Field
-              label="Tags"
-              help="Separate with commas."
-            >
-              <input
-                className="field"
-                value={
-                  draft.tagsText
-                }
-                onChange={
-                  (
-                    event
-                  ) =>
-                    field(
-                      "tagsText",
-
-                      event.target
-                        .value
-                    )
-                }
-              />
-            </Field>
-
-
-            <Field
-              label="Highlights"
-              help="Write one highlight per line."
-            >
-              <textarea
-                className="field"
-                rows="5"
-                value={
-                  draft.highlightsText
-                }
-                onChange={
-                  (
-                    event
-                  ) =>
-                    field(
-                      "highlightsText",
-
-                      event.target
-                        .value
-                    )
-                }
-              />
-            </Field>
-
-
-            <Field
-              label="Specifications"
-              help={'One per line using "Name: Value". Example: Material: Cotton'}
-            >
-              <textarea
-                className="field"
-                rows="6"
-                value={
-                  draft.specificationsText
-                }
-                onChange={
-                  (
-                    event
-                  ) =>
-                    field(
-                      "specificationsText",
-
-                      event.target
-                        .value
-                    )
-                }
-              />
-            </Field>
-
-
-            <Field
-              label="Care instructions"
-              help="Write one instruction per line."
-            >
-              <textarea
-                className="field"
-                rows="5"
-                value={
-                  draft.careInstructionsText
-                }
-                onChange={
-                  (
-                    event
-                  ) =>
-                    field(
-                      "careInstructionsText",
-
-                      event.target
-                        .value
-                    )
-                }
-              />
-            </Field>
-
-
-            <Field
-              label="Return policy"
-            >
-              <textarea
-                className="field"
-                rows="3"
-                value={
-                  draft.returnPolicy
-                }
-                onChange={
-                  (
-                    event
-                  ) =>
-                    field(
-                      "returnPolicy",
-
-                      event.target
-                        .value
-                    )
-                }
-              />
-            </Field>
-          </div>
-        </div>
-
-
-        {/* IMAGES */}
-
-        <div
-          className="panel"
-        >
-          <h3>
-            PRODUCT IMAGES
-          </h3>
-
-
-          <div
-            style={{
-              display:
-                "grid",
-
-              gap:
-                "16px",
-            }}
-          >
-            <Field
-              label="Main image"
-              help="Enter an image path or URL."
-            >
-              <input
-                className="field"
-                value={
-                  draft.image
-                }
-                onChange={
-                  (
-                    event
-                  ) =>
-                    field(
-                      "image",
-
-                      event.target
-                        .value
-                    )
-                }
-              />
-            </Field>
-
-
-            <Field
-              label="Image gallery"
-              help="Enter one image path or URL per line."
-            >
-              <textarea
-                className="field"
-                rows="5"
-                value={
-                  draft.imagesText
-                }
-                onChange={
-                  (
-                    event
-                  ) =>
-                    field(
-                      "imagesText",
-
-                      event.target
-                        .value
-                    )
-                }
-              />
-            </Field>
-
-
-            {draft.image && (
-              <div
-                style={{
-                  width:
-                    "160px",
-
-                  aspectRatio:
-                    "1 / 1",
-
-                  overflow:
-                    "hidden",
-
-                  borderRadius:
-                    "12px",
-
-                  border:
-                    "1px solid #e5e7eb",
-                }}
-              >
-                <img
-                  src={
-                    draft.image
-                  }
-                  alt=""
-                  style={{
-                    width:
-                      "100%",
-
-                    height:
-                      "100%",
-
-                    objectFit:
-                      "cover",
-                  }}
-                />
+              <h3>{section.title}</h3>
+              <p className="ap-help">{section.help}</p>
+              <div className="ap-grid">{section.fields.map(renderField)}</div>
+              {section.id === "pricing" && (
+                <p className="ap-price-preview">
+                  Customer pays{" "}
+                  <strong>{money(getDiscountedPrice(draft))}</strong> per unit
+                </p>
+              )}
+              {section.id === "options" && (
+                <InventoryEditor draft={draft} setDraft={setDraft} />
+              )}
+              {section.id === "delivery" && (
+                <label className="ap-check">
+                  <input
+                    type="checkbox"
+                    checked={draft.deliveryAvailable}
+                    onChange={(event) =>
+                      field("deliveryAvailable", event.target.checked)
+                    }
+                  />
+                  Delivery available for this product
+                </label>
+              )}
+            </section>
+          ))}
+          <section className="ap-section" id="ap-review">
+            <h3>7. Review and save</h3>
+            <p className="ap-help">
+              Check the price, photos and quantities before saving. A new
+              product becomes active in the shop after creation.
+            </p>
+            <div className="ap-preview">
+              <div className="ap-preview-image">
+                <ProductImage product={draft} />
               </div>
-            )}
-          </div>
-        </div>
-
-
-        {/* DELIVERY */}
-
-        <div
-          className="panel"
-        >
-          <h3>
-            DELIVERY
-          </h3>
-
-
-          <div
-            style={{
-              display:
-                "grid",
-
-              gap:
-                "16px",
-            }}
-          >
-            <Checkbox
-              checked={
-                draft.deliveryAvailable
-              }
-              onChange={
-                (
-                  value
-                ) =>
-                  field(
-                    "deliveryAvailable",
-                    value
-                  )
-              }
-            >
-              Delivery available
-            </Checkbox>
-
-
-            <div
-              style={{
-                display:
-                  "grid",
-
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(220px, 1fr))",
-
-                gap:
-                  "16px",
-              }}
-            >
-              <Field
-                label="Estimated delivery"
-              >
-                <input
-                  className="field"
-                  value={
-                    draft.estimatedDays
-                  }
-                  onChange={
-                    (
-                      event
-                    ) =>
-                      field(
-                        "estimatedDays",
-
-                        event.target
-                          .value
-                      )
-                  }
-                />
-              </Field>
-
-
-              <Field
-                label="Free delivery above ₹"
-              >
-                <input
-                  className="field"
-                  type="number"
-                  min="0"
-                  value={
-                    draft.freeDeliveryAbove
-                  }
-                  onChange={
-                    (
-                      event
-                    ) =>
-                      field(
-                        "freeDeliveryAbove",
-
-                        event.target
-                          .value
-                      )
-                  }
-                />
-              </Field>
+              <div>
+                <p>{draft.brand || "GymDrobe"}</p>
+                <h4>{draft.name || "Your product name"}</h4>
+                <p>{draft.category || "Choose a category"}</p>
+                <strong>{money(getDiscountedPrice(draft))}</strong>
+                <p>Total stock: {totalDraftStock(draft)}</p>
+                <p>
+                  {draft.description ||
+                    "Add a description so customers understand the product."}
+                </p>
+              </div>
             </div>
-          </div>
-        </div>
-
-
-        {/* STORE VISIBILITY */}
-
-        <div
-          className="panel"
-        >
-          <h3>
-            STORE VISIBILITY
-          </h3>
-
-
-          <div
-            style={{
-              display:
-                "grid",
-
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(190px, 1fr))",
-
-              gap:
-                "14px",
-            }}
-          >
-            <Checkbox
-              checked={
-                draft.isFeatured
-              }
-              onChange={
-                (
-                  value
-                ) =>
-                  field(
-                    "isFeatured",
-                    value
-                  )
-              }
-            >
-              Featured product
-            </Checkbox>
-
-
-            <Checkbox
-              checked={
-                draft.isBestSeller
-              }
-              onChange={
-                (
-                  value
-                ) =>
-                  field(
-                    "isBestSeller",
-                    value
-                  )
-              }
-            >
-              Bestseller
-            </Checkbox>
-
-
-            <Checkbox
-              checked={
-                draft.isNew
-              }
-              onChange={
-                (
-                  value
-                ) =>
-                  field(
-                    "isNew",
-                    value
-                  )
-              }
-            >
-              New arrival
-            </Checkbox>
-
-
-            {!creating && (
-              <Checkbox
-                checked={
-                  draft.isActive
-                }
-                onChange={
-                  (
-                    value
-                  ) =>
-                    field(
-                      "isActive",
-                      value
-                    )
-                }
-              >
-                Product active
-              </Checkbox>
-            )}
-          </div>
-        </div>
-
-
-        <div
-          style={{
-            display:
-              "flex",
-
-            gap:
-              "12px",
-
-            flexWrap:
-              "wrap",
-          }}
-        >
-          <button
-            type="submit"
-            className="button"
-            disabled={
-              busy
-            }
-          >
+            <div className="ap-flags">
+              {[
+                ["isFeatured", "Feature in the store"],
+                ["isBestSeller", "Mark as bestseller"],
+                ["isNew", "Mark as new arrival"],
+                ...(!creating
+                  ? [["isActive", "Active: visible in the shop"]]
+                  : []),
+              ].map(([name, label]) => (
+                <label key={name} className="ap-check">
+                  <input
+                    type="checkbox"
+                    checked={draft[name]}
+                    onChange={(event) => field(name, event.target.checked)}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </section>
+        </fieldset>
+        {error && (
+          <p className="field-error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="ap-save-bar">
+          <p role="status">
             {busy
-              ? "Saving…"
-              : creating
-                ? "Create product"
-                : "Save product"}
-          </button>
-
-
-          <button
-            type="button"
-            className="button secondary"
-            disabled={
-              busy
-            }
-            onClick={
-              onCancel
-            }
-          >
-            Cancel
-          </button>
+              ? stage || "Saving product…"
+              : "Check the details above, then save."}
+          </p>
+          <div className="ap-actions">
+            <button className="button" type="submit" disabled={busy}>
+              {busy ? "Saving…" : creating ? "Create product" : "Save changes"}
+            </button>
+            <button
+              className="button secondary"
+              type="button"
+              disabled={busy}
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </form>
     </section>
   );
 }
 
+function validateDraft(draft) {
+  if (draft.name.trim().length < 2)
+    return "Enter a product name with at least two characters.";
+  if (!draft.sku.trim()) return "Enter a unique product code (SKU).";
+  if (!draft.category.trim()) return "Enter the product category.";
+  if (
+    draft.price === "" ||
+    !Number.isFinite(Number(draft.price)) ||
+    Number(draft.price) < 0
+  )
+    return "Enter a valid original price.";
+  if (
+    !Number.isFinite(Number(draft.discount)) ||
+    Number(draft.discount) < 0 ||
+    Number(draft.discount) > 100
+  )
+    return "Discount must be between 0 and 100%.";
+  const options = [
+    ...splitComma(draft.sizesText),
+    ...splitComma(draft.colorsText),
+  ];
+  if (
+    options.some((value) =>
+      ["__proto__", "constructor", "prototype"].includes(value),
+    )
+  )
+    return "Choose a different size or colour name.";
+  const lines = splitLines(draft.specificationsText);
+  if (lines.some((line) => !line.includes(":") || !line.split(":")[0].trim()))
+    return "Write specifications as Name: Value, one per line.";
+  if (
+    !Number.isFinite(Number(draft.freeDeliveryAbove)) ||
+    Number(draft.freeDeliveryAbove) < 0
+  )
+    return "Enter a valid free delivery threshold.";
+  return "";
+}
 
-// ======================================================
-// PRODUCT CARD
-// ======================================================
-
-function AdminProductCard({
-  product,
-  busyId,
-  onEdit,
-  onArchive,
-  onRestore,
-}) {
-  const id =
-    productId(
-      product
-    );
-
-
-  const busy =
-    busyId ===
-    id;
-
-
+function ProductCard({ product, busy, onEdit, onArchive, onRestore }) {
+  const id = productId(product);
   return (
-    <article
-      className="panel"
-    >
-      <div
-        style={{
-          display:
-            "grid",
-
-          gridTemplateColumns:
-            "100px minmax(0, 1fr)",
-
-          gap:
-            "18px",
-
-          alignItems:
-            "start",
-        }}
-      >
-        <div
-          style={{
-            width:
-              "100px",
-
-            height:
-              "100px",
-
-            borderRadius:
-              "12px",
-
-            overflow:
-              "hidden",
-
-            background:
-              "#f4f4f5",
-          }}
-        >
-          {product.image ? (
-            <img
-              src={
-                product.image
-              }
-              alt={
-                product.name ||
-                ""
-              }
-              style={{
-                width:
-                  "100%",
-
-                height:
-                  "100%",
-
-                objectFit:
-                  "cover",
-              }}
-            />
-
-          ) : (
-            <div
-              style={{
-                display:
-                  "grid",
-
-                placeItems:
-                  "center",
-
-                width:
-                  "100%",
-
-                height:
-                  "100%",
-
-                fontSize:
-                  "12px",
-              }}
-            >
-              No image
-            </div>
-          )}
+    <article className="panel ap-product">
+      <div className="ap-product-image">
+        <ProductImage product={product} />
+      </div>
+      <div className="ap-product-content">
+        <div className="ap-heading">
+          <div>
+            <h3>{product.name}</h3>
+            <p className="muted">
+              {product.sku || "No SKU"} · {product.category || "No category"}
+            </p>
+          </div>
+          <span className="ap-status">
+            {product.isActive === false
+              ? "Archived"
+              : stockLabel(product.stockStatus)}
+          </span>
         </div>
-
-
-        <div
-          style={{
-            minWidth:
-              0,
-          }}
-        >
-          <div
-            style={{
-              display:
-                "flex",
-
-              justifyContent:
-                "space-between",
-
-              gap:
-                "12px",
-
-              flexWrap:
-                "wrap",
-            }}
+        <dl className="ap-product-stats">
+          {[
+            ["Original price", money(product.price)],
+            ["Selling price", money(getDiscountedPrice(product))],
+            ["Discount", `${safeNumber(product.discount)}%`],
+            ["Stock", safeNumber(product.stock)],
+            ["Rating", safeNumber(product.rating).toFixed(1)],
+          ].map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="muted">Updated {formatDate(product.updatedAt) || "—"}</p>
+        <div className="ap-actions">
+          <button
+            className="button secondary"
+            disabled={busy}
+            onClick={() => onEdit(product)}
           >
-            <div>
-              <h3
-                style={{
-                  margin:
-                    "0 0 6px",
-                }}
-              >
-                {
-                  product.name
-                }
-              </h3>
-
-              <p
-                className="muted"
-                style={{
-                  margin:
-                    0,
-                }}
-              >
-                {product.sku ||
-                  "No SKU"}
-
-                {" · "}
-
-                {product.category ||
-                  "No category"}
-              </p>
-            </div>
-
-
-            <StatusBadge
-              product={
-                product
-              }
-            />
-          </div>
-
-
-          <div
-            style={{
-              display:
-                "grid",
-
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(110px, 1fr))",
-
-              gap:
-                "12px",
-
-              marginTop:
-                "16px",
-            }}
-          >
-            <div>
-              <small
-                className="muted"
-              >
-                Price
-              </small>
-
-              <strong
-                style={{
-                  display:
-                    "block",
-                }}
-              >
-                {money(
-                  product.price
-                )}
-              </strong>
-            </div>
-
-
-            <div>
-              <small
-                className="muted"
-              >
-                Discount
-              </small>
-
-              <strong
-                style={{
-                  display:
-                    "block",
-                }}
-              >
-                {safeNumber(
-                  product.discount
-                )}
-                %
-              </strong>
-            </div>
-
-
-            <div>
-              <small
-                className="muted"
-              >
-                Stock
-              </small>
-
-              <strong
-                style={{
-                  display:
-                    "block",
-                }}
-              >
-                {safeNumber(
-                  product.stock
-                )}
-              </strong>
-            </div>
-
-
-            <div>
-              <small
-                className="muted"
-              >
-                Rating
-              </small>
-
-              <strong
-                style={{
-                  display:
-                    "block",
-                }}
-              >
-                {safeNumber(
-                  product.rating
-                ).toFixed(
-                  1
-                )}
-              </strong>
-            </div>
-          </div>
-
-
-          <p
-            className="muted"
-            style={{
-              marginTop:
-                "14px",
-            }}
-          >
-            Updated{" "}
-
-            {formatDate(
-              product.updatedAt
-            ) ||
-              "—"}
-          </p>
-
-
-          <div
-            style={{
-              display:
-                "flex",
-
-              gap:
-                "10px",
-
-              flexWrap:
-                "wrap",
-
-              marginTop:
-                "14px",
-            }}
-          >
+            Edit product
+          </button>
+          {product.isActive === false ? (
             <button
-              type="button"
-              className="button secondary"
-              disabled={
-                busy
-              }
-              onClick={
-                () =>
-                  onEdit(
-                    product
-                  )
-              }
+              className="button"
+              disabled={busy}
+              onClick={() => onRestore(product)}
             >
-              Edit product
+              Restore
             </button>
-
-
-            {product.isActive ===
-            false ? (
-              <button
-                type="button"
-                className="button"
-                disabled={
-                  busy
-                }
-                onClick={
-                  () =>
-                    onRestore(
-                      product
-                    )
-                }
-              >
-                {busy
-                  ? "Restoring…"
-                  : "Restore"}
-              </button>
-
-            ) : (
-              <button
-                type="button"
-                className="button secondary"
-                disabled={
-                  busy
-                }
-                onClick={
-                  () =>
-                    onArchive(
-                      product
-                    )
-                }
-              >
-                {busy
-                  ? "Archiving…"
-                  : "Archive"}
-              </button>
-            )}
-
-
-            {product.isActive !==
-              false && (
-              <Link
-                className="button secondary"
-                to={`/product/${encodeURIComponent(
-                  id
-                )}`}
-              >
-                Customer view
-              </Link>
-            )}
-          </div>
+          ) : (
+            <button
+              className="button secondary"
+              disabled={busy}
+              onClick={() => onArchive(product)}
+            >
+              Archive
+            </button>
+          )}
+          {product.isActive !== false && (
+            <Link
+              className="button secondary"
+              to={`/product/${encodeURIComponent(id)}`}
+            >
+              Customer view
+            </Link>
+          )}
         </div>
       </div>
     </article>
   );
 }
 
-
-// ======================================================
-// MAIN PAGE
-// ======================================================
-
-export default function AdminProductsPage() {
-  const {
-    token,
-  } =
-    useAuth();
-
-
-  const catalog =
-    useCatalog();
-
-
-  const editorRef =
-    useRef(
-      null
-    );
-
-
-  const [
-    products,
-    setProducts,
-  ] =
-    useState(
-      []
-    );
-
-
-  const [
-    loading,
-    setLoading,
-  ] =
-    useState(
-      true
-    );
-
-
-  const [
-    error,
-    setError,
-  ] =
-    useState("");
-
-
-  const [
-    success,
-    setSuccess,
-  ] =
-    useState("");
-
-
-  const [
-    search,
-    setSearch,
-  ] =
-    useState("");
-
-
-  const [
-    searchInput,
-    setSearchInput,
-  ] =
-    useState("");
-
-
-  const [
-    stockStatus,
-    setStockStatus,
-  ] =
-    useState("");
-
-
-  const [
-    active,
-    setActive,
-  ] =
-    useState("");
-
-
-  const [
-    page,
-    setPage,
-  ] =
-    useState(
-      1
-    );
-
-
-  const [
-    pages,
-    setPages,
-  ] =
-    useState(
-      1
-    );
-
-
-  const [
-    total,
-    setTotal,
-  ] =
-    useState(
-      0
-    );
-
-
-  const [
-    editorMode,
-    setEditorMode,
-  ] =
-    useState(
-      null
-    );
-
-
-  const [
-    draft,
-    setDraft,
-  ] =
-    useState(
-      () =>
-        makeDraft(
-          null
-        )
-    );
-
-
-  const [
-    editorError,
-    setEditorError,
-  ] =
-    useState("");
-
-
-  const [
-    saving,
-    setSaving,
-  ] =
-    useState(
-      false
-    );
-
-
-  const [
-    busyId,
-    setBusyId,
-  ] =
-    useState("");
-
-
-  // ====================================================
-  // LOAD PRODUCTS
-  // ====================================================
-
+function AdminProductsWorkspace() {
+  const { token } = useAuth();
+  const catalog = useCatalog();
+  const editorRef = useRef(null);
+  const mounted = useRef(false);
+  const requestVersion = useRef(0);
+  const mutationLock = useRef(false);
+  const baseline = useRef("");
+  const savedIdentity = useRef("");
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [stockStatus, setStockStatus] = useState("");
+  const [active, setActive] = useState("");
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [editorMode, setEditorMode] = useState(null);
+  const [draft, setDraft] = useState(() => makeDraft(null));
+  const [editorError, setEditorError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [stage, setStage] = useState("");
+  const [busyId, setBusyId] = useState("");
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      requestVersion.current++;
+    };
+  }, []);
   async function loadProducts() {
-    if (
-      !token
-    ) {
+    const version = ++requestVersion.current;
+    if (!token) {
+      setLoading(false);
+      setError("Sign in with an admin account to load products.");
       return;
     }
-
-
-    setLoading(
-      true
-    );
-
-    setError(
-      ""
-    );
-
-
+    setLoading(true);
+    setError("");
     try {
-      const result =
-        await getAdminProducts(
-          token,
-          {
-            search,
-
-            stockStatus,
-
-            active,
-
-            page,
-
-            limit:
-              PAGE_SIZE,
-          }
-        );
-
-
-      setProducts(
-        Array.isArray(
-          result.products
-        )
-          ? result.products
-          : []
-      );
-
-
-      setTotal(
-        Number(
-          result.total ||
-            0
-        )
-      );
-
-
-      const pageCount =
-        Math.max(
-          1,
-
-          Number(
-            result.pages ||
-              1
-          )
-        );
-
-
-      setPages(
-        pageCount
-      );
-
-
-      if (
-        page >
-        pageCount
-      ) {
-        setPage(
-          pageCount
-        );
+      const result = await getAdminProducts(token, {
+        search,
+        stockStatus,
+        active,
+        page,
+        limit: PAGE_SIZE,
+      });
+      if (!mounted.current || version !== requestVersion.current) return;
+      setProducts(result.products);
+      setTotal(result.total);
+      const count = Math.max(1, result.pages || 1);
+      setPages(count);
+      if (page > count) setPage(count);
+    } catch (failure) {
+      if (mounted.current && version === requestVersion.current) {
+        setProducts([]);
+        setError(failure.message || "Unable to load products.");
       }
-
-    } catch (
-      loadError
-    ) {
-      console.error(
-        "Admin products load error:",
-        loadError
-      );
-
-
-      setProducts(
-        []
-      );
-
-
-      setError(
-        loadError.message ||
-          "Unable to load products."
-      );
-
     } finally {
-      setLoading(
-        false
-      );
+      if (mounted.current && version === requestVersion.current)
+        setLoading(false);
     }
   }
-
-
-  useEffect(
-    () => {
-      loadProducts();
-    },
-
-    [
-      token,
-      search,
-      stockStatus,
-      active,
-      page,
-    ]
-  );
-
-
-  // ====================================================
-  // REFRESH STOREFRONT CATALOG
-  // ====================================================
-
+  useEffect(() => {
+    loadProducts();
+  }, [token, search, stockStatus, active, page]);
   async function refreshStorefront() {
     try {
-      if (
-        typeof catalog
-          ?.refreshProducts ===
-        "function"
-      ) {
-        await catalog.refreshProducts();
-      }
-
-    } catch (
-      refreshError
-    ) {
-      console.error(
-        "Catalog refresh error:",
-        refreshError
-      );
+      await catalog.refreshProducts?.();
+    } catch (failure) {
+      console.error("Catalog refresh failed", failure);
     }
   }
-
-
-  // ====================================================
-  // OPEN CREATE
-  // ====================================================
-
-  function openCreate() {
-    setDraft(
-      makeDraft(
-        null
-      )
-    );
-
-
-    setEditorMode(
-      "create"
-    );
-
-
-    setEditorError(
-      ""
-    );
-
-
-    setSuccess(
-      ""
-    );
-
-
-    requestAnimationFrame(
-      () =>
-        editorRef.current
-          ?.scrollIntoView({
-            behavior:
-              "smooth",
-
-            block:
-              "start",
-          })
+  function canDiscard() {
+    return (
+      !editorMode ||
+      JSON.stringify(draft) === baseline.current ||
+      window.confirm("Discard the unsaved product changes?")
     );
   }
-
-
-  // ====================================================
-  // OPEN EDIT
-  // ====================================================
-
-  function openEdit(
-    product
-  ) {
-    setDraft(
-      makeDraft(
-        product
-      )
-    );
-
-
-    setEditorMode(
-      "edit"
-    );
-
-
-    setEditorError(
-      ""
-    );
-
-
-    setSuccess(
-      ""
-    );
-
-
-    requestAnimationFrame(
-      () =>
-        editorRef.current
-          ?.scrollIntoView({
-            behavior:
-              "smooth",
-
-            block:
-              "start",
-          })
+  function openEditor(product = null) {
+    if (mutationLock.current || !canDiscard()) return;
+    const next = makeDraft(product);
+    setDraft(next);
+    baseline.current = JSON.stringify(next);
+    savedIdentity.current = productId(product);
+    setEditorMode(product ? "edit" : "create");
+    setEditorError("");
+    setSuccess("");
+    requestAnimationFrame(() =>
+      editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
     );
   }
-
-
-  // ====================================================
-  // CLOSE EDITOR
-  // ====================================================
-
   function closeEditor() {
-    if (
-      saving
-    ) {
-      return;
-    }
-
-
-    setEditorMode(
-      null
-    );
-
-
-    setEditorError(
-      ""
-    );
+    if (mutationLock.current || !canDiscard()) return;
+    setEditorMode(null);
+    setEditorError("");
   }
-
-
-  // ====================================================
-  // SAVE PRODUCT
-  // ====================================================
-
   async function saveProduct() {
-    if (
-      !token
-    ) {
-      setEditorError(
-        "Admin login is required."
-      );
-
+    if (mutationLock.current) return;
+    if (!token) {
+      setEditorError("Admin login is required.");
       return;
     }
-
-
-    setEditorError(
-      ""
-    );
-
-    setSuccess(
-      ""
-    );
-
-
-    if (
-      draft.name
-        .trim()
-        .length <
-      2
-    ) {
-      setEditorError(
-        "Enter a product name."
-      );
-
+    const invalid = validateDraft(draft);
+    if (invalid) {
+      setEditorError(invalid);
       return;
     }
-
-
-    if (
-      !draft.category.trim()
-    ) {
-      setEditorError(
-        "Enter a product category."
-      );
-
-      return;
-    }
-
-
-    if (
-      !draft.sku.trim()
-    ) {
-      setEditorError(
-        "Enter a product SKU."
-      );
-
-      return;
-    }
-
-
-    const price =
-      Number(
-        draft.price
-      );
-
-
-    if (
-      !Number.isFinite(
-        price
-      ) ||
-      price <
-        0
-    ) {
-      setEditorError(
-        "Enter a valid product price."
-      );
-
-      return;
-    }
-
-
-    const discount =
-      Number(
-        draft.discount
-      );
-
-
-    if (
-      !Number.isFinite(
-        discount
-      ) ||
-      discount <
-        0 ||
-      discount >
-        100
-    ) {
-      setEditorError(
-        "Discount must be between 0 and 100."
-      );
-
-      return;
-    }
-
-
-    setSaving(
-      true
-    );
-
-
+    mutationLock.current = true;
+    setSaving(true);
+    setEditorError("");
+    setSuccess("");
+    let metadataSaved = false;
+    const creating = editorMode === "create" && !savedIdentity.current;
     try {
-      const creating =
-        editorMode ===
-        "create";
-
-
-      const payload =
-        buildProductPayload(
-          draft,
-          {
-            creating,
-          }
+      setStage("Saving product details…");
+      const payload = buildProductPayload(draft, { creating });
+      const response = creating
+        ? await createProduct(token, payload)
+        : await updateProduct(
+            token,
+            savedIdentity.current || draft._id || draft.id,
+            payload,
+          );
+      const id =
+        productId(response.product) ||
+        (!creating ? savedIdentity.current || draft._id || draft.id : "");
+      if (!id)
+        throw new Error(
+          "The save response did not include a product ID. Check the product list by SKU before creating it again.",
         );
-
-
-      let response;
-
-
-      if (
-        creating
-      ) {
-        response =
-          await createProduct(
-            token,
-            payload
-          );
-
-      } else {
-        response =
-          await updateProduct(
-            token,
-
-            draft._id ||
-              draft.id,
-
-            payload
-          );
-      }
-
-
-      /*
-        Inventory has its own endpoint.
-
-        Variant products send variants.
-
-        Products without size or colour options send
-        a normal stock value.
-      */
-
-      const savedProduct =
-        response.product;
-
-
-      const savedId =
-        productId(
-          savedProduct
-        ) ||
-        draft._id ||
-        draft.id;
-
-
-      const variants =
-        buildVariants(
-          draft
-        );
-
-
-      if (
-        savedId
-      ) {
-        if (
-          variants
-        ) {
-          await updateProductInventory(
-            token,
-
-            savedId,
-
-            {
-              variants,
-            }
-          );
-
-        } else {
-          await updateProductInventory(
-            token,
-
-            savedId,
-
-            {
-              stock:
-                Math.max(
-                  0,
-
-                  Math.floor(
-                    safeNumber(
-                      draft.stock
-                    )
-                  )
-                ),
-            }
-          );
-        }
-      }
-
-
-      await loadProducts();
-
-      await refreshStorefront();
-
-
-      setEditorMode(
-        null
+      metadataSaved = true;
+      savedIdentity.current = id;
+      if (!mounted.current) return;
+      setEditorMode("edit");
+      setDraft((current) => ({ ...current, id, _id: id }));
+      setStage("Saving stock quantities…");
+      const variants = buildVariants(draft);
+      await updateProductInventory(
+        token,
+        id,
+        variants
+          ? { variants }
+          : { stock: Math.max(0, Math.floor(safeNumber(draft.stock))) },
       );
-
-
+      if (!mounted.current) return;
+      await loadProducts();
+      await refreshStorefront();
+      if (!mounted.current) return;
+      setEditorMode(null);
       setSuccess(
         creating
-          ? "Product created successfully."
-          : "Product updated successfully."
+          ? "Product created and stock saved."
+          : "Product details and stock updated.",
       );
-
-    } catch (
-      saveError
-    ) {
-      console.error(
-        "Admin product save error:",
-        saveError
-      );
-
-
-      setEditorError(
-        saveError.message ||
-          "Unable to save product."
-      );
-
+    } catch (failure) {
+      if (mounted.current)
+        setEditorError(
+          metadataSaved
+            ? `Product details were saved, but the stock update failed. ${failure.message || "Try again."} Retry Save changes to update the same product.`
+            : failure.message || "Unable to save product.",
+        );
     } finally {
-      setSaving(
-        false
-      );
+      mutationLock.current = false;
+      if (mounted.current) {
+        setSaving(false);
+        setStage("");
+      }
     }
   }
-
-
-  // ====================================================
-  // ARCHIVE
-  // ====================================================
-
-  async function handleArchive(
-    product
-  ) {
-    const id =
-      productId(
-        product
-      );
-
-
+  async function changeVisibility(product, archive) {
+    if (mutationLock.current) return;
+    const id = productId(product);
+    if (!id || !token) return;
     if (
-      !id
-    ) {
+      archive &&
+      !window.confirm(
+        `Archive "${product.name}"? Customers will no longer see it. Existing order records remain available.`,
+      )
+    )
       return;
-    }
-
-
-    const confirmed =
-      window.confirm(
-        `Archive "${product.name}"?\n\nCustomers will no longer see or buy this product, but old order records will remain safe.`
-      );
-
-
-    if (
-      !confirmed
-    ) {
-      return;
-    }
-
-
-    setBusyId(
-      id
-    );
-
-    setError(
-      ""
-    );
-
-    setSuccess(
-      ""
-    );
-
-
+    mutationLock.current = true;
+    setBusyId(id);
+    setError("");
+    setSuccess("");
     try {
-      const response =
-        await archiveProduct(
-          token,
-          id
-        );
-
-
+      const response = archive
+        ? await archiveProduct(token, id)
+        : await restoreProduct(token, id);
+      if (!mounted.current) return;
       setSuccess(
         response.message ||
-          "Product archived successfully."
+          (archive ? "Product archived." : "Product restored."),
       );
-
-
       await loadProducts();
-
       await refreshStorefront();
-
-    } catch (
-      archiveError
-    ) {
-      console.error(
-        "Archive product error:",
-        archiveError
-      );
-
-
-      setError(
-        archiveError.message ||
-          "Unable to archive product."
-      );
-
+    } catch (failure) {
+      if (mounted.current)
+        setError(failure.message || "Unable to change visibility.");
     } finally {
-      setBusyId(
-        ""
-      );
+      mutationLock.current = false;
+      if (mounted.current) setBusyId("");
     }
   }
-
-
-  // ====================================================
-  // RESTORE
-  // ====================================================
-
-  async function handleRestore(
-    product
-  ) {
-    const id =
-      productId(
-        product
-      );
-
-
-    if (
-      !id
-    ) {
-      return;
-    }
-
-
-    setBusyId(
-      id
-    );
-
-    setError(
-      ""
-    );
-
-    setSuccess(
-      ""
-    );
-
-
-    try {
-      const response =
-        await restoreProduct(
-          token,
-          id
-        );
-
-
-      setSuccess(
-        response.message ||
-          "Product restored successfully."
-      );
-
-
-      await loadProducts();
-
-      await refreshStorefront();
-
-    } catch (
-      restoreError
-    ) {
-      console.error(
-        "Restore product error:",
-        restoreError
-      );
-
-
-      setError(
-        restoreError.message ||
-          "Unable to restore product."
-      );
-
-    } finally {
-      setBusyId(
-        ""
-      );
-    }
-  }
-
-
-  // ====================================================
-  // PAGE STATISTICS
-  // ====================================================
-
-  const pageStats =
-    useMemo(
-      () => {
-        let activeCount =
-          0;
-
-        let archivedCount =
-          0;
-
-        let lowStock =
-          0;
-
-        let outOfStock =
-          0;
-
-
-        for (
-          const product
-          of products
-        ) {
-          if (
-            product.isActive ===
-            false
-          ) {
-            archivedCount +=
-              1;
-
-          } else {
-            activeCount +=
-              1;
-          }
-
-
-          if (
-            product.stockStatus ===
-            "low-stock"
-          ) {
-            lowStock +=
-              1;
-          }
-
-
-          if (
-            product.stockStatus ===
-            "out-of-stock"
-          ) {
-            outOfStock +=
-              1;
-          }
-        }
-
-
-        return {
-          activeCount,
-          archivedCount,
-          lowStock,
-          outOfStock,
-        };
-      },
-
-      [
-        products,
-      ]
-    );
-
-
-  // ====================================================
-  // PAGE
-  // ====================================================
-
+  const busy = saving || Boolean(busyId);
+  const stats = [
+    ["Matching products", total],
+    [
+      "Active on this page",
+      products.filter((p) => p.isActive !== false).length,
+    ],
+    [
+      "Low stock on this page",
+      products.filter((p) => p.stockStatus === "low-stock").length,
+    ],
+    [
+      "Out of stock on this page",
+      products.filter((p) => p.stockStatus === "out-of-stock").length,
+    ],
+    [
+      "Archived on this page",
+      products.filter((p) => p.isActive === false).length,
+    ],
+  ];
   return (
-    <div
-      className="page"
-    >
-      <div
-        style={{
-          display:
-            "flex",
-
-          justifyContent:
-            "space-between",
-
-          alignItems:
-            "flex-start",
-
-          gap:
-            "18px",
-
-          flexWrap:
-            "wrap",
-
-          marginBottom:
-            "26px",
-        }}
-      >
+    <div className="page ap-admin">
+      <header className="ap-heading">
         <div>
-          <p
-            className="eyebrow"
-          >
-            GYMDROBE ADMIN
-          </p>
-
-          <h1>
-            Products & inventory
-          </h1>
-
-          <p
-            className="muted"
-          >
-            Add products, update prices, manage variants and stock, and control which products appear in the GymDrobe store.
+          <p className="eyebrow">GYMDROBE ADMIN</p>
+          <h1>Products and stock</h1>
+          <p>
+            Add a product, check its photos and price, then enter the quantities
+            you can sell.
           </p>
         </div>
-
-
-        <div
-          style={{
-            display:
-              "flex",
-
-            gap:
-              "10px",
-
-            flexWrap:
-              "wrap",
-          }}
-        >
-          <Link
-            className="button secondary"
-            to="/admin/orders"
-          >
-            Admin orders
+        <div className="ap-actions">
+          <Link className="button secondary" to="/admin/orders">
+            Orders
           </Link>
-
-
-          <Link
-            className="button secondary"
-            to="/admin/returns"
-          >
+          <Link className="button secondary" to="/admin/returns">
             Returns
           </Link>
-
-
           <button
-            type="button"
             className="button"
-            onClick={
-              openCreate
-            }
+            disabled={busy}
+            onClick={() => openEditor()}
           >
             + Add product
           </button>
         </div>
-      </div>
-
-
-      {/* ================================================
-          EDITOR
-      ================================================ */}
-
-      <div
-        ref={
-          editorRef
-        }
-      >
+      </header>
+      <div ref={editorRef}>
         {editorMode && (
           <ProductEditor
-            draft={
-              draft
-            }
-            setDraft={
-              setDraft
-            }
-            mode={
-              editorMode
-            }
-            busy={
-              saving
-            }
-            error={
-              editorError
-            }
-            onSave={
-              saveProduct
-            }
-            onCancel={
-              closeEditor
-            }
+            draft={draft}
+            setDraft={setDraft}
+            mode={editorMode}
+            busy={saving}
+            stage={stage}
+            error={editorError}
+            onSave={saveProduct}
+            onCancel={closeEditor}
           />
         )}
       </div>
-
-
-      {/* ================================================
-          MESSAGES
-      ================================================ */}
-
       {success && (
-        <div
-          className="notice"
-          style={{
-            marginBottom:
-              "18px",
-          }}
-        >
-          {
-            success
-          }
-        </div>
-      )}
-
-
-      {error && (
-        <p
-          className="field-error"
-          role="alert"
-        >
-          {
-            error
-          }
+        <p className="notice" role="status">
+          {success}
         </p>
       )}
-
-
-      {/* ================================================
-          SUMMARY
-      ================================================ */}
-
-      <div
-        style={{
-          display:
-            "grid",
-
-          gridTemplateColumns:
-            "repeat(auto-fit, minmax(150px, 1fr))",
-
-          gap:
-            "12px",
-
-          marginBottom:
-            "20px",
-        }}
-      >
-        <div
-          className="panel"
-        >
-          <small
-            className="muted"
-          >
-            Matching products
-          </small>
-
-          <strong
-            style={{
-              display:
-                "block",
-
-              fontSize:
-                "28px",
-            }}
-          >
-            {
-              total
-            }
-          </strong>
-        </div>
-
-
-        <div
-          className="panel"
-        >
-          <small
-            className="muted"
-          >
-            Active on this page
-          </small>
-
-          <strong
-            style={{
-              display:
-                "block",
-
-              fontSize:
-                "28px",
-            }}
-          >
-            {
-              pageStats.activeCount
-            }
-          </strong>
-        </div>
-
-
-        <div
-          className="panel"
-        >
-          <small
-            className="muted"
-          >
-            Low stock
-          </small>
-
-          <strong
-            style={{
-              display:
-                "block",
-
-              fontSize:
-                "28px",
-            }}
-          >
-            {
-              pageStats.lowStock
-            }
-          </strong>
-        </div>
-
-
-        <div
-          className="panel"
-        >
-          <small
-            className="muted"
-          >
-            Out of stock
-          </small>
-
-          <strong
-            style={{
-              display:
-                "block",
-
-              fontSize:
-                "28px",
-            }}
-          >
-            {
-              pageStats.outOfStock
-            }
-          </strong>
-        </div>
-
-
-        <div
-          className="panel"
-        >
-          <small
-            className="muted"
-          >
-            Archived on this page
-          </small>
-
-          <strong
-            style={{
-              display:
-                "block",
-
-              fontSize:
-                "28px",
-            }}
-          >
-            {
-              pageStats.archivedCount
-            }
-          </strong>
-        </div>
-      </div>
-
-
-      {/* ================================================
-          FILTERS
-      ================================================ */}
-
-      <section
-        className="panel"
-        style={{
-          marginBottom:
-            "20px",
-        }}
-      >
-        <form
-          onSubmit={
-            (
-              event
-            ) => {
-              event.preventDefault();
-
-              setPage(
-                1
-              );
-
-              setSearch(
-                searchInput.trim()
-              );
-            }
-          }
-        >
-          <div
-            style={{
-              display:
-                "grid",
-
-              gridTemplateColumns:
-                "minmax(220px, 2fr) repeat(2, minmax(160px, 1fr)) auto",
-
-              gap:
-                "12px",
-
-              alignItems:
-                "end",
-            }}
-          >
-            <Field
-              label="Search products"
-            >
-              <input
-                className="field"
-                type="search"
-                placeholder="Name, SKU, brand or category"
-                value={
-                  searchInput
-                }
-                onChange={
-                  (
-                    event
-                  ) =>
-                    setSearchInput(
-                      event.target
-                        .value
-                    )
-                }
-              />
-            </Field>
-
-
-            <Field
-              label="Stock"
-            >
-              <select
-                className="field"
-                value={
-                  stockStatus
-                }
-                onChange={
-                  (
-                    event
-                  ) => {
-                    setStockStatus(
-                      event.target
-                        .value
-                    );
-
-                    setPage(
-                      1
-                    );
-                  }
-                }
-              >
-                <option
-                  value=""
-                >
-                  All stock
-                </option>
-
-                <option
-                  value="in-stock"
-                >
-                  In stock
-                </option>
-
-                <option
-                  value="low-stock"
-                >
-                  Low stock
-                </option>
-
-                <option
-                  value="out-of-stock"
-                >
-                  Out of stock
-                </option>
-              </select>
-            </Field>
-
-
-            <Field
-              label="Visibility"
-            >
-              <select
-                className="field"
-                value={
-                  active
-                }
-                onChange={
-                  (
-                    event
-                  ) => {
-                    setActive(
-                      event.target
-                        .value
-                    );
-
-                    setPage(
-                      1
-                    );
-                  }
-                }
-              >
-                <option
-                  value=""
-                >
-                  Active + archived
-                </option>
-
-                <option
-                  value="true"
-                >
-                  Active only
-                </option>
-
-                <option
-                  value="false"
-                >
-                  Archived only
-                </option>
-              </select>
-            </Field>
-
-
-            <button
-              type="submit"
-              className="button"
-            >
-              Search
-            </button>
-          </div>
-        </form>
-
-
-        {(search ||
-          stockStatus ||
-          active) && (
+      {error && (
+        <div role="alert" className="field-error">
+          <p>{error}</p>
           <button
-            type="button"
             className="button secondary"
-            style={{
-              marginTop:
-                "14px",
-            }}
-            onClick={
-              () => {
-                setSearchInput(
-                  ""
-                );
-
-                setSearch(
-                  ""
-                );
-
-                setStockStatus(
-                  ""
-                );
-
-                setActive(
-                  ""
-                );
-
-                setPage(
-                  1
-                );
-              }
-            }
+            disabled={loading || busy}
+            onClick={loadProducts}
           >
-            Clear filters
+            Try again
           </button>
-        )}
-      </section>
-
-
-      {/* ================================================
-          PRODUCTS
-      ================================================ */}
-
-      {loading ? (
-        <div
-          className="panel"
-        >
-          <h3>
-            Loading products…
-          </h3>
-
-          <p
-            className="muted"
-          >
-            Getting the latest GymDrobe inventory from MongoDB.
-          </p>
-        </div>
-
-      ) : products.length ===
-        0 ? (
-        <div
-          className="empty-state"
-        >
-          <h3>
-            No products found
-          </h3>
-
-          <p>
-            Try changing your filters or add a new GymDrobe product.
-          </p>
-
-          <button
-            type="button"
-            className="button"
-            onClick={
-              openCreate
-            }
-          >
-            Add product
-          </button>
-        </div>
-
-      ) : (
-        <div
-          style={{
-            display:
-              "grid",
-
-            gap:
-              "14px",
-          }}
-        >
-          {products.map(
-            (
-              product
-            ) => (
-              <AdminProductCard
-                key={
-                  productId(
-                    product
-                  )
-                }
-                product={
-                  product
-                }
-                busyId={
-                  busyId
-                }
-                onEdit={
-                  openEdit
-                }
-                onArchive={
-                  handleArchive
-                }
-                onRestore={
-                  handleRestore
-                }
-              />
-            )
-          )}
         </div>
       )}
-
-
-      {/* ================================================
-          PAGINATION
-      ================================================ */}
-
-      {!loading &&
-        pages >
-          1 && (
-          <div
-            style={{
-              display:
-                "flex",
-
-              justifyContent:
-                "center",
-
-              alignItems:
-                "center",
-
-              gap:
-                "12px",
-
-              marginTop:
-                "24px",
-
-              flexWrap:
-                "wrap",
-            }}
-          >
-            <button
-              type="button"
-              className="button secondary"
-              disabled={
-                page <=
-                1
-              }
-              onClick={
-                () =>
-                  setPage(
-                    (
-                      current
-                    ) =>
-                      Math.max(
-                        1,
-
-                        current -
-                          1
-                      )
-                  )
-              }
-            >
-              Previous
-            </button>
-
-
-            <strong>
-              Page{" "}
-              {
-                page
-              }{" "}
-              of{" "}
-              {
-                pages
-              }
-            </strong>
-
-
-            <button
-              type="button"
-              className="button secondary"
-              disabled={
-                page >=
-                pages
-              }
-              onClick={
-                () =>
-                  setPage(
-                    (
-                      current
-                    ) =>
-                      Math.min(
-                        pages,
-
-                        current +
-                          1
-                      )
-                  )
-              }
-            >
-              Next
-            </button>
+      <div className="ap-stats">
+        {stats.map(([label, value]) => (
+          <div className="panel" key={label}>
+            <small>{label}</small>
+            <strong>{value}</strong>
           </div>
-        )}
+        ))}
+      </div>
+      <section className="panel ap-filters">
+        <h2>Find a product</h2>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            setPage(1);
+            setSearch(searchInput.trim());
+          }}
+        >
+          <div className="ap-grid">
+            <Field label="Search">
+              <input
+                type="search"
+                placeholder="Name, SKU, brand or category"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+              />
+            </Field>
+            <Field label="Stock">
+              <select
+                value={stockStatus}
+                onChange={(event) => {
+                  setStockStatus(event.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">All stock</option>
+                <option value="in-stock">In stock</option>
+                <option value="low-stock">Low stock</option>
+                <option value="out-of-stock">Out of stock</option>
+              </select>
+            </Field>
+            <Field label="Visibility">
+              <select
+                value={active}
+                onChange={(event) => {
+                  setActive(event.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">Active and archived</option>
+                <option value="true">Active only</option>
+                <option value="false">Archived only</option>
+              </select>
+            </Field>
+          </div>
+          <div className="ap-actions">
+            <button className="button" type="submit">
+              Search
+            </button>
+            {(search || stockStatus || active) && (
+              <button
+                className="button secondary"
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setSearchInput("");
+                  setStockStatus("");
+                  setActive("");
+                  setPage(1);
+                }}
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        </form>
+      </section>
+      {loading ? (
+        <p className="panel" role="status">
+          Loading products…
+        </p>
+      ) : !products.length ? (
+        <div className="empty-state">
+          <h3>
+            {error ? "Products could not be loaded" : "No products found"}
+          </h3>
+          <p>
+            {search || stockStatus || active
+              ? "Try changing or clearing your filters."
+              : "Use Add product to create your first product."}
+          </p>
+        </div>
+      ) : (
+        <div className="ap-product-list">
+          {products.map((product) => (
+            <ProductCard
+              key={productId(product)}
+              product={product}
+              busy={busy}
+              onEdit={openEditor}
+              onArchive={(p) => changeVisibility(p, true)}
+              onRestore={(p) => changeVisibility(p, false)}
+            />
+          ))}
+        </div>
+      )}
+      <nav className="ap-pagination" aria-label="Product pages">
+        <button
+          className="button secondary"
+          disabled={loading || page <= 1}
+          onClick={() => setPage((value) => value - 1)}
+        >
+          Previous
+        </button>
+        <span>
+          Page {page} of {pages} · {total} matching products
+        </span>
+        <button
+          className="button secondary"
+          disabled={loading || page >= pages}
+          onClick={() => setPage((value) => value + 1)}
+        >
+          Next
+        </button>
+      </nav>
     </div>
   );
+}
+
+export default function AdminProductsPage() {
+  const { user } = useAuth();
+  return <AdminProductsWorkspace key={user?.id || user?._id || "guest"} />;
 }

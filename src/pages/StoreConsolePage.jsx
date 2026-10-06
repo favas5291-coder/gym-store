@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { useStore } from "../context/StoreContext.jsx";
 import categories from "../data/categories.js";
@@ -12,15 +13,16 @@ import { ORDER_TRANSITIONS, advanceOrder } from "../utils/inventory.js";
 import { csvCell, downloadText } from "../utils/commerce.js";
 import { COUPONS } from "../utils/orderCalculations.js";
 import Modal from "../components/Modal.jsx";
-
 function ProductEditor({ product, onClose }) {
-  const { saveProduct } = useCatalog(),
+  const { saveProduct, saveError } = useCatalog(),
     { notify } = useStore();
   const [draft, setDraft] = useState(() =>
     structuredClone(
       product || {
         id: makeId("product"),
         name: "",
+        sku: "",
+        isActive: true,
         brand: "GymDrobe",
         category: "Workout Clothes",
         subcategory: "",
@@ -41,19 +43,48 @@ function ProductEditor({ product, onClose }) {
   );
   const [customImage, setCustomImage] = useState(product?.customImage || ""),
     [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const saveLock = useRef(false);
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  function closeEditor() {
+    if (!saveLock.current) onClose();
+  }
+  const hasVariants = Boolean(
+    draft.variants &&
+    typeof draft.variants === "object" &&
+    !Array.isArray(draft.variants) &&
+    Object.keys(draft.variants).length,
+  );
   const set = (key, value) => setDraft((old) => ({ ...old, [key]: value }));
-  function submit(e) {
+  async function submit(e) {
     e.preventDefault();
+    if (saveLock.current) return;
+    setError("");
     if (customImage && !/^https:\/\//i.test(customImage)) {
       setError(
         "Use an HTTPS image URL, or leave it blank to keep the supplied image.",
       );
       return;
     }
-    const image = customImage || draft.image;
+    if (draft.name.trim().length < 2 || !String(draft.sku || "").trim()) {
+      setError(
+        "Enter a product name with at least two characters and a unique product code (SKU).",
+      );
+      return;
+    }
+    const image = customImage.trim() || draft.image;
     const next = {
       ...draft,
       name: draft.name.trim(),
+      sku: String(draft.sku || "")
+        .trim()
+        .toUpperCase(),
       customImage,
       image,
       images: customImage ? [customImage] : draft.images,
@@ -61,185 +92,211 @@ function ProductEditor({ product, onClose }) {
       discount: Number(draft.discount),
       stock: Number(draft.stock),
     };
-    if (!saveProduct(next)) {
-      setError(
-        "Check the name, price, discount (0–100), whole-number stock, and browser storage.",
-      );
-      return;
+    saveLock.current = true;
+    setSaving(true);
+    try {
+      const saved = await saveProduct(next);
+      if (!mounted.current) return;
+      if (!saved) {
+        setError(
+          "The product was not confirmed as saved. Check the details below and retry after checking the admin product list.",
+        );
+        return;
+      }
+      notify("Product saved to the backend.");
+      onClose();
+    } catch (failure) {
+      if (mounted.current)
+        setError(failure.message || "Unable to save the product.");
+    } finally {
+      saveLock.current = false;
+      if (mounted.current) setSaving(false);
     }
-    notify("Preview catalogue updated.");
-    onClose();
   }
   const colors = draft.colors?.length ? draft.colors : [null],
     sizes = draft.sizes?.length ? draft.sizes : [null];
   return (
     <Modal
       title={product ? "Edit product & stock" : "Add a product"}
-      onClose={onClose}
+      onClose={closeEditor}
     >
-      <form onSubmit={submit} className="admin-product-form">
-        <div className="form-grid">
-          {[
-            ["name", "Product name"],
-            ["brand", "Brand"],
-            ["subcategory", "Product type"],
-          ].map(([key, label]) => (
-            <div className="field" key={key}>
-              <label htmlFor={`edit-${key}`}>{label}</label>
-              <input
-                id={`edit-${key}`}
-                required={key === "name"}
-                value={draft[key] || ""}
-                maxLength="160"
-                onChange={(e) => set(key, e.target.value)}
-              />
+      <form onSubmit={submit} className="admin-product-form" aria-busy={saving}>
+        <fieldset
+          disabled={saving}
+          style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
+        >
+          <legend className="sr-only">Product details</legend>
+          <div className="form-grid">
+            {[
+              ["name", "Product name"],
+              ["sku", "Product code (SKU)"],
+              ["brand", "Brand"],
+              ["subcategory", "Product type"],
+            ].map(([key, label]) => (
+              <div className="field" key={key}>
+                <label htmlFor={`edit-${key}`}>{label}</label>
+                <input
+                  id={`edit-${key}`}
+                  required={key === "name" || key === "sku"}
+                  value={draft[key] || ""}
+                  maxLength="160"
+                  onChange={(e) => set(key, e.target.value)}
+                />
+              </div>
+            ))}
+            <div className="field">
+              <label htmlFor="edit-category">Category</label>
+              <select
+                id="edit-category"
+                value={draft.category}
+                onChange={(e) => set("category", e.target.value)}
+              >
+                {!categories.some((c) => c.name === draft.category) &&
+                  draft.category && <option>{draft.category}</option>}
+                {categories.map((c) => (
+                  <option key={c.name}>{c.name}</option>
+                ))}
+              </select>
             </div>
-          ))}
+            {[
+              ["price", "Original price ₹", "any"],
+              ["discount", "Discount %", "any"],
+            ].map(([key, label, step]) => (
+              <div className="field" key={key}>
+                <label htmlFor={`edit-${key}`}>{label}</label>
+                <input
+                  id={`edit-${key}`}
+                  type="number"
+                  required
+                  min="0"
+                  max={key === "discount" ? 100 : undefined}
+                  step={step}
+                  value={draft[key]}
+                  onChange={(e) => set(key, e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
           <div className="field">
-            <label htmlFor="edit-category">Category</label>
+            <label htmlFor="edit-description">Description</label>
+            <textarea
+              id="edit-description"
+              rows="3"
+              value={draft.description || ""}
+              onChange={(e) => set("description", e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="edit-photo">
+              Custom photo HTTPS URL (optional)
+            </label>
+            <input
+              id="edit-photo"
+              type="url"
+              value={customImage}
+              onChange={(e) => setCustomImage(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="edit-stock-status">Store visibility</label>
             <select
-              id="edit-category"
-              value={draft.category}
-              onChange={(e) => set("category", e.target.value)}
+              id="edit-stock-status"
+              value={draft.isActive === false ? "out-of-stock" : "in-stock"}
+              onChange={(e) =>
+                set("isActive", e.target.value !== "out-of-stock")
+              }
             >
-              {categories.map((c) => (
-                <option key={c.name}>{c.name}</option>
-              ))}
+              <option value="in-stock">Visible in the store</option>
+              <option value="out-of-stock">Hidden from the store</option>
             </select>
           </div>
-          {[
-            ["price", "Original price ₹", "any"],
-            ["discount", "Discount %", "any"],
-          ].map(([key, label, step]) => (
-            <div className="field" key={key}>
-              <label htmlFor={`edit-${key}`}>{label}</label>
+          <h3>Available inventory</h3>
+          <p className="muted">
+            Counts below are available units recorded in MongoDB. Stock from
+            real orders is managed by the backend. Local preview orders do not
+            change these counts.
+          </p>
+          {hasVariants ? (
+            <div className="inventory-grid">
+              {colors.flatMap((color) =>
+                sizes.map((size) => (
+                  <div className="field" key={`${color}-${size}`}>
+                    <label htmlFor={`stock-${color}-${size}`}>
+                      {[color, size].filter(Boolean).join(" / ") || "Default"}
+                    </label>
+                    <input
+                      id={`stock-${color}-${size}`}
+                      type="number"
+                      required
+                      min="0"
+                      step="1"
+                      value={
+                        color
+                          ? (draft.variants[color]?.[size || "default"] ?? 0)
+                          : (draft.variants[size || "default"] ?? 0)
+                      }
+                      onChange={(e) =>
+                        setDraft((old) => {
+                          const variants = structuredClone(old.variants),
+                            value = Number(e.target.value);
+                          if (color)
+                            variants[color] = {
+                              ...variants[color],
+                              [size || "default"]: value,
+                            };
+                          else variants[size || "default"] = value;
+                          return { ...old, variants };
+                        })
+                      }
+                    />
+                  </div>
+                )),
+              )}
+            </div>
+          ) : (
+            <div className="field">
+              <label htmlFor="edit-stock">Available units</label>
               <input
-                id={`edit-${key}`}
+                id="edit-stock"
                 type="number"
                 required
                 min="0"
-                max={key === "discount" ? 100 : undefined}
-                step={step}
-                value={draft[key]}
-                onChange={(e) => set(key, e.target.value)}
+                step="1"
+                value={draft.stock}
+                onChange={(e) => set("stock", e.target.value)}
               />
             </div>
-          ))}
-        </div>
-        <div className="field">
-          <label htmlFor="edit-description">Description</label>
-          <textarea
-            id="edit-description"
-            rows="3"
-            value={draft.description || ""}
-            onChange={(e) => set("description", e.target.value)}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="edit-photo">Custom photo HTTPS URL (optional)</label>
-          <input
-            id="edit-photo"
-            type="url"
-            value={customImage}
-            onChange={(e) => setCustomImage(e.target.value)}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="edit-stock-status">Availability</label>
-          <select
-            id="edit-stock-status"
-            value={draft.stockStatus || "in-stock"}
-            onChange={(e) => set("stockStatus", e.target.value)}
-          >
-            <option value="in-stock">Use inventory counts</option>
-            <option value="out-of-stock">Mark unavailable</option>
-          </select>
-        </div>
-        <h3>Available inventory</h3>
-        <p className="muted">
-          Counts below are available units, after existing preview orders. A
-          cancellation releases that order’s reserved stock.
-        </p>
-        {draft.variants ? (
-          <div className="inventory-grid">
-            {colors.flatMap((color) =>
-              sizes.map((size) => (
-                <div className="field" key={`${color}-${size}`}>
-                  <label htmlFor={`stock-${color}-${size}`}>
-                    {[color, size].filter(Boolean).join(" / ") || "Default"}
-                  </label>
-                  <input
-                    id={`stock-${color}-${size}`}
-                    type="number"
-                    required
-                    min="0"
-                    step="1"
-                    value={
-                      color
-                        ? (draft.variants[color]?.[size || "default"] ?? 0)
-                        : (draft.variants[size || "default"] ?? 0)
-                    }
-                    onChange={(e) =>
-                      setDraft((old) => {
-                        const variants = structuredClone(old.variants),
-                          value = Number(e.target.value);
-                        if (color)
-                          variants[color] = {
-                            ...variants[color],
-                            [size || "default"]: value,
-                          };
-                        else variants[size || "default"] = value;
-                        return { ...old, variants };
-                      })
-                    }
-                  />
-                </div>
-              )),
-            )}
+          )}
+          <div className="browse-controls">
+            {[
+              ["isFeatured", "Featured"],
+              ["isBestSeller", "Bestseller"],
+              ["isNew", "New arrival"],
+            ].map(([key, label]) => (
+              <label className="check" key={key}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(draft[key])}
+                  onChange={(e) => set(key, e.target.checked)}
+                />
+                {label}
+              </label>
+            ))}
           </div>
-        ) : (
-          <div className="field">
-            <label htmlFor="edit-stock">Available units</label>
-            <input
-              id="edit-stock"
-              type="number"
-              required
-              min="0"
-              step="1"
-              value={draft.stock}
-              onChange={(e) => set("stock", e.target.value)}
-            />
-          </div>
-        )}
-        <div className="browse-controls">
-          {[
-            ["isFeatured", "Featured"],
-            ["isBestSeller", "Bestseller"],
-            ["isNew", "New arrival"],
-          ].map(([key, label]) => (
-            <label className="check" key={key}>
-              <input
-                type="checkbox"
-                checked={Boolean(draft[key])}
-                onChange={(e) => set(key, e.target.checked)}
-              />
-              {label}
-            </label>
-          ))}
-        </div>
+        </fieldset>
         {error && (
           <p role="alert" className="field-error">
             {error}
+            {saveError ? ` ${saveError}` : ""}
           </p>
         )}
-        <button type="submit" className="button full">
-          Save product
+        <button type="submit" className="button full" disabled={saving}>
+          {saving ? "Saving product…" : "Save product"}
         </button>
       </form>
     </Modal>
   );
 }
-
 function OrderManager({ order, refresh }) {
   const { notify } = useStore(),
     [status, setStatus] = useState(""),
@@ -405,7 +462,6 @@ function OrderManager({ order, refresh }) {
     </article>
   );
 }
-
 function TicketManager({ ticket, refresh }) {
   const [reply, setReply] = useState(""),
     { notify } = useStore();
@@ -482,9 +538,15 @@ function TicketManager({ ticket, refresh }) {
     </article>
   );
 }
-
-export default function StoreConsolePage() {
-  const { products } = useCatalog(),
+function StoreConsoleWorkspace() {
+  const { user, token } = useAuth();
+  const canEditProducts = Boolean(token && user?.role === "admin");
+  const {
+      products,
+      loading,
+      error: catalogError,
+      refreshProducts,
+    } = useCatalog(),
     [tab, setTab] = useState("overview"),
     [query, setQuery] = useState(""),
     [editing, setEditing] = useState(null),
@@ -526,11 +588,42 @@ export default function StoreConsolePage() {
         </Link>
       </div>
       <p className="notice">
-        This console manages this browser’s preview data. It has no production
-        admin authentication and is excluded from production routes and bundles.
-        Product changes, inventory reservations, order events and support
-        replies stay on this device.
+        Product edits save to the configured backend and require an admin
+        account. Orders, return reviews and support replies here are
+        browser-local previews. Manage real orders and returns in their admin
+        dashboards. This console is available only through the development
+        route.
       </p>
+      <div className="purchase-actions">
+        <Link className="button secondary" to="/admin/products">
+          Product admin
+        </Link>
+        <Link className="button secondary" to="/admin/orders">
+          Real orders
+        </Link>
+        <Link className="button secondary" to="/admin/returns">
+          Real returns
+        </Link>
+      </div>
+      {catalogError && (
+        <div className="notice">
+          <p role="alert">{catalogError}</p>
+          <button
+            type="button"
+            className="button secondary"
+            disabled={loading}
+            onClick={refreshProducts}
+          >
+            Retry catalog
+          </button>
+        </div>
+      )}
+      {!canEditProducts && (
+        <p className="notice">
+          Sign in with an admin account to edit backend products.{" "}
+          <Link to="/login">Sign in</Link>
+        </p>
+      )}
       <div
         className="choice-tabs admin-tabs"
         aria-label="Store console sections"
@@ -580,6 +673,9 @@ export default function StoreConsolePage() {
                   <button
                     className="text-link"
                     type="button"
+                    disabled={
+                      !canEditProducts || loading || Boolean(catalogError)
+                    }
                     onClick={() => setEditing(p)}
                   >
                     Edit stock
@@ -610,6 +706,7 @@ export default function StoreConsolePage() {
             <button
               className="button"
               type="button"
+              disabled={!canEditProducts || loading || Boolean(catalogError)}
               onClick={() => setEditing({ newProduct: true })}
             >
               Add product
@@ -643,6 +740,9 @@ export default function StoreConsolePage() {
                         <button
                           className="button secondary compact"
                           type="button"
+                          disabled={
+                            !canEditProducts || loading || Boolean(catalogError)
+                          }
                           onClick={() => setEditing(p)}
                         >
                           Edit {p.name}
@@ -731,12 +831,26 @@ export default function StoreConsolePage() {
           </p>
         </section>
       )}
-      {editing && (
+      {editing && canEditProducts && (
         <ProductEditor
           product={editing.newProduct ? null : editing}
           onClose={() => setEditing(null)}
         />
       )}
     </div>
+  );
+}
+export default function StoreConsolePage() {
+  const { user, token, authLoading = false } = useAuth();
+  if (authLoading)
+    return (
+      <div className="page panel" role="status">
+        Loading session…
+      </div>
+    );
+  return (
+    <StoreConsoleWorkspace
+      key={`${user?.id || user?._id || "guest"}:${token || ""}`}
+    />
   );
 }

@@ -1,107 +1,315 @@
-import { ownerKey } from "../utils/customerData.js";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
 import { useAuth } from "../context/AuthContext.jsx";
 import { useStore } from "../context/StoreContext.jsx";
-import { makeId, readStorage, writeStorage } from "../utils/storage.js";
+
+import { ownerKey } from "../utils/customerData.js";
+import {
+  readStorage,
+  writeStorage,
+} from "../utils/storage.js";
+
+import {
+  updateProductReviews,
+} from "../utils/reviews.js";
+
 import useProductReviews from "../hooks/useProductReviews.js";
+
+import {
+  getReviews,
+  saveReview,
+  deleteReview,
+} from "../services/reviewApi.js";
+
 export default function ProductReviews({ product }) {
-  const { user } = useAuth(),
-    { notify } = useStore();
-  const { reviews, rating, count } = useProductReviews(product);
-  const [sort, setSort] = useState("newest"),
-    [filter, setFilter] = useState(""),
-    [editing, setEditing] = useState(null);
-  const voteKey = `gymdrobe-helpful:${ownerKey(user)}:${product.id}`;
-  const [votes, setVotes] = useState(() => {
-    const v = readStorage(voteKey, []);
-    return Array.isArray(v) ? v : [];
-  });
-  const shown = reviews
-    .filter((r) => !filter || Number(r.rating) === Number(filter))
-    .sort((a, b) =>
-      sort === "highest"
-        ? b.rating - a.rating
-        : sort === "lowest"
-          ? a.rating - b.rating
-          : String(b.createdAt || "").localeCompare(String(a.createdAt || "")),
-    );
-  function removeReview(review) {
-    if (review.ownerKey !== ownerKey(user)) return;
-    const saved = readStorage("gymdrobe-reviews", {});
-    const next = {
-      ...saved,
-      [product.id]: (saved?.[product.id] || []).filter(
-        (r) => r.id !== review.id || r.ownerKey !== ownerKey(user),
-      ),
-    };
-    if (writeStorage("gymdrobe-reviews", next)) {
-      window.dispatchEvent(new Event("gymdrobe-reviews-updated"));
-      notify("Your review was removed.");
-    }
+  const productId = product?.id || product?._id;
+
+  if (!productId) {
+    return null;
   }
+
+  return (
+    <ReviewPanel
+      key={String(productId)}
+      product={product}
+      productId={productId}
+    />
+  );
+}
+
+function ReviewPanel({ product, productId }) {
+  const { user, token } = useAuth();
+  const { notify } = useStore();
+
+  const {
+    reviews,
+    rating,
+    count,
+  } = useProductReviews(product);
+
+  const [sort, setSort] = useState("newest");
+  const [filter, setFilter] = useState("");
+  const [editing, setEditing] = useState(false);
+
   const [form, setForm] = useState({
-      name: user?.name || "",
+    rating: "5",
+    comment: "",
+  });
+
+  const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+
+  const userId = String(
+    user?._id || user?.id || "",
+  );
+
+  const owns = (review) =>
+    Boolean(
+      userId &&
+        String(review.userId) === userId,
+    );
+
+  const ownReview = reviews.find(owns);
+
+  const voteKey =
+    `gymdrobe-helpful:${ownerKey(user)}:${productId}`;
+
+  const [votes, setVotes] = useState(() => {
+    const saved = readStorage(voteKey, []);
+    return Array.isArray(saved) ? saved : [];
+  });
+
+  const disabled =
+    loading || busy || Boolean(loadError);
+
+  const shown = reviews
+    .filter(
+      (review) =>
+        !filter ||
+        Number(review.rating) === Number(filter),
+    )
+    .sort((a, b) => {
+      if (sort === "highest") {
+        return Number(b.rating) - Number(a.rating);
+      }
+
+      if (sort === "lowest") {
+        return Number(a.rating) - Number(b.rating);
+      }
+
+      return String(
+        b.createdAt || "",
+      ).localeCompare(
+        String(a.createdAt || ""),
+      );
+    });
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    setLoading(true);
+    setLoadError("");
+
+    getReviews(productId, controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) {
+          updateProductReviews(
+            productId,
+            data.reviews,
+          );
+        }
+      })
+      .catch((err) => {
+        if (!controller.signal.aborted) {
+          setLoadError(
+            err.message || "Unable to load reviews.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, [productId, attempt]);
+
+  useEffect(() => {
+    setEditing(false);
+    setForm({
       rating: "5",
       comment: "",
-    }),
-    [error, setError] = useState("");
-  function submit(event) {
+    });
+    setError("");
+
+    const saved = readStorage(voteKey, []);
+    setVotes(
+      Array.isArray(saved) ? saved : [],
+    );
+  }, [voteKey]);
+
+  function startEditing(review) {
+    setEditing(true);
+    setError("");
+
+    setForm({
+      rating: String(review.rating),
+      comment: review.comment,
+    });
+
+    document
+      .getElementById("review-comment")
+      ?.focus();
+  }
+
+  function cancelEditing() {
+    setEditing(false);
+    setError("");
+    setForm({
+      rating: "5",
+      comment: "",
+    });
+  }
+
+  async function submit(event) {
     event.preventDefault();
-    const name = form.name.trim(),
-      comment = form.comment.trim(),
-      score = Number(form.rating);
+
+    if (disabled) {
+      return;
+    }
+
+    if (!user || !token) {
+      setError(
+        "Please sign in to write a review.",
+      );
+      return;
+    }
+
+    const score = Number(form.rating);
+    const comment = form.comment.trim();
+
     if (
-      name.length < 2 ||
-      comment.length < 5 ||
       !Number.isInteger(score) ||
       score < 1 ||
-      score > 5
+      score > 5 ||
+      comment.length < 5 ||
+      comment.length > 1500
     ) {
       setError(
-        "Enter your name, a rating and a review of at least 5 characters.",
+        "Choose a rating and write a review of 5–1500 characters.",
       );
       return;
     }
-    const saved = readStorage("gymdrobe-reviews", {}),
-      all =
-        saved && typeof saved === "object" && !Array.isArray(saved)
-          ? saved
-          : {};
-    const items = Array.isArray(all[product.id]) ? all[product.id] : [];
-    if (
-      editing &&
-      !items.some((r) => r.id === editing && r.ownerKey === ownerKey(user))
-    ) {
-      setError("This review cannot be edited by the current account.");
-      return;
-    }
-    all[product.id] = [
-      {
-        id: editing || makeId("review"),
-        ownerKey: ownerKey(user),
-        name,
-        comment,
-        rating: score,
-        verified: false,
-        createdAt: new Date().toISOString(),
-      },
-      ...items.filter((r) => r.id !== editing),
-    ];
-    if (!writeStorage("gymdrobe-reviews", all)) {
-      setError(
-        "Your review could not be saved. Check browser storage and try again.",
-      );
-      return;
-    }
-    window.dispatchEvent(new Event("gymdrobe-reviews-updated"));
-    setForm({ ...form, comment: "" });
-    setEditing(null);
+
+    setBusy(true);
     setError("");
-    notify("Review saved on this device.");
+
+    try {
+      const data = await saveReview(
+        productId,
+        token,
+        {
+          rating: score,
+          comment,
+        },
+      );
+
+      if (!data.review) {
+        throw new Error(
+          "The server did not return your saved review. Please reload the reviews.",
+        );
+      }
+
+      updateProductReviews(productId, [
+        data.review,
+        ...reviews.filter(
+          (review) =>
+            String(review.userId) !==
+            String(data.review.userId),
+        ),
+      ]);
+
+      setForm({
+        rating: "5",
+        comment: "",
+      });
+      setEditing(false);
+
+      notify("Your review was saved.");
+    } catch (err) {
+      setError(
+        err.message || "Unable to save your review.",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
+
+  async function removeReview(review) {
+    if (!owns(review) || disabled || !token) {
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+
+    try {
+      await deleteReview(productId, token);
+
+      updateProductReviews(
+        productId,
+        reviews.filter(
+          (item) => item.id !== review.id,
+        ),
+      );
+
+      setEditing(false);
+      setForm({
+        rating: "5",
+        comment: "",
+      });
+
+      notify("Your review was removed.");
+    } catch (err) {
+      setError(
+        err.message || "Unable to remove your review.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function toggleHelpful(reviewId) {
+    const id = String(reviewId);
+
+    const next = votes.includes(id)
+      ? votes.filter((vote) => vote !== id)
+      : [...votes, id];
+
+    if (writeStorage(voteKey, next)) {
+      setVotes(next);
+    } else {
+      notify(
+        "Unable to save your helpful mark on this device.",
+        "warning",
+      );
+    }
+  }
+
   return (
-    <section id="product-reviews" className="reviews-section">
-      <h2>RATINGS & REVIEWS</h2>
+    <section
+      id="product-reviews"
+      className="reviews-section"
+      aria-labelledby="product-reviews-title"
+    >
+      <h2 id="product-reviews-title">
+        RATINGS & REVIEWS
+      </h2>
+
       <div className="review-layout">
         <div>
           <div className="review-score">
@@ -109,153 +317,316 @@ export default function ProductReviews({ product }) {
               {count ? rating : "—"}
               <span aria-hidden="true"> ★</span>
             </strong>
+
             <p>
-              {count} {count === 1 ? "review" : "reviews"}
+              {count}{" "}
+              {count === 1 ? "review" : "reviews"}
             </p>
           </div>
-          {[5, 4, 3, 2, 1].map((stars) => (
-            <div className="rating-bar" key={stars}>
-              <span>{stars} ★</span>
-              <progress
-                aria-label={`${stars}-star reviews`}
-                max={Math.max(1, count)}
-                value={reviews.filter((r) => Number(r.rating) === stars).length}
-              />
-              <small>
-                {reviews.filter((r) => Number(r.rating) === stars).length}
-              </small>
-            </div>
-          ))}
-          <form className="review-form" onSubmit={submit}>
-            <h3>Share your experience</h3>
-            <p className="muted">Preview reviews are saved on this device.</p>
-            <div className="field">
-              <label htmlFor="review-name">Name</label>
-              <input
-                id="review-name"
-                required
-                minLength="2"
-                maxLength="80"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="review-rating">Your rating</label>
-              <select
-                id="review-rating"
-                value={form.rating}
-                onChange={(e) => setForm({ ...form, rating: e.target.value })}
+
+          {[5, 4, 3, 2, 1].map((stars) => {
+            const total = reviews.filter(
+              (review) =>
+                Number(review.rating) === stars,
+            ).length;
+
+            return (
+              <div
+                className="rating-bar"
+                key={stars}
               >
-                {[5, 4, 3, 2, 1].map((n) => (
-                  <option key={n} value={n}>
-                    {n} stars
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="review-comment">Your review</label>
-              <textarea
-                id="review-comment"
-                required
-                minLength="5"
-                maxLength="1500"
-                rows="4"
-                value={form.comment}
-                onChange={(e) => setForm({ ...form, comment: e.target.value })}
-              />
-            </div>
+                <span>{stars} ★</span>
+
+                <progress
+                  aria-label={`${stars}-star reviews`}
+                  max={Math.max(1, count)}
+                  value={total}
+                />
+
+                <small>{total}</small>
+              </div>
+            );
+          })}
+
+          <form
+            className="review-form"
+            onSubmit={submit}
+          >
+            <h3>
+              {editing
+                ? "Edit your review"
+                : "Share your experience"}
+            </h3>
+
+            <p className="muted">
+              {user
+                ? `Reviewing as ${user.name || "Customer"}. One review per account and product.`
+                : "Sign in to share your experience."}
+            </p>
+
+            <p className="muted">
+              Verified Buyer means a delivered
+              order includes this product.
+            </p>
+
+            {ownReview && !editing ? (
+              <>
+                <p className="muted">
+                  You have already reviewed this
+                  product.
+                </p>
+
+                <button
+                  type="button"
+                  className="button"
+                  disabled={disabled}
+                  onClick={() =>
+                    startEditing(ownReview)
+                  }
+                >
+                  Edit your review
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="field">
+                  <label htmlFor="review-rating">
+                    Your rating
+                  </label>
+
+                  <select
+                    id="review-rating"
+                    value={form.rating}
+                    disabled={busy || !token}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        rating: event.target.value,
+                      })
+                    }
+                  >
+                    {[5, 4, 3, 2, 1].map(
+                      (stars) => (
+                        <option
+                          key={stars}
+                          value={stars}
+                        >
+                          {stars}{" "}
+                          {stars === 1
+                            ? "star"
+                            : "stars"}
+                        </option>
+                      ),
+                    )}
+                  </select>
+                </div>
+
+                <div className="field">
+                  <label htmlFor="review-comment">
+                    Your review
+                  </label>
+
+                  <textarea
+                    id="review-comment"
+                    required
+                    minLength={5}
+                    maxLength={1500}
+                    rows={4}
+                    value={form.comment}
+                    disabled={busy || !token}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        comment: event.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="button"
+                  disabled={disabled || !token}
+                >
+                  {busy
+                    ? "Saving…"
+                    : editing
+                      ? "Save review changes"
+                      : "Submit review"}
+                </button>
+
+                {editing && (
+                  <button
+                    type="button"
+                    className="text-link"
+                    disabled={busy}
+                    onClick={cancelEditing}
+                  >
+                    Cancel editing
+                  </button>
+                )}
+              </>
+            )}
+
             {error && (
-              <p role="alert" className="field-error">
+              <p
+                role="alert"
+                className="field-error"
+              >
                 {error}
               </p>
             )}
-            <button className="button" type="submit">
-              {editing ? "Save review changes" : "Submit review"}
-            </button>
           </form>
         </div>
+
         <div>
           <div className="browse-controls">
             <label>
               Sort reviews{" "}
               <select
-                aria-label="Sort reviews"
                 value={sort}
-                onChange={(e) => setSort(e.target.value)}
+                onChange={(event) =>
+                  setSort(event.target.value)
+                }
               >
-                <option value="newest">Newest first</option>
-                <option value="highest">Highest rating</option>
-                <option value="lowest">Lowest rating</option>
+                <option value="newest">
+                  Newest first
+                </option>
+
+                <option value="highest">
+                  Highest rating
+                </option>
+
+                <option value="lowest">
+                  Lowest rating
+                </option>
               </select>
             </label>
+
             <label>
               Filter rating{" "}
               <select
-                aria-label="Filter review rating"
                 value={filter}
-                onChange={(e) => setFilter(e.target.value)}
+                onChange={(event) =>
+                  setFilter(event.target.value)
+                }
               >
-                <option value="">All ratings</option>
-                {[5, 4, 3, 2, 1].map((n) => (
-                  <option key={n} value={n}>
-                    {n} stars
+                <option value="">
+                  All ratings
+                </option>
+
+                {[5, 4, 3, 2, 1].map((stars) => (
+                  <option
+                    key={stars}
+                    value={stars}
+                  >
+                    {stars}{" "}
+                    {stars === 1
+                      ? "star"
+                      : "stars"}
                   </option>
                 ))}
               </select>
             </label>
           </div>
-          {shown.length ? (
-            shown.map((review, index) => (
-              <article className="review" key={review.id || index}>
-                <strong className="rating-pill">{review.rating} ★</strong>
+
+          {loading && (
+            <p role="status">
+              Loading reviews…
+            </p>
+          )}
+
+          {loadError && (
+            <div
+              role="alert"
+              className="field-error"
+            >
+              <p>{loadError}</p>
+
+              <button
+                type="button"
+                className="text-link"
+                onClick={() =>
+                  setAttempt(
+                    (value) => value + 1,
+                  )
+                }
+              >
+                Retry loading reviews
+              </button>
+            </div>
+          )}
+
+          {shown.map((review, index) => {
+            const id = String(
+              review.id || index,
+            );
+
+            const helpful = votes.includes(id);
+
+            const hasDate =
+              review.createdAt &&
+              !Number.isNaN(
+                Date.parse(review.createdAt),
+              );
+
+            return (
+              <article
+                className="review"
+                key={id}
+              >
+                <strong className="rating-pill">
+                  {review.rating} ★
+                </strong>
+
                 <p>{review.comment}</p>
+
                 <small>
                   {review.name}
-                  {review.createdAt &&
-                  !Number.isNaN(Date.parse(review.createdAt))
-                    ? ` · ${new Date(review.createdAt).toLocaleDateString("en-IN")}`
-                    : ""}
+
+                  {review.verified === true &&
+                    " · Verified Buyer"}
+
+                  {hasDate &&
+                    ` · ${new Date(
+                      review.createdAt,
+                    ).toLocaleDateString("en-IN")}`}
                 </small>
+
                 <div className="bag-links">
                   <button
                     type="button"
                     className="text-link"
-                    aria-pressed={votes.includes(String(review.id || index))}
-                    onClick={() => {
-                      const id = String(review.id || index),
-                        next = votes.includes(id)
-                          ? votes.filter((v) => v !== id)
-                          : [...votes, id];
-                      if (writeStorage(voteKey, next)) setVotes(next);
-                    }}
+                    aria-pressed={helpful}
+                    onClick={() =>
+                      toggleHelpful(id)
+                    }
                   >
-                    {votes.includes(String(review.id || index))
+                    {helpful
                       ? "Marked helpful ✓"
                       : "Helpful?"}
                   </button>
-                  {review.ownerKey === ownerKey(user) && (
+
+                  {owns(review) && (
                     <>
                       <button
                         type="button"
                         className="text-link"
-                        onClick={() => {
-                          setEditing(review.id);
-                          setForm({
-                            name: review.name,
-                            rating: String(review.rating),
-                            comment: review.comment,
-                          });
-                          document.getElementById("review-comment")?.focus();
-                        }}
+                        disabled={disabled}
+                        onClick={() =>
+                          startEditing(review)
+                        }
                       >
                         Edit your review
                       </button>
+
                       <button
                         type="button"
                         className="text-link"
-                        onClick={() => removeReview(review)}
+                        disabled={disabled}
+                        onClick={() =>
+                          removeReview(review)
+                        }
                       >
                         Delete your review
                       </button>
@@ -263,14 +634,18 @@ export default function ProductReviews({ product }) {
                   )}
                 </div>
               </article>
-            ))
-          ) : (
-            <p className="muted">
-              {filter
-                ? "No reviews with this rating."
-                : "Be the first to review this product."}
-            </p>
-          )}
+            );
+          })}
+
+          {!shown.length &&
+            !loading &&
+            !loadError && (
+              <p className="muted">
+                {filter
+                  ? "No reviews with this rating."
+                  : "Be the first to review this product."}
+              </p>
+            )}
         </div>
       </div>
     </section>

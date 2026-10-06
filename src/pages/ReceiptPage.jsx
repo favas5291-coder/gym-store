@@ -1,31 +1,12 @@
-import useOrderUpdates from "../hooks/useOrderUpdates.js";
+import { Link, useParams } from "react-router-dom";
+
+import useCustomerOrder from "../hooks/useCustomerOrder.js";
 
 import {
-  useEffect,
-  useState,
-} from "react";
-
-import {
-  Link,
-  useParams,
-} from "react-router-dom";
-
-import {
-  useAuth,
-} from "../context/AuthContext.jsx";
-
-import {
-  getOrder as getLocalOrder,
   orderTotal,
 } from "../utils/customerData.js";
 
-import {
-  getOrderById,
-} from "../services/orderApi.js";
-
-import {
-  money,
-} from "../utils/productPricing.js";
+import { money } from "../utils/productPricing.js";
 
 import {
   csvCell,
@@ -34,242 +15,69 @@ import {
 
 import EmptyState from "../components/EmptyState.jsx";
 
+import OrderPaymentDetails, {
+  formatOrderDate,
+  formatOrderStatus,
+  getPaymentRows,
+} from "../components/OrderPaymentDetails.jsx";
 
-// ======================================================
-// RECEIPT PAGE
-// ======================================================
+function showMoney(value) {
+  if (value == null || value === "") {
+    return "Not recorded";
+  }
+
+  const number = Number(value);
+
+  return Number.isFinite(number)
+    ? money(number)
+    : "Not recorded";
+}
 
 export default function ReceiptPage() {
-  const revision =
-    useOrderUpdates();
-
+  const { orderId } = useParams();
 
   const {
-    orderId,
-  } = useParams();
-
-
-  const {
-    user,
-    token,
-  } = useAuth();
-
-
-  const [
     order,
-    setOrder,
-  ] = useState(null);
-
-
-  const [
     loading,
-    setLoading,
-  ] = useState(
-    Boolean(user)
-  );
-
-
-  const [
     error,
-    setError,
-  ] = useState("");
+    isAccountOrder,
+    refresh,
+    refreshing,
+  } = useCustomerOrder(orderId);
 
-
-  // ====================================================
-  // LOAD ORDER
-  //
-  // Signed-in:
-  // MongoDB
-  //
-  // Guest:
-  // localStorage
-  // ====================================================
-
-  useEffect(() => {
-    let cancelled =
-      false;
-
-
-    async function loadOrder() {
-      setError("");
-
-
-      // -----------------------------------------------
-      // GUEST
-      // -----------------------------------------------
-
-      if (!user) {
-        const localOrder =
-          getLocalOrder(
-            orderId,
-            null
-          );
-
-
-        if (!cancelled) {
-          setOrder(
-            localOrder
-          );
-
-          setLoading(
-            false
-          );
-        }
-
-
-        return;
-      }
-
-
-      // -----------------------------------------------
-      // USER WITHOUT TOKEN
-      // -----------------------------------------------
-
-      if (!token) {
-        if (!cancelled) {
-          setOrder(
-            null
-          );
-
-          setLoading(
-            false
-          );
-
-          setError(
-            "Your sign-in session has expired. Please sign in again."
-          );
-        }
-
-
-        return;
-      }
-
-
-      // -----------------------------------------------
-      // MONGODB ORDER
-      // -----------------------------------------------
-
-      setLoading(
-        true
-      );
-
-
-      try {
-        const remoteOrder =
-          await getOrderById(
-            token,
-            orderId
-          );
-
-
-        if (cancelled) {
-          return;
-        }
-
-
-        setOrder(
-          remoteOrder ||
-            null
-        );
-
-      } catch (
-        loadError
-      ) {
-        if (cancelled) {
-          return;
-        }
-
-
-        console.error(
-          "Receipt load error:",
-          loadError
-        );
-
-
-        setOrder(
-          null
-        );
-
-
-        setError(
-          loadError.message ||
-            "The receipt could not be loaded."
-        );
-
-      } finally {
-        if (!cancelled) {
-          setLoading(
-            false
-          );
-        }
-      }
-    }
-
-
-    loadOrder();
-
-
-    return () => {
-      cancelled =
-        true;
-    };
-
-  }, [
-    orderId,
-    user?.id,
-    token,
-    revision,
-  ]);
-
-
-  // ====================================================
-  // LOADING
-  // ====================================================
-
-  if (
-    loading &&
-    user
-  ) {
+  if (loading) {
     return (
       <div className="page narrow receipt-page">
-
-        <div className="empty-state">
-
-          <h3>
-            Loading receipt…
-          </h3>
-
-          <p>
-            Getting your GymDrobe order information.
-          </p>
-
+        <div className="empty-state" role="status">
+          <h3>Loading receipt…</h3>
+          <p>Getting your order information.</p>
         </div>
-
       </div>
     );
   }
 
-
-  // ====================================================
-  // ERROR
-  // ====================================================
-
   if (error) {
     return (
-      <EmptyState
-        title="Receipt could not be loaded"
-        to="/orders"
-        label="View orders"
-      >
-        {error}
-      </EmptyState>
+      <div className="page narrow receipt-page">
+        <EmptyState
+          title="Receipt could not be loaded"
+          to="/orders"
+          label="View orders"
+        >
+          {error}
+        </EmptyState>
+
+        <button
+          type="button"
+          className="button secondary"
+          disabled={refreshing}
+          onClick={refresh}
+        >
+          {refreshing ? "Retrying…" : "Retry"}
+        </button>
+      </div>
     );
   }
-
-
-  // ====================================================
-  // ORDER NOT FOUND
-  // ====================================================
 
   if (!order) {
     return (
@@ -278,55 +86,24 @@ export default function ReceiptPage() {
         to="/orders"
         label="View orders"
       >
-        This order is not available for your current account or guest session.
+        This order is not available for your current
+        account or guest session.
       </EmptyState>
     );
   }
 
+  const displayId =
+    order.orderNumber || order.id || orderId;
 
-  const address =
-    order.shippingAddress ||
-    {};
+  const address = order.shippingAddress || {};
+  const pricing = order.pricing || {};
 
-
-  // ====================================================
-  // PAYMENT DETAILS
-  // ====================================================
-
-  const paymentMethod =
-    order.payment?.method ||
-    order.paymentMethod ||
-    "cod";
-
-
-  const paymentStatus =
-    order.payment?.status ||
-    "pending";
-
-
-  // ====================================================
-  // DOWNLOAD CSV
-  // ====================================================
-
-  function csv() {
+  function downloadCsv() {
     const rows = [
-      [
-        "Order",
-        order.id,
-      ],
-
-      [
-        "Date",
-        order.createdAt,
-      ],
-
-      [
-        "Status",
-        order.status,
-      ],
-
+      ["Order", displayId],
+      ["Date", order.createdAt || ""],
+      ["Status", formatOrderStatus(order.status)],
       [],
-
       [
         "Product",
         "Size",
@@ -335,231 +112,122 @@ export default function ReceiptPage() {
         "Unit INR",
         "Line INR",
       ],
-
-      ...(
-        order.items ||
-        []
-      ).map(
-        (item) => [
-          item.name,
-
-          item.selectedSize ||
-            "",
-
-          item.selectedColor ||
-            "",
-
-          item.quantity,
-
-          item.price,
-
-          Number(
-            item.quantity ||
-              0
-          ) *
-            Number(
-              item.price ||
-                0
-            ),
-        ]
-      ),
-
+      ...(order.items || []).map((item) => [
+        item.name,
+        item.selectedSize || "",
+        item.selectedColor || "",
+        item.quantity,
+        item.price,
+        Number(item.quantity || 0) *
+          Number(item.price || 0),
+      ]),
       [],
-
       [
         "Items subtotal INR",
-        order.pricing
-          ?.subtotal ??
-          0,
+        pricing.subtotal ?? "Not recorded",
       ],
-
       [
         "Coupon savings INR",
-        order.pricing
-          ?.couponDiscount ??
-          0,
+        pricing.couponDiscount ?? "Not recorded",
       ],
-
       [
         "Delivery INR",
-        order.pricing
-          ?.shipping ??
-          0,
+        pricing.shipping ?? "Not recorded",
       ],
-
-      [
-        "Order total INR",
-        orderTotal(
-          order
-        ),
-      ],
-
-      [
-        "Payment",
-        `${paymentMethod} / ${paymentStatus}`,
-      ],
+      ["Order total INR", orderTotal(order)],
+      [],
+      ...getPaymentRows(order).map(
+        ([label, value]) => [
+          typeof value === "number"
+            ? `${label} INR`
+            : label,
+          value,
+        ],
+      ),
     ];
 
+    const safeName = String(displayId).replace(
+      /[^a-zA-Z0-9_-]/g,
+      "_",
+    );
 
     downloadText(
-      `${order.id}-receipt.csv`,
-
+      `${safeName}-receipt.csv`,
       rows
-        .map(
-          (row) =>
-            row
-              .map(
-                csvCell
-              )
-              .join(",")
+        .map((row) =>
+          row.map(csvCell).join(","),
         )
-        .join(
-          "\r\n"
-        ),
-
-      "text/csv;charset=utf-8"
+        .join("\r\n"),
+      "text/csv;charset=utf-8",
     );
   }
 
-
-  // ====================================================
-  // PAGE
-  // ====================================================
-
   return (
     <div className="page narrow receipt-page">
-
-      {/* =================================================
-          ACTIONS
-      ================================================= */}
-
       <div className="receipt-actions">
-
         <Link
           className="text-link"
-          to={`/orders/${encodeURIComponent(
-            order.id
-          )}`}
+          to={`/orders/${encodeURIComponent(displayId)}`}
         >
           ← Order details
         </Link>
 
-
         <div className="purchase-actions">
-
           <button
             className="button secondary"
             type="button"
-            onClick={
-              csv
-            }
+            onClick={downloadCsv}
           >
             Download CSV
           </button>
 
-
           <button
             className="button"
             type="button"
-            onClick={() =>
-              window.print()
-            }
+            onClick={() => window.print()}
           >
             Print / save PDF
           </button>
-
         </div>
-
       </div>
 
-
-      {/* =================================================
-          RECEIPT
-      ================================================= */}
-
       <article className="receipt-sheet">
-
         <div className="page-heading">
-
           <div>
-
-            <p className="eyebrow">
-              GYMDROBE
-            </p>
-
-            <h1>
-              Order receipt
-            </h1>
-
+            <p className="eyebrow">GYMDROBE</p>
+            <h1>Order receipt</h1>
           </div>
-
 
           <span
             className={`status-pill ${
-              order.status ===
-              "cancelled"
+              order.status === "cancelled"
                 ? "cancelled"
                 : ""
             }`}
           >
-            {String(
-              order.status ||
-                "confirmed"
-            ).replaceAll(
-              "-",
-              " "
-            )}
+            {formatOrderStatus(order.status)}
           </span>
-
         </div>
 
-
-        {/* =================================================
-            ORDER ID
-        ================================================= */}
-
-        <p className="order-id">
-          {order.id}
-        </p>
-
-
-        <p>
-          {new Date(
-            order.createdAt
-          ).toLocaleString(
-            "en-IN"
-          )}
-        </p>
-
-
-        {/* =================================================
-            NOTICE
-        ================================================= */}
+        <p className="order-id">{displayId}</p>
+        <p>{formatOrderDate(order.createdAt)}</p>
 
         <p className="notice">
-          {user
-            ? "This receipt is generated from your GymDrobe account order. It is an order summary, not a tax invoice or proof of payment."
-            : "This is a guest preview order summary stored on this device. It is not a tax invoice or proof of payment."}
+          {isAccountOrder
+            ? "This summary is generated from your GymDrobe account order."
+            : "This guest order summary is stored on this device."}
+          {" "}
+          It is not a tax invoice or independent
+          proof of payment.
         </p>
 
-
-        {/* =================================================
-            DELIVERY ADDRESS
-        ================================================= */}
-
-        <h2>
-          DELIVER TO
-        </h2>
-
+        <h2>DELIVER TO</h2>
 
         <p>
-          {address.fullName ||
-            address.name}
-
+          {address.fullName || address.name}
           <br />
 
-          {address.addressLine ||
-            address.address}
+          {address.addressLine || address.address}
 
           {address.landmark
             ? `, ${address.landmark}`
@@ -567,13 +235,20 @@ export default function ReceiptPage() {
 
           <br />
 
-          {address.city},{" "}
-          {address.state}{" "}
-          {address.pincode}
+          {[
+            address.city,
+            address.state,
+            address.pincode,
+          ]
+            .filter(Boolean)
+            .join(", ")}
 
-          <br />
-
-          {address.phone}
+          {address.phone && (
+            <>
+              <br />
+              {address.phone}
+            </>
+          )}
 
           {address.email && (
             <>
@@ -583,260 +258,118 @@ export default function ReceiptPage() {
           )}
         </p>
 
-
-        {/* =================================================
-            ITEMS TABLE
-        ================================================= */}
-
         <div className="comparison-scroll">
-
           <table className="data-table">
+            <caption className="muted">
+              Order items and prices in INR
+            </caption>
 
             <thead>
-
               <tr>
-
-                <th scope="col">
-                  Item
-                </th>
-
-                <th scope="col">
-                  Qty
-                </th>
-
-                <th scope="col">
-                  Unit price
-                </th>
-
-                <th scope="col">
-                  Total
-                </th>
-
+                <th scope="col">Item</th>
+                <th scope="col">Qty</th>
+                <th scope="col">Unit price</th>
+                <th scope="col">Total</th>
               </tr>
-
             </thead>
 
-
             <tbody>
-
               {(order.items || []).map(
-                (
-                  item,
-                  index
-                ) => (
+                (item, index) => (
                   <tr
-                    key={`${item.id || item.productId || item.slug || "item"}-${index}`}
+                    key={`${
+                      item.id ||
+                      item.productId ||
+                      item.slug ||
+                      "item"
+                    }-${index}`}
                   >
-
                     <td>
-
                       {item.name}
 
                       <small>
                         {[
                           item.selectedColor,
-
                           item.selectedSize &&
                             `Size ${item.selectedSize}`,
                         ]
-                          .filter(
-                            Boolean
-                          )
-                          .join(
-                            " / "
-                          )}
+                          .filter(Boolean)
+                          .join(" / ")}
                       </small>
-
                     </td>
 
-
-                    <td>
-                      {item.quantity}
-                    </td>
-
+                    <td>{item.quantity}</td>
+                    <td>{showMoney(item.price)}</td>
 
                     <td>
                       {money(
-                        item.price
+                        Number(item.price || 0) *
+                          Number(item.quantity || 0),
                       )}
                     </td>
-
-
-                    <td>
-                      {money(
-                        Number(
-                          item.price ||
-                            0
-                        ) *
-                          Number(
-                            item.quantity ||
-                              0
-                          )
-                      )}
-                    </td>
-
                   </tr>
-                )
+                ),
               )}
-
             </tbody>
-
           </table>
-
         </div>
 
-
-        {/* =================================================
-            TOTALS
-        ================================================= */}
-
         <dl className="receipt-totals">
-
           <div>
-
-            <dt>
-              Subtotal
-            </dt>
-
-            <dd>
-              {money(
-                order.pricing
-                  ?.subtotal
-              )}
-            </dd>
-
+            <dt>Subtotal</dt>
+            <dd>{showMoney(pricing.subtotal)}</dd>
           </div>
 
-
           <div>
-
-            <dt>
-              Coupon savings
-            </dt>
-
+            <dt>Coupon savings</dt>
             <dd>
-              −
-              {money(
-                order.pricing
-                  ?.couponDiscount
-              )}
+              {showMoney(pricing.couponDiscount)}
             </dd>
-
           </div>
 
-
           <div>
-
-            <dt>
-              Delivery
-            </dt>
-
-            <dd>
-              {money(
-                order.pricing
-                  ?.shipping
-              )}
-            </dd>
-
+            <dt>Delivery</dt>
+            <dd>{showMoney(pricing.shipping)}</dd>
           </div>
 
-
           <div>
-
             <dt>
-              <strong>
-                Total
-              </strong>
+              <strong>Order total</strong>
             </dt>
-
             <dd>
               <strong>
-                {money(
-                  orderTotal(
-                    order
-                  )
-                )}
+                {money(orderTotal(order))}
               </strong>
             </dd>
-
           </div>
-
         </dl>
 
-
-        {/* =================================================
-            PAYMENT
-        ================================================= */}
-
-        <p>
-          Payment:{" "}
-
-          {paymentMethod ===
-          "cod"
-            ? "Cash on delivery"
-            : paymentMethod}{" "}
-          ·{" "}
-          {paymentStatus}
-        </p>
-
-
-        {/* =================================================
-            DELIVERY METHOD
-        ================================================= */}
+        <OrderPaymentDetails order={order} />
 
         <p>
           Delivery:{" "}
-
-          {order.delivery
-            ?.label ||
-            (
-              order.deliveryMethod ===
-              "express"
-                ? "Express delivery"
-                : "Standard delivery"
-            )}
+          {order.delivery?.label ||
+            (order.deliveryMethod === "express"
+              ? "Express delivery"
+              : order.deliveryMethod === "standard"
+                ? "Standard delivery"
+                : "Not recorded")}
         </p>
-
-
-        {/* =================================================
-            GIFT MESSAGE
-        ================================================= */}
 
         {order.giftMessage && (
           <p>
-
-            <strong>
-              Gift message:
-            </strong>{" "}
-
-            {
-              order.giftMessage
-            }
-
+            <strong>Gift message:</strong>{" "}
+            {order.giftMessage}
           </p>
         )}
-
-
-        {/* =================================================
-            DELIVERY INSTRUCTIONS
-        ================================================= */}
 
         {order.orderNote && (
           <p>
-
-            <strong>
-              Delivery instructions:
-            </strong>{" "}
-
-            {
-              order.orderNote
-            }
-
+            <strong>Delivery instructions:</strong>{" "}
+            {order.orderNote}
           </p>
         )}
-
       </article>
-
     </div>
   );
 }

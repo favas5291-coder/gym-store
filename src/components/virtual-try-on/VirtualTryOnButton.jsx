@@ -25,7 +25,8 @@ export default function VirtualTryOnButton({
   onSelectionChange,
 }) {
   const [open, setOpen] = useState(false);
-  if (!catalog.products[String(product?.id)]?.enabled) return null;
+  const productId = String(product?.id ?? product?._id ?? "");
+  if (catalog.products?.[productId]?.enabled !== true) return null;
   return (
     <>
       <button

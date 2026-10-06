@@ -1,0 +1,173 @@
+.gd-home-reviews {
+  width: min(1280px, 100%);
+  margin: 0 auto;
+  padding: 48px 24px;
+}
+
+.gd-home-reviews,
+.gd-home-reviews * {
+  box-sizing: border-box;
+}
+
+.gd-home-reviews-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.gd-home-reviews-eyebrow {
+  margin: 0 0 8px;
+  color: #666;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.gd-home-reviews-heading h2 {
+  margin: 0;
+  color: #171717;
+  font-size: clamp(24px, 3vw, 34px);
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.gd-home-reviews-description {
+  margin: 12px 0 0;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.gd-home-reviews-shop {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: #171717;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.gd-home-reviews-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.gd-home-review {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 24px;
+  border: 1px solid #e7e7e7;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.gd-home-review-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.gd-home-review-rating {
+  color: #171717;
+  font-size: 16px;
+  font-weight: 750;
+}
+
+.gd-home-review-verified {
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: #eef6ef;
+  color: #28643b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.gd-home-review-comment {
+  margin: 20px 0;
+  color: #333;
+  font-size: 14px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.gd-home-review-author {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: auto;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.gd-home-review-author strong {
+  color: #171717;
+}
+
+.gd-home-review-author time {
+  color: #757575;
+  font-size: 12px;
+}
+
+.gd-home-review-product {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #ededed;
+  color: #171717;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.5;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.gd-home-reviews-shop:hover,
+.gd-home-review-product:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.gd-home-reviews a:focus-visible {
+  outline: 2px solid #171717;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+@media (max-width: 1023px) {
+  .gd-home-reviews-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 639px) {
+  .gd-home-reviews {
+    padding: 32px 16px;
+  }
+
+  .gd-home-reviews-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .gd-home-reviews-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .gd-home-review {
+    padding: 20px;
+  }
+}
