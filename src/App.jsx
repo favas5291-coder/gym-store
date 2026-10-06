@@ -1,8 +1,4 @@
-import {
-  lazy,
-  Suspense,
-  useEffect,
-} from "react";
+import { lazy, Suspense, useEffect } from "react";
 
 import {
   BrowserRouter,
@@ -19,16 +15,9 @@ import {
   trackOnce,
 } from "./utils/analytics.js";
 
-import {
-  useAuth,
-} from "./context/AuthContext.jsx";
-
-import StoreProvider, {
-  useStore,
-} from "./context/StoreContext.jsx";
-
+import { useAuth } from "./context/AuthContext.jsx";
+import StoreProvider, { useStore } from "./context/StoreContext.jsx";
 import CatalogProvider from "./context/CatalogContext.jsx";
-
 import ShoppingToolsProvider from "./context/ShoppingToolsContext.jsx";
 
 import Navbar from "./components/Navbar.jsx";
@@ -43,126 +32,94 @@ import SEOController from "./components/SEOController.jsx";
 
 import Home from "./pages/Home.jsx";
 
-// Lazy-loaded pages.
-const Shop = lazy(() =>
-  import("./pages/Shop.jsx"),
+const Shop = lazy(() => import("./pages/Shop.jsx"));
+const ProductPage = lazy(() => import("./pages/ProductPage.jsx"));
+const CartPage = lazy(() => import("./pages/CartPage.jsx"));
+const WishlistPage = lazy(() => import("./pages/WishlistPage.jsx"));
+const CheckoutPage = lazy(() => import("./pages/CheckoutPage.jsx"));
+const LoginPage = lazy(() => import("./pages/LoginPage.jsx"));
+const SignupPage = lazy(() => import("./pages/SignupPage.jsx"));
+
+const ForgotPasswordPage = lazy(
+  () => import("./pages/ForgotPasswordPage.jsx")
+);
+const ResetPasswordPage = lazy(
+  () => import("./pages/ResetPasswordPage.jsx")
 );
 
-const ProductPage = lazy(() =>
-  import("./pages/ProductPage.jsx"),
+const AccountPage = lazy(() => import("./pages/AccountPage.jsx"));
+const AddressesPage = lazy(() => import("./pages/AddressesPage.jsx"));
+const OrderSuccessPage = lazy(
+  () => import("./pages/OrderSuccessPage.jsx")
+);
+const OrdersPage = lazy(() => import("./pages/OrdersPage.jsx"));
+const OrderDetailsPage = lazy(
+  () => import("./pages/OrderDetailsPage.jsx")
+);
+const OrderTrackingPage = lazy(
+  () => import("./pages/OrderTrackingPage.jsx")
 );
 
-const CartPage = lazy(() =>
-  import("./pages/CartPage.jsx"),
+const ComparePage = lazy(() => import("./pages/ComparePage.jsx"));
+const SavedPage = lazy(() => import("./pages/SavedPage.jsx"));
+const NotificationsPage = lazy(
+  () => import("./pages/NotificationsPage.jsx")
+);
+const OffersPage = lazy(() => import("./pages/OffersPage.jsx"));
+const HelpPage = lazy(() => import("./pages/HelpPage.jsx"));
+const ReceiptPage = lazy(() => import("./pages/ReceiptPage.jsx"));
+const ReturnPage = lazy(() => import("./pages/ReturnPage.jsx"));
+const SecurityPage = lazy(() => import("./pages/SecurityPage.jsx"));
+
+const AdminSupportPage = lazy(
+  () => import("./pages/AdminSupportPage.jsx")
+);
+const AdminOrdersPage = lazy(
+  () => import("./pages/AdminOrdersPage.jsx")
+);
+const AdminProductsPage = lazy(
+  () => import("./pages/AdminProductsPage.jsx")
+);
+const AdminReturnsPage = lazy(
+  () => import("./pages/AdminReturnsPage.jsx")
 );
 
-const WishlistPage = lazy(() =>
-  import("./pages/WishlistPage.jsx"),
-);
+const StoreConsolePage = import.meta.env.DEV
+  ? lazy(() => import("./pages/StoreConsolePage.jsx"))
+  : null;
 
-const CheckoutPage = lazy(() =>
-  import("./pages/CheckoutPage.jsx"),
-);
+function SessionError() {
+  const { authError, retrySession } = useAuth();
 
-const LoginPage = lazy(() =>
-  import("./pages/LoginPage.jsx"),
-);
-
-const SignupPage = lazy(() =>
-  import("./pages/SignupPage.jsx"),
-);
-
-const AccountPage = lazy(() =>
-  import("./pages/AccountPage.jsx"),
-);
-
-const AddressesPage = lazy(() =>
-  import("./pages/AddressesPage.jsx"),
-);
-
-const OrderSuccessPage = lazy(() =>
-  import("./pages/OrderSuccessPage.jsx"),
-);
-
-const OrdersPage = lazy(() =>
-  import("./pages/OrdersPage.jsx"),
-);
-
-const OrderDetailsPage = lazy(() =>
-  import("./pages/OrderDetailsPage.jsx"),
-);
-
-const OrderTrackingPage = lazy(() =>
-  import("./pages/OrderTrackingPage.jsx"),
-);
-
-const ComparePage = lazy(() =>
-  import("./pages/ComparePage.jsx"),
-);
-
-const SavedPage = lazy(() =>
-  import("./pages/SavedPage.jsx"),
-);
-
-const NotificationsPage = lazy(() =>
-  import("./pages/NotificationsPage.jsx"),
-);
-
-const OffersPage = lazy(() =>
-  import("./pages/OffersPage.jsx"),
-);
-
-const HelpPage = lazy(() =>
-  import("./pages/HelpPage.jsx"),
-);
-
-const ReceiptPage = lazy(() =>
-  import("./pages/ReceiptPage.jsx"),
-);
-
-const ReturnPage = lazy(() =>
-  import("./pages/ReturnPage.jsx"),
-);
-
-const SecurityPage = lazy(() =>
-  import("./pages/SecurityPage.jsx"),
-);
-
-// Admin pages.
-const AdminSupportPage = lazy(() =>
-  import("./pages/AdminSupportPage.jsx"),
-);
-
-const AdminOrdersPage = lazy(() =>
-  import("./pages/AdminOrdersPage.jsx"),
-);
-
-const AdminProductsPage = lazy(() =>
-  import("./pages/AdminProductsPage.jsx"),
-);
-
-const AdminReturnsPage = lazy(() =>
-  import("./pages/AdminReturnsPage.jsx"),
-);
-
-// Development-only page.
-const StoreConsolePage =
-  import.meta.env.DEV
-    ? lazy(() =>
-        import("./pages/StoreConsolePage.jsx"),
-      )
-    : null;
+  return (
+    <div className="page narrow">
+      <h1>Unable to verify your account</h1>
+      <p className="error-box" role="alert">
+        {authError}
+      </p>
+      <button
+        type="button"
+        className="button"
+        onClick={retrySession}
+      >
+        Try again
+      </button>
+    </div>
+  );
+}
 
 function AccountRequired({ children }) {
-  const { user } = useAuth();
+  const { user, loading, authError } = useAuth();
   const location = useLocation();
+
+  if (loading) return <PageLoading />;
+  if (authError) return <SessionError />;
 
   if (!user) {
     return (
       <Navigate
         to={`/login?next=${encodeURIComponent(
-          location.pathname +
-            location.search,
+          location.pathname + location.search
         )}`}
         replace
       />
@@ -173,15 +130,17 @@ function AccountRequired({ children }) {
 }
 
 function AdminRequired({ children }) {
-  const { user } = useAuth();
+  const { user, loading, authError } = useAuth();
   const location = useLocation();
+
+  if (loading) return <PageLoading />;
+  if (authError) return <SessionError />;
 
   if (!user) {
     return (
       <Navigate
         to={`/login?next=${encodeURIComponent(
-          location.pathname +
-            location.search,
+          location.pathname + location.search
         )}`}
         replace
       />
@@ -189,9 +148,7 @@ function AdminRequired({ children }) {
   }
 
   if (user.role !== "admin") {
-    return (
-      <Navigate to="/" replace />
-    );
+    return <Navigate to="/" replace />;
   }
 
   return children;
@@ -201,10 +158,7 @@ function ScrollToTop() {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    window.scrollTo({
-      top: 0,
-      behavior: "instant",
-    });
+    window.scrollTo({ top: 0, behavior: "instant" });
   }, [pathname]);
 
   return null;
@@ -216,8 +170,7 @@ function CheckoutHeader() {
       aria-label="GymDrobe checkout"
       style={{
         background: "#fff",
-        borderBottom:
-          "1px solid #e5e7eb",
+        borderBottom: "1px solid #e5e7eb",
       }}
     >
       <div
@@ -246,14 +199,7 @@ function CheckoutHeader() {
             letterSpacing: "-1px",
           }}
         >
-          GYM
-          <span
-            style={{
-              color: "#c2410c",
-            }}
-          >
-            DROBE
-          </span>
+          GYM<span style={{ color: "#c2410c" }}>DROBE</span>
         </Link>
 
         <Link
@@ -264,8 +210,7 @@ function CheckoutHeader() {
             justifyContent: "center",
             minHeight: "44px",
             padding: "0 14px",
-            border:
-              "1px solid #d1d5db",
+            border: "1px solid #d1d5db",
             borderRadius: "6px",
             color: "#111827",
             textDecoration: "none",
@@ -273,9 +218,7 @@ function CheckoutHeader() {
             fontWeight: 600,
           }}
         >
-          <span aria-hidden="true">
-            ←&nbsp;
-          </span>
+          <span aria-hidden="true">←&nbsp;</span>
           Back to bag
         </Link>
       </div>
@@ -284,76 +227,45 @@ function CheckoutHeader() {
 }
 
 function Layout() {
-  const {
-    cart,
-    wishlist,
-    toast,
-    closeToast,
-  } = useStore();
-
+  const { cart, wishlist, toast, closeToast } = useStore();
   const { user } = useAuth();
   const location = useLocation();
 
-  const analyticsCartKey =
-    JSON.stringify(
-      cart.map((item) => [
-        item.id,
-        item.quantity,
-        item.price,
-      ]),
-    );
+  const analyticsCartKey = JSON.stringify(
+    cart.map((item) => [item.id, item.quantity, item.price])
+  );
 
   useEffect(() => {
     const currentPath =
-      location.pathname.replace(
-        /\/+$/,
-        "",
-      ) || "/";
+      location.pathname.replace(/\/+$/, "") || "/";
 
-    if (
-      currentPath !== "/cart" ||
-      !cart.length
-    ) {
-      return;
-    }
+    if (currentPath !== "/cart" || !cart.length) return;
 
     const track = () =>
       trackOnce(
         `cart:${analyticsVisitKey()}`,
         "view_cart",
-        commercePayload(cart),
+        commercePayload(cart)
       );
 
     track();
 
-    window.addEventListener(
-      "gymdrobe-analytics-ready",
-      track,
-    );
+    window.addEventListener("gymdrobe-analytics-ready", track);
 
     return () => {
-      window.removeEventListener(
-        "gymdrobe-analytics-ready",
-        track,
-      );
+      window.removeEventListener("gymdrobe-analytics-ready", track);
     };
-  }, [
-    location.pathname,
-    analyticsCartKey,
-  ]);
+  }, [location.pathname, analyticsCartKey]);
 
-  const isCheckout =
-    location.pathname.replace(
-      /\/+$/,
-      "",
-    ) === "/checkout";
+  const currentPath =
+    location.pathname.replace(/\/+$/, "") || "/";
+
+  const isCheckout = currentPath === "/checkout";
+  const isRecovery = currentPath === "/forgot-password";
 
   return (
     <>
-      <a
-        className="skip-link"
-        href="#main-content"
-      >
+      <a className="skip-link" href="#main-content">
         Skip to content
       </a>
 
@@ -366,15 +278,11 @@ function Layout() {
         <>
           <Navbar
             cartCount={cart.reduce(
-              (total, item) =>
-                total + item.quantity,
-              0,
+              (total, item) => total + Number(item.quantity || 0),
+              0
             )}
-            wishlistCount={
-              wishlist.length
-            }
+            wishlistCount={wishlist.length}
           />
-
           <StoreUtilityBar />
         </>
       )}
@@ -382,50 +290,47 @@ function Layout() {
       <main
         id="main-content"
         className="gd-storefront"
-        tabIndex="-1"
+        tabIndex={-1}
       >
-        <ErrorBoundary
-          key={location.pathname}
-        >
-          <Suspense
-            fallback={<PageLoading />}
-          >
+        <ErrorBoundary key={location.pathname}>
+          <Suspense fallback={<PageLoading />}>
             <Routes>
-              <Route
-                path="/"
-                element={<Home />}
-              />
+              <Route path="/" element={<Home />} />
+              <Route path="/shop" element={<Shop />} />
+              <Route path="/product/:id" element={<ProductPage />} />
+              <Route path="/cart" element={<CartPage />} />
+              <Route path="/wishlist" element={<WishlistPage />} />
 
               <Route
-                path="/compare"
-                element={<ComparePage />}
+                path="/checkout"
+                element={<CheckoutPage key={user?.id || "guest"} />}
               />
 
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} />
               <Route
-                path="/saved"
-                element={<SavedPage />}
+                path="/forgot-password"
+                element={<ForgotPasswordPage />}
               />
 
+              <Route path="/compare" element={<ComparePage />} />
+              <Route path="/saved" element={<SavedPage />} />
               <Route
                 path="/notifications"
-                element={
-                  <NotificationsPage />
-                }
+                element={<NotificationsPage />}
               />
-
-              <Route
-                path="/offers"
-                element={<OffersPage />}
-              />
-
+              <Route path="/offers" element={<OffersPage />} />
               <Route
                 path="/help"
+                element={<HelpPage key={user?.id || "guest"} />}
+              />
+
+              <Route
+                path="/account"
                 element={
-                  <HelpPage
-                    key={
-                      user?.id || "guest"
-                    }
-                  />
+                  <AccountRequired>
+                    <AccountPage key={user?.id} />
+                  </AccountRequired>
                 }
               />
 
@@ -433,20 +338,7 @@ function Layout() {
                 path="/account/security"
                 element={
                   <AccountRequired>
-                    <SecurityPage
-                      key={user?.id}
-                    />
-                  </AccountRequired>
-                }
-              />
-
-              <Route
-                path="/account"
-                element={
-                  <AccountRequired>
-                    <AccountPage
-                      key={user?.id}
-                    />
+                    <SecurityPage key={user?.id} />
                   </AccountRequired>
                 }
               />
@@ -455,9 +347,7 @@ function Layout() {
                 path="/addresses"
                 element={
                   <AccountRequired>
-                    <AddressesPage
-                      key={user?.id}
-                    />
+                    <AddressesPage key={user?.id} />
                   </AccountRequired>
                 }
               />
@@ -499,96 +389,33 @@ function Layout() {
               />
 
               <Route
+                path="/order-success"
+                element={<OrderSuccessPage />}
+              />
+              <Route path="/orders" element={<OrdersPage />} />
+              <Route
+                path="/orders/:orderId"
+                element={<OrderDetailsPage />}
+              />
+              <Route
+                path="/orders/:orderId/track"
+                element={<OrderTrackingPage />}
+              />
+              <Route
                 path="/orders/:orderId/receipt"
                 element={<ReceiptPage />}
               />
-
               <Route
                 path="/orders/:orderId/return"
-                element={
-                  <ReturnPage
-                    key={
-                      user?.id || "guest"
-                    }
-                  />
-                }
+                element={<ReturnPage key={user?.id || "guest"} />}
               />
 
-              {import.meta.env.DEV && (
+              {import.meta.env.DEV && StoreConsolePage && (
                 <Route
                   path="/dev/store"
-                  element={
-                    <StoreConsolePage />
-                  }
+                  element={<StoreConsolePage />}
                 />
               )}
-
-              <Route
-                path="/shop"
-                element={<Shop />}
-              />
-
-              <Route
-                path="/product/:id"
-                element={<ProductPage />}
-              />
-
-              <Route
-                path="/cart"
-                element={<CartPage />}
-              />
-
-              <Route
-                path="/wishlist"
-                element={<WishlistPage />}
-              />
-
-              <Route
-                path="/checkout"
-                element={
-                  <CheckoutPage
-                    key={
-                      user?.id || "guest"
-                    }
-                  />
-                }
-              />
-
-              <Route
-                path="/login"
-                element={<LoginPage />}
-              />
-
-              <Route
-                path="/signup"
-                element={<SignupPage />}
-              />
-
-              <Route
-                path="/order-success"
-                element={
-                  <OrderSuccessPage />
-                }
-              />
-
-              <Route
-                path="/orders"
-                element={<OrdersPage />}
-              />
-
-              <Route
-                path="/orders/:orderId"
-                element={
-                  <OrderDetailsPage />
-                }
-              />
-
-              <Route
-                path="/orders/:orderId/track"
-                element={
-                  <OrderTrackingPage />
-                }
-              />
 
               <Route
                 path="*"
@@ -598,9 +425,8 @@ function Layout() {
                     to="/"
                     label="Back to home"
                   >
-                    The link may have changed.
-                    Explore GymDrobe from the
-                    homepage.
+                    The link may have changed. Explore GymDrobe
+                    from the homepage.
                   </EmptyState>
                 }
               />
@@ -611,7 +437,7 @@ function Layout() {
 
       {!isCheckout && <Footer />}
 
-      <AnalyticsController />
+      {!isRecovery && <AnalyticsController />}
 
       <Toast
         message={toast?.message}
@@ -622,19 +448,52 @@ function Layout() {
   );
 }
 
-export default function App() {
+function StorefrontApplication() {
   const { user } = useAuth();
 
   return (
+    <StoreProvider key={user?.id || "guest"}>
+      <ShoppingToolsProvider>
+        <Layout />
+      </ShoppingToolsProvider>
+    </StoreProvider>
+  );
+}
+
+// Keep password reset outside the account-keyed shopping providers.
+// Logging out after reset must not remount the recovery page.
+function PasswordResetLayout() {
+  return (
+    <>
+      <ScrollToTop />
+      <SEOController />
+
+      <main
+        id="main-content"
+        className="gd-storefront"
+        tabIndex={-1}
+      >
+        <ErrorBoundary>
+          <Suspense fallback={<PageLoading />}>
+            <ResetPasswordPage />
+          </Suspense>
+        </ErrorBoundary>
+      </main>
+    </>
+  );
+}
+
+export default function App() {
+  return (
     <BrowserRouter>
       <CatalogProvider>
-        <StoreProvider
-          key={user?.id || "guest"}
-        >
-          <ShoppingToolsProvider>
-            <Layout />
-          </ShoppingToolsProvider>
-        </StoreProvider>
+        <Routes>
+          <Route
+            path="/reset-password"
+            element={<PasswordResetLayout />}
+          />
+          <Route path="*" element={<StorefrontApplication />} />
+        </Routes>
       </CatalogProvider>
     </BrowserRouter>
   );
