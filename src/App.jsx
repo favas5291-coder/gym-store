@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect } from "react";
-
 import {
   BrowserRouter,
   Link,
@@ -38,17 +37,11 @@ const CartPage = lazy(() => import("./pages/CartPage.jsx"));
 const WishlistPage = lazy(() => import("./pages/WishlistPage.jsx"));
 const CheckoutPage = lazy(() => import("./pages/CheckoutPage.jsx"));
 const LoginPage = lazy(() => import("./pages/LoginPage.jsx"));
-const SignupPage = lazy(() => import("./pages/SignupPage.jsx"));
-
-const ForgotPasswordPage = lazy(
-  () => import("./pages/ForgotPasswordPage.jsx")
-);
-const ResetPasswordPage = lazy(
-  () => import("./pages/ResetPasswordPage.jsx")
-);
 
 const AccountPage = lazy(() => import("./pages/AccountPage.jsx"));
 const AddressesPage = lazy(() => import("./pages/AddressesPage.jsx"));
+const SecurityPage = lazy(() => import("./pages/SecurityPage.jsx"));
+
 const OrderSuccessPage = lazy(
   () => import("./pages/OrderSuccessPage.jsx")
 );
@@ -59,6 +52,8 @@ const OrderDetailsPage = lazy(
 const OrderTrackingPage = lazy(
   () => import("./pages/OrderTrackingPage.jsx")
 );
+const ReceiptPage = lazy(() => import("./pages/ReceiptPage.jsx"));
+const ReturnPage = lazy(() => import("./pages/ReturnPage.jsx"));
 
 const ComparePage = lazy(() => import("./pages/ComparePage.jsx"));
 const SavedPage = lazy(() => import("./pages/SavedPage.jsx"));
@@ -67,9 +62,6 @@ const NotificationsPage = lazy(
 );
 const OffersPage = lazy(() => import("./pages/OffersPage.jsx"));
 const HelpPage = lazy(() => import("./pages/HelpPage.jsx"));
-const ReceiptPage = lazy(() => import("./pages/ReceiptPage.jsx"));
-const ReturnPage = lazy(() => import("./pages/ReturnPage.jsx"));
-const SecurityPage = lazy(() => import("./pages/SecurityPage.jsx"));
 
 const AdminSupportPage = lazy(
   () => import("./pages/AdminSupportPage.jsx")
@@ -94,9 +86,11 @@ function SessionError() {
   return (
     <div className="page narrow">
       <h1>Unable to verify your account</h1>
+
       <p className="error-box" role="alert">
         {authError}
       </p>
+
       <button
         type="button"
         className="button"
@@ -152,6 +146,24 @@ function AdminRequired({ children }) {
   }
 
   return children;
+}
+
+// Preserve the intended destination from old signup links.
+// Password-reset tokens and other old parameters are not forwarded.
+function LegacyLoginRedirect() {
+  const { search } = useLocation();
+  const next = new URLSearchParams(search).get("next");
+
+  return (
+    <Navigate
+      to={
+        next
+          ? `/login?next=${encodeURIComponent(next)}`
+          : "/login"
+      }
+      replace
+    />
+  );
 }
 
 function ScrollToTop() {
@@ -261,7 +273,11 @@ function Layout() {
     location.pathname.replace(/\/+$/, "") || "/";
 
   const isCheckout = currentPath === "/checkout";
-  const isRecovery = currentPath === "/forgot-password";
+
+  // Keep old recovery URLs out of analytics during their redirect.
+  const isRecovery =
+    currentPath === "/forgot-password" ||
+    currentPath === "/reset-password";
 
   return (
     <>
@@ -307,10 +323,18 @@ function Layout() {
               />
 
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/signup" element={<SignupPage />} />
+
+              <Route
+                path="/signup"
+                element={<LegacyLoginRedirect />}
+              />
               <Route
                 path="/forgot-password"
-                element={<ForgotPasswordPage />}
+                element={<LegacyLoginRedirect />}
+              />
+              <Route
+                path="/reset-password"
+                element={<LegacyLoginRedirect />}
               />
 
               <Route path="/compare" element={<ComparePage />} />
@@ -436,7 +460,6 @@ function Layout() {
       </main>
 
       {!isCheckout && <Footer />}
-
       {!isRecovery && <AnalyticsController />}
 
       <Toast
@@ -460,40 +483,11 @@ function StorefrontApplication() {
   );
 }
 
-// Keep password reset outside the account-keyed shopping providers.
-// Logging out after reset must not remount the recovery page.
-function PasswordResetLayout() {
-  return (
-    <>
-      <ScrollToTop />
-      <SEOController />
-
-      <main
-        id="main-content"
-        className="gd-storefront"
-        tabIndex={-1}
-      >
-        <ErrorBoundary>
-          <Suspense fallback={<PageLoading />}>
-            <ResetPasswordPage />
-          </Suspense>
-        </ErrorBoundary>
-      </main>
-    </>
-  );
-}
-
 export default function App() {
   return (
     <BrowserRouter>
       <CatalogProvider>
-        <Routes>
-          <Route
-            path="/reset-password"
-            element={<PasswordResetLayout />}
-          />
-          <Route path="*" element={<StorefrontApplication />} />
-        </Routes>
+        <StorefrontApplication />
       </CatalogProvider>
     </BrowserRouter>
   );

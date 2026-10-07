@@ -1,878 +1,323 @@
-import {
-  useState,
-} from "react";
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 
-import {
-  Link,
-} from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
+import { useStore } from "../context/StoreContext.jsx";
 
-import {
-  useAuth,
-} from "../context/AuthContext.jsx";
-
-import {
-  useStore,
-} from "../context/StoreContext.jsx";
-
-import {
-  getOrders,
-} from "../services/orderApi.js";
-
-import {
-  getAddresses,
-} from "../services/addressApi.js";
-
-import {
-  ticketsFor,
-} from "../utils/support.js";
-
-import {
-  downloadText,
-} from "../utils/commerce.js";
+import { getOrders } from "../services/orderApi.js";
+import { getAddresses } from "../services/addressApi.js";
+import { ticketsFor } from "../utils/support.js";
+import { downloadText } from "../utils/commerce.js";
 
 import AccountLayout from "../components/AccountLayout.jsx";
 
-
-// ======================================================
-// SECURITY PAGE
-// ======================================================
-
-export default function SecurityPage() {
-  const {
-    user,
-    token,
-    changePassword,
-  } =
-    useAuth();
-
-
-  const {
-    notify,
-  } =
-    useStore();
-
-
-  // ====================================================
-  // PASSWORD FORM
-  // ====================================================
-
-  const [
-    current,
-    setCurrent,
-  ] =
-    useState("");
-
-
-  const [
-    next,
-    setNext,
-  ] =
-    useState("");
-
-
-  const [
-    confirmation,
-    setConfirmation,
-  ] =
-    useState("");
-
-
-  const [
-    busy,
-    setBusy,
-  ] =
-    useState(
-      false
-    );
-
-
-  const [
-    error,
-    setError,
-  ] =
-    useState("");
-
-
-  const [
-    success,
-    setSuccess,
-  ] =
-    useState("");
-
-
-  // ====================================================
-  // EXPORT
-  // ====================================================
-
-  const [
-    exporting,
-    setExporting,
-  ] =
-    useState(
-      false
-    );
-
-
-  const [
-    exportError,
-    setExportError,
-  ] =
-    useState("");
-
-
-  // ====================================================
-  // CHANGE PASSWORD
-  // ====================================================
-
-  async function submit(
-    event
-  ) {
-    event.preventDefault();
-
-
-    if (
-      busy
-    ) {
-      return;
-    }
-
-
-    setError(
-      ""
-    );
-
-    setSuccess(
-      ""
-    );
-
-
-    if (
-      !current
-    ) {
-      setError(
-        "Enter your current password."
-      );
-
-      return;
-    }
-
-
-    if (
-      next.length <
-      8
-    ) {
-      setError(
-        "New password must contain at least 8 characters."
-      );
-
-      return;
-    }
-
-
-    if (
-      next.length >
-      128
-    ) {
-      setError(
-        "New password cannot exceed 128 characters."
-      );
-
-      return;
-    }
-
-
-    if (
-      current ===
-      next
-    ) {
-      setError(
-        "Choose a new password that is different from your current password."
-      );
-
-      return;
-    }
-
-
-    if (
-      next !==
-      confirmation
-    ) {
-      setError(
-        "The new passwords do not match."
-      );
-
-      return;
-    }
-
-
-    setBusy(
-      true
-    );
-
-
-    try {
-      const result =
-        await changePassword(
-          current,
-          next
-        );
-
-
-      if (
-        !result?.success
-      ) {
-        setError(
-          result?.message ||
-            "Unable to change password."
-        );
-
-        return;
-      }
-
-
-      setCurrent(
-        ""
-      );
-
-      setNext(
-        ""
-      );
-
-      setConfirmation(
-        ""
-      );
-
-
-      setError(
-        ""
-      );
-
-
-      setSuccess(
-        result.message ||
-          "Password changed successfully."
-      );
-
-
-      notify(
-        "Password changed successfully."
-      );
-
-    } catch (
-      changeError
-    ) {
-      console.error(
-        "Password change error:",
-        changeError
-      );
-
-
-      setError(
-        changeError.message ||
-          "Unable to change password."
-      );
-
-    } finally {
-      setBusy(
-        false
-      );
-    }
+// Remove authentication information if an API response
+// accidentally includes it in a nested record.
+const privateFields = new Set([
+  "password",
+  "passwordHash",
+  "passwordResetToken",
+  "passwordResetExpires",
+  "passwordResetRequestedAt",
+  "authVersion",
+  "googleId",
+  "token",
+  "accessToken",
+  "refreshToken",
+  "idToken",
+  "credential",
+  "authorization",
+]);
+
+function removePrivateData(value) {
+  if (Array.isArray(value)) {
+    return value.map(removePrivateData);
   }
 
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([key]) => !privateFields.has(key))
+        .map(([key, item]) => [key, removePrivateData(item)])
+    );
+  }
 
-  // ====================================================
-  // DOWNLOAD ACCOUNT DATA
-  // ====================================================
+  return value;
+}
+
+export default function SecurityPage() {
+  const { user, token } = useAuth();
+  const { notify } = useStore();
+
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
+  const [exportSuccess, setExportSuccess] = useState("");
+
+  const mounted = useRef(false);
+  const exportBusy = useRef(false);
+  const currentSession = useRef({ token, userId: user?.id });
+
+  currentSession.current = {
+    token,
+    userId: user?.id,
+  };
+
+  useEffect(() => {
+    mounted.current = true;
+
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   async function downloadAccountData() {
-    if (
-      exporting
-    ) {
-      return;
-    }
+    if (exportBusy.current) return;
 
-
-    if (
-      !token
-    ) {
+    if (!token || !user?.id) {
       setExportError(
         "Your sign-in session has expired. Please sign in again."
       );
-
       return;
     }
 
+    const exportToken = token;
+    const exportUser = user;
 
-    setExporting(
-      true
-    );
+    function sessionIsCurrent() {
+      return (
+        mounted.current &&
+        currentSession.current.token === exportToken &&
+        currentSession.current.userId === exportUser.id
+      );
+    }
 
-    setExportError(
-      ""
-    );
-
+    exportBusy.current = true;
+    setExporting(true);
+    setExportError("");
+    setExportSuccess("");
 
     try {
-      const [
-        orderResult,
-        addressResult,
-      ] =
+      const [orderResult, addressResult] =
         await Promise.allSettled([
-          getOrders(
-            token
-          ),
-
-          getAddresses(
-            token
-          ),
+          getOrders(exportToken),
+          getAddresses(exportToken),
         ]);
 
+      if (!sessionIsCurrent()) return;
 
-      if (
-        orderResult.status !==
-        "fulfilled"
-      ) {
+      if (orderResult.status !== "fulfilled") {
         throw new Error(
-          orderResult.reason
-            ?.message ||
+          orderResult.reason?.message ||
             "Orders could not be loaded."
         );
       }
 
-
-      if (
-        addressResult.status !==
-        "fulfilled"
-      ) {
+      if (addressResult.status !== "fulfilled") {
         throw new Error(
-          addressResult.reason
-            ?.message ||
+          addressResult.reason?.message ||
             "Addresses could not be loaded."
         );
       }
 
+      // These services are expected to return arrays.
+      // Do not silently export empty data for an invalid response.
+      if (!Array.isArray(orderResult.value)) {
+        throw new Error(
+          "The order response could not be read. Please try again."
+        );
+      }
 
-      /*
-        Build the profile manually.
+      if (!Array.isArray(addressResult.value)) {
+        throw new Error(
+          "The address response could not be read. Please try again."
+        );
+      }
 
-        Do NOT export:
-        - JWT token
-        - password
-        - password hash
-      */
+      const supportRecords = ticketsFor(exportUser);
+
+      if (!Array.isArray(supportRecords)) {
+        throw new Error(
+          "Support records could not be read. Please try again."
+        );
+      }
 
       const profile = {
-        id:
-          user?.id ||
-          null,
-
-        name:
-          user?.name ||
-          "",
-
-        email:
-          user?.email ||
-          "",
-
-        phone:
-          user?.phone ||
-          "",
-
-        role:
-          user?.role ||
-          "customer",
-
-        createdAt:
-          user?.createdAt ||
-          null,
-
-        updatedAt:
-          user?.updatedAt ||
-          null,
+        id: exportUser.id,
+        name: exportUser.name || "",
+        email: exportUser.email || "",
+        phone: exportUser.phone || "",
+        role: exportUser.role || "customer",
+        createdAt: exportUser.createdAt || null,
+        updatedAt: exportUser.updatedAt || null,
       };
 
-
-      const exportData = {
-        exportedAt:
-          new Date().toISOString(),
-
+      const exportData = removePrivateData({
+        exportedAt: new Date().toISOString(),
         profile,
+        addresses: addressResult.value,
+        orders: orderResult.value,
+        support: supportRecords,
+        exportNotes: {
+          support:
+            "Support records available through this browser's support helper.",
+        },
+      });
 
-        addresses:
-          Array.isArray(
-            addressResult.value
-          )
-            ? addressResult.value
-            : [],
-
-        orders:
-          Array.isArray(
-            orderResult.value
-          )
-            ? orderResult.value
-            : [],
-
-        /*
-          Support tickets still use the existing
-          GymDrobe support helper.
-
-          We can move support tickets to MongoDB
-          in the support/admin phase later.
-        */
-
-        support:
-          ticketsFor(
-            user
-          ),
-      };
-
+      if (!sessionIsCurrent()) return;
 
       downloadText(
         "GymDrobe-my-account.json",
-
-        JSON.stringify(
-          exportData,
-          null,
-          2
-        ),
-
+        JSON.stringify(exportData, null, 2),
         "application/json"
       );
 
-
-      notify(
-        "Account data downloaded."
+      setExportSuccess(
+        "Your account-data download has been prepared."
       );
 
-    } catch (
-      downloadError
-    ) {
-      console.error(
-        "Account export error:",
-        downloadError
-      );
-
+      notify("Your account-data download has been prepared.");
+    } catch (error) {
+      if (!sessionIsCurrent()) return;
 
       setExportError(
-        downloadError.message ||
-          "Unable to download your account data."
+        error.message || "Unable to download your account data."
       );
-
     } finally {
-      setExporting(
-        false
-      );
+      exportBusy.current = false;
+
+      if (mounted.current) {
+        setExporting(false);
+      }
     }
   }
 
+  const accountFields = [
+    ["Name", user?.name || "—"],
+    ["Email", user?.email || "—"],
+    ["Mobile", user?.phone || "Not added"],
+    [
+      "Account type",
+      user?.role === "admin" ? "Administrator" : "Customer",
+    ],
+  ];
 
   return (
-    <AccountLayout
-      title="Password & account data"
-    >
-      {/* ===============================================
-          SECURITY STATUS
-      =============================================== */}
+    <AccountLayout title="Account security & data">
+      <div className="notice">
+        <strong>Sign in to GymDrobe with Google.</strong>
 
-      <div
-        className="notice"
-      >
-        <strong>
-          Your GymDrobe account is protected by server authentication.
-        </strong>
-
-        <p
-          className="muted"
-          style={{
-            marginBottom:
-              0,
-          }}
-        >
-          Password changes are verified against your current password before the new password is saved.
+        <p className="muted" style={{ marginBottom: 0 }}>
+          Use your Google account to access your GymDrobe profile,
+          saved addresses and account orders.
         </p>
       </div>
 
+      <section className="panel" style={{ marginTop: 20 }}>
+        <p className="eyebrow">SIGN-IN & SECURITY</p>
 
-      {/* ===============================================
-          CHANGE PASSWORD
-      =============================================== */}
+        <h3>Manage your Google account</h3>
 
-      <section
-        className="panel"
-        style={{
-          marginTop:
-            "20px",
-        }}
-      >
-        <div>
-          <p
-            className="eyebrow"
-          >
-            SECURITY
-          </p>
-
-          <h3>
-            Change password
-          </h3>
-
-          <p
-            className="muted"
-          >
-            Enter your current password before choosing a new one.
-          </p>
-        </div>
-
-
-        <form
-          className="profile-form"
-          onSubmit={
-            submit
-          }
-          style={{
-            marginTop:
-              "20px",
-          }}
-        >
-          <div
-            className="field"
-          >
-            <label
-              htmlFor="current-password"
-            >
-              Current password
-            </label>
-
-            <input
-              id="current-password"
-              name="current-password"
-              type="password"
-              autoComplete="current-password"
-              required
-              maxLength="128"
-              value={
-                current
-              }
-              onChange={
-                (
-                  event
-                ) => {
-                  setCurrent(
-                    event.target
-                      .value
-                  );
-
-                  setError(
-                    ""
-                  );
-
-                  setSuccess(
-                    ""
-                  );
-                }
-              }
-            />
-          </div>
-
-
-          <div
-            className="field"
-          >
-            <label
-              htmlFor="new-password"
-            >
-              New password
-            </label>
-
-            <input
-              id="new-password"
-              name="new-password"
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength="8"
-              maxLength="128"
-              value={
-                next
-              }
-              onChange={
-                (
-                  event
-                ) => {
-                  setNext(
-                    event.target
-                      .value
-                  );
-
-                  setError(
-                    ""
-                  );
-
-                  setSuccess(
-                    ""
-                  );
-                }
-              }
-            />
-
-            <small
-              className="muted"
-            >
-              Use at least 8 characters.
-            </small>
-          </div>
-
-
-          <div
-            className="field"
-          >
-            <label
-              htmlFor="confirm-password"
-            >
-              Confirm new password
-            </label>
-
-            <input
-              id="confirm-password"
-              name="confirm-password"
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength="8"
-              maxLength="128"
-              value={
-                confirmation
-              }
-              onChange={
-                (
-                  event
-                ) => {
-                  setConfirmation(
-                    event.target
-                      .value
-                  );
-
-                  setError(
-                    ""
-                  );
-
-                  setSuccess(
-                    ""
-                  );
-                }
-              }
-            />
-          </div>
-
-
-          {error && (
-            <p
-              className="field-error"
-              role="alert"
-            >
-              {
-                error
-              }
-            </p>
-          )}
-
-
-          {success && (
-            <p
-              className="notice"
-              role="status"
-            >
-              {
-                success
-              }
-            </p>
-          )}
-
-
-          <button
-            className="button"
-            type="submit"
-            disabled={
-              busy
-            }
-          >
-            {busy
-              ? "Updating password…"
-              : "Change password"}
-          </button>
-        </form>
-      </section>
-
-
-      {/* ===============================================
-          ACCOUNT INFORMATION
-      =============================================== */}
-
-      <section
-        className="panel"
-        style={{
-          marginTop:
-            "20px",
-        }}
-      >
-        <p
-          className="eyebrow"
-        >
-          ACCOUNT
+        <p className="muted">
+          Manage your Google password, recovery options and
+          two-step verification in your Google Account settings.
+          GymDrobe does not receive your Google password.
         </p>
 
-        <h3>
-          Account information
-        </h3>
-
-
-        <div
-          style={{
-            display:
-              "grid",
-
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(220px, 1fr))",
-
-            gap:
-              "16px",
-
-            marginTop:
-              "18px",
-          }}
-        >
-          <div>
-            <small
-              className="muted"
-            >
-              Name
-            </small>
-
-            <p>
-              <strong>
-                {user?.name ||
-                  "—"}
-              </strong>
-            </p>
-          </div>
-
-
-          <div>
-            <small
-              className="muted"
-            >
-              Email
-            </small>
-
-            <p>
-              <strong>
-                {user?.email ||
-                  "—"}
-              </strong>
-            </p>
-          </div>
-
-
-          <div>
-            <small
-              className="muted"
-            >
-              Mobile
-            </small>
-
-            <p>
-              <strong>
-                {user?.phone ||
-                  "Not added"}
-              </strong>
-            </p>
-          </div>
-
-
-          <div>
-            <small
-              className="muted"
-            >
-              Account type
-            </small>
-
-            <p>
-              <strong>
-                {user?.role ===
-                "admin"
-                  ? "Administrator"
-                  : "Customer"}
-              </strong>
-            </p>
-          </div>
-        </div>
-
-
-        <Link
-          to="/account"
+        <a
+          href="https://myaccount.google.com/security"
+          target="_blank"
+          rel="noopener noreferrer"
           className="button secondary"
         >
+          Open Google security settings
+          <span className="sr-only"> (opens in a new tab)</span>
+        </a>
+
+        <p className="muted" style={{ marginTop: 16 }}>
+          Make sure you select the Google account you use to
+          sign in to GymDrobe.
+        </p>
+      </section>
+
+      <section className="panel" style={{ marginTop: 20 }}>
+        <p className="eyebrow">ACCOUNT</p>
+
+        <h3>Account information</h3>
+
+        <dl
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(min(220px, 100%), 1fr))",
+            gap: 16,
+            marginTop: 18,
+          }}
+        >
+          {accountFields.map(([label, value]) => (
+            <div key={label} style={{ minWidth: 0 }}>
+              <dt className="muted">{label}</dt>
+
+              <dd
+                style={{
+                  margin: "8px 0 0",
+                  fontWeight: 700,
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+
+        <Link to="/account" className="button secondary">
           Edit profile
         </Link>
       </section>
 
-
-      {/* ===============================================
-          ACCOUNT DATA EXPORT
-      =============================================== */}
-
       <section
         className="panel account-export"
-        style={{
-          marginTop:
-            "20px",
-        }}
+        style={{ marginTop: 20 }}
+        aria-busy={exporting}
       >
-        <p
-          className="eyebrow"
-        >
-          YOUR DATA
+        <p className="eyebrow">YOUR DATA</p>
+
+        <h3>Download account data</h3>
+
+        <p className="muted">
+          Download a JSON copy of your GymDrobe profile,
+          saved addresses and orders, along with support records
+          available in this browser.
         </p>
 
-        <h3>
-          Download account data
-        </h3>
-
-
-        <p
-          className="muted"
-        >
-          Download a JSON copy of your GymDrobe profile, saved addresses, orders and current support records.
+        <p className="muted">
+          Passwords and sign-in tokens are excluded. This file
+          contains personal information, so keep it private.
         </p>
-
-
-        <p
-          className="muted"
-        >
-          Your password, password hash and authentication token are not included.
-        </p>
-
 
         {exportError && (
-          <p
-            className="field-error"
-            role="alert"
-          >
-            {
-              exportError
-            }
+          <p className="field-error" role="alert">
+            {exportError}
           </p>
         )}
 
+        {exportSuccess && (
+          <p className="notice" role="status">
+            {exportSuccess}
+          </p>
+        )}
+
+        {exporting && (
+          <p className="muted" role="status">
+            Preparing your account data…
+          </p>
+        )}
 
         <button
           className="button secondary"
           type="button"
-          disabled={
-            exporting
-          }
-          onClick={
-            downloadAccountData
-          }
+          disabled={exporting}
+          onClick={downloadAccountData}
         >
           {exporting
             ? "Preparing download…"
@@ -880,87 +325,38 @@ export default function SecurityPage() {
         </button>
       </section>
 
+      <section className="panel" style={{ marginTop: 20 }}>
+        <p className="eyebrow">ACCOUNT HELP</p>
 
-      {/* ===============================================
-          ACCOUNT SECURITY STATUS
-      =============================================== */}
+        <h3>Need help accessing your account?</h3>
 
-      <section
-        className="panel"
-        style={{
-          marginTop:
-            "20px",
-        }}
-      >
-        <p
-          className="eyebrow"
-        >
-          SECURITY STATUS
+        <p className="muted">
+          For Google sign-in or password recovery, use Google's
+          account recovery page. For GymDrobe orders or profile
+          questions, contact our support team.
         </p>
-
-        <h3>
-          Current protection
-        </h3>
-
 
         <div
           style={{
-            display:
-              "grid",
-
-            gap:
-              "10px",
-
-            marginTop:
-              "16px",
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 12,
           }}
         >
-          <p>
-            ✓ Passwords are hashed before being stored.
-          </p>
+          <a
+            href="https://accounts.google.com/signin/recovery"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="button secondary"
+          >
+            Google account recovery
+            <span className="sr-only"> (opens in a new tab)</span>
+          </a>
 
-          <p>
-            ✓ Current password is required before changing your password.
-          </p>
-
-          <p>
-            ✓ Profile and order APIs require authentication.
-          </p>
-
-          <p>
-            ✓ Password information is excluded from account-data downloads.
-          </p>
+          <Link to="/help" className="button secondary">
+            GymDrobe support
+          </Link>
         </div>
-      </section>
-
-
-      {/* ===============================================
-          FUTURE SECURITY FEATURES
-      =============================================== */}
-
-      <section
-        className="panel"
-        style={{
-          marginTop:
-            "20px",
-        }}
-      >
-        <p
-          className="eyebrow"
-        >
-          COMING LATER
-        </p>
-
-        <h3>
-          Additional account security
-        </h3>
-
-
-        <p
-          className="muted"
-        >
-          Before the production launch, we will also add password recovery, email verification and stronger production session security.
-        </p>
       </section>
     </AccountLayout>
   );

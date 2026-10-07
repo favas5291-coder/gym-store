@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-
 import {
   Link,
   Navigate,
@@ -11,24 +10,27 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { getGoogleChallenge } from "../services/authApi.js";
 import { safeNext } from "../utils/storage.js";
 
-const GOOGLE_CLIENT_ID =
+const GOOGLE_CLIENT_ID = (
   import.meta.env.VITE_GOOGLE_CLIENT_ID ||
-  "1098658899656-34u0lfqcfucgf8dgq0c9oag6q673mtnu.apps.googleusercontent.com";
+  "1098658899656-34u0lfqcfucgf8dgq0c9oag6q673mtnu.apps.googleusercontent.com"
+).trim();
 
 let googleScriptPromise;
 
-function loadGoogleScript() {
-  if (window.google?.accounts?.id) {
-    return Promise.resolve();
-  }
+function scriptError(message, code) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
 
-  if (googleScriptPromise) {
-    return googleScriptPromise;
-  }
+function loadGoogleScript() {
+  if (window.google?.accounts?.id) return Promise.resolve();
+  if (googleScriptPromise) return googleScriptPromise;
 
   googleScriptPromise = new Promise((resolve, reject) => {
     const id = "gymdrobe-google-identity";
     let script = document.getElementById(id);
+    let settled = false;
 
     if (!script) {
       script = document.createElement("script");
@@ -39,10 +41,18 @@ function loadGoogleScript() {
     }
 
     const timer = setTimeout(() => {
-      finish(new Error("Google sign-in took too long to load. Please retry."));
+      finish(
+        scriptError(
+          "Google sign-in took too long to load.",
+          "GOOGLE_SCRIPT_TIMEOUT"
+        )
+      );
     }, 20000);
 
     function finish(error) {
+      if (settled) return;
+      settled = true;
+
       clearTimeout(timer);
       script.removeEventListener("load", onLoad);
       script.removeEventListener("error", onError);
@@ -59,14 +69,20 @@ function loadGoogleScript() {
       if (window.google?.accounts?.id) {
         finish();
       } else {
-        finish(new Error("Google sign-in could not load. Please retry."));
+        finish(
+          scriptError(
+            "Google sign-in could not load.",
+            "GOOGLE_SCRIPT_FAILED"
+          )
+        );
       }
     }
 
     function onError() {
       finish(
-        new Error(
-          "Unable to load Google sign-in. Check your connection and retry."
+        scriptError(
+          "Your browser could not load Google sign-in.",
+          "GOOGLE_SCRIPT_FAILED"
         )
       );
     }
@@ -74,15 +90,133 @@ function loadGoogleScript() {
     script.addEventListener("load", onLoad);
     script.addEventListener("error", onError);
 
-    if (!script.isConnected) {
-      document.head.appendChild(script);
-    }
+    if (!script.isConnected) document.head.appendChild(script);
   }).catch((error) => {
     googleScriptPromise = undefined;
     throw error;
   });
 
   return googleScriptPromise;
+}
+
+function describeError(error) {
+  const code =
+    error.code ||
+    (error.status === 429
+      ? "TOO_MANY_ATTEMPTS"
+      : error.status >= 500
+        ? "SERVICE_UNAVAILABLE"
+        : "REQUEST_FAILED");
+
+  const descriptions = {
+    OFFLINE: [
+      "You appear to be offline",
+      "Reconnect to Wi-Fi or mobile data, then try again.",
+    ],
+    CONNECTION_FAILED: [
+      "Could not reach GymDrobe",
+      "Check your connection and retry. If other websites work, GymDrobe may be temporarily unavailable.",
+    ],
+    REQUEST_TIMEOUT: [
+      "Sign-in took too long",
+      "The server did not respond in time. Wait a moment, then restart Google sign-in.",
+    ],
+    GOOGLE_SCRIPT_TIMEOUT: [
+      "Google sign-in took too long to load",
+      "Check your connection, then retry.",
+    ],
+    GOOGLE_SCRIPT_FAILED: [
+      "Google sign-in could not load",
+      "Retry in Chrome or Safari. If needed, check whether a browser extension is blocking Google sign-in.",
+    ],
+    SIGNIN_EXPIRED: [
+      "Your sign-in attempt expired",
+      "Restart Google sign-in and select your account again.",
+    ],
+    SIGNIN_RESTART_REQUIRED: [
+      "Start a new sign-in attempt",
+      "Restart Google sign-in to continue.",
+    ],
+    GOOGLE_VERIFICATION_FAILED: [
+      "Google sign-in could not be verified",
+      "Restart Google sign-in. If this continues, contact GymDrobe support.",
+    ],
+    GOOGLE_EMAIL_UNVERIFIED: [
+      "Your Google email is not verified",
+      "Verify your email with Google or choose a verified Google account.",
+    ],
+    GOOGLE_EMAIL_INVALID: [
+      "A usable email address is required",
+      "Choose another Google account or contact support.",
+    ],
+    ACCOUNT_DISABLED: [
+      "Your GymDrobe account is disabled",
+      "Contact GymDrobe support for help accessing this account.",
+    ],
+    GOOGLE_ACCOUNT_CONFLICT: [
+      "Use your linked Google account",
+      "This GymDrobe account is linked to another Google account. Choose that account or contact support.",
+    ],
+    ACCOUNT_LINK_REQUIRED: [
+      "Connect your existing account",
+      error.message ||
+        "Enter your existing GymDrobe password once to connect Google.",
+    ],
+    ACCOUNT_CHANGED: [
+      "Your account changed during sign-in",
+      "Restart Google sign-in to continue.",
+    ],
+    LOGIN_UNAVAILABLE: [
+      "Google sign-in is temporarily unavailable",
+      "Please try again later. If this continues, contact GymDrobe support.",
+    ],
+    GOOGLE_UNAVAILABLE: [
+      "Google verification is temporarily unavailable",
+      "Please wait a moment, then try again.",
+    ],
+    SERVICE_UNAVAILABLE: [
+      "GymDrobe is temporarily unavailable",
+      "Please try again later or contact support.",
+    ],
+    INVALID_RESPONSE: [
+      "Sign-in could not be completed",
+      "GymDrobe returned an unexpected response. Retry or contact support.",
+    ],
+    ACCOUNT_DATA_INVALID: [
+      "Your account could not be saved",
+      "Contact GymDrobe support for help.",
+    ],
+    SESSION_EXPIRED: [
+      "Please sign in again",
+      "Your previous session has expired.",
+    ],
+    TOO_MANY_ATTEMPTS: [
+      "Too many sign-in attempts",
+      error.retryAfterSeconds > 0
+        ? `Please wait about ${Math.ceil(
+            error.retryAfterSeconds / 60
+          )} minute(s) before trying again.`
+        : "Please wait a few minutes before trying again.",
+    ],
+  };
+
+  const [title, message] = descriptions[code] || [
+    "Sign-in could not be completed",
+    error.message || "Please retry or contact GymDrobe support.",
+  ];
+
+  return { code, title, message };
+}
+
+function ErrorNotice({ error }) {
+  if (!error) return null;
+
+  return (
+    <div className="error-box" role="alert">
+      <strong>{error.title}</strong>
+      <p style={{ marginBottom: 0 }}>{error.message}</p>
+    </div>
+  );
 }
 
 export default function AuthForm() {
@@ -106,7 +240,7 @@ export default function AuthForm() {
 
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(null);
   const [attempt, setAttempt] = useState(0);
   const [linkRequired, setLinkRequired] = useState(false);
   const [password, setPassword] = useState("");
@@ -126,7 +260,7 @@ export default function AuthForm() {
 
     submitting.current = true;
     setBusy(true);
-    setError("");
+    setError(null);
 
     try {
       await googleLogin(credentials);
@@ -139,6 +273,8 @@ export default function AuthForm() {
     } catch (loginError) {
       if (!mounted.current) return;
 
+      setError(describeError(loginError));
+
       if (loginError.code === "ACCOUNT_LINK_REQUIRED") {
         pendingCredentials.current = {
           credential: credentials.credential,
@@ -146,43 +282,31 @@ export default function AuthForm() {
         };
 
         setLinkRequired(true);
-        setPassword("");
-        setError(loginError.message);
       } else {
-        setError(loginError.message || "Unable to sign in.");
-
-        // Verification failures require a fresh Google attempt.
-        if (
-          loginError.status === 401 ||
-          loginError.status === 400
-        ) {
-          pendingCredentials.current = null;
-          setLinkRequired(false);
-          setPassword("");
-          setAttempt((value) => value + 1);
-        }
+        pendingCredentials.current = null;
+        setLinkRequired(false);
       }
+
+      setPassword("");
+      setVisible(false);
     } finally {
       submitting.current = false;
 
-      if (mounted.current) {
-        setBusy(false);
-      }
+      if (mounted.current) setBusy(false);
     }
   }
 
   callbackRef.current = completeLogin;
 
   useEffect(() => {
-    if (authLoading || authError || user || linkRequired) {
-      return;
-    }
+    if (authLoading || authError || user || linkRequired) return;
 
     let cancelled = false;
     const controller = new AbortController();
     let expiryTimer;
 
     setReady(false);
+    buttonRef.current?.replaceChildren();
 
     async function prepareGoogle() {
       try {
@@ -203,7 +327,16 @@ export default function AuthForm() {
           ux_mode: "popup",
 
           callback(response) {
-            if (cancelled || !response.credential) return;
+            if (cancelled) return;
+
+            if (!response.credential) {
+              setError({
+                code: "GOOGLE_VERIFICATION_FAILED",
+                title: "Google did not complete sign-in",
+                message: "Please restart Google sign-in and select your account.",
+              });
+              return;
+            }
 
             callbackRef.current({
               credential: response.credential,
@@ -214,7 +347,10 @@ export default function AuthForm() {
 
         const width = Math.max(
           200,
-          Math.min(400, Math.floor(container.getBoundingClientRect().width))
+          Math.min(
+            400,
+            Math.floor(container.getBoundingClientRect().width)
+          )
         );
 
         window.google.accounts.id.renderButton(container, {
@@ -229,7 +365,6 @@ export default function AuthForm() {
 
         setReady(true);
 
-        // Refresh before the backend challenge expires.
         expiryTimer = setTimeout(() => {
           if (!cancelled && !submitting.current) {
             setAttempt((value) => value + 1);
@@ -239,9 +374,7 @@ export default function AuthForm() {
         if (cancelled || setupError.name === "AbortError") return;
 
         setReady(false);
-        setError(
-          setupError.message || "Google sign-in is temporarily unavailable."
-        );
+        setError(describeError(setupError));
       }
     }
 
@@ -261,7 +394,7 @@ export default function AuthForm() {
     setLinkRequired(false);
     setPassword("");
     setVisible(false);
-    setError("");
+    setError(null);
     setReady(false);
     setAttempt((value) => value + 1);
   }
@@ -275,7 +408,11 @@ export default function AuthForm() {
     }
 
     if (!password) {
-      setError("Enter your existing GymDrobe password.");
+      setError({
+        code: "ACCOUNT_LINK_REQUIRED",
+        title: "Your existing password is required",
+        message: "Enter your old GymDrobe password to connect this account.",
+      });
       return;
     }
 
@@ -314,12 +451,18 @@ export default function AuthForm() {
               className="button full"
               onClick={retrySession}
             >
-              Try again
+              Retry session check
             </button>
 
             <p>
               <Link className="text-link" to="/shop">
                 Continue shopping
+              </Link>
+            </p>
+
+            <p>
+              <Link className="text-link" to="/help">
+                Contact GymDrobe support
               </Link>
             </p>
           </div>
@@ -328,9 +471,7 @@ export default function AuthForm() {
     );
   }
 
-  if (user) {
-    return <Navigate to={next} replace />;
-  }
+  if (user) return <Navigate to={next} replace />;
 
   return (
     <div className="auth-page">
@@ -366,7 +507,7 @@ export default function AuthForm() {
                 inert={busy ? true : undefined}
               />
 
-              {!ready && !error && (
+              {!ready && !error && !busy && (
                 <p className="muted" role="status">
                   Preparing Google sign-in…
                 </p>
@@ -379,8 +520,9 @@ export default function AuthForm() {
               <h3>Connect your existing account</h3>
 
               <p className="muted">
-                Enter your old GymDrobe password once to keep your existing
-                orders and account details. After linking, use Google to sign in.
+                Enter your old GymDrobe password once to keep your
+                existing orders and account details. After connecting,
+                use Google to sign in.
               </p>
 
               <div className="field">
@@ -397,7 +539,15 @@ export default function AuthForm() {
                     required
                     disabled={busy}
                     value={password}
-                    onChange={(event) => setPassword(event.target.value)}
+                    aria-invalid={
+                      error?.code === "ACCOUNT_LINK_REQUIRED"
+                        ? true
+                        : undefined
+                    }
+                    onChange={(event) => {
+                      setPassword(event.target.value);
+                      setError(null);
+                    }}
                   />
 
                   <button
@@ -428,11 +578,7 @@ export default function AuthForm() {
             </p>
           )}
 
-          {error && (
-            <p className="error-box" role="alert">
-              {error}
-            </p>
-          )}
+          <ErrorNotice error={error} />
 
           {(error || linkRequired) && (
             <button
@@ -452,6 +598,12 @@ export default function AuthForm() {
           <p>
             <Link className="text-link" to="/shop">
               Continue shopping
+            </Link>
+          </p>
+
+          <p>
+            <Link className="text-link" to="/help">
+              Need help? Contact GymDrobe support
             </Link>
           </p>
         </div>

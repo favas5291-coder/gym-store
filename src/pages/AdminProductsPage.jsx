@@ -1,28 +1,41 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+
 import { useAuth } from "../context/AuthContext.jsx";
 import { useCatalog } from "../context/CatalogContext.jsx";
+
 import {
   getAdminProducts,
+  getAdminProductById,
   createProduct,
   updateProduct,
-  updateProductInventory,
   archiveProduct,
   restoreProduct,
 } from "../services/productApi.js";
+
+import categories from "../data/categories";
 import { ProductImage } from "../components/StorefrontShared.jsx";
 import { money, getDiscountedPrice } from "../utils/productPricing.js";
+
 import "./AdminProductsPage.css";
+
 const PAGE_SIZE = 25;
-const EMPTY_DRAFT = {
+
+const API_URL = (
+  import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+)
+  .trim()
+  .replace(/\/+$/, "");
+
+const EMPTY = {
   id: "",
-  _id: "",
+  productCode: "",
+  sku: "",
   name: "",
   slug: "",
-  sku: "",
   category: "",
   subcategory: "",
-  brand: "GymDrobe",
+  brand: "",
   gender: "Unisex",
   price: "",
   discount: "0",
@@ -41,113 +54,66 @@ const EMPTY_DRAFT = {
   specificationsText: "",
   stock: "0",
   variants: {},
+  variantSkus: [],
   isFeatured: false,
   isBestSeller: false,
   isNew: false,
   isActive: true,
   deliveryAvailable: true,
-  estimatedDays: "3–7 business days",
+  estimatedDays: "",
   freeDeliveryAbove: "500",
 };
-function productId(product) {
-  return product?._id || product?.id || product?.slug || "";
+
+function unique(values) {
+  const seen = new Set();
+
+  return values.filter((value) => {
+    if (typeof value !== "string" || !value.trim()) return false;
+
+    const key = value.trim().toLowerCase();
+
+    if (seen.has(key)) return false;
+
+    seen.add(key);
+    return true;
+  });
 }
-function splitComma(value) {
-  return String(value || "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
+
+function commas(value) {
+  return unique(
+    String(value || "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+  );
 }
-function splitLines(value) {
+
+function lines(value) {
   return String(value || "")
     .split(/\r?\n/)
     .map((item) => item.trim())
     .filter(Boolean);
 }
-function joinComma(value) {
-  return Array.isArray(value) ? value.join(", ") : "";
+
+function idFor(product) {
+  return product?._id || product?.id || product?.slug || "";
 }
-function joinLines(value) {
-  return Array.isArray(value) ? value.join("\n") : "";
-}
-function safeNumber(value, fallback = 0) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : fallback;
-}
-function stockLabel(status) {
-  const labels = {
-    "in-stock": "In stock",
-    "low-stock": "Low stock",
-    "out-of-stock": "Out of stock",
-  };
-  return labels[status] || "Unknown";
-}
-function formatDate(value) {
-  if (!value) {
-    return "";
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-  return date.toLocaleString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-function parseSpecifications(value) {
-  const result = {};
-  const lines = splitLines(value);
-  for (const line of lines) {
-    const index = line.indexOf(":");
-    if (index === -1) {
-      continue;
-    }
-    const key = line.slice(0, index).trim();
-    const itemValue = line.slice(index + 1).trim();
-    if (key) {
-      result[key] = itemValue;
-    }
-  }
-  return result;
-}
-function stringifySpecifications(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return "";
-  }
-  return Object.entries(value)
-    .map(([key, itemValue]) => `${key}: ${String(itemValue ?? "")}`)
-    .join("\n");
-}
-function cloneVariants(value) {
-  if (!value || typeof value !== "object") {
-    return {};
-  }
-  try {
-    return structuredClone(value);
-  } catch {
-    return JSON.parse(JSON.stringify(value));
-  }
-}
-function makeDraft(product) {
+
+function draftFor(product) {
   if (!product) {
-    return {
-      ...EMPTY_DRAFT,
-      variants: {},
-    };
+    return { ...EMPTY, variants: {}, variantSkus: [] };
   }
+
   return {
-    id: product.id || product._id || "",
-    _id: product._id || product.id || "",
+    ...EMPTY,
+    id: idFor(product),
+    productCode: product.productCode || "",
+    sku: product.sku || "",
     name: product.name || "",
     slug: product.slug || "",
-    sku: product.sku || "",
     category: product.category || "",
     subcategory: product.subcategory || "",
-    brand: product.brand || "GymDrobe",
+    brand: product.brand || "",
     gender: product.gender || "Unisex",
     price: String(product.price ?? ""),
     discount: String(product.discount ?? 0),
@@ -157,266 +123,250 @@ function makeDraft(product) {
     whatsIncluded: product.whatsIncluded || "",
     returnPolicy: product.returnPolicy || "",
     image: product.image || "",
-    imagesText: joinLines(product.images),
-    tagsText: joinComma(product.tags),
-    highlightsText: joinLines(product.highlights),
-    careInstructionsText: joinLines(product.careInstructions),
-    sizesText: joinComma(product.sizes),
-    colorsText: joinComma(product.colors),
-    specificationsText: stringifySpecifications(product.specifications),
+    imagesText: (product.images || []).join("\n"),
+    tagsText: (product.tags || []).join(", "),
+    highlightsText: (product.highlights || []).join("\n"),
+    careInstructionsText: (product.careInstructions || []).join("\n"),
+    sizesText: (product.sizes || []).join(", "),
+    colorsText: (product.colors || []).join(", "),
+    specificationsText: Object.entries(
+      product.specifications || {}
+    )
+      .map(([key, value]) => `${key}: ${String(value ?? "")}`)
+      .join("\n"),
     stock: String(product.stock ?? 0),
-    variants: cloneVariants(product.variants),
+    variants: JSON.parse(JSON.stringify(product.variants || {})),
+    variantSkus: product.variantSkus || [],
     isFeatured: Boolean(product.isFeatured),
     isBestSeller: Boolean(product.isBestSeller),
-    isNew: Boolean(product.isNew),
+    isNew: Boolean(product.isNew ?? product.isNewArrival),
     isActive: product.isActive !== false,
     deliveryAvailable: product.delivery?.available !== false,
     estimatedDays: product.delivery?.estimatedDays || "",
-    freeDeliveryAbove: String(product.delivery?.freeDeliveryAbove ?? 500),
+    freeDeliveryAbove: String(
+      product.delivery?.freeDeliveryAbove ?? 500
+    ),
   };
 }
-function buildVariants(draft) {
-  const colors = splitComma(draft.colorsText);
-  const sizes = splitComma(draft.sizesText);
-  const previous =
-    draft.variants && typeof draft.variants === "object" ? draft.variants : {};
-  function quantity(value) {
-    return Math.max(0, Math.floor(safeNumber(value, 0)));
+
+function optionRows(draft) {
+  const colors = commas(draft.colorsText);
+  const sizes = commas(draft.sizesText);
+
+  if (colors.length) {
+    return colors.flatMap((color) =>
+      (sizes.length ? sizes : [""]).map((size) => ({
+        color,
+        size,
+      }))
+    );
   }
-  if (colors.length === 0 && sizes.length === 0) {
-    return null;
-  }
-  const variants = {};
-  if (colors.length > 0 && sizes.length > 0) {
-    for (const color of colors) {
-      variants[color] = {};
-      for (const size of sizes) {
-        variants[color][size] = quantity(previous?.[color]?.[size]);
-      }
-    }
-    return variants;
-  }
-  if (colors.length > 0) {
-    for (const color of colors) {
-      variants[color] = {
-        default: quantity(previous?.[color]?.default),
-      };
-    }
-    return variants;
-  }
-  for (const size of sizes) {
-    variants[size] = quantity(previous?.[size]);
-  }
-  return variants;
+
+  return (sizes.length ? sizes : [""]).map((size) => ({
+    color: "",
+    size,
+  }));
 }
-function buildProductPayload(draft, { creating = false } = {}) {
-  const variants = buildVariants(draft);
+
+function quantityFor(draft, color, size) {
+  if (color) {
+    return draft.variants?.[color]?.[size || "default"] ?? 0;
+  }
+
+  if (size) return draft.variants?.[size] ?? 0;
+
+  return draft.stock;
+}
+
+function totalStock(draft) {
+  return optionRows(draft).reduce((sum, row) => {
+    const quantity = Number(quantityFor(draft, row.color, row.size));
+
+    return sum + (Number.isFinite(quantity) ? quantity : 0);
+  }, 0);
+}
+
+function buildVariants(draft) {
+  const result = {};
+
+  for (const { color, size } of optionRows(draft)) {
+    if (!color && !size) continue;
+
+    const quantity = Number(quantityFor(draft, color, size));
+
+    if (color) {
+      if (!Object.prototype.hasOwnProperty.call(result, color)) {
+        Object.defineProperty(result, color, {
+          value: {},
+          writable: true,
+          enumerable: true,
+          configurable: true,
+        });
+      }
+
+      Object.defineProperty(result[color], size || "default", {
+        value: quantity,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      });
+    } else {
+      Object.defineProperty(result, size, {
+        value: quantity,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      });
+    }
+  }
+
+  return result;
+}
+
+function validateDraft(draft) {
+  if (draft.name.trim().length < 2) {
+    return "Enter a product name with at least two characters.";
+  }
+
+  if (!draft.category.trim()) return "Choose a category.";
+  if (!draft.brand.trim()) return "Choose the actual product brand.";
+
+  if (
+    draft.price === "" ||
+    !Number.isFinite(Number(draft.price)) ||
+    Number(draft.price) < 0
+  ) {
+    return "Enter a valid original price.";
+  }
+
+  if (
+    draft.discount === "" ||
+    !Number.isFinite(Number(draft.discount)) ||
+    Number(draft.discount) < 0 ||
+    Number(draft.discount) > 100
+  ) {
+    return "Discount must be between 0 and 100%.";
+  }
+
+  const options = [
+    ...commas(draft.colorsText),
+    ...commas(draft.sizesText),
+  ];
+
+  if (
+    options.some(
+      (value) =>
+        ["__proto__", "constructor", "prototype"].includes(value) ||
+        value.startsWith("$") ||
+        value.includes(".")
+    )
+  ) {
+    return "Size and colour names cannot contain dots, start with $, or use reserved names.";
+  }
+
+  if (
+    commas(draft.colorsText).length > 50 ||
+    commas(draft.sizesText).length > 50
+  ) {
+    return "Use no more than 50 sizes or 50 colours.";
+  }
+
+  for (const row of optionRows(draft)) {
+    const value = quantityFor(draft, row.color, row.size);
+    const quantity = Number(value);
+
+    if (
+      value === "" ||
+      !Number.isSafeInteger(quantity) ||
+      quantity < 0 ||
+      quantity > 1000000
+    ) {
+      return `Enter a whole stock quantity from 0 to 1,000,000 for ${
+        [row.color, row.size].filter(Boolean).join(" / ") ||
+        "this product"
+      }.`;
+    }
+  }
+
+  for (const line of lines(draft.specificationsText)) {
+    const separator = line.indexOf(":");
+    const name = line.slice(0, separator).trim();
+
+    if (
+      separator < 1 ||
+      !name ||
+      ["__proto__", "constructor", "prototype"].includes(name) ||
+      name.startsWith("$") ||
+      name.includes(".")
+    ) {
+      return "Write specifications as Name: Value, one per line, using valid names.";
+    }
+  }
+
+  if (
+    draft.freeDeliveryAbove === "" ||
+    !Number.isFinite(Number(draft.freeDeliveryAbove)) ||
+    Number(draft.freeDeliveryAbove) < 0
+  ) {
+    return "Enter a valid free delivery threshold.";
+  }
+
+  return "";
+}
+
+function payloadFor(draft) {
+  const specifications = Object.fromEntries(
+    lines(draft.specificationsText).map((line) => {
+      const separator = line.indexOf(":");
+
+      return [
+        line.slice(0, separator).trim(),
+        line.slice(separator + 1).trim(),
+      ];
+    })
+  );
+
   const payload = {
     name: draft.name.trim(),
-    sku: draft.sku.trim().toUpperCase(),
     category: draft.category.trim(),
     subcategory: draft.subcategory.trim(),
-    brand: draft.brand.trim() || "GymDrobe",
-    gender: draft.gender.trim() || "Unisex",
-    price: safeNumber(draft.price),
-    discount: safeNumber(draft.discount),
+    brand: draft.brand.trim(),
+    gender: draft.gender,
+    price: Number(draft.price),
+    discount: Number(draft.discount),
     badge: draft.badge.trim(),
     description: draft.description.trim(),
     material: draft.material.trim(),
     whatsIncluded: draft.whatsIncluded.trim(),
     returnPolicy: draft.returnPolicy.trim(),
     image: draft.image.trim(),
-    images: splitLines(draft.imagesText),
-    tags: splitComma(draft.tagsText),
-    highlights: splitLines(draft.highlightsText),
-    careInstructions: splitLines(draft.careInstructionsText),
-    sizes: splitComma(draft.sizesText),
-    colors: splitComma(draft.colorsText),
-    specifications: parseSpecifications(draft.specificationsText),
-    isFeatured: Boolean(draft.isFeatured),
-    isBestSeller: Boolean(draft.isBestSeller),
-    isNew: Boolean(draft.isNew),
-    isActive: Boolean(draft.isActive),
+    images: lines(draft.imagesText),
+    tags: commas(draft.tagsText),
+    highlights: lines(draft.highlightsText),
+    careInstructions: lines(draft.careInstructionsText),
+    sizes: commas(draft.sizesText),
+    colors: commas(draft.colorsText),
+    specifications,
+    variants: buildVariants(draft),
+    isFeatured: draft.isFeatured,
+    isBestSeller: draft.isBestSeller,
+    isNew: draft.isNew,
+    isActive: draft.isActive,
     delivery: {
-      available: Boolean(draft.deliveryAvailable),
+      available: draft.deliveryAvailable,
       estimatedDays: draft.estimatedDays.trim() || null,
-      freeDeliveryAbove: Math.max(0, safeNumber(draft.freeDeliveryAbove, 500)),
+      freeDeliveryAbove: Number(draft.freeDeliveryAbove),
     },
   };
-  if (draft.slug.trim()) {
-    payload.slug = draft.slug.trim();
+
+  if (!payload.colors.length && !payload.sizes.length) {
+    payload.stock = Number(draft.stock);
   }
-  if (variants) {
-    payload.variants = variants;
-  } else {
-    payload.variants = {};
-    payload.stock = Math.max(0, Math.floor(safeNumber(draft.stock)));
-  }
-  if (creating) {
-    delete payload.isActive;
-    payload.isActive = true;
-  }
+
+  if (draft.slug.trim()) payload.slug = draft.slug.trim();
+
   return payload;
 }
-
-const SECTIONS = [
-  {
-    id: "basic",
-    title: "1. Basic details",
-    help: "Start with the name, category and your unique product code.",
-    fields: [
-      ["name", "Product name", "Training T-shirt", "text", true],
-      [
-        "sku",
-        "Product code (SKU)",
-        "GD-TSHIRT-001",
-        "text",
-        true,
-        "Use a different code for each product.",
-      ],
-      ["category", "Category", "Workout Clothes", "text", true],
-      ["subcategory", "Subcategory", "T-shirts"],
-      ["brand", "Brand", "GymDrobe"],
-      ["gender", "Who is it for?", "", "gender"],
-      [
-        "slug",
-        "Product URL name",
-        "training-t-shirt",
-        "text",
-        false,
-        "Optional. Leave blank for automatic generation when creating.",
-      ],
-      [
-        "badge",
-        "Product label",
-        "New arrival",
-        "text",
-        false,
-        "Optional label shown on the product. Use accurate claims.",
-      ],
-    ],
-  },
-  {
-    id: "pricing",
-    title: "2. Price",
-    help: "Enter the original price in rupees. The preview uses the same rounding as your shop.",
-    fields: [
-      ["price", "Original price (₹)", "999", "price", true],
-      [
-        "discount",
-        "Discount (%)",
-        "0",
-        "discount",
-        false,
-        "Use 0 when there is no discount.",
-      ],
-    ],
-  },
-  {
-    id: "photos",
-    title: "3. Product photos",
-    help: "Use a hosted image URL or a public image path. This form currently saves links, not uploaded files.",
-    fields: [
-      [
-        "image",
-        "Main photo",
-        "https://your-image-host.com/photo.jpg",
-        "text",
-        false,
-        "Or a public path such as /images/training-shirt.jpg.",
-      ],
-      [
-        "imagesText",
-        "Additional photos",
-        "One image URL or path per line",
-        "textarea",
-      ],
-    ],
-  },
-  {
-    id: "options",
-    title: "4. Sizes, colours and stock",
-    help: "Leave sizes and colours blank for a simple product. Otherwise, enter the available options and set stock below.",
-    fields: [
-      [
-        "sizesText",
-        "Available sizes",
-        "S, M, L, XL",
-        "text",
-        false,
-        "Separate sizes with commas.",
-      ],
-      [
-        "colorsText",
-        "Available colours",
-        "Black, White, Blue",
-        "text",
-        false,
-        "Separate colours with commas. Editing option names changes the stock combinations.",
-      ],
-    ],
-  },
-  {
-    id: "details",
-    title: "5. Product description",
-    help: "Explain what the customer receives. The extra details are optional.",
-    fields: [
-      [
-        "description",
-        "Description",
-        "Describe the product, fit and intended use",
-        "textarea",
-      ],
-      [
-        "highlightsText",
-        "Main benefits",
-        "Write one benefit per line",
-        "textarea",
-      ],
-      ["material", "Material", "Cotton blend"],
-      ["whatsIncluded", "What's included", "1 training T-shirt"],
-      [
-        "tagsText",
-        "Search tags",
-        "training, lightweight, tshirt",
-        "text",
-        false,
-        "Separate tags with commas.",
-      ],
-      [
-        "specificationsText",
-        "Specifications",
-        "Material: Cotton\nFit: Regular",
-        "textarea",
-        false,
-        "One Name: Value entry per line.",
-      ],
-      [
-        "careInstructionsText",
-        "Care instructions",
-        "Write one instruction per line",
-        "textarea",
-      ],
-    ],
-  },
-  {
-    id: "delivery",
-    title: "6. Delivery and returns",
-    help: "Enter the delivery estimate and return information that applies to this product.",
-    fields: [
-      ["estimatedDays", "Delivery estimate", "3–7 business days"],
-      ["freeDeliveryAbove", "Free delivery threshold (₹)", "500", "price"],
-      [
-        "returnPolicy",
-        "Return policy",
-        "Describe the applicable return conditions",
-        "textarea",
-        false,
-        "The current request system uses a 7-day window after delivery. Keep your published policy consistent with that setup.",
-      ],
-    ],
-  },
-];
 
 function Field({ label, help, children }) {
   return (
@@ -428,73 +378,215 @@ function Field({ label, help, children }) {
   );
 }
 
-function totalDraftStock(draft) {
-  const variants = buildVariants(draft);
-  if (!variants) return Math.max(0, Math.floor(safeNumber(draft.stock)));
-  return Object.values(variants).reduce(
-    (total, group) =>
-      total +
-      (typeof group === "number"
-        ? group
-        : Object.values(group).reduce((sum, value) => sum + value, 0)),
-    0,
+function ChoiceField({
+  label,
+  value,
+  options,
+  onChange,
+  required = false,
+  disabled = false,
+  allowEmpty = false,
+}) {
+  const [adding, setAdding] = useState(false);
+  const values = unique([...options, value]);
+
+  return (
+    <div>
+      <Field label={`${label}${required ? " *" : ""}`}>
+        <select
+          value={adding ? "__add_new__" : value}
+          required={required}
+          disabled={disabled}
+          onChange={(event) => {
+            if (event.target.value === "__add_new__") {
+              setAdding(true);
+              return;
+            }
+
+            setAdding(false);
+            onChange(event.target.value);
+          }}
+        >
+          <option value="">
+            {allowEmpty ? "None" : `Choose ${label.toLowerCase()}`}
+          </option>
+
+          {values.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+
+          <option value="__add_new__">
+            + Add a new {label.toLowerCase()}
+          </option>
+        </select>
+      </Field>
+
+      {adding && (
+        <Field
+          label={`New ${label.toLowerCase()}`}
+          help="This option becomes available to other admins after the product is saved."
+        >
+          <input
+            type="text"
+            value={value}
+            required={required}
+            maxLength={100}
+            disabled={disabled}
+            onChange={(event) => onChange(event.target.value)}
+          />
+        </Field>
+      )}
+    </div>
   );
 }
 
+const SECTIONS = [
+  {
+    id: "pricing",
+    title: "2. Price",
+    help: "Enter the original price in rupees and an accurate discount.",
+    fields: [
+      ["price", "Original price (₹)", "999", "number", true],
+      ["discount", "Discount (%)", "0", "number"],
+    ],
+  },
+  {
+    id: "photos",
+    title: "3. Product photos",
+    help: "This form saves hosted image links or public image paths.",
+    fields: [
+      ["image", "Main photo", "https://your-host.com/photo.jpg"],
+      ["imagesText", "Additional photos", "One image URL per line", "textarea"],
+    ],
+  },
+  {
+    id: "options",
+    title: "4. Sizes, colours and stock",
+    help: "Separate sizes and colours with commas. Each combination gets its own SKU after saving.",
+    fields: [
+      ["sizesText", "Available sizes", "S, M, L, XL"],
+      ["colorsText", "Available colours", "Black, White, Blue"],
+    ],
+  },
+  {
+    id: "details",
+    title: "5. Product description",
+    help: "Describe the product accurately. Optional fields remain available.",
+    fields: [
+      ["description", "Description", "Describe the product and fit", "textarea"],
+      ["highlightsText", "Main benefits", "One benefit per line", "textarea"],
+      ["material", "Material", "Cotton blend"],
+      ["whatsIncluded", "What's included", "1 training T-shirt"],
+      ["tagsText", "Search tags", "training, lightweight, tshirt"],
+      ["specificationsText", "Specifications", "Material: Cotton\nFit: Regular", "textarea"],
+      ["careInstructionsText", "Care instructions", "One instruction per line", "textarea"],
+    ],
+  },
+  {
+    id: "delivery",
+    title: "6. Delivery and returns",
+    help: "Use delivery estimates and return conditions that actually apply.",
+    fields: [
+      ["estimatedDays", "Delivery estimate", "Enter a confirmed estimate"],
+      ["freeDeliveryAbove", "Free delivery threshold (₹)", "500", "number"],
+      ["returnPolicy", "Return policy", "Applicable return conditions", "textarea"],
+    ],
+  },
+];
+
 function InventoryEditor({ draft, setDraft }) {
-  const sizes = [...new Set(splitComma(draft.sizesText))];
-  const colors = [...new Set(splitComma(draft.colorsText))];
-  const rows = colors.length
-    ? colors.flatMap((color) =>
-        (sizes.length ? sizes : [null]).map((size) => ({ color, size })),
-      )
-    : (sizes.length ? sizes : [null]).map((size) => ({ color: null, size }));
-  function quantityFor(color, size) {
-    if (color && size) return draft.variants?.[color]?.[size] ?? 0;
-    if (color) return draft.variants?.[color]?.default ?? 0;
-    if (size) return draft.variants?.[size] ?? 0;
-    return draft.stock;
-  }
-  function changeStock(color, size, value) {
+  function change(color, size, value) {
     setDraft((current) => {
       if (!color && !size) return { ...current, stock: value };
-      const variants = cloneVariants(current.variants);
-      const count = value === "" ? "" : Number(value);
-      if (color)
-        variants[color] = {
-          ...(variants[color] && typeof variants[color] === "object"
+
+      const variants = JSON.parse(
+        JSON.stringify(current.variants || {})
+      );
+
+      if (color) {
+        const group =
+          variants[color] && typeof variants[color] === "object"
             ? variants[color]
-            : {}),
-          [size || "default"]: count,
-        };
-      else variants[size] = count;
+            : {};
+
+        Object.defineProperty(group, size || "default", {
+          value,
+          enumerable: true,
+          writable: true,
+          configurable: true,
+        });
+
+        Object.defineProperty(variants, color, {
+          value: group,
+          enumerable: true,
+          writable: true,
+          configurable: true,
+        });
+      } else {
+        Object.defineProperty(variants, size, {
+          value,
+          enumerable: true,
+          writable: true,
+          configurable: true,
+        });
+      }
+
       return { ...current, variants };
     });
   }
+
   return (
     <div className="ap-stock-box">
-      <h4>How many units can customers buy?</h4>
+      <h4>Stock and variant SKUs</h4>
+
       <p>
-        Enter a whole number for each option. Use 0 for an unavailable option.
-        Total stock: <strong>{totalDraftStock(draft)}</strong>.
+        Use 0 for an unavailable option. Total stock:{" "}
+        <strong>{totalStock(draft)}</strong>.
       </p>
+
+      <p>
+        Renaming a size or colour creates a different combination.
+        Check its stock before saving.
+      </p>
+
       <div className="ap-grid">
-        {rows.map(({ color, size }) => (
-          <Field
-            key={JSON.stringify([color, size])}
-            label={[color, size].filter(Boolean).join(" / ") || "Total stock"}
-          >
-            <input
-              type="number"
-              min="0"
-              step="1"
-              required
-              inputMode="numeric"
-              value={quantityFor(color, size)}
-              onChange={(event) => changeStock(color, size, event.target.value)}
-            />
-          </Field>
-        ))}
+        {optionRows(draft).map(({ color, size }) => {
+          const savedSku = draft.variantSkus.find(
+            (row) =>
+              (row.color || "") === color &&
+              (row.size || "") === size
+          )?.sku;
+
+          return (
+            <Field
+              key={JSON.stringify([color, size])}
+              label={
+                [color, size].filter(Boolean).join(" / ") ||
+                "Total stock"
+              }
+              help={
+                color || size
+                  ? `SKU: ${savedSku || "Generated when saved"}`
+                  : `SKU: ${draft.sku || "Generated when saved"}`
+              }
+            >
+              <input
+                type="number"
+                required
+                min="0"
+                max="1000000"
+                step="1"
+                inputMode="numeric"
+                value={quantityFor(draft, color, size)}
+                onChange={(event) =>
+                  change(color, size, event.target.value)
+                }
+              />
+            </Field>
+          );
+        })}
       </div>
     </div>
   );
@@ -503,87 +595,81 @@ function InventoryEditor({ draft, setDraft }) {
 function ProductEditor({
   draft,
   setDraft,
-  mode,
+  options,
   busy,
-  stage,
   error,
   onSave,
   onCancel,
 }) {
-  const creating = mode === "create";
-  function field(name, value) {
+  const creating = !draft.id;
+
+  function change(name, value) {
     setDraft((current) => ({ ...current, [name]: value }));
   }
+
   function renderField([
     name,
     label,
     placeholder = "",
     kind = "text",
     required = false,
-    help = "",
   ]) {
     const props = {
       value: draft[name],
       required,
       placeholder,
-      onChange: (event) =>
-        field(
-          name,
-          name === "sku"
-            ? event.target.value.toUpperCase()
-            : event.target.value,
-        ),
+      onChange: (event) => change(name, event.target.value),
     };
-    let control;
-    if (kind === "textarea")
-      control = <textarea {...props} rows={name === "description" ? 5 : 3} />;
-    else if (kind === "gender")
-      control = (
-        <select {...props}>
-          {["Unisex", "Men", "Women", "Kids"].map((value) => (
-            <option key={value}>{value}</option>
-          ))}
-        </select>
-      );
-    else
-      control = (
-        <input
-          {...props}
-          type={kind === "price" || kind === "discount" ? "number" : "text"}
-          min={kind === "price" || kind === "discount" ? 0 : undefined}
-          max={kind === "discount" ? 100 : undefined}
-          step={kind === "price" || kind === "discount" ? 1 : undefined}
-        />
-      );
+
     return (
-      <Field key={name} label={`${label}${required ? " *" : ""}`} help={help}>
-        {control}
+      <Field
+        key={name}
+        label={`${label}${required ? " *" : ""}`}
+        help={
+          name === "specificationsText"
+            ? "Write Name: Value, one per line."
+            : undefined
+        }
+      >
+        {kind === "textarea" ? (
+          <textarea {...props} rows={name === "description" ? 5 : 3} />
+        ) : (
+          <input
+            {...props}
+            type={kind}
+            min={kind === "number" ? 0 : undefined}
+            max={name === "discount" ? 100 : undefined}
+            step={kind === "number" ? "0.01" : undefined}
+          />
+        )}
       </Field>
     );
   }
+
+  const subcategoryOptions =
+    options.subcategories[draft.category] || [];
+
   return (
     <section className="ap-editor panel">
       <div className="ap-heading">
         <div>
           <p className="eyebrow">PRODUCT EDITOR</p>
-          <h2>
-            {creating ? "Add a new product" : `Edit ${draft.name || "product"}`}
-          </h2>
-          <p>
-            Fields marked * are required. Work through the sections, then review
-            and save.
-          </p>
+          <h2>{creating ? "Add a new product" : "Edit product"}</h2>
+          <p>Fields marked * are required.</p>
         </div>
+
         <button
-          className="button secondary"
           type="button"
+          className="button secondary"
           disabled={busy}
           onClick={onCancel}
         >
           Close editor
         </button>
       </div>
+
       <nav className="ap-section-links" aria-label="Product form sections">
+        <a href="#ap-basic">1. Basic details</a>
         {SECTIONS.map((section) => (
           <a key={section.id} href={`#ap-${section.id}`}>
             {section.title}
@@ -591,20 +677,91 @@ function ProductEditor({
         ))}
         <a href="#ap-review">7. Review and save</a>
       </nav>
-      {error && (
-        <p className="field-error" role="alert">
-          {error}
-        </p>
-      )}
+
       <form
+        aria-busy={busy}
         onSubmit={(event) => {
           event.preventDefault();
           onSave();
         }}
-        aria-busy={busy}
       >
         <fieldset className="ap-form-fields" disabled={busy}>
           <legend className="sr-only">Product information</legend>
+
+          <section className="ap-section" id="ap-basic">
+            <h3>1. Basic details</h3>
+
+            <div className="ap-grid">
+              {renderField(["name", "Product name", "Training T-shirt", "text", true])}
+
+              <Field
+                label="Automatic product code"
+                help="Generated by the server. It stays the same when the product is edited."
+              >
+                <input
+                  readOnly
+                  value={draft.productCode || "Generated when saved"}
+                />
+              </Field>
+
+              <Field
+                label="Parent SKU"
+                help="Existing SKUs are preserved. New products receive an automatic SKU."
+              >
+                <input
+                  readOnly
+                  value={draft.sku || "Generated when saved"}
+                />
+              </Field>
+
+              <ChoiceField
+                label="Category"
+                value={draft.category}
+                options={options.categories}
+                required
+                onChange={(value) =>
+                  setDraft((current) => ({
+                    ...current,
+                    category: value,
+                    subcategory: "",
+                  }))
+                }
+              />
+
+              <ChoiceField
+                key={draft.category}
+                label="Subcategory"
+                value={draft.subcategory}
+                options={subcategoryOptions}
+                disabled={!draft.category.trim()}
+                allowEmpty
+                onChange={(value) => change("subcategory", value)}
+              />
+
+              <ChoiceField
+                label="Brand"
+                value={draft.brand}
+                options={options.brands}
+                required
+                onChange={(value) => change("brand", value)}
+              />
+
+              <Field label="Who is it for?">
+                <select
+                  value={draft.gender}
+                  onChange={(event) => change("gender", event.target.value)}
+                >
+                  {unique(["Unisex", "Men", "Women", "Kids", draft.gender]).map(
+                    (value) => <option key={value}>{value}</option>
+                  )}
+                </select>
+              </Field>
+
+              {renderField(["slug", "Product URL name", "Leave blank for automatic generation"])}
+              {renderField(["badge", "Product label", "Optional accurate label"])}
+            </div>
+          </section>
+
           {SECTIONS.map((section) => (
             <section
               className="ap-section"
@@ -613,23 +770,30 @@ function ProductEditor({
             >
               <h3>{section.title}</h3>
               <p className="ap-help">{section.help}</p>
-              <div className="ap-grid">{section.fields.map(renderField)}</div>
+
+              <div className="ap-grid">
+                {section.fields.map(renderField)}
+              </div>
+
               {section.id === "pricing" && (
                 <p className="ap-price-preview">
                   Customer pays{" "}
-                  <strong>{money(getDiscountedPrice(draft))}</strong> per unit
+                  <strong>{money(getDiscountedPrice(draft))}</strong>{" "}
+                  per unit.
                 </p>
               )}
+
               {section.id === "options" && (
                 <InventoryEditor draft={draft} setDraft={setDraft} />
               )}
+
               {section.id === "delivery" && (
                 <label className="ap-check">
                   <input
                     type="checkbox"
                     checked={draft.deliveryAvailable}
                     onChange={(event) =>
-                      field("deliveryAvailable", event.target.checked)
+                      change("deliveryAvailable", event.target.checked)
                     }
                   />
                   Delivery available for this product
@@ -637,28 +801,25 @@ function ProductEditor({
               )}
             </section>
           ))}
+
           <section className="ap-section" id="ap-review">
             <h3>7. Review and save</h3>
-            <p className="ap-help">
-              Check the price, photos and quantities before saving. A new
-              product becomes active in the shop after creation.
-            </p>
+
             <div className="ap-preview">
               <div className="ap-preview-image">
                 <ProductImage product={draft} />
               </div>
+
               <div>
-                <p>{draft.brand || "GymDrobe"}</p>
+                <p>{draft.brand || "Select the product brand"}</p>
                 <h4>{draft.name || "Your product name"}</h4>
                 <p>{draft.category || "Choose a category"}</p>
                 <strong>{money(getDiscountedPrice(draft))}</strong>
-                <p>Total stock: {totalDraftStock(draft)}</p>
-                <p>
-                  {draft.description ||
-                    "Add a description so customers understand the product."}
-                </p>
+                <p>Total stock: {totalStock(draft)}</p>
+                <p>{draft.description || "Add a product description."}</p>
               </div>
             </div>
+
             <div className="ap-flags">
               {[
                 ["isFeatured", "Feature in the store"],
@@ -672,7 +833,7 @@ function ProductEditor({
                   <input
                     type="checkbox"
                     checked={draft[name]}
-                    onChange={(event) => field(name, event.target.checked)}
+                    onChange={(event) => change(name, event.target.checked)}
                   />
                   {label}
                 </label>
@@ -680,21 +841,23 @@ function ProductEditor({
             </div>
           </section>
         </fieldset>
+
         {error && (
-          <p className="field-error" role="alert">
-            {error}
-          </p>
+          <p className="field-error" role="alert">{error}</p>
         )}
+
         <div className="ap-save-bar">
           <p role="status">
             {busy
-              ? stage || "Saving product…"
-              : "Check the details above, then save."}
+              ? "Saving product and stock…"
+              : "Review the details, then save."}
           </p>
+
           <div className="ap-actions">
             <button className="button" type="submit" disabled={busy}>
               {busy ? "Saving…" : creating ? "Create product" : "Save changes"}
             </button>
+
             <button
               className="button secondary"
               type="button"
@@ -710,72 +873,50 @@ function ProductEditor({
   );
 }
 
-function validateDraft(draft) {
-  if (draft.name.trim().length < 2)
-    return "Enter a product name with at least two characters.";
-  if (!draft.sku.trim()) return "Enter a unique product code (SKU).";
-  if (!draft.category.trim()) return "Enter the product category.";
-  if (
-    draft.price === "" ||
-    !Number.isFinite(Number(draft.price)) ||
-    Number(draft.price) < 0
-  )
-    return "Enter a valid original price.";
-  if (
-    !Number.isFinite(Number(draft.discount)) ||
-    Number(draft.discount) < 0 ||
-    Number(draft.discount) > 100
-  )
-    return "Discount must be between 0 and 100%.";
-  const options = [
-    ...splitComma(draft.sizesText),
-    ...splitComma(draft.colorsText),
-  ];
-  if (
-    options.some((value) =>
-      ["__proto__", "constructor", "prototype"].includes(value),
-    )
-  )
-    return "Choose a different size or colour name.";
-  const lines = splitLines(draft.specificationsText);
-  if (lines.some((line) => !line.includes(":") || !line.split(":")[0].trim()))
-    return "Write specifications as Name: Value, one per line.";
-  if (
-    !Number.isFinite(Number(draft.freeDeliveryAbove)) ||
-    Number(draft.freeDeliveryAbove) < 0
-  )
-    return "Enter a valid free delivery threshold.";
-  return "";
-}
+function ProductCard({ product, busy, onEdit, onVisibility }) {
+  const status =
+    product.isActive === false
+      ? "Archived"
+      : ({
+          "in-stock": "In stock",
+          "low-stock": "Low stock",
+          "out-of-stock": "Out of stock",
+        }[product.stockStatus] || "Unknown");
 
-function ProductCard({ product, busy, onEdit, onArchive, onRestore }) {
-  const id = productId(product);
+  const date = new Date(product.updatedAt);
+  const updated = Number.isNaN(date.getTime())
+    ? "—"
+    : date.toLocaleString("en-IN");
+
   return (
     <article className="panel ap-product">
       <div className="ap-product-image">
         <ProductImage product={product} />
       </div>
+
       <div className="ap-product-content">
         <div className="ap-heading">
           <div>
             <h3>{product.name}</h3>
+            <p className="muted" style={{ overflowWrap: "anywhere" }}>
+              {product.productCode || product.sku} · {product.category}
+            </p>
             <p className="muted">
-              {product.sku || "No SKU"} · {product.category || "No category"}
+              {product.brand}
+              {product.subcategory ? ` · ${product.subcategory}` : ""}
             </p>
           </div>
-          <span className="ap-status">
-            {product.isActive === false
-              ? "Archived"
-              : stockLabel(product.stockStatus)}
-          </span>
+
+          <span className="ap-status">{status}</span>
         </div>
+
         <dl className="ap-product-stats">
           {[
             ["Original price", money(product.price)],
             ["Selling price", money(getDiscountedPrice(product))],
-            ["Discount", `${safeNumber(product.discount)}%`],
-            ["Stock", safeNumber(product.stock)],
-            ["Rating", safeNumber(product.rating).toFixed(1)],
+            ["Discount", `${product.discount || 0}%`],
+            ["Stock", product.stock || 0],
+            ["Rating", Number(product.rating || 0).toFixed(1)],
           ].map(([label, value]) => (
             <div key={label}>
               <dt>{label}</dt>
@@ -783,36 +924,32 @@ function ProductCard({ product, busy, onEdit, onArchive, onRestore }) {
             </div>
           ))}
         </dl>
-        <p className="muted">Updated {formatDate(product.updatedAt) || "—"}</p>
+
+        <p className="muted">Updated {updated}</p>
+
         <div className="ap-actions">
           <button
+            type="button"
             className="button secondary"
             disabled={busy}
             onClick={() => onEdit(product)}
           >
             Edit product
           </button>
-          {product.isActive === false ? (
-            <button
-              className="button"
-              disabled={busy}
-              onClick={() => onRestore(product)}
-            >
-              Restore
-            </button>
-          ) : (
-            <button
-              className="button secondary"
-              disabled={busy}
-              onClick={() => onArchive(product)}
-            >
-              Archive
-            </button>
-          )}
+
+          <button
+            type="button"
+            className="button secondary"
+            disabled={busy}
+            onClick={() => onVisibility(product)}
+          >
+            {product.isActive === false ? "Restore" : "Archive"}
+          </button>
+
           {product.isActive !== false && (
             <Link
               className="button secondary"
-              to={`/product/${encodeURIComponent(id)}`}
+              to={`/product/${encodeURIComponent(idFor(product))}`}
             >
               Customer view
             </Link>
@@ -826,250 +963,415 @@ function ProductCard({ product, busy, onEdit, onArchive, onRestore }) {
 function AdminProductsWorkspace() {
   const { token } = useAuth();
   const catalog = useCatalog();
-  const editorRef = useRef(null);
+
   const mounted = useRef(false);
-  const requestVersion = useRef(0);
-  const mutationLock = useRef(false);
+  const version = useRef(0);
+  const lock = useRef(false);
   const baseline = useRef("");
-  const savedIdentity = useRef("");
+  const editorRef = useRef(null);
+
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [search, setSearch] = useState("");
+
   const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("");
   const [stockStatus, setStockStatus] = useState("");
   const [active, setActive] = useState("");
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [editorMode, setEditorMode] = useState(null);
-  const [draft, setDraft] = useState(() => makeDraft(null));
+
+  const [draft, setDraft] = useState(null);
   const [editorError, setEditorError] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [stage, setStage] = useState("");
-  const [busyId, setBusyId] = useState("");
+
+  const [serverOptions, setServerOptions] = useState({
+    categories: [],
+    brands: [],
+    subcategories: {},
+  });
+
+  const [optionsError, setOptionsError] = useState("");
+
   useEffect(() => {
     mounted.current = true;
+
     return () => {
       mounted.current = false;
-      requestVersion.current++;
+      version.current++;
     };
   }, []);
+
+  async function loadOptions(signal) {
+    if (!token) return;
+
+    try {
+      const response = await fetch(`${API_URL}/products/admin/options`, {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+        signal,
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (
+        !response.ok ||
+        !data?.success ||
+        !Array.isArray(data.categories) ||
+        !Array.isArray(data.brands)
+      ) {
+        throw new Error(
+          data?.message || "Category and brand options could not be loaded."
+        );
+      }
+
+      if (!mounted.current || signal?.aborted) return;
+
+      setServerOptions({
+        categories: data.categories,
+        brands: data.brands,
+        subcategories: data.subcategories || {},
+      });
+      setOptionsError("");
+    } catch (failure) {
+      if (failure.name !== "AbortError" && mounted.current) {
+        setOptionsError(failure.message);
+      }
+    }
+  }
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadOptions(controller.signal);
+    return () => controller.abort();
+  }, [token]);
+
   async function loadProducts() {
-    const version = ++requestVersion.current;
+    const request = ++version.current;
+
     if (!token) {
       setLoading(false);
-      setError("Sign in with an admin account to load products.");
+      setError("Sign in with an admin account.");
       return;
     }
+
     setLoading(true);
     setError("");
+
     try {
       const result = await getAdminProducts(token, {
         search,
+        category,
         stockStatus,
         active,
         page,
         limit: PAGE_SIZE,
       });
-      if (!mounted.current || version !== requestVersion.current) return;
+
+      if (!mounted.current || request !== version.current) return;
+
+      if (!Array.isArray(result.products)) {
+        throw new Error("The product list could not be read.");
+      }
+
       setProducts(result.products);
-      setTotal(result.total);
+      setTotal(result.total || 0);
+
       const count = Math.max(1, result.pages || 1);
       setPages(count);
+
       if (page > count) setPage(count);
     } catch (failure) {
-      if (mounted.current && version === requestVersion.current) {
+      if (mounted.current && request === version.current) {
         setProducts([]);
         setError(failure.message || "Unable to load products.");
       }
     } finally {
-      if (mounted.current && version === requestVersion.current)
+      if (mounted.current && request === version.current) {
         setLoading(false);
+      }
     }
   }
+
   useEffect(() => {
     loadProducts();
-  }, [token, search, stockStatus, active, page]);
+  }, [token, search, category, stockStatus, active, page]);
+
+  function discardAllowed() {
+    return (
+      !draft ||
+      JSON.stringify(draft) === baseline.current ||
+      window.confirm("Discard your unsaved product changes?")
+    );
+  }
+
   async function refreshStorefront() {
     try {
       await catalog.refreshProducts?.();
-    } catch (failure) {
-      console.error("Catalog refresh failed", failure);
+    } catch {
+      if (mounted.current) {
+        setError(
+          "The product was saved, but the shop refresh failed. Refresh the shop before checking it."
+        );
+      }
     }
   }
-  function canDiscard() {
-    return (
-      !editorMode ||
-      JSON.stringify(draft) === baseline.current ||
-      window.confirm("Discard the unsaved product changes?")
-    );
-  }
-  function openEditor(product = null) {
-    if (mutationLock.current || !canDiscard()) return;
-    const next = makeDraft(product);
-    setDraft(next);
-    baseline.current = JSON.stringify(next);
-    savedIdentity.current = productId(product);
-    setEditorMode(product ? "edit" : "create");
+
+  async function openEditor(product = null) {
+    if (lock.current || !discardAllowed()) return;
+
     setEditorError("");
     setSuccess("");
-    requestAnimationFrame(() =>
-      editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
-    );
-  }
-  function closeEditor() {
-    if (mutationLock.current || !canDiscard()) return;
-    setEditorMode(null);
-    setEditorError("");
-  }
-  async function saveProduct() {
-    if (mutationLock.current) return;
-    if (!token) {
-      setEditorError("Admin login is required.");
+
+    if (!product) {
+      const next = draftFor(null);
+      baseline.current = JSON.stringify(next);
+      setDraft(next);
+
+      requestAnimationFrame(() =>
+        editorRef.current?.scrollIntoView({ block: "start" })
+      );
+
       return;
     }
+
+    lock.current = true;
+    setBusy(true);
+    setError("");
+
+    try {
+      // Load the full latest record before editing.
+      const response = await getAdminProductById(token, idFor(product));
+      const record = response?.product || response;
+
+      if (!record || !idFor(record)) {
+        throw new Error("The product details could not be read.");
+      }
+
+      if (!mounted.current) return;
+
+      const next = draftFor(record);
+      baseline.current = JSON.stringify(next);
+      setDraft(next);
+
+      requestAnimationFrame(() =>
+        editorRef.current?.scrollIntoView({ block: "start" })
+      );
+    } catch (failure) {
+      if (mounted.current) {
+        setError(failure.message || "Unable to open this product.");
+      }
+    } finally {
+      lock.current = false;
+      if (mounted.current) setBusy(false);
+    }
+  }
+
+  function closeEditor() {
+    if (lock.current || !discardAllowed()) return;
+
+    setDraft(null);
+    setEditorError("");
+  }
+
+  async function saveProduct() {
+    if (lock.current || !draft) return;
+
     const invalid = validateDraft(draft);
+
     if (invalid) {
       setEditorError(invalid);
       return;
     }
-    mutationLock.current = true;
-    setSaving(true);
+
+    const original = JSON.parse(baseline.current || "{}");
+    const originalRows = optionRows(original);
+    const nextKeys = new Set(
+      optionRows(draft).map((row) =>
+        JSON.stringify([row.color, row.size])
+      )
+    );
+
+    const removedStock = originalRows.some(
+      (row) =>
+        (row.color || row.size) &&
+        !nextKeys.has(JSON.stringify([row.color, row.size])) &&
+        Number(quantityFor(original, row.color, row.size)) > 0
+    );
+
+    if (
+      removedStock &&
+      !window.confirm(
+        "You removed or renamed an option that has stock. Its old quantity will no longer be available. Save these changes?"
+      )
+    ) {
+      return;
+    }
+
+    lock.current = true;
+    setBusy(true);
     setEditorError("");
     setSuccess("");
-    let metadataSaved = false;
-    const creating = editorMode === "create" && !savedIdentity.current;
+
+    let saved = false;
+
     try {
-      setStage("Saving product details…");
-      const payload = buildProductPayload(draft, { creating });
+      const creating = !draft.id;
+      const payload = payloadFor(draft);
+
+      // Details and inventory are saved in the same API request.
       const response = creating
         ? await createProduct(token, payload)
-        : await updateProduct(
-            token,
-            savedIdentity.current || draft._id || draft.id,
-            payload,
-          );
-      const id =
-        productId(response.product) ||
-        (!creating ? savedIdentity.current || draft._id || draft.id : "");
-      if (!id)
+        : await updateProduct(token, draft.id, payload);
+
+      const product = response?.product || response;
+
+      if (!product || !idFor(product)) {
         throw new Error(
-          "The save response did not include a product ID. Check the product list by SKU before creating it again.",
+          "The save response is incomplete. Check the product list before creating another copy."
         );
-      metadataSaved = true;
-      savedIdentity.current = id;
+      }
+
+      saved = true;
+
       if (!mounted.current) return;
-      setEditorMode("edit");
-      setDraft((current) => ({ ...current, id, _id: id }));
-      setStage("Saving stock quantities…");
-      const variants = buildVariants(draft);
-      await updateProductInventory(
-        token,
-        id,
-        variants
-          ? { variants }
-          : { stock: Math.max(0, Math.floor(safeNumber(draft.stock))) },
-      );
-      if (!mounted.current) return;
-      await loadProducts();
-      await refreshStorefront();
-      if (!mounted.current) return;
-      setEditorMode(null);
+
+      const next = draftFor(product);
+      baseline.current = JSON.stringify(next);
+      setDraft(next);
+
       setSuccess(
         creating
-          ? "Product created and stock saved."
-          : "Product details and stock updated.",
+          ? "Product created. Its product code, variant SKUs and stock are saved."
+          : "Product details and stock updated."
       );
+
+      await loadProducts();
+      await loadOptions();
+      await refreshStorefront();
     } catch (failure) {
-      if (mounted.current)
-        setEditorError(
-          metadataSaved
-            ? `Product details were saved, but the stock update failed. ${failure.message || "Try again."} Retry Save changes to update the same product.`
-            : failure.message || "Unable to save product.",
-        );
-    } finally {
-      mutationLock.current = false;
       if (mounted.current) {
-        setSaving(false);
-        setStage("");
+        setEditorError(
+          saved
+            ? `The product was saved, but refreshing failed. ${failure.message}`
+            : failure.message || "Unable to save this product."
+        );
       }
+    } finally {
+      lock.current = false;
+      if (mounted.current) setBusy(false);
     }
   }
-  async function changeVisibility(product, archive) {
-    if (mutationLock.current) return;
-    const id = productId(product);
-    if (!id || !token) return;
+
+  async function changeVisibility(product) {
+    if (lock.current) return;
+
+    const restoring = product.isActive === false;
+
     if (
-      archive &&
+      !restoring &&
       !window.confirm(
-        `Archive "${product.name}"? Customers will no longer see it. Existing order records remain available.`,
+        `Archive "${product.name}"? It will be hidden from customers. Existing orders are preserved.`
       )
-    )
+    ) {
       return;
-    mutationLock.current = true;
-    setBusyId(id);
+    }
+
+    lock.current = true;
+    setBusy(true);
     setError("");
     setSuccess("");
+
     try {
-      const response = archive
-        ? await archiveProduct(token, id)
-        : await restoreProduct(token, id);
+      const response = restoring
+        ? await restoreProduct(token, idFor(product))
+        : await archiveProduct(token, idFor(product));
+
       if (!mounted.current) return;
+
       setSuccess(
         response.message ||
-          (archive ? "Product archived." : "Product restored."),
+          (restoring ? "Product restored." : "Product archived.")
       );
+
       await loadProducts();
       await refreshStorefront();
     } catch (failure) {
-      if (mounted.current)
+      if (mounted.current) {
         setError(failure.message || "Unable to change visibility.");
+      }
     } finally {
-      mutationLock.current = false;
-      if (mounted.current) setBusyId("");
+      lock.current = false;
+      if (mounted.current) setBusy(false);
     }
   }
-  const busy = saving || Boolean(busyId);
+
+  const categoryNames = (Array.isArray(categories) ? categories : [])
+    .map((item) => (typeof item === "string" ? item : item?.name))
+    .filter(Boolean);
+
+  const knownProducts = [
+    ...(Array.isArray(catalog.products) ? catalog.products : []),
+    ...products,
+  ];
+
+  const options = {
+    categories: unique([
+      ...categoryNames,
+      ...serverOptions.categories,
+      ...knownProducts.map((product) => product.category),
+      draft?.category,
+    ]).sort((a, b) => a.localeCompare(b)),
+    brands: unique([
+      ...serverOptions.brands,
+      ...knownProducts.map((product) => product.brand),
+      draft?.brand,
+    ]).sort((a, b) => a.localeCompare(b)),
+    subcategories: { ...serverOptions.subcategories },
+  };
+
+  for (const product of knownProducts) {
+    if (!product.category || !product.subcategory) continue;
+
+    Object.defineProperty(options.subcategories, product.category, {
+      value: unique([
+        ...(options.subcategories[product.category] || []),
+        product.subcategory,
+      ]),
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
+  }
+
   const stats = [
     ["Matching products", total],
-    [
-      "Active on this page",
-      products.filter((p) => p.isActive !== false).length,
-    ],
-    [
-      "Low stock on this page",
-      products.filter((p) => p.stockStatus === "low-stock").length,
-    ],
-    [
-      "Out of stock on this page",
-      products.filter((p) => p.stockStatus === "out-of-stock").length,
-    ],
-    [
-      "Archived on this page",
-      products.filter((p) => p.isActive === false).length,
-    ],
+    ["Active on this page", products.filter((p) => p.isActive !== false).length],
+    ["Low stock on this page", products.filter((p) => p.stockStatus === "low-stock").length],
+    ["Out of stock on this page", products.filter((p) => p.stockStatus === "out-of-stock").length],
+    ["Archived on this page", products.filter((p) => p.isActive === false).length],
   ];
+
   return (
     <div className="page ap-admin">
       <header className="ap-heading">
         <div>
           <p className="eyebrow">GYMDROBE ADMIN</p>
           <h1>Products and stock</h1>
-          <p>
-            Add a product, check its photos and price, then enter the quantities
-            you can sell.
-          </p>
+          <p>Select categories and brands, add product details, then set stock.</p>
         </div>
+
         <div className="ap-actions">
-          <Link className="button secondary" to="/admin/orders">
-            Orders
-          </Link>
-          <Link className="button secondary" to="/admin/returns">
-            Returns
-          </Link>
+          <Link className="button secondary" to="/admin/orders">Orders</Link>
+          <Link className="button secondary" to="/admin/returns">Returns</Link>
           <button
+            type="button"
             className="button"
             disabled={busy}
             onClick={() => openEditor()}
@@ -1078,29 +1380,42 @@ function AdminProductsWorkspace() {
           </button>
         </div>
       </header>
+
+      {optionsError && (
+        <div className="notice" role="status">
+          <p>{optionsError}</p>
+          <button
+            type="button"
+            className="button secondary"
+            disabled={busy}
+            onClick={() => loadOptions()}
+          >
+            Reload dropdown options
+          </button>
+        </div>
+      )}
+
       <div ref={editorRef}>
-        {editorMode && (
+        {draft && (
           <ProductEditor
             draft={draft}
             setDraft={setDraft}
-            mode={editorMode}
-            busy={saving}
-            stage={stage}
+            options={options}
+            busy={busy}
             error={editorError}
             onSave={saveProduct}
             onCancel={closeEditor}
           />
         )}
       </div>
-      {success && (
-        <p className="notice" role="status">
-          {success}
-        </p>
-      )}
+
+      {success && <p className="notice" role="status">{success}</p>}
+
       {error && (
-        <div role="alert" className="field-error">
+        <div className="field-error" role="alert">
           <p>{error}</p>
           <button
+            type="button"
             className="button secondary"
             disabled={loading || busy}
             onClick={loadProducts}
@@ -1109,6 +1424,7 @@ function AdminProductsWorkspace() {
           </button>
         </div>
       )}
+
       <div className="ap-stats">
         {stats.map(([label, value]) => (
           <div className="panel" key={label}>
@@ -1117,8 +1433,10 @@ function AdminProductsWorkspace() {
           </div>
         ))}
       </div>
+
       <section className="panel ap-filters">
         <h2>Find a product</h2>
+
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -1130,11 +1448,27 @@ function AdminProductsWorkspace() {
             <Field label="Search">
               <input
                 type="search"
-                placeholder="Name, SKU, brand or category"
                 value={searchInput}
+                placeholder="Name, product code, SKU or brand"
                 onChange={(event) => setSearchInput(event.target.value)}
               />
             </Field>
+
+            <Field label="Category">
+              <select
+                value={category}
+                onChange={(event) => {
+                  setCategory(event.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">All categories</option>
+                {options.categories.map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </select>
+            </Field>
+
             <Field label="Stock">
               <select
                 value={stockStatus}
@@ -1149,6 +1483,7 @@ function AdminProductsWorkspace() {
                 <option value="out-of-stock">Out of stock</option>
               </select>
             </Field>
+
             <Field label="Visibility">
               <select
                 value={active}
@@ -1163,71 +1498,64 @@ function AdminProductsWorkspace() {
               </select>
             </Field>
           </div>
+
           <div className="ap-actions">
-            <button className="button" type="submit">
-              Search
+            <button className="button" type="submit">Search</button>
+            <button
+              className="button secondary"
+              type="button"
+              onClick={() => {
+                setSearch("");
+                setSearchInput("");
+                setCategory("");
+                setStockStatus("");
+                setActive("");
+                setPage(1);
+              }}
+            >
+              Clear filters
             </button>
-            {(search || stockStatus || active) && (
-              <button
-                className="button secondary"
-                type="button"
-                onClick={() => {
-                  setSearch("");
-                  setSearchInput("");
-                  setStockStatus("");
-                  setActive("");
-                  setPage(1);
-                }}
-              >
-                Clear filters
-              </button>
-            )}
           </div>
         </form>
       </section>
+
       {loading ? (
-        <p className="panel" role="status">
-          Loading products…
-        </p>
+        <p className="panel" role="status">Loading products…</p>
       ) : !products.length ? (
         <div className="empty-state">
-          <h3>
-            {error ? "Products could not be loaded" : "No products found"}
-          </h3>
-          <p>
-            {search || stockStatus || active
-              ? "Try changing or clearing your filters."
-              : "Use Add product to create your first product."}
-          </p>
+          <h3>{error ? "Products could not be loaded" : "No products found"}</h3>
+          <p>Change your filters or use Add product.</p>
         </div>
       ) : (
         <div className="ap-product-list">
           {products.map((product) => (
             <ProductCard
-              key={productId(product)}
+              key={idFor(product)}
               product={product}
               busy={busy}
               onEdit={openEditor}
-              onArchive={(p) => changeVisibility(p, true)}
-              onRestore={(p) => changeVisibility(p, false)}
+              onVisibility={changeVisibility}
             />
           ))}
         </div>
       )}
+
       <nav className="ap-pagination" aria-label="Product pages">
         <button
+          type="button"
           className="button secondary"
-          disabled={loading || page <= 1}
+          disabled={loading || busy || page <= 1}
           onClick={() => setPage((value) => value - 1)}
         >
           Previous
         </button>
-        <span>
-          Page {page} of {pages} · {total} matching products
-        </span>
+
+        <span>Page {page} of {pages} · {total} matching products</span>
+
         <button
+          type="button"
           className="button secondary"
-          disabled={loading || page >= pages}
+          disabled={loading || busy || page >= pages}
           onClick={() => setPage((value) => value + 1)}
         >
           Next
@@ -1239,5 +1567,10 @@ function AdminProductsWorkspace() {
 
 export default function AdminProductsPage() {
   const { user } = useAuth();
-  return <AdminProductsWorkspace key={user?.id || user?._id || "guest"} />;
+
+  return (
+    <AdminProductsWorkspace
+      key={user?.id || user?._id || "guest"}
+    />
+  );
 }
