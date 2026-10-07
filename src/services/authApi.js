@@ -1,9 +1,16 @@
 const API_URL = (
   import.meta.env.VITE_API_URL || "http://localhost:5000/api"
-).trim().replace(/\/+$/, "");
+)
+  .trim()
+  .replace(/\/+$/, "");
 
-async function request(path, { method = "GET", token, body } = {}) {
-  const headers = { Accept: "application/json" };
+async function request(
+  path,
+  { method = "GET", token, body, signal } = {}
+) {
+  const headers = {
+    Accept: "application/json",
+  };
 
   if (body !== undefined) {
     headers["Content-Type"] = "application/json";
@@ -20,9 +27,14 @@ async function request(path, { method = "GET", token, body } = {}) {
       method,
       headers,
       cache: "no-store",
+      signal,
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
-  } catch {
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw error;
+    }
+
     throw new Error(
       "Unable to connect to GymDrobe. Check your connection and try again."
     );
@@ -39,6 +51,7 @@ async function request(path, { method = "GET", token, body } = {}) {
     );
 
     error.status = response.status;
+    error.code = data?.code;
     error.data = data;
 
     throw error;
@@ -53,50 +66,54 @@ function requireToken(token) {
   }
 }
 
-function validatePassword(password) {
-  if (typeof password !== "string" || password.length < 8) {
-    throw new Error("Password must contain at least 8 characters.");
+// Prepare a Google sign-in attempt.
+export async function getGoogleChallenge({ signal } = {}) {
+  const data = await request("/auth/google/challenge", { signal });
+
+  if (
+    typeof data.nonce !== "string" ||
+    typeof data.challenge !== "string"
+  ) {
+    throw new Error("Google sign-in could not start.");
   }
 
-  if (new TextEncoder().encode(password).length > 72) {
-    throw new Error("Password cannot exceed 72 UTF-8 bytes.");
-  }
+  return data;
 }
 
-export async function registerUser(userData) {
-  if (!userData || typeof userData !== "object") {
-    throw new Error("Registration information is required.");
+// Verify Google credentials on the backend.
+// existingPassword is only used when linking certain existing accounts.
+export async function loginWithGoogle({
+  credential,
+  challenge,
+  existingPassword,
+} = {}) {
+  if (
+    typeof credential !== "string" ||
+    !credential ||
+    typeof challenge !== "string" ||
+    !challenge
+  ) {
+    throw new Error("Please start Google sign-in again.");
   }
 
-  validatePassword(userData.password);
+  const body = {
+    credential,
+    challenge,
+  };
 
-  return request("/auth/register", {
-    method: "POST",
-    body: {
-      name: String(userData.name ?? "").trim(),
-      email: String(userData.email ?? "").trim().toLowerCase(),
-      phone: String(userData.phone ?? "").replace(/\D/g, ""),
-      password: userData.password,
-    },
-  });
-}
-
-export async function loginUser(credentials) {
-  if (!credentials || typeof credentials !== "object") {
-    throw new Error("Login information is required.");
+  if (existingPassword !== undefined) {
+    body.existingPassword = existingPassword;
   }
 
-  return request("/auth/login", {
+  return request("/auth/google", {
     method: "POST",
-    body: {
-      email: String(credentials.email ?? "").trim().toLowerCase(),
-      password: credentials.password,
-    },
+    body,
   });
 }
 
 export async function getCurrentUser(token) {
   requireToken(token);
+
   return request("/auth/me", { token });
 }
 
@@ -128,55 +145,30 @@ export async function updateUserProfile(token, profileData) {
   });
 }
 
-export async function changeUserPassword(
-  token,
-  { currentPassword, newPassword } = {}
-) {
-  requireToken(token);
-
-  if (typeof currentPassword !== "string" || !currentPassword) {
-    throw new Error("Current password is required.");
-  }
-
-  validatePassword(newPassword);
-
-  if (currentPassword === newPassword) {
-    throw new Error("Choose a different new password.");
-  }
-
-  // Keep the new token and user returned by the backend.
-  return request("/auth/password", {
-    method: "PUT",
-    token,
-    body: { currentPassword, newPassword },
-  });
+// Compatibility exports prevent older pages from breaking
+// while we replace the password screens.
+function googleOnly() {
+  throw new Error(
+    "Please use Continue with Google to access your GymDrobe account."
+  );
 }
 
-export async function requestPasswordReset(email) {
-  const normalized = String(email ?? "").trim().toLowerCase();
-
-  if (
-    normalized.length > 150 ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)
-  ) {
-    throw new Error("Please enter a valid email address.");
-  }
-
-  return request("/auth/forgot-password", {
-    method: "POST",
-    body: { email: normalized },
-  });
+export async function registerUser() {
+  return googleOnly();
 }
 
-export async function resetUserPassword({ token, newPassword } = {}) {
-  if (typeof token !== "string" || !/^[a-f0-9]{64}$/.test(token)) {
-    throw new Error("This reset link is invalid. Request a new link.");
-  }
+export async function loginUser() {
+  return googleOnly();
+}
 
-  validatePassword(newPassword);
+export async function changeUserPassword() {
+  return googleOnly();
+}
 
-  return request("/auth/reset-password", {
-    method: "POST",
-    body: { token, newPassword },
-  });
+export async function requestPasswordReset() {
+  return googleOnly();
+}
+
+export async function resetUserPassword() {
+  return googleOnly();
 }

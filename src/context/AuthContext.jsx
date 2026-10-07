@@ -9,10 +9,8 @@ import {
 } from "react";
 
 import {
-  changeUserPassword,
   getCurrentUser,
-  loginUser,
-  registerUser,
+  loginWithGoogle,
   updateUserProfile,
 } from "../services/authApi.js";
 
@@ -48,6 +46,12 @@ function storeToken(value) {
   }
 }
 
+async function googleOnly() {
+  throw new Error(
+    "Please use Continue with Google to access your GymDrobe account."
+  );
+}
+
 export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(readStoredToken);
@@ -56,6 +60,8 @@ export default function AuthProvider({ children }) {
   const [restoreAttempt, setRestoreAttempt] = useState(0);
 
   const tokenRef = useRef(token);
+  const sessionRevision = useRef(0);
+  const googleLoginBusy = useRef(false);
 
   const retrySession = useCallback(() => {
     setRestoreAttempt((value) => value + 1);
@@ -86,7 +92,9 @@ export default function AuthProvider({ children }) {
       try {
         const data = await getCurrentUser(token);
 
-        if (cancelled || tokenRef.current !== token) return;
+        if (cancelled || tokenRef.current !== token) {
+          return;
+        }
 
         if (!data?.user) {
           throw new Error("Unable to restore your account.");
@@ -94,16 +102,20 @@ export default function AuthProvider({ children }) {
 
         setUser(data.user);
       } catch (error) {
-        if (cancelled || tokenRef.current !== token) return;
+        if (cancelled || tokenRef.current !== token) {
+          return;
+        }
 
         if (error.status === 401 || error.status === 403) {
           storeToken(null);
+          sessionRevision.current += 1;
           tokenRef.current = null;
+
           setToken(null);
           setUser(null);
           setAuthError(null);
         } else {
-          // A network or server failure does not invalidate the token.
+          // Preserve the session during temporary connection failures.
           setAuthError(
             error.message || "Unable to verify your session. Please retry."
           );
@@ -123,32 +135,46 @@ export default function AuthProvider({ children }) {
   }, [token, restoreAttempt]);
 
   const saveSession = useCallback((data, migrateGuest = true) => {
-    if (typeof data?.token !== "string" || !data.token || !data?.user) {
+    if (
+      typeof data?.token !== "string" ||
+      !data.token ||
+      !data?.user?.id
+    ) {
       throw new Error("Invalid authentication response.");
     }
 
     if (!storeToken(data.token)) {
-      throw new Error("Unable to save your login session.");
+      throw new Error(
+        "Unable to save your login session. Allow browser storage and retry."
+      );
     }
 
     if (migrateGuest) {
-      importGuestShopping(data.user);
+      // Storage helpers preserve the existing guest shopping behavior.
+      // A migration failure must not undo a successful login.
+      try {
+        importGuestShopping(data.user);
 
-      const guestBuyNow = readSession("gymdrobe-buy-now", []);
+        const guestBuyNow = readSession("gymdrobe-buy-now", []);
 
-      if (Array.isArray(guestBuyNow) && guestBuyNow.length) {
-        const saved = writeSession(
-          shoppingKey("gymdrobe-buy-now", data.user),
-          guestBuyNow
-        );
+        if (Array.isArray(guestBuyNow) && guestBuyNow.length) {
+          const saved = writeSession(
+            shoppingKey("gymdrobe-buy-now", data.user),
+            guestBuyNow
+          );
 
-        if (saved) {
-          writeSession("gymdrobe-buy-now", []);
+          if (saved) {
+            writeSession("gymdrobe-buy-now", []);
+          }
         }
+      } catch {
+        // Keep guest data available for a later migration attempt.
       }
     }
 
+    sessionRevision.current += 1;
     tokenRef.current = data.token;
+
     setToken(data.token);
     setUser(data.user);
     setAuthError(null);
@@ -157,27 +183,36 @@ export default function AuthProvider({ children }) {
     return data.user;
   }, []);
 
-  const register = useCallback(
-    async ({ name, email, password, phone = "" }) => {
-      const data = await registerUser({ name, email, password, phone });
-      saveSession(data);
-      return data;
-    },
-    [saveSession]
-  );
+  const googleLogin = useCallback(
+    async (credentials) => {
+      if (googleLoginBusy.current) {
+        throw new Error("A sign-in request is already in progress.");
+      }
 
-  const login = useCallback(
-    async ({ email, password }) => {
-      const data = await loginUser({ email, password });
-      saveSession(data);
-      return data;
+      const startingRevision = sessionRevision.current;
+      googleLoginBusy.current = true;
+
+      try {
+        const data = await loginWithGoogle(credentials);
+
+        if (sessionRevision.current !== startingRevision) {
+          throw new Error("Your session changed. Please sign in again.");
+        }
+
+        saveSession(data);
+        return data;
+      } finally {
+        googleLoginBusy.current = false;
+      }
     },
     [saveSession]
   );
 
   const updateProfile = useCallback(
-    async ({ name, phone }) => {
-      if (!token) {
+    async ({ name, phone } = {}) => {
+      const currentToken = tokenRef.current;
+
+      if (!currentToken) {
         throw new Error("Your session has expired. Please sign in again.");
       }
 
@@ -191,9 +226,9 @@ export default function AuthProvider({ children }) {
         payload.phone = String(phone ?? "").replace(/\D/g, "");
       }
 
-      const data = await updateUserProfile(token, payload);
+      const data = await updateUserProfile(currentToken, payload);
 
-      if (tokenRef.current !== token) {
+      if (tokenRef.current !== currentToken) {
         throw new Error("Your session changed. Please try again.");
       }
 
@@ -204,55 +239,21 @@ export default function AuthProvider({ children }) {
       setUser(data.user);
       return data;
     },
-    [token]
-  );
-
-  const changePassword = useCallback(
-    async (currentPassword, newPassword) => {
-      if (!token) {
-        return {
-          success: false,
-          message: "Your session has expired. Please sign in again.",
-        };
-      }
-
-      try {
-        const result = await changeUserPassword(token, {
-          currentPassword,
-          newPassword,
-        });
-
-        if (tokenRef.current !== token) {
-          return {
-            success: false,
-            message: "Your session changed. Sign in with your new password.",
-          };
-        }
-
-        // The backend invalidates the old token after a password change.
-        // Save the replacement without importing guest shopping again.
-        saveSession(result, false);
-
-        return {
-          success: true,
-          message: result.message || "Password changed successfully.",
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message || "Unable to change password.",
-        };
-      }
-    },
-    [token, saveSession]
+    []
   );
 
   const refreshUser = useCallback(async () => {
-    if (!token) return null;
+    const currentToken = tokenRef.current;
 
-    const data = await getCurrentUser(token);
+    if (!currentToken) {
+      return null;
+    }
 
-    if (tokenRef.current !== token) return null;
+    const data = await getCurrentUser(currentToken);
+
+    if (tokenRef.current !== currentToken) {
+      return null;
+    }
 
     if (!data?.user) {
       throw new Error("Unable to refresh account information.");
@@ -260,17 +261,32 @@ export default function AuthProvider({ children }) {
 
     setUser(data.user);
     return data.user;
-  }, [token]);
+  }, []);
 
   const logout = useCallback(async () => {
-    storeToken(null);
+    const removed = storeToken(null);
+
+    sessionRevision.current += 1;
     tokenRef.current = null;
+
     setToken(null);
     setUser(null);
     setAuthError(null);
     setLoading(false);
 
-    return true;
+    // Avoid automatically selecting the previous Google account.
+    window.google?.accounts?.id?.disableAutoSelect();
+
+    return removed;
+  }, []);
+
+  // Retained until the old account-security page is replaced.
+  const changePassword = useCallback(async () => {
+    return {
+      success: false,
+      message:
+        "Your account uses Google sign-in. Manage your password in your Google account.",
+    };
   }, []);
 
   const value = useMemo(
@@ -281,12 +297,16 @@ export default function AuthProvider({ children }) {
       authError,
       retrySession,
       isAuthenticated: Boolean(user && token),
-      login,
-      register,
+
+      googleLogin,
       logout,
       updateProfile,
-      changePassword,
       refreshUser,
+
+      // Compatibility for components that still reference these names.
+      login: googleOnly,
+      register: googleOnly,
+      changePassword,
     }),
     [
       user,
@@ -294,12 +314,11 @@ export default function AuthProvider({ children }) {
       loading,
       authError,
       retrySession,
-      login,
-      register,
+      googleLogin,
       logout,
       updateProfile,
-      changePassword,
       refreshUser,
+      changePassword,
     ]
   );
 

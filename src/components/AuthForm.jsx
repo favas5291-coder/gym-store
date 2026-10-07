@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   Link,
@@ -8,43 +8,120 @@ import {
 } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext.jsx";
+import { getGoogleChallenge } from "../services/authApi.js";
 import { safeNext } from "../utils/storage.js";
 
-export default function AuthForm({ signupMode = false }) {
+const GOOGLE_CLIENT_ID =
+  import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+  "1098658899656-34u0lfqcfucgf8dgq0c9oag6q673mtnu.apps.googleusercontent.com";
+
+let googleScriptPromise;
+
+function loadGoogleScript() {
+  if (window.google?.accounts?.id) {
+    return Promise.resolve();
+  }
+
+  if (googleScriptPromise) {
+    return googleScriptPromise;
+  }
+
+  googleScriptPromise = new Promise((resolve, reject) => {
+    const id = "gymdrobe-google-identity";
+    let script = document.getElementById(id);
+
+    if (!script) {
+      script = document.createElement("script");
+      script.id = id;
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+    }
+
+    const timer = setTimeout(() => {
+      finish(new Error("Google sign-in took too long to load. Please retry."));
+    }, 20000);
+
+    function finish(error) {
+      clearTimeout(timer);
+      script.removeEventListener("load", onLoad);
+      script.removeEventListener("error", onError);
+
+      if (error) {
+        script.remove();
+        reject(error);
+      } else {
+        resolve();
+      }
+    }
+
+    function onLoad() {
+      if (window.google?.accounts?.id) {
+        finish();
+      } else {
+        finish(new Error("Google sign-in could not load. Please retry."));
+      }
+    }
+
+    function onError() {
+      finish(
+        new Error(
+          "Unable to load Google sign-in. Check your connection and retry."
+        )
+      );
+    }
+
+    script.addEventListener("load", onLoad);
+    script.addEventListener("error", onError);
+
+    if (!script.isConnected) {
+      document.head.appendChild(script);
+    }
+  }).catch((error) => {
+    googleScriptPromise = undefined;
+    throw error;
+  });
+
+  return googleScriptPromise;
+}
+
+export default function AuthForm() {
   const {
     user,
     loading: authLoading,
     authError,
     retrySession,
-    login,
-    register,
+    googleLogin,
   } = useAuth();
 
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const next = safeNext(params.get("next"));
 
-  const [data, setData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    password: "",
-    confirmPassword: "",
-  });
+  const buttonRef = useRef(null);
+  const pendingCredentials = useRef(null);
+  const submitting = useRef(false);
+  const mounted = useRef(false);
+  const callbackRef = useRef(null);
 
-  const [visible, setVisible] = useState(false);
+  const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const submitting = useRef(false);
+  const [attempt, setAttempt] = useState(0);
+  const [linkRequired, setLinkRequired] = useState(false);
+  const [password, setPassword] = useState("");
+  const [visible, setVisible] = useState(false);
 
-  function updateField(field, value) {
-    setData((current) => ({ ...current, [field]: value }));
-    setError("");
-  }
+  useEffect(() => {
+    mounted.current = true;
 
-  async function submit(event) {
-    event.preventDefault();
+    return () => {
+      mounted.current = false;
+      pendingCredentials.current = null;
+    };
+  }, []);
 
+  async function completeLogin(credentials) {
     if (submitting.current) return;
 
     submitting.current = true;
@@ -52,58 +129,160 @@ export default function AuthForm({ signupMode = false }) {
     setError("");
 
     try {
-      const email = data.email.trim().toLowerCase();
-      const password = data.password;
+      await googleLogin(credentials);
 
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        throw new Error("Enter a valid email address.");
+      if (mounted.current) {
+        pendingCredentials.current = null;
+        setPassword("");
+        navigate(next, { replace: true });
       }
+    } catch (loginError) {
+      if (!mounted.current) return;
 
-      if (!password) {
-        throw new Error("Enter your password.");
-      }
+      if (loginError.code === "ACCOUNT_LINK_REQUIRED") {
+        pendingCredentials.current = {
+          credential: credentials.credential,
+          challenge: credentials.challenge,
+        };
 
-      if (signupMode) {
-        const name = data.name.trim();
-        const phone = data.phone.replace(/\D/g, "");
-
-        if (name.length < 2 || name.length > 60) {
-          throw new Error("Your name must contain 2–60 characters.");
-        }
-
-        if (phone && !/^[6-9]\d{9}$/.test(phone)) {
-          throw new Error("Enter a valid 10-digit Indian mobile number.");
-        }
-
-        if (password.length < 8) {
-          throw new Error("Password must contain at least 8 characters.");
-        }
-
-        if (new TextEncoder().encode(password).length > 72) {
-          throw new Error("Password cannot exceed 72 UTF-8 bytes.");
-        }
-
-        if (password !== data.confirmPassword) {
-          throw new Error("Your passwords do not match.");
-        }
-
-        await register({ name, email, phone, password });
+        setLinkRequired(true);
+        setPassword("");
+        setError(loginError.message);
       } else {
-        await login({ email, password });
-      }
+        setError(loginError.message || "Unable to sign in.");
 
-      navigate(next, { replace: true });
-    } catch (error) {
-      setError(
-        error.message ||
-          (signupMode
-            ? "Unable to create your account."
-            : "Unable to sign in.")
-      );
+        // Verification failures require a fresh Google attempt.
+        if (
+          loginError.status === 401 ||
+          loginError.status === 400
+        ) {
+          pendingCredentials.current = null;
+          setLinkRequired(false);
+          setPassword("");
+          setAttempt((value) => value + 1);
+        }
+      }
     } finally {
       submitting.current = false;
-      setBusy(false);
+
+      if (mounted.current) {
+        setBusy(false);
+      }
     }
+  }
+
+  callbackRef.current = completeLogin;
+
+  useEffect(() => {
+    if (authLoading || authError || user || linkRequired) {
+      return;
+    }
+
+    let cancelled = false;
+    const controller = new AbortController();
+    let expiryTimer;
+
+    setReady(false);
+
+    async function prepareGoogle() {
+      try {
+        const [, challengeData] = await Promise.all([
+          loadGoogleScript(),
+          getGoogleChallenge({ signal: controller.signal }),
+        ]);
+
+        if (cancelled || !buttonRef.current) return;
+
+        const container = buttonRef.current;
+        container.replaceChildren();
+
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          nonce: challengeData.nonce,
+          auto_select: false,
+          ux_mode: "popup",
+
+          callback(response) {
+            if (cancelled || !response.credential) return;
+
+            callbackRef.current({
+              credential: response.credential,
+              challenge: challengeData.challenge,
+            });
+          },
+        });
+
+        const width = Math.max(
+          200,
+          Math.min(400, Math.floor(container.getBoundingClientRect().width))
+        );
+
+        window.google.accounts.id.renderButton(container, {
+          type: "standard",
+          theme: "outline",
+          size: "large",
+          text: "continue_with",
+          shape: "rectangular",
+          width,
+          logo_alignment: "left",
+        });
+
+        setReady(true);
+
+        // Refresh before the backend challenge expires.
+        expiryTimer = setTimeout(() => {
+          if (!cancelled && !submitting.current) {
+            setAttempt((value) => value + 1);
+          }
+        }, 8 * 60000);
+      } catch (setupError) {
+        if (cancelled || setupError.name === "AbortError") return;
+
+        setReady(false);
+        setError(
+          setupError.message || "Google sign-in is temporarily unavailable."
+        );
+      }
+    }
+
+    prepareGoogle();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      clearTimeout(expiryTimer);
+    };
+  }, [authLoading, authError, user, linkRequired, attempt]);
+
+  function restartGoogle() {
+    if (submitting.current) return;
+
+    pendingCredentials.current = null;
+    setLinkRequired(false);
+    setPassword("");
+    setVisible(false);
+    setError("");
+    setReady(false);
+    setAttempt((value) => value + 1);
+  }
+
+  function submitLink(event) {
+    event.preventDefault();
+
+    if (!pendingCredentials.current) {
+      restartGoogle();
+      return;
+    }
+
+    if (!password) {
+      setError("Enter your existing GymDrobe password.");
+      return;
+    }
+
+    completeLogin({
+      ...pendingCredentials.current,
+      existingPassword: password,
+    });
   }
 
   if (authLoading) {
@@ -125,9 +304,11 @@ export default function AuthForm({ signupMode = false }) {
         <section className="auth-card">
           <div className="auth-form">
             <h2>Unable to check your session</h2>
+
             <p className="error-box" role="alert">
               {authError}
             </p>
+
             <button
               type="button"
               className="button full"
@@ -135,6 +316,7 @@ export default function AuthForm({ signupMode = false }) {
             >
               Try again
             </button>
+
             <p>
               <Link className="text-link" to="/shop">
                 Continue shopping
@@ -155,166 +337,94 @@ export default function AuthForm({ signupMode = false }) {
       <section className="auth-card">
         <div className="auth-banner">
           <span>THE GYMDROBE CLUB</span>
-          <h1>
-            {signupMode
-              ? "Your next chapter starts here."
-              : "Your favourites. All together."}
-          </h1>
+          <h1>Your favourites. All together.</h1>
           <p>Good gear. Great sessions.</p>
         </div>
 
-        <form
-          className="auth-form"
-          onSubmit={submit}
-          aria-busy={busy}
-        >
+        <div className="auth-form" aria-busy={busy}>
           <h2>
-            {signupMode ? "Create an account" : "Login"}{" "}
-            <span>to GymDrobe</span>
+            Welcome <span>to GymDrobe</span>
           </h2>
 
           <p className="muted">
-            {signupMode
-              ? "Manage your orders, addresses and favourites in one place."
-              : "Access your orders, saved addresses and favourites."}
+            Sign in with Google to access your orders, saved addresses
+            and favourites. New here? Your account is created automatically.
           </p>
 
-          {signupMode && (
-            <div className="field">
-              <label htmlFor="auth-name">Full name</label>
-              <input
-                id="auth-name"
-                name="name"
-                type="text"
-                autoComplete="name"
-                minLength={2}
-                maxLength={60}
-                required
-                disabled={busy}
-                value={data.name}
-                onChange={(event) =>
-                  updateField("name", event.target.value)
-                }
+          {!linkRequired && (
+            <>
+              <div
+                ref={buttonRef}
+                style={{
+                  width: "100%",
+                  minHeight: 44,
+                  marginTop: 24,
+                  marginBottom: 16,
+                  pointerEvents: busy ? "none" : "auto",
+                  visibility: busy ? "hidden" : "visible",
+                }}
+                inert={busy ? true : undefined}
               />
-            </div>
+
+              {!ready && !error && (
+                <p className="muted" role="status">
+                  Preparing Google sign-in…
+                </p>
+              )}
+            </>
           )}
 
-          <div className="field">
-            <label htmlFor="auth-email">Email address</label>
-            <input
-              id="auth-email"
-              name="email"
-              type="email"
-              autoComplete="username"
-              autoCapitalize="none"
-              maxLength={150}
-              required
-              disabled={busy}
-              value={data.email}
-              onChange={(event) =>
-                updateField("email", event.target.value)
-              }
-            />
-          </div>
+          {linkRequired && (
+            <form onSubmit={submitLink}>
+              <h3>Connect your existing account</h3>
 
-          {signupMode && (
-            <div className="field">
-              <label htmlFor="auth-phone">
-                Mobile number (optional)
-              </label>
-              <input
-                id="auth-phone"
-                name="phone"
-                type="tel"
-                inputMode="numeric"
-                autoComplete="tel-national"
-                placeholder="10-digit Indian mobile number"
-                maxLength={10}
-                pattern="[6-9][0-9]{9}"
-                disabled={busy}
-                value={data.phone}
-                onChange={(event) =>
-                  updateField(
-                    "phone",
-                    event.target.value.replace(/\D/g, "").slice(0, 10)
-                  )
-                }
-              />
-            </div>
-          )}
+              <p className="muted">
+                Enter your old GymDrobe password once to keep your existing
+                orders and account details. After linking, use Google to sign in.
+              </p>
 
-          <div className="field">
-            <label htmlFor="auth-password">Password</label>
+              <div className="field">
+                <label htmlFor="google-link-password">
+                  Existing GymDrobe password
+                </label>
 
-            <div className="password-field">
-              <input
-                id="auth-password"
-                name="password"
-                type={visible ? "text" : "password"}
-                autoComplete={
-                  signupMode ? "new-password" : "current-password"
-                }
-                minLength={signupMode ? 8 : 1}
-                maxLength={signupMode ? 72 : undefined}
-                required
-                disabled={busy}
-                value={data.password}
-                aria-describedby={
-                  signupMode ? "auth-password-hint" : undefined
-                }
-                onChange={(event) =>
-                  updateField("password", event.target.value)
-                }
-              />
+                <div className="password-field">
+                  <input
+                    id="google-link-password"
+                    name="password"
+                    type={visible ? "text" : "password"}
+                    autoComplete="current-password"
+                    required
+                    disabled={busy}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                  />
+
+                  <button
+                    type="button"
+                    disabled={busy}
+                    aria-label={visible ? "Hide password" : "Show password"}
+                    aria-pressed={visible}
+                    onClick={() => setVisible((value) => !value)}
+                  >
+                    {visible ? "Hide" : "Show"}
+                  </button>
+                </div>
+              </div>
 
               <button
-                type="button"
+                type="submit"
+                className="button full"
                 disabled={busy}
-                aria-label={
-                  visible ? "Hide passwords" : "Show passwords"
-                }
-                aria-pressed={visible}
-                onClick={() => setVisible((current) => !current)}
               >
-                {visible ? "Hide" : "Show"}
+                {busy ? "Connecting…" : "Connect Google account"}
               </button>
-            </div>
-
-            {signupMode && (
-              <small id="auth-password-hint">
-                Use at least 8 characters and a password you haven’t
-                used elsewhere.
-              </small>
-            )}
-          </div>
-
-          {signupMode && (
-            <div className="field">
-              <label htmlFor="auth-confirm-password">
-                Confirm password
-              </label>
-              <input
-                id="auth-confirm-password"
-                name="confirmPassword"
-                type={visible ? "text" : "password"}
-                autoComplete="new-password"
-                minLength={8}
-                maxLength={72}
-                required
-                disabled={busy}
-                value={data.confirmPassword}
-                onChange={(event) =>
-                  updateField("confirmPassword", event.target.value)
-                }
-              />
-            </div>
+            </form>
           )}
 
-          {!signupMode && (
-            <p>
-              <Link className="text-link" to="/forgot-password">
-                Forgot password?
-              </Link>
+          {busy && (
+            <p role="status" className="muted">
+              Signing you in…
             </p>
           )}
 
@@ -324,38 +434,27 @@ export default function AuthForm({ signupMode = false }) {
             </p>
           )}
 
-          <button
-            type="submit"
-            className="button full"
-            disabled={busy}
-          >
-            {busy
-              ? signupMode
-                ? "Creating account…"
-                : "Logging in…"
-              : signupMode
-                ? "Create account"
-                : "Login"}
-          </button>
-
-          <p>
-            {signupMode ? "Already registered?" : "New to GymDrobe?"}{" "}
-            <Link
-              className="text-link"
-              to={`${
-                signupMode ? "/login" : "/signup"
-              }?next=${encodeURIComponent(next)}`}
+          {(error || linkRequired) && (
+            <button
+              type="button"
+              className="button secondary full"
+              disabled={busy}
+              onClick={restartGoogle}
             >
-              {signupMode ? "Login" : "Create an account"}
-            </Link>
+              Restart Google sign-in
+            </button>
+          )}
+
+          <p className="muted">
+            Your Google password stays with Google.
           </p>
 
-          {!signupMode && (
-            <p className="muted">
-              Sign in using your registered email address and password.
-            </p>
-          )}
-        </form>
+          <p>
+            <Link className="text-link" to="/shop">
+              Continue shopping
+            </Link>
+          </p>
+        </div>
       </section>
     </div>
   );
