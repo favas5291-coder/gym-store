@@ -9,27 +9,26 @@ import {
   money,
 } from "../utils/productPricing.js";
 
-import {
-  getTotalStock,
-} from "../utils/cartUtils.js";
+import { getTotalStock } from "../utils/cartUtils.js";
 
 export { money };
 
-// ======================================================
-// PRODUCT AND CATEGORY LINKS
-// ======================================================
+// Import local images so Vite includes them in production.
+// This imports image URLs; the browser still loads images lazily.
+const bundledImages = import.meta.glob(
+  "/src/assets/**/*.{jpg,jpeg,png,webp,avif,gif,svg,JPG,JPEG,PNG,WEBP,AVIF,GIF,SVG}",
+  {
+    eager: true,
+    query: "?url",
+    import: "default",
+  }
+);
 
 export const productPath = (id) =>
   `/product/${encodeURIComponent(id)}`;
 
 export const categoryPath = (name) =>
-  `/shop?${new URLSearchParams({
-    category: name,
-  })}`;
-
-// ======================================================
-// PRODUCT PRICING
-// ======================================================
+  `/shop?${new URLSearchParams({ category: name })}`;
 
 export function priceDetails(product) {
   return {
@@ -37,18 +36,11 @@ export function priceDetails(product) {
       product?.price != null &&
       Number.isFinite(Number(product.price)) &&
       Number(product.price) >= 0,
-
     price: getOriginalPrice(product),
-
     discount: getDiscountPercentage(product),
-
     selling: getDiscountedPrice(product),
   };
 }
-
-// ======================================================
-// PRODUCT AVAILABILITY
-// ======================================================
 
 export const inStock = (product) =>
   getTotalStock(product) > 0;
@@ -61,42 +53,104 @@ export const validProducts = (list) =>
       product.name
   );
 
-// ======================================================
-// PRODUCT IMAGE
-//
-// Images load lazily by default.
-// Main product images can use eager loading and
-// fetchPriority="high".
-// ======================================================
+// Resolve existing source assets, public paths and hosted URLs.
+export function resolveProductImage(value) {
+  if (typeof value !== "string") return "";
 
-export function ProductImage({
+  const source = value.trim();
+
+  if (!source) return "";
+
+  // Preserve hosted image URLs and image data.
+  if (
+    /^https?:\/\//i.test(source) ||
+    /^\/\//.test(source) ||
+    /^data:image\//i.test(source) ||
+    /^blob:/i.test(source)
+  ) {
+    return source;
+  }
+
+  // Reject other URL schemes and Windows file paths.
+  if (/^[a-z][a-z0-9+.-]*:/i.test(source)) {
+    return "";
+  }
+
+  let pathname = source
+    .split(/[?#]/)[0]
+    .replace(/\\/g, "/");
+
+  try {
+    pathname = decodeURIComponent(pathname);
+  } catch {
+    // Keep the original path if decoding is invalid.
+  }
+
+  pathname = pathname.replace(/^\.\/+/, "");
+
+  if (pathname.startsWith("src/assets/")) {
+    pathname = `/${pathname}`;
+  } else if (pathname.startsWith("../assets/")) {
+    pathname = `/src/assets/${pathname.slice("../assets/".length)}`;
+  }
+
+  if (pathname.startsWith("/src/assets/")) {
+    // An absent source file cannot be restored by changing its URL.
+    return bundledImages[pathname] || "";
+  }
+
+  // Files in public are served without the "public" prefix.
+  if (pathname.startsWith("/public/")) {
+    return pathname.slice("/public".length);
+  }
+
+  if (pathname.startsWith("public/")) {
+    return `/${pathname.slice("public/".length)}`;
+  }
+
+  // Keep public and already-built URLs, including query strings.
+  return source.startsWith("/")
+    ? source
+    : `/${source.replace(/^\.\/+/, "")}`;
+}
+
+function imageCandidates(product) {
+  const sources = [
+    product?.image,
+    ...(Array.isArray(product?.images)
+      ? product.images
+      : []),
+  ];
+
+  return [
+    ...new Set(
+      sources.map(resolveProductImage).filter(Boolean)
+    ),
+  ];
+}
+
+function ProductImageContent({
   product,
-  className = "",
-  eager = false,
-  decorative = false,
-  fetchPriority = "auto",
+  sources,
+  className,
+  eager,
+  decorative,
+  fetchPriority,
 }) {
-  const source =
-    typeof product?.image === "string"
-      ? product.image
-      : "";
+  const [index, setIndex] = useState(0);
+  const source = sources[index];
 
-  const [failed, setFailed] = useState(null);
-
-  if (source && failed !== source) {
+  if (source) {
     return (
       <img
+        key={source}
         src={source}
         className={className}
-        alt={
-          decorative
-            ? ""
-            : product?.name || "Product"
-        }
+        alt={decorative ? "" : product?.name || "Product"}
         loading={eager ? "eager" : "lazy"}
         decoding="async"
         fetchPriority={fetchPriority}
-        onError={() => setFailed(source)}
+        onError={() => setIndex((current) => current + 1)}
       />
     );
   }
@@ -115,20 +169,34 @@ export function ProductImage({
         {product?.name || "GymDrobe"}
       </span>
 
-      <small>
-        Illustration · photo unavailable
-      </small>
+      <small>Illustration · photo unavailable</small>
     </span>
   );
 }
 
-// ======================================================
-// ARROW ICON
-// ======================================================
-
-export function Arrow({
-  direction = "right",
+export function ProductImage({
+  product,
+  className = "",
+  eager = false,
+  decorative = false,
+  fetchPriority = "auto",
 }) {
+  const sources = imageCandidates(product);
+
+  return (
+    <ProductImageContent
+      key={JSON.stringify(sources)}
+      product={product}
+      sources={sources}
+      className={className}
+      eager={eager}
+      decorative={decorative}
+      fetchPriority={fetchPriority}
+    />
+  );
+}
+
+export function Arrow({ direction = "right" }) {
   return (
     <svg
       width="20"
@@ -140,9 +208,7 @@ export function Arrow({
       aria-hidden="true"
       style={
         direction === "left"
-          ? {
-              transform: "rotate(180deg)",
-            }
+          ? { transform: "rotate(180deg)" }
           : undefined
       }
     >
@@ -151,13 +217,7 @@ export function Arrow({
   );
 }
 
-// ======================================================
-// WISHLIST ICON
-// ======================================================
-
-export function Heart({
-  filled = false,
-}) {
+export function Heart({ filled = false }) {
   return (
     <svg
       width="20"

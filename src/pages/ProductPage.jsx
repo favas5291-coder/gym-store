@@ -1,12 +1,5 @@
-import {
-  useEffect,
-  useState,
-} from "react";
-
-import {
-  Link,
-  useParams,
-} from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 
 import RecentlyViewed from "../components/RecentlyViewed.jsx";
 import ProductOptions from "../components/ProductOptions.jsx";
@@ -18,6 +11,7 @@ import Modal from "../components/Modal.jsx";
 import {
   ProductImage,
   categoryPath,
+  resolveProductImage,
 } from "../components/StorefrontShared.jsx";
 
 import {
@@ -30,89 +24,45 @@ import {
   writeStorage,
 } from "../utils/storage.js";
 
-import {
-  trackProductView,
-} from "../utils/analytics.js";
-
-import {
-  useShoppingTools,
-} from "../context/ShoppingToolsContext.jsx";
-
-import {
-  useStore,
-} from "../context/StoreContext.jsx";
-
-import {
-  useCatalog,
-} from "../context/CatalogContext.jsx";
-
-import {
-  money,
-} from "../utils/productPricing.js";
-
+import { trackProductView } from "../utils/analytics.js";
+import { useShoppingTools } from "../context/ShoppingToolsContext.jsx";
+import { useStore } from "../context/StoreContext.jsx";
+import { useCatalog } from "../context/CatalogContext.jsx";
+import { money } from "../utils/productPricing.js";
 import useProductReviews from "../hooks/useProductReviews.js";
 
-// ======================================================
-// PRODUCT DETAIL
-// ======================================================
+function ProductDetail({ product, products }) {
+  const { compared, toggleCompare } = useShoppingTools();
+  const { notify, shoppingKey } = useStore();
+  const { rating, count } = useProductReviews(product);
 
-function ProductDetail({
-  product,
-  products,
-}) {
-  const {
-    compared,
-    toggleCompare,
-  } = useShoppingTools();
+  const productId = product.id ?? product._id;
 
-  const {
-    notify,
-    shoppingKey,
-  } = useStore();
+  const deliveryKey = shoppingKey(
+    "gymdrobe-delivery-pincode",
+  );
 
-  const {
-    rating,
-    count,
-  } = useProductReviews(product);
-
-  // ====================================================
-  // PRODUCT VIEW ANALYTICS
-  // ====================================================
+  const recentlyViewedKey = shoppingKey(
+    "gymdrobe-recently-viewed",
+  );
 
   useEffect(() => {
-    const track = () =>
-      trackProductView(product);
+    const track = () => trackProductView(product);
 
     track();
 
     window.addEventListener(
       "gymdrobe-analytics-ready",
-      track
+      track,
     );
 
     return () => {
       window.removeEventListener(
         "gymdrobe-analytics-ready",
-        track
+        track,
       );
     };
   }, [product.id, product._id]);
-
-  // ====================================================
-  // STORAGE KEYS
-  // ====================================================
-
-  const deliveryKey = shoppingKey(
-    "gymdrobe-delivery-pincode"
-  );
-
-  const recentlyViewedKey = shoppingKey(
-    "gymdrobe-recently-viewed"
-  );
-
-  // ====================================================
-  // PRODUCT IMAGES
-  // ====================================================
 
   const images = [
     ...new Set(
@@ -121,18 +71,13 @@ function ProductDetail({
         ...(Array.isArray(product.images)
           ? product.images
           : []),
-      ].filter(
-        (source) =>
-          typeof source === "string" &&
-          source.trim()
-      )
+      ]
+        .map(resolveProductImage)
+        .filter(Boolean),
     ),
   ];
 
-  const [photo, setPhoto] = useState(
-    images[0] || ""
-  );
-
+  const [photo, setPhoto] = useState(images[0] || "");
   const [zoom, setZoom] = useState(false);
 
   const activePhoto = images.includes(photo)
@@ -141,55 +86,61 @@ function ProductDetail({
 
   const photoIndex = Math.max(
     0,
-    images.indexOf(activePhoto)
+    images.indexOf(activePhoto),
   );
 
-  // ====================================================
-  // DELIVERY
-  // ====================================================
+  function galleryProduct(source) {
+    return {
+      ...product,
+      image: source,
+      images: [],
+    };
+  }
+
+  function movePhoto(direction) {
+    if (!images.length) {
+      return;
+    }
+
+    const nextIndex =
+      (photoIndex + direction + images.length) %
+      images.length;
+
+    setPhoto(images[nextIndex]);
+  }
 
   const [pincode, setPincode] = useState(() => {
-    const saved = readStorage(
-      deliveryKey,
-      ""
-    );
-
-    return typeof saved === "string"
-      ? saved
-      : "";
+    const saved = readStorage(deliveryKey, "");
+    return typeof saved === "string" ? saved : "";
   });
 
   const [delivery, setDelivery] = useState("");
 
-  // ====================================================
-  // PRODUCT DATA
-  // ====================================================
-
-  const isCompared = compared.some(
+  const isCompared = (
+    Array.isArray(compared) ? compared : []
+  ).some(
     (item) =>
-      String(item.id) === String(product.id)
+      item &&
+      String(item.id ?? item._id) === String(productId),
   );
 
-  const highlights = Array.isArray(
-    product.highlights
-  )
+  const highlights = Array.isArray(product.highlights)
     ? product.highlights
     : Array.isArray(product.features)
       ? product.features
       : [];
 
   const careInstructions = Array.isArray(
-    product.careInstructions
+    product.careInstructions,
   )
     ? product.careInstructions
-    : typeof product.careInstructions ===
-          "string" &&
+    : typeof product.careInstructions === "string" &&
         product.careInstructions.trim()
       ? [product.careInstructions]
       : [];
 
   const freeDeliveryAbove = Number(
-    product.delivery?.freeDeliveryAbove
+    product.delivery?.freeDeliveryAbove,
   );
 
   const hasFreeDeliveryThreshold =
@@ -201,73 +152,58 @@ function ProductDetail({
       ? product.badge.trim()
       : "";
 
-  // ====================================================
-  // RECENTLY VIEWED
-  // ====================================================
-
   useEffect(() => {
-    const saved = readStorage(
-      recentlyViewedKey,
-      []
-    );
+    const saved = readStorage(recentlyViewedKey, []);
 
     const recentIds = Array.isArray(saved)
       ? saved
-          .filter((id) => id != null)
-          .map(String)
+          .filter(
+            (value) =>
+              typeof value === "string" ||
+              typeof value === "number",
+          )
+          .map((value) => String(value).trim())
+          .filter(Boolean)
       : [];
 
     writeStorage(
       recentlyViewedKey,
       [
         ...new Set([
-          String(product.id),
-
+          String(productId),
           ...recentIds.filter(
-            (id) =>
-              id !== String(product.id)
+            (value) => value !== String(productId),
           ),
         ]),
-      ].slice(0, 8)
+      ].slice(0, 8),
     );
-  }, [product.id, recentlyViewedKey]);
+  }, [productId, recentlyViewedKey]);
 
-  // ====================================================
-  // RELATED PRODUCTS
-  // ====================================================
-
-  const related = rankRelated(
-    product,
-    products
-  ).slice(0, 5);
-
-  // ====================================================
-  // DELIVERY CHECK
-  // ====================================================
+  const related = rankRelated(product, products).slice(0, 5);
 
   function checkDelivery(event) {
     event.preventDefault();
 
     if (!/^[1-9]\d{5}$/.test(pincode)) {
-      setDelivery(
-        "Enter a valid 6-digit pincode."
-      );
-
+      setDelivery("Enter a valid 6-digit pincode.");
       return;
     }
 
-    writeStorage(deliveryKey, pincode);
+    const saved = writeStorage(deliveryKey, pincode);
+
+    if (!saved) {
+      setDelivery(
+        "Your pincode could not be saved because browser storage is unavailable. Delivery availability and dates still need confirmation.",
+      );
+      return;
+    }
 
     setDelivery(
       product.delivery?.available === false
         ? "This product is currently unavailable for delivery."
-        : "Pincode saved. Final serviceability and delivery date will be confirmed during checkout."
+        : "Pincode saved. Delivery availability and dates still need confirmation.",
     );
   }
-
-  // ====================================================
-  // SHARE PRODUCT
-  // ====================================================
 
   async function share() {
     try {
@@ -278,7 +214,7 @@ function ProductDetail({
         });
       } else {
         await navigator.clipboard.writeText(
-          window.location.href
+          window.location.href,
         );
 
         notify("Product link copied.");
@@ -287,42 +223,33 @@ function ProductDetail({
       if (error.name !== "AbortError") {
         notify(
           "Copy this page's address to share the product.",
-          "info"
+          "info",
         );
       }
     }
   }
 
-  // ====================================================
-  // PAGE
-  // ====================================================
-
   return (
     <div className="product-page">
-      {/* Breadcrumb */}
-
-      <nav
-        className="breadcrumb"
-        aria-label="Breadcrumb"
-      >
+      <nav className="breadcrumb" aria-label="Breadcrumb">
         <Link to="/">Home</Link>
-
-        <span>/</span>
+        <span aria-hidden="true">/</span>
 
         <Link
-          to={categoryPath(product.category)}
+          to={
+            product.category
+              ? categoryPath(product.category)
+              : "/shop"
+          }
         >
-          {product.category}
+          {product.category || "Shop"}
         </Link>
 
-        <span>/</span>
-
-        <span>{product.name}</span>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">{product.name}</span>
       </nav>
 
       <div className="product-detail-layout">
-        {/* Product gallery */}
-
         <div className="gallery">
           <button
             className="main-photo"
@@ -330,38 +257,31 @@ function ProductDetail({
             disabled={!activePhoto}
             onClick={() => setZoom(true)}
             aria-label={`Enlarge ${product.name} image`}
+            aria-haspopup="dialog"
           >
             <ProductImage
-              product={{
-                ...product,
-                image: activePhoto,
-              }}
+              product={galleryProduct(activePhoto)}
               eager
               fetchPriority="high"
             />
           </button>
 
           {images.length > 1 && (
-            <div className="thumbnails">
+            <div
+              className="thumbnails"
+              role="group"
+              aria-label="Product photos"
+            >
               {images.map((source, index) => (
                 <button
                   key={source}
                   type="button"
-                  aria-label={`View product photo ${
-                    index + 1
-                  }`}
-                  aria-pressed={
-                    activePhoto === source
-                  }
-                  onClick={() =>
-                    setPhoto(source)
-                  }
+                  aria-label={`View product photo ${index + 1}`}
+                  aria-pressed={activePhoto === source}
+                  onClick={() => setPhoto(source)}
                 >
                   <ProductImage
-                    product={{
-                      ...product,
-                      image: source,
-                    }}
+                    product={galleryProduct(source)}
                     decorative
                   />
                 </button>
@@ -370,11 +290,11 @@ function ProductDetail({
           )}
 
           <p className="muted">
-            Select an image to view it larger.
+            {activePhoto
+              ? "Select an image to view it larger."
+              : "Product photography is currently unavailable."}
           </p>
         </div>
-
-        {/* Product information and purchase options */}
 
         <div className="product-info">
           <div className="product-title-meta">
@@ -397,45 +317,28 @@ function ProductDetail({
             </p>
           )}
 
-          {/* Customer ratings */}
-
           {count > 0 ? (
             <a
               className="detail-rating"
               href="#product-reviews"
               aria-label={`${rating} out of 5 from ${count} reviews. Jump to reviews.`}
             >
-              <strong>{rating}</strong>
-
-              {" "}
-
+              <strong>{rating}</strong>{" "}
               <span aria-hidden="true">★</span>
-
               {" · "}
-
-              {count}{" "}
-              {count === 1
-                ? "review"
-                : "reviews"}
+              {count} {count === 1 ? "review" : "reviews"}
             </a>
           ) : (
-            <p className="muted">
-              No customer reviews yet
-            </p>
+            <p className="muted">No customer reviews yet</p>
           )}
 
-          {/* Price, variants, quantity and purchase actions */}
-
           <ProductOptions product={product} />
-
-          {/* Delivery information */}
 
           <div className="delivery-box">
             <h2>CHECK DELIVERY</h2>
 
             <p className="muted">
-              Enter your pincode to save it for
-              checkout.
+              Enter your pincode to save it for checkout.
             </p>
 
             <form onSubmit={checkDelivery}>
@@ -450,54 +353,35 @@ function ProductDetail({
                 id="delivery-pincode"
                 placeholder="Enter 6-digit pincode"
                 value={pincode}
-                maxLength="6"
+                maxLength={6}
                 inputMode="numeric"
                 autoComplete="postal-code"
                 onChange={(event) => {
                   setPincode(
-                    event.target.value.replace(
-                      /\D/g,
-                      ""
-                    )
+                    event.target.value.replace(/\D/g, ""),
                   );
-
                   setDelivery("");
                 }}
               />
 
-              <button
-                className="text-link"
-                type="submit"
-              >
+              <button className="text-link" type="submit">
                 Check
               </button>
             </form>
 
-            {delivery && (
-              <p
-                role="status"
-                aria-live="polite"
-              >
-                {delivery}
-              </p>
-            )}
+            {delivery && <p role="status">{delivery}</p>}
 
             {hasFreeDeliveryThreshold && (
               <p>
-                Standard delivery is free on
-                qualifying orders of{" "}
-                <strong>
-                  {money(freeDeliveryAbove)}
-                </strong>{" "}
+                Standard delivery is free on qualifying orders
+                of <strong>{money(freeDeliveryAbove)}</strong>{" "}
                 or more after coupons.
               </p>
             )}
 
             {product.delivery?.estimatedDays && (
               <p>
-                <strong>
-                  Estimated delivery:
-                </strong>{" "}
+                <strong>Estimated delivery:</strong>{" "}
                 {product.delivery.estimatedDays}
               </p>
             )}
@@ -510,12 +394,7 @@ function ProductDetail({
             )}
           </div>
 
-          {/* Product details */}
-
-          <details
-            open
-            className="product-description"
-          >
+          <details open className="product-description">
             <summary>PRODUCT DETAILS</summary>
 
             {product.description && (
@@ -527,8 +406,8 @@ function ProductDetail({
                 <h3>Product benefits</h3>
 
                 <ul>
-                  {highlights.map((feature) => (
-                    <li key={feature}>
+                  {highlights.map((feature, index) => (
+                    <li key={`${index}-${feature}`}>
                       {feature}
                     </li>
                   ))}
@@ -538,58 +417,43 @@ function ProductDetail({
 
             {product.whatsIncluded && (
               <p>
-                <strong>
-                  What's included:
-                </strong>{" "}
+                <strong>What's included:</strong>{" "}
                 {product.whatsIncluded}
               </p>
             )}
 
             <dl className="spec-grid">
-              {productSpecs(product).map(
-                ([label, value]) => (
-                  <div key={label}>
-                    <dt>{label}</dt>
-                    <dd>{value}</dd>
-                  </div>
-                )
-              )}
+              {productSpecs(product).map(([label, value]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
             </dl>
           </details>
 
-          {/* Care instructions */}
-
           <details className="product-description">
-            <summary>
-              CARE INSTRUCTIONS
-            </summary>
+            <summary>CARE INSTRUCTIONS</summary>
 
             {careInstructions.length ? (
               <ul>
-                {careInstructions.map((line) => (
-                  <li key={line}>
-                    {line}
-                  </li>
+                {careInstructions.map((line, index) => (
+                  <li key={`${index}-${line}`}>{line}</li>
                 ))}
               </ul>
             ) : (
               <p>
-                Follow the care label supplied
-                with the product.
+                Follow the care label supplied with the product.
               </p>
             )}
           </details>
-
-          {/* Comparison, help and sharing */}
 
           <div className="bag-links">
             <button
               className="text-link"
               type="button"
               aria-pressed={isCompared}
-              onClick={() =>
-                toggleCompare(product)
-              }
+              onClick={() => toggleCompare(product)}
             >
               {isCompared
                 ? "✓ Added to comparison"
@@ -598,9 +462,7 @@ function ProductDetail({
 
             <Link
               className="text-link"
-              to={`/help?product=${encodeURIComponent(
-                product.id
-              )}`}
+              to={`/help?product=${encodeURIComponent(productId)}`}
             >
               Need help choosing?
             </Link>
@@ -616,11 +478,7 @@ function ProductDetail({
         </div>
       </div>
 
-      {/* Reviews */}
-
       <ProductReviews product={product} />
-
-      {/* Related products */}
 
       {related.length > 0 && (
         <ProductRow
@@ -629,11 +487,7 @@ function ProductDetail({
         />
       )}
 
-      {/* Recently viewed */}
-
-      <RecentlyViewed exclude={product.id} />
-
-      {/* Image zoom */}
+      <RecentlyViewed exclude={productId} />
 
       {zoom && (
         <Modal
@@ -642,10 +496,7 @@ function ProductDetail({
           className="image-modal"
         >
           <ProductImage
-            product={{
-              ...product,
-              image: activePhoto,
-            }}
+            product={galleryProduct(activePhoto)}
             eager
           />
 
@@ -653,36 +504,18 @@ function ProductDetail({
             <div className="pagination">
               <button
                 type="button"
-                onClick={() =>
-                  setPhoto(
-                    images[
-                      (photoIndex -
-                        1 +
-                        images.length) %
-                        images.length
-                    ]
-                  )
-                }
+                onClick={() => movePhoto(-1)}
               >
                 Previous photo
               </button>
 
-              <span>
-                {photoIndex + 1}
-                {" / "}
-                {images.length}
+              <span role="status">
+                {photoIndex + 1} / {images.length}
               </span>
 
               <button
                 type="button"
-                onClick={() =>
-                  setPhoto(
-                    images[
-                      (photoIndex + 1) %
-                        images.length
-                    ]
-                  )
-                }
+                onClick={() => movePhoto(1)}
               >
                 Next photo
               </button>
@@ -694,56 +527,43 @@ function ProductDetail({
   );
 }
 
-// ======================================================
-// PRODUCT PAGE
-// ======================================================
-
 export default function ProductPage() {
   const { id } = useParams();
+  const { shoppingKey } = useStore();
 
   const {
     products,
     loading,
+    loaded,
     error,
     refreshProducts,
   } = useCatalog();
 
-  // Supports MongoDB IDs, existing IDs,
-  // legacy numeric IDs and slugs.
-  const product = products.find((item) =>
-    [
-      item.id,
-      item._id,
-      item.legacyId,
-      item.slug,
-    ].some(
-      (value) =>
-        value != null &&
-        String(value) === String(id)
-    )
+  const catalog = Array.isArray(products) ? products : [];
+
+  const product = catalog.find(
+    (item) =>
+      item &&
+      [item.id, item._id, item.legacyId, item.slug].some(
+        (value) =>
+          value != null && String(value) === String(id),
+      ),
   );
 
-  // ====================================================
-  // LOADING
-  // ====================================================
-
-  if (loading) {
+  if (loading || (loaded === false && !error)) {
     return (
-      <EmptyState title="Loading product...">
-        Getting the latest product information
-        from GymDrobe.
-      </EmptyState>
+      <div role="status">
+        <EmptyState title="Loading product…">
+          Getting the latest product information from GymDrobe.
+        </EmptyState>
+      </div>
     );
   }
-
-  // ====================================================
-  // LOAD ERROR
-  // ====================================================
 
   if (error) {
     return (
       <EmptyState title="Unable to load product">
-        <p>{error}</p>
+        <p role="alert">{String(error)}</p>
 
         <button
           type="button"
@@ -754,10 +574,7 @@ export default function ProductPage() {
         </button>
 
         <p>
-          <Link
-            className="text-link"
-            to="/shop"
-          >
+          <Link className="text-link" to="/shop">
             Back to shop
           </Link>
         </p>
@@ -765,35 +582,22 @@ export default function ProductPage() {
     );
   }
 
-  // ====================================================
-  // PRODUCT NOT FOUND
-  // ====================================================
-
   if (!product) {
     return (
       <EmptyState title="Product not found">
-        This product may no longer be available.
-        {" "}
-
-        <Link
-          className="text-link"
-          to="/shop"
-        >
+        This product may no longer be available.{" "}
+        <Link className="text-link" to="/shop">
           Explore our current collection.
         </Link>
       </EmptyState>
     );
   }
 
-  // ====================================================
-  // PRODUCT DETAIL
-  // ====================================================
-
   return (
     <ProductDetail
-      key={product.id}
+      key={`${shoppingKey("gymdrobe-recently-viewed")}:${product.id ?? product._id}`}
       product={product}
-      products={products}
+      products={catalog}
     />
   );
 }

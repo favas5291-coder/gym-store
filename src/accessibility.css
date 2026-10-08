@@ -1,0 +1,84 @@
+/* GymDrobe accessibility refinements */
+
+/* Keep keyboard focus visible against light and dark backgrounds. */
+.gd-storefront :is(
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  summary,
+  [tabindex]
+):focus-visible,
+dialog.modal :is(
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  summary,
+  [tabindex]
+):focus-visible {
+  outline: 3px solid #1565c0 !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
+/* Keep long dialog content reachable on small screens. */
+dialog.modal {
+  box-sizing: border-box;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+dialog.modal .modal-head {
+  gap: 16px;
+}
+
+dialog.modal .modal-head h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+dialog.modal .modal-head button {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Prevent form controls from overflowing a dialog. */
+dialog.modal .field input,
+dialog.modal .field select,
+dialog.modal .field textarea {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+@media (max-width: 820px) {
+  dialog.modal .field input:not([type="checkbox"]):not([type="radio"]),
+  dialog.modal .field select,
+  dialog.modal .field textarea {
+    font-size: 16px;
+    min-height: 44px;
+  }
+
+  .gd-storefront .faq-list summary,
+  .gd-storefront .gm-footer-help summary {
+    box-sizing: border-box;
+    min-height: 44px;
+    padding-block: 12px;
+    cursor: pointer;
+  }
+}
+
+/* Preserve focus visibility in Windows high-contrast mode. */
+@media (forced-colors: active) {
+  .gd-storefront :focus-visible,
+  dialog.modal :focus-visible {
+    outline: 3px solid Highlight !important;
+    box-shadow: none;
+  }
+}

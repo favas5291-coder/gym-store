@@ -11,15 +11,15 @@ export default function Footer() {
     ...new Set(
       (Array.isArray(categories) ? categories : [])
         .map((item) =>
-          typeof item === "string" ? item : item?.name
+          typeof item === "string" ? item : item?.name,
         )
-        .filter(Boolean)
+        .filter(Boolean),
     ),
   ];
 
   function backToTop() {
     const reducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
+      "(prefers-reduced-motion: reduce)",
     ).matches;
 
     window.scrollTo({
@@ -34,7 +34,6 @@ export default function Footer() {
         <div className="gm-footer-columns">
           <nav aria-label="Footer online shopping">
             <h2>ONLINE SHOPPING</h2>
-
             <Link to="/shop">All products</Link>
 
             {names.slice(0, 8).map((name) => (
@@ -46,7 +45,6 @@ export default function Footer() {
 
           <nav aria-label="Footer account">
             <h2>YOUR ACCOUNT</h2>
-
             <Link to="/account">My profile</Link>
             <Link to="/orders">My orders</Link>
             <Link to="/addresses">Saved addresses</Link>
@@ -54,9 +52,7 @@ export default function Footer() {
             <Link to="/cart">Shopping bag</Link>
 
             {user ? (
-              <Link to="/account/security">
-                Account security
-              </Link>
+              <Link to="/account/security">Account security</Link>
             ) : !loading ? (
               <Link to="/login">Sign in with Google</Link>
             ) : null}
@@ -68,7 +64,6 @@ export default function Footer() {
             </Link>
 
             <p>Everything You Need for Every Workout.</p>
-
             <p>
               Discover clothing, shoes and the everyday essentials
               that go in your gym bag.
@@ -87,12 +82,16 @@ export default function Footer() {
               aria-label="Customer services"
             >
               <Link to="/help">Help & contact support</Link>
+              <a href="/shipping-and-returns.html">
+                Shipping, cancellation & returns
+              </a>
+              <a href="mailto:support@gymdrobe.com">
+                support@gymdrobe.com
+              </a>
               <Link to="/offers">Offers & coupons</Link>
               <Link to="/compare">Compare products</Link>
               <Link to="/saved">Saved for later</Link>
-              <Link to="/notifications">
-                Price & stock watches
-              </Link>
+              <Link to="/notifications">Price & stock watches</Link>
 
               {import.meta.env.DEV && (
                 <Link to="/dev/store">
@@ -104,17 +103,15 @@ export default function Footer() {
             <details>
               <summary>Find your fit</summary>
               <p>
-                Open a product to explore its available sizes,
-                colours and product details before adding it
-                to your bag.
+                Explore available sizes, colours and product details
+                before adding an item to your bag.
               </p>
             </details>
 
             <details>
               <summary>Keep your favourites</summary>
               <p>
-                Use the wishlist button to save your picks,
-                then find them in{" "}
+                Save your picks using the wishlist button, then open{" "}
                 <Link to="/wishlist">your wishlist</Link>.
               </p>
             </details>
@@ -122,10 +119,9 @@ export default function Footer() {
             <details>
               <summary>View your orders</summary>
               <p>
-                Sign in with Google, then open{" "}
-                <Link to="/orders">My orders</Link> to see
-                your account orders and available tracking
-                information.
+                Sign in with Google and open{" "}
+                <Link to="/orders">My orders</Link> for account orders,
+                payment details and available tracking.
               </p>
             </details>
 
@@ -134,8 +130,7 @@ export default function Footer() {
               <p>
                 Choose{" "}
                 <Link to="/login">Sign in with Google</Link>.
-                If you are new to GymDrobe, your account is
-                created when you first sign in.
+                Your account is created when you first sign in.
               </p>
             </details>
           </div>
@@ -147,7 +142,6 @@ export default function Footer() {
             aria-label="Browse categories"
           >
             <h2>EXPLORE GYMDROBE</h2>
-
             <div>
               {names.map((name) => (
                 <Link key={name} to={categoryPath(name)}>
@@ -163,7 +157,6 @@ export default function Footer() {
             © {new Date().getFullYear()} GymDrobe.
             All rights reserved.
           </p>
-
           <button type="button" onClick={backToTop}>
             BACK TO TOP ↑
           </button>

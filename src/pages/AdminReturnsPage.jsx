@@ -1,69 +1,88 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+
 import { useAuth } from "../context/AuthContext.jsx";
 import { useStore } from "../context/StoreContext.jsx";
+
 import {
   getAdminReturnRequests,
   reviewReturnRequest,
   completeReturnRequest,
   recordReturnRefund,
 } from "../services/adminOrderApi.js";
+
 import { money } from "../utils/productPricing.js";
 import "./AdminReturnsPage.css";
 
 const FILTERS = ["requested", "approved", "completed", "rejected", "all"];
+
 function label(value) {
-  return String(value || "Unknown")
+  return String(value || "Not recorded")
     .replaceAll("-", " ")
     .replace(/^./, (character) => character.toUpperCase());
 }
+
 function date(value) {
+  if (!value) return "Not recorded";
   const parsed = new Date(value);
-  return value && !Number.isNaN(parsed.getTime())
-    ? parsed.toLocaleString("en-IN")
-    : "—";
+  return Number.isNaN(parsed.getTime())
+    ? "Not recorded"
+    : parsed.toLocaleString("en-IN");
 }
-function recordedAmount(value) {
-  return value != null &&
-    value !== "" &&
-    Number.isFinite(Number(value)) &&
-    Number(value) >= 0
-    ? Number(value)
-    : null;
+
+function amount(value) {
+  if (value == null || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
-function paymentMethod(order) {
-  const method = order.payment?.method || order.paymentMethod;
-  if (method === "cod-partial") return "COD with online advance";
-  if (method === "cod") return "Cash on delivery";
-  if (["razorpay", "online"].includes(method)) return "Online payment";
-  return label(method);
+
+function showMoney(value) {
+  const parsed = amount(value);
+  return parsed === null ? "Not recorded" : money(parsed);
 }
-function variant(color, size) {
-  return (
-    [color, size && `Size ${size}`].filter(Boolean).join(" · ") ||
-    "Default variant"
-  );
+
+function orderId(order) {
+  return order.orderNumber || order.id;
 }
+
+function variant(size, color) {
+  return [
+    color,
+    size != null && size !== "" ? `Size ${size}` : "",
+  ].filter(Boolean).join(" · ") || "Default variant";
+}
+
 function nextStep(order) {
   const request = order.returnRequest || {};
-  if (request.status === "requested")
-    return "Review the reason and items, then approve or reject.";
-  if (request.status === "approved")
-    return "Receive and inspect the original items before completing this request.";
-  if (request.status === "rejected")
-    return "Request rejected. No further action on this request.";
-  if (request.status === "completed" && request.type === "exchange")
-    return "Exchange completed. Check replacement dispatch in your fulfillment workflow.";
+
+  if (request.status === "requested") {
+    return "Check the selected items and reason, then approve or reject.";
+  }
+
+  if (request.status === "approved") {
+    return "Receive and inspect the original items before completing.";
+  }
+
+  if (request.status === "rejected") {
+    return "The request was rejected. The customer can read your response.";
+  }
+
+  if (request.type === "exchange" && request.status === "completed") {
+    return "The exchange is completed. Check replacement dispatch separately.";
+  }
+
   if (
     request.status === "completed" &&
-    ["pending", "manual-required"].includes(order.refund?.status) &&
-    Number(order.refund?.amount) > 0
-  )
-    return "Send the refund outside GymDrobe, then record the transaction reference.";
-  if (order.refund?.status === "refunded") return "Refund has been recorded.";
-  if (order.refund?.status === "not-applicable")
-    return "Return completed. No refund amount is due.";
-  return "Check the recorded request and payment status.";
+    ["pending", "manual-required"].includes(order.refund?.status)
+  ) {
+    return "Reconcile the collected payment before sending and recording a refund.";
+  }
+
+  if (order.refund?.status === "refunded") {
+    return "The refund is recorded as completed.";
+  }
+
+  return "Check the recorded request and refund details.";
 }
 
 function RequestCard({
@@ -76,202 +95,214 @@ function RequestCard({
   onReference,
   onAction,
 }) {
+  const id = orderId(order);
   const request = order.returnRequest || {};
   const refund = order.refund || {};
   const exchange = request.type === "exchange";
-  const paid = recordedAmount(order.payment?.amountPaid);
-  const due = recordedAmount(order.payment?.amountDue);
-  const refundAmount = recordedAmount(refund.amount);
+  const paid = amount(order.payment?.amountPaid);
+  const refundAmount = amount(refund.amount);
+
   const needsRefund =
     !exchange &&
     request.status === "completed" &&
-    ["manual-required", "pending"].includes(refund.status) &&
+    ["pending", "manual-required"].includes(refund.status) &&
+    refundAmount !== null &&
     refundAmount > 0;
+
   const refundAllowed =
-    paid !== null && refundAmount !== null && refundAmount <= paid;
-  const customer = order.customer || {};
+    paid !== null &&
+    refundAmount !== null &&
+    refundAmount <= paid;
+
+  const rows = Array.isArray(request.items) ? request.items : [];
+
+  const validItems =
+    rows.length > 0 &&
+    rows.every((row) => {
+      const item = order.items?.[row.index];
+      return (
+        Number.isSafeInteger(row.index) &&
+        row.index >= 0 &&
+        item &&
+        Number.isSafeInteger(row.quantity) &&
+        row.quantity > 0 &&
+        row.quantity <= Number(item.quantity)
+      );
+    }) &&
+    new Set(rows.map((row) => row.index)).size === rows.length;
+
   return (
     <article className="panel ar-card" aria-busy={working}>
       <header className="ar-heading">
         <div>
-          <h2>
-            {exchange ? "Exchange" : "Return"} · {order.id}
-          </h2>
+          <h2>{exchange ? "Exchange" : "Return"} · {id}</h2>
           <p className="muted">
-            Request {request.id || "—"} · {date(request.requestedAt)}
+            Request {request.id || "Not recorded"} · {date(request.requestedAt)}
           </p>
         </div>
         <span className="status-pill">{label(request.status)}</span>
       </header>
+
       <p className="notice">
         <strong>Next step:</strong> {nextStep(order)}
       </p>
+
       <div className="ar-columns">
         <section>
           <h3>Customer and request</h3>
+          <strong>
+            {order.customer?.name ||
+              order.user?.name ||
+              order.shippingAddress?.fullName ||
+              "Customer"}
+          </strong>
           <p>
-            <strong>
-              {customer.name ||
-                order.user?.name ||
-                order.shippingAddress?.fullName ||
-                "Customer"}
-            </strong>
+            {order.customer?.email ||
+              order.user?.email ||
+              order.shippingAddress?.email}
           </p>
-          {(customer.email || order.user?.email) && (
-            <p>{customer.email || order.user?.email}</p>
-          )}
-          {(customer.phone || order.shippingAddress?.phone) && (
-            <p>{customer.phone || order.shippingAddress?.phone}</p>
-          )}
-          <p>
-            <strong>Reason:</strong> {request.reason || "No reason provided."}
-          </p>
-          <Link
-            className="text-link"
-            to={`/orders/${encodeURIComponent(order.id)}`}
-          >
-            View order details
+          <p>{order.customer?.phone || order.shippingAddress?.phone}</p>
+          <p><strong>Reason:</strong> {request.reason || "Not recorded"}</p>
+          <Link className="text-link" to="/admin/orders">
+            Open admin orders
           </Link>
+          <p className="muted">Find order {id} in admin orders.</p>
         </section>
+
         <section>
           <h3>Recorded payment</h3>
           <dl className="ar-facts">
-            <div>
-              <dt>Method</dt>
-              <dd>{paymentMethod(order)}</dd>
-            </div>
-            <div>
-              <dt>Payment status</dt>
-              <dd>{label(order.payment?.status)}</dd>
-            </div>
-            <div>
-              <dt>Amount paid</dt>
-              <dd>{paid === null ? "Not recorded" : money(paid)}</dd>
-            </div>
-            <div>
-              <dt>Balance due</dt>
-              <dd>{due === null ? "Not recorded" : money(due)}</dd>
-            </div>
+            {[
+              ["Method", label(order.payment?.method || order.paymentMethod)],
+              ["Payment status", label(order.payment?.status)],
+              ["Amount paid", showMoney(paid)],
+              ["Balance due", showMoney(order.payment?.amountDue)],
+              ["COD collection status", label(order.payment?.balanceStatus)],
+            ].map(([title, value]) => (
+              <div key={title}><dt>{title}</dt><dd>{value}</dd></div>
+            ))}
           </dl>
           <p className="muted">
-            Refunds are limited to the eligible returned-item value and recorded
-            amount paid. The server applies coupon adjustments; shipping is
-            excluded.
+            Check collected payment and previous refunds before sending money.
+            The current item calculation applies coupon savings and excludes shipping.
           </p>
         </section>
       </div>
+
       <section className="ar-section">
         <h3>Requested items</h3>
-        {!request.items?.length && (
-          <p className="field-error">No requested items are recorded.</p>
+        {!validItems && (
+          <p className="field-error">
+            Requested items are missing or invalid. Reconcile this order before approval or completion.
+          </p>
         )}
-        {(request.items || []).map((row, index) => {
+
+        {rows.map((row, index) => {
           const item = order.items?.[row.index];
-          if (!item)
-            return (
-              <p className="field-error" key={index}>
-                Original item {row.index} could not be found. Reconcile the
-                order before processing.
-              </p>
-            );
+          if (!item) {
+            return <p className="field-error" key={index}>Original item could not be found.</p>;
+          }
+
+          const price = amount(item.price);
+          const quantity = Number(row.quantity);
+          const value = price !== null &&
+            Number.isSafeInteger(quantity) && quantity > 0
+              ? price * quantity
+              : null;
+
           return (
             <div className="ar-item" key={`${row.index}-${index}`}>
               <strong>{item.name}</strong>
-              <p>
-                Requested quantity: {row.quantity} · Ordered: {item.quantity}
-              </p>
+              <p>Requested quantity: {row.quantity} · Ordered: {item.quantity}</p>
+              {item.sku && <p className="muted">Original SKU: {item.sku}</p>}
               <p className="muted">
-                Original: {variant(item.selectedColor, item.selectedSize)}
+                Original: {variant(item.selectedSize, item.selectedColor)}
               </p>
               {exchange ? (
-                <p>
-                  <strong>Replacement:</strong> {variant(row.color, row.size)}
-                </p>
+                <p><strong>Replacement:</strong> {variant(row.size, row.color)}</p>
               ) : (
-                <p>
-                  Item value before coupon allocation:{" "}
-                  {money(Number(item.price || 0) * Number(row.quantity || 0))}
-                </p>
+                <p>Item value before coupon allocation: {showMoney(value)}</p>
               )}
             </div>
           );
         })}
       </section>
+
       <section className="ar-section">
         <h3>Inventory and request history</h3>
         {exchange && (
           <p>
             Replacement stock reserved:{" "}
-            <strong>
-              {request.exchangeInventoryReservedAt ? "Yes" : "Not recorded"}
-            </strong>{" "}
-            {request.exchangeInventoryReservedAt &&
-              `· ${date(request.exchangeInventoryReservedAt)}`}
+            {request.exchangeInventoryReservedAt
+              ? date(request.exchangeInventoryReservedAt)
+              : "Not recorded"}
           </p>
         )}
         <p>
           Original stock restored:{" "}
-          <strong>
-            {request.originalInventoryRestoredAt ? "Yes" : "Not recorded"}
-          </strong>{" "}
-          {request.originalInventoryRestoredAt &&
-            `· ${date(request.originalInventoryRestoredAt)}`}
+          {request.originalInventoryRestoredAt
+            ? date(request.originalInventoryRestoredAt)
+            : "Not recorded"}
         </p>
         {[
-          ["approvedAt", "Approved"],
-          ["rejectedAt", "Rejected"],
-          ["completedAt", "Completed"],
-        ].map(
-          ([key, title]) =>
-            request[key] && (
-              <p className="muted" key={key}>
-                {title}: {date(request[key])}
-              </p>
-            ),
+          ["Approved", request.approvedAt],
+          ["Rejected", request.rejectedAt],
+          ["Completed", request.completedAt],
+        ].filter(([, value]) => value).map(([title, value]) => (
+          <p className="muted" key={title}>{title}: {date(value)}</p>
+        ))}
+        {request.response && (
+          <p className="notice">
+            <strong>Recorded customer message:</strong> {request.response}
+          </p>
         )}
       </section>
+
       {!exchange && (
         <section className="ar-section">
           <h3>Refund</h3>
           <dl className="ar-facts">
-            <div>
-              <dt>Status</dt>
-              <dd>{label(refund.status || "not-requested")}</dd>
-            </div>
-            <div>
-              <dt>Server-recorded amount</dt>
-              <dd>
-                {refundAmount === null ? "Not recorded" : money(refundAmount)}
-              </dd>
-            </div>
+            <div><dt>Status</dt><dd>{label(refund.status)}</dd></div>
+            <div><dt>Recorded amount</dt><dd>{showMoney(refundAmount)}</dd></div>
           </dl>
+
           {request.status !== "completed" && (
             <p className="muted">
-              Any amount shown before completion is provisional. Check the final
-              amount after completing the return.
+              Any calculated amount is provisional until the return is completed.
             </p>
           )}
+
           {refund.requestedAt && (
-            <p className="muted">Refund created: {date(refund.requestedAt)}</p>
+            <p className="muted">Requested: {date(refund.requestedAt)}</p>
           )}
+
+          {refund.reference && (
+            <p style={{ overflowWrap: "anywhere" }}>
+              Reference: {refund.reference}
+            </p>
+          )}
+
+          {refund.refundedAt && (
+            <p className="muted">Refund recorded: {date(refund.refundedAt)}</p>
+          )}
+
           {needsRefund && (
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                onAction(order, "refund");
-              }}
-            >
+            <form onSubmit={(event) => {
+              event.preventDefault();
+              onAction(order, "refund");
+            }}>
               <p className="notice">
-                Send {money(refundAmount)} through your payment provider or
-                agreed refund method first. This button records the refund; it
-                does not transfer money.
+                This action only records a refund already sent.
+                It does not transfer money.
               </p>
+
               {!refundAllowed && (
                 <p className="field-error">
-                  The amount paid is missing or this refund exceeds it.
-                  Reconcile the payment record before recording a refund.
+                  The recorded payment is missing or lower than the refund.
+                  Reconcile the payment before sending or recording money.
                 </p>
               )}
+
               <label className="ar-field">
                 Refund transaction reference
                 <input
@@ -279,50 +310,45 @@ function RequestCard({
                   minLength={3}
                   maxLength={200}
                   autoComplete="off"
-                  placeholder="Example: UTR123456789"
                   value={reference}
                   disabled={busy || !refundAllowed}
                   onChange={(event) => onReference(event.target.value)}
                 />
               </label>
-              <button className="button" disabled={busy || !refundAllowed}>
+
+              <button
+                type="submit"
+                className="button"
+                disabled={busy || !refundAllowed}
+              >
                 {working ? "Processing…" : "Record refund already sent"}
               </button>
             </form>
           )}
-          {refund.status === "refunded" && (
-            <div className="notice">
-              <strong>Refund recorded</strong>
-              <p>Reference: {refund.reference || "Not recorded"}</p>
-              <p>Recorded: {date(refund.refundedAt)}</p>
-            </div>
-          )}
         </section>
       )}
+
       {["requested", "approved"].includes(request.status) && (
         <section className="ar-section">
-          <h3>
-            {request.status === "requested"
-              ? "Review request"
-              : "Complete request"}
-          </h3>
+          <h3>{request.status === "requested" ? "Review request" : "Complete request"}</h3>
+
           <label className="ar-field">
-            Message to customer (optional)
+            Message visible to the customer
             <textarea
               rows={3}
               maxLength={1000}
               value={response}
               disabled={busy}
-              placeholder="This message is visible to the customer."
               onChange={(event) => onResponse(event.target.value)}
             />
           </label>
+
           {request.status === "requested" ? (
             <div className="ar-actions">
               <button
                 type="button"
                 className="button"
-                disabled={busy}
+                disabled={busy || !validItems}
                 onClick={() => onAction(order, "approve")}
               >
                 {working ? "Processing…" : "Approve request"}
@@ -339,32 +365,24 @@ function RequestCard({
           ) : (
             <>
               <p className="notice">
-                Complete only after the returned items have been received and
-                accepted for restocking. Completion restores original stock
+                Complete only after receiving and inspecting the original items.
+                This restores them to saleable inventory.
                 {exchange
-                  ? " and finalizes the exchange."
-                  : "; the refund must be processed separately."}
+                  ? " Replacement dispatch must be handled separately."
+                  : " Refund processing remains a separate action."}
               </p>
               <button
                 type="button"
                 className="button"
-                disabled={busy}
+                disabled={busy || !validItems}
                 onClick={() => onAction(order, "complete")}
               >
-                {working
-                  ? "Processing…"
-                  : `Complete ${exchange ? "exchange" : "return"}`}
+                {working ? "Processing…" : `Complete ${exchange ? "exchange" : "return"}`}
               </button>
             </>
           )}
         </section>
       )}
-      {["completed", "rejected"].includes(request.status) &&
-        request.response && (
-          <p className="notice">
-            <strong>Customer message:</strong> {request.response}
-          </p>
-        )}
     </article>
   );
 }
@@ -380,143 +398,191 @@ function ReturnsWorkspace({ token }) {
   const [workingId, setWorkingId] = useState("");
   const [responses, setResponses] = useState({});
   const [references, setReferences] = useState({});
+
   const mounted = useRef(false);
   const generation = useRef(0);
   const lock = useRef(false);
+
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
-      generation.current++;
+      generation.current += 1;
     };
   }, []);
+
   const loadRequests = useCallback(async () => {
     const version = ++generation.current;
     setLoading(true);
     setError("");
+
     try {
       const rows = await getAdminReturnRequests(
         token,
         filter === "all" ? "" : filter,
       );
-      if (mounted.current && version === generation.current) setOrders(rows);
+      if (mounted.current && version === generation.current) {
+        setOrders(Array.isArray(rows) ? rows : []);
+      }
     } catch (failure) {
       if (mounted.current && version === generation.current) {
         setOrders([]);
         setError(failure.message || "Unable to load requests.");
       }
     } finally {
-      if (mounted.current && version === generation.current) setLoading(false);
+      if (mounted.current && version === generation.current) {
+        setLoading(false);
+      }
     }
   }, [token, filter]);
+
   useEffect(() => {
     loadRequests();
   }, [loadRequests]);
+
   async function act(order, action) {
     if (lock.current || !token) return;
-    const response = (
-      responses[order.id] ??
-      order.returnRequest?.response ??
-      ""
+
+    const id = orderId(order);
+    const response = String(
+      responses[id] ?? order.returnRequest?.response ?? "",
     ).trim();
-    const reference = (references[order.id] ?? "").trim();
-    if (action === "refund" && reference.length < 3) {
-      setError("Enter the transaction reference for the refund already sent.");
+    const reference = String(references[id] ?? "").trim();
+
+    if (!id || !["approve", "reject", "complete", "refund"].includes(action)) {
+      setError("This action is unavailable.");
       return;
     }
+
+    if (action === "reject" && response.length < 5) {
+      setError("Enter a clear rejection reason of at least 5 characters.");
+      return;
+    }
+
+    if (action === "refund") {
+      const paid = amount(order.payment?.amountPaid);
+      const refund = amount(order.refund?.amount);
+
+      if (
+        order.returnRequest?.type !== "return" ||
+        order.returnRequest?.status !== "completed" ||
+        !["pending", "manual-required"].includes(order.refund?.status) ||
+        refund === null || refund <= 0 ||
+        paid === null || refund > paid
+      ) {
+        setError("Reconcile the return and payment records before recording this refund.");
+        return;
+      }
+
+      if (reference.length < 3 || reference.length > 200) {
+        setError("Enter a refund reference of 3–200 characters.");
+        return;
+      }
+    }
+
     const confirmations = {
-      reject: `Reject the request for ${order.id}?`,
-      complete: `Complete the request for ${order.id}? Confirm the original items were received and accepted for restocking.`,
-      refund: `Confirm you already sent ${money(order.refund?.amount)} for ${order.id}. Record reference ${reference}?`,
+      approve: `Approve the request for ${id}? Exchange approval reserves replacement stock.`,
+      reject: `Reject the request for ${id}? Your message will be visible to the customer.`,
+      complete: `Complete the request for ${id}? Confirm the original items were received, inspected and accepted for saleable stock.`,
+      refund: `Confirm ${showMoney(order.refund?.amount)} was already refunded for ${id}. Record reference ${reference}?`,
     };
-    if (confirmations[action] && !window.confirm(confirmations[action])) return;
+
+    if (!window.confirm(confirmations[action])) return;
+
     lock.current = true;
-    setWorkingId(order.id);
+    generation.current += 1;
+    setWorkingId(id);
     setError("");
     setSuccess("");
+
     try {
-      if (action === "complete")
-        await completeReturnRequest(token, order.id, { response });
-      else if (action === "refund")
-        await recordReturnRefund(token, order.id, { reference });
-      else
-        await reviewReturnRequest(token, order.id, {
+      let updated;
+
+      if (action === "complete") {
+        updated = await completeReturnRequest(token, id, { response });
+      } else if (action === "refund") {
+        updated = await recordReturnRefund(token, id, { reference });
+      } else {
+        updated = await reviewReturnRequest(token, id, {
           decision: action,
           response,
         });
+      }
+
+      if (!updated) {
+        throw new Error("The updated order was not returned.");
+      }
+
       if (!mounted.current) return;
-      const message =
-        action === "refund"
-          ? "Refund recorded. No money was transferred by this action."
-          : action === "complete"
-            ? "Request completed. Check the recorded inventory and refund details."
-            : `Request ${action === "approve" ? "approved" : "rejected"}.`;
+
+      const message = action === "refund"
+        ? "Refund recorded. This action did not transfer money."
+        : action === "complete"
+          ? "Request completed. Check inventory and refund details."
+          : `Request ${action === "approve" ? "approved" : "rejected"}.`;
+
       setSuccess(message);
       notify(message, "success");
-      setReferences((current) => {
-        const next = { ...current };
-        delete next[order.id];
-        return next;
-      });
+
       setResponses((current) => {
         const next = { ...current };
-        delete next[order.id];
+        delete next[id];
         return next;
       });
+
+      setReferences((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+
       await loadRequests();
     } catch (failure) {
-      if (mounted.current)
+      if (mounted.current) {
         setError(
-          failure.message ||
-            "Unable to process this request. Refresh to check its current status before retrying.",
+          `${failure.message || "Unable to process this request."} Reload requests to check the current status before retrying. Do not resend a refund without checking the payment provider.`,
         );
+      }
     } finally {
       lock.current = false;
       if (mounted.current) setWorkingId("");
     }
   }
+
+  const busy = Boolean(workingId);
   const query = search.trim().toLowerCase();
+
   const visible = orders.filter((order) =>
     [
-      order.id,
+      orderId(order),
       order.returnRequest?.id,
       order.customer?.name,
       order.customer?.email,
       order.user?.name,
       order.user?.email,
-    ].some((value) =>
-      String(value || "")
-        .toLowerCase()
-        .includes(query),
-    ),
+    ].some((value) => String(value || "").toLowerCase().includes(query)),
   );
-  const busy = Boolean(workingId);
+
   return (
     <div className="page ar-admin">
       <header className="ar-heading">
         <div>
           <p className="eyebrow">GYMDROBE ADMIN</p>
           <h1>Returns and exchanges</h1>
-          <p>
-            Review requests, receive the original items, then complete the
-            return or exchange.
-          </p>
+          <p>Review requests, inspect returned items, then complete and reconcile refunds.</p>
         </div>
         <div className="ar-actions">
-          <Link className="button secondary" to="/admin/products">
-            Products
-          </Link>
-          <Link className="button secondary" to="/admin/orders">
-            Orders
-          </Link>
+          <Link className="button secondary" to="/admin/products">Products</Link>
+          <Link className="button secondary" to="/admin/orders">Orders</Link>
         </div>
       </header>
+
       <section className="panel">
         <div className="ar-actions" aria-label="Request status filters">
           {FILTERS.map((value) => (
             <button
-              type="button"
               key={value}
+              type="button"
               className={filter === value ? "button" : "button secondary"}
               aria-pressed={filter === value}
               disabled={loading || busy}
@@ -529,14 +595,15 @@ function ReturnsWorkspace({ token }) {
             </button>
           ))}
         </div>
+
         <div className="ar-search">
           <label className="ar-field">
             Search within this status
             <input
               type="search"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
               placeholder="Order ID, request ID, customer name or email"
+              onChange={(event) => setSearch(event.target.value)}
             />
           </label>
           <button
@@ -548,62 +615,59 @@ function ReturnsWorkspace({ token }) {
             Refresh
           </button>
         </div>
+
         {!loading && !error && (
           <p className="muted">
             Showing {visible.length} of {orders.length} loaded requests.
           </p>
         )}
       </section>
-      {success && (
-        <p className="notice" role="status">
-          {success}
-        </p>
-      )}
+
+      {success && <p className="notice" role="status">{success}</p>}
+
       {error && (
         <div className="panel">
-          <p className="field-error" role="alert">
-            {error}
-          </p>
+          <p className="field-error" role="alert">{error}</p>
           <button
             type="button"
             className="button secondary"
-            disabled={busy || loading}
+            disabled={loading || busy}
             onClick={loadRequests}
           >
             Reload requests
           </button>
         </div>
       )}
+
       {loading ? (
-        <p className="panel" role="status">
-          Loading requests…
-        </p>
+        <p className="panel" role="status">Loading requests…</p>
       ) : !error && !visible.length ? (
         <div className="panel">
           <h2>No matching requests</h2>
           <p>Choose another status or clear your search.</p>
         </div>
-      ) : (
+      ) : !error && (
         <div className="ar-list">
-          {visible.map((order) => (
-            <RequestCard
-              key={order.id}
-              order={order}
-              busy={busy}
-              working={workingId === order.id}
-              response={
-                responses[order.id] ?? order.returnRequest?.response ?? ""
-              }
-              reference={references[order.id] ?? ""}
-              onResponse={(value) =>
-                setResponses((current) => ({ ...current, [order.id]: value }))
-              }
-              onReference={(value) =>
-                setReferences((current) => ({ ...current, [order.id]: value }))
-              }
-              onAction={act}
-            />
-          ))}
+          {visible.map((order) => {
+            const id = orderId(order);
+            return (
+              <RequestCard
+                key={id}
+                order={order}
+                busy={busy}
+                working={workingId === id}
+                response={responses[id] ?? order.returnRequest?.response ?? ""}
+                reference={references[id] ?? ""}
+                onResponse={(value) =>
+                  setResponses((current) => ({ ...current, [id]: value }))
+                }
+                onReference={(value) =>
+                  setReferences((current) => ({ ...current, [id]: value }))
+                }
+                onAction={act}
+              />
+            );
+          })}
         </div>
       )}
     </div>
@@ -611,36 +675,57 @@ function ReturnsWorkspace({ token }) {
 }
 
 export default function AdminReturnsPage() {
-  const { user, token, authLoading = false } = useAuth();
-  if (authLoading)
+  const {
+    user,
+    token,
+    loading,
+    authError,
+    retrySession,
+  } = useAuth();
+
+  if (loading) {
     return (
       <div className="page panel" role="status">
         Checking admin session…
       </div>
     );
-  if (!user || !token)
+  }
+
+  if (authError) {
+    return (
+      <div className="page narrow panel">
+        <h1>Unable to check admin session</h1>
+        <p className="field-error" role="alert">{authError}</p>
+        <button type="button" className="button" onClick={retrySession}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (!user || !token) {
     return (
       <div className="page narrow panel">
         <h1>Admin returns</h1>
         <p>Sign in with an admin account to continue.</p>
-        <Link className="button" to="/login">
-          Sign in
-        </Link>
+        <Link className="button" to="/login">Sign in</Link>
       </div>
     );
-  if (user.role !== "admin")
+  }
+
+  if (user.role !== "admin") {
     return (
       <div className="page narrow panel">
         <h1>Admin access required</h1>
         <p>This page is available to GymDrobe administrators.</p>
-        <Link className="button" to="/">
-          Go home
-        </Link>
+        <Link className="button" to="/">Go home</Link>
       </div>
     );
+  }
+
   return (
     <ReturnsWorkspace
-      key={`${user.id || user._id || "admin"}:${token}`}
+      key={`${user.id || user._id}:${token}`}
       token={token}
     />
   );
