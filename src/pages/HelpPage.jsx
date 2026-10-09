@@ -1,24 +1,12 @@
-import {
-  useRef,
-  useState,
-  useEffect,
-} from "react";
+import { useRef, useState, useEffect } from "react";
+import { Link, useSearchParams, useLocation } from "react-router-dom";
 
-import {
-  Link,
-  useSearchParams,
-  useLocation,
-} from "react-router-dom";
-
-import {
-  useAuth,
-} from "../context/AuthContext.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 
 import SupportInbox from "../components/SupportInbox.jsx";
+import WhatsAppSupport from "../components/WhatsAppSupport.jsx";
 
-import {
-  supportRequest,
-} from "../services/supportApi.js";
+import { supportRequest } from "../services/supportApi.js";
 
 const faqs = [
   [
@@ -51,7 +39,7 @@ const faqs = [
   ],
   [
     "How do I contact GymDrobe support?",
-    "Sign in and submit a request on this page. Requests and replies are saved to your account and appear in the support inbox. Check this page for replies; email notifications are not configured.",
+    "Use WhatsApp or email to contact us without signing in. You can also sign in and submit a support request on this page. Check Your requests below for replies to support tickets.",
   ],
 ];
 
@@ -65,9 +53,7 @@ export default function HelpPage() {
 
   const [form, setForm] = useState({
     subject: "",
-    category: params.get("product")
-      ? "Product question"
-      : "General",
+    category: params.get("product") ? "Product question" : "General",
     orderId: params.get("order") || "",
     productId: params.get("product") || "",
     message: "",
@@ -105,33 +91,24 @@ export default function HelpPage() {
     const captured = token;
 
     try {
-      const signature =
-        JSON.stringify(form);
+      const signature = JSON.stringify(form);
 
-      if (
-        !pending.current ||
-        pending.current.signature !==
-          signature
-      ) {
+      if (!pending.current || pending.current.signature !== signature) {
         pending.current = {
           signature,
           requestId: crypto.randomUUID(),
         };
       }
 
-      const data =
-        await supportRequest(token, "", {
-          method: "POST",
-          body: {
-            ...form,
-            requestId:
-              pending.current.requestId,
-          },
-        });
+      const data = await supportRequest(token, "", {
+        method: "POST",
+        body: {
+          ...form,
+          requestId: pending.current.requestId,
+        },
+      });
 
-      if (
-        session.current !== captured
-      ) {
+      if (session.current !== captured) {
         return;
       }
 
@@ -146,34 +123,22 @@ export default function HelpPage() {
       }));
 
       pending.current = null;
-
-      setRevision(
-        (value) => value + 1,
-      );
+      setRevision((value) => value + 1);
     } catch (saveError) {
-      if (
-        session.current === captured
-      ) {
+      if (session.current === captured) {
         setError(saveError.message);
       }
     } finally {
       lock.current = false;
 
-      if (
-        session.current === captured
-      ) {
+      if (session.current === captured) {
         setBusy(false);
       }
     }
   }
 
   const matches = faqs.filter((pair) =>
-    pair
-      .join(" ")
-      .toLowerCase()
-      .includes(
-        query.trim().toLowerCase(),
-      ),
+    pair.join(" ").toLowerCase().includes(query.trim().toLowerCase()),
   );
 
   return (
@@ -181,13 +146,12 @@ export default function HelpPage() {
       <div className="page-heading">
         <h1>How can we help?</h1>
 
-        <Link
-          className="text-link"
-          to="/orders"
-        >
+        <Link className="text-link" to="/orders">
           Orders & returns →
         </Link>
       </div>
+
+      <WhatsAppSupport />
 
       {user?.role === "admin" && (
         <p>
@@ -198,82 +162,66 @@ export default function HelpPage() {
       )}
 
       <div className="field">
-        <label htmlFor="help-search">
-          Search shopping help
-        </label>
+        <label htmlFor="help-search">Search shopping help</label>
 
         <input
           id="help-search"
           type="search"
           value={query}
           placeholder="Delivery, coupons, returns…"
-          onChange={(event) =>
-            setQuery(event.target.value)
-          }
+          onChange={(event) => setQuery(event.target.value)}
         />
       </div>
 
       <div className="faq-list">
-        {matches.map(
-          ([question, answer]) => (
-            <details key={question}>
-              <summary>
-                {question}
-              </summary>
-
-              <p>{answer}</p>
-            </details>
-          ),
-        )}
+        {matches.map(([question, answer]) => (
+          <details key={question}>
+            <summary>{question}</summary>
+            <p>{answer}</p>
+          </details>
+        ))}
 
         {!matches.length && (
           <p>
-            No matching answers. Try another
-            search or contact support below.
+            No matching answers. Try another search or contact support below.
           </p>
         )}
       </div>
 
       <p className="notice">
-        Never share passwords, OTPs, card
-        numbers, CVVs or UPI PINs in a support
-        message.
+        Never share passwords, OTPs, card numbers, CVVs or UPI PINs
+        in a support message.
       </p>
 
       {!user || !token ? (
         <section className="panel">
-          <h2>Contact support</h2>
+          <h2>Send a support request</h2>
 
           <p>
-            Sign in to send a request and keep
-            track of replies in your account.
+            Sign in to send a request and keep track of replies in your account.
           </p>
 
           <Link
             className="button"
             to={`/login?next=${encodeURIComponent(
-              location.pathname +
-                location.search,
+              location.pathname + location.search,
             )}`}
           >
-            Sign in to contact support
+            Sign in to send a request
           </Link>
         </section>
       ) : (
         <>
           <section className="panel">
-            <h2>Contact support</h2>
+            <h2>Send a support request</h2>
 
             <p>
-              Requests go to the GymDrobe admin
-              inbox. Replies appear on this page.
-              Email notifications are not
-              configured.
+              Requests go to the GymDrobe admin inbox.
+              Replies appear on this page.
+              Email notifications are not configured.
             </p>
 
-            <p>
-              Account email: {user.email}
-            </p>
+            <p>Account email: {user.email}</p>
 
             <form onSubmit={submit}>
               <fieldset
@@ -285,9 +233,7 @@ export default function HelpPage() {
                 }}
               >
                 <div className="field">
-                  <label htmlFor="help-topic">
-                    Topic
-                  </label>
+                  <label htmlFor="help-topic">Topic</label>
 
                   <select
                     id="help-topic"
@@ -295,8 +241,7 @@ export default function HelpPage() {
                     onChange={(event) =>
                       setForm({
                         ...form,
-                        category:
-                          event.target.value,
+                        category: event.target.value,
                       })
                     }
                   >
@@ -308,9 +253,7 @@ export default function HelpPage() {
                       "Return or exchange",
                       "Payment question",
                     ].map((value) => (
-                      <option key={value}>
-                        {value}
-                      </option>
+                      <option key={value}>{value}</option>
                     ))}
                   </select>
                 </div>
@@ -328,8 +271,7 @@ export default function HelpPage() {
                     onChange={(event) =>
                       setForm({
                         ...form,
-                        orderId:
-                          event.target.value,
+                        orderId: event.target.value,
                       })
                     }
                   />
@@ -347,17 +289,14 @@ export default function HelpPage() {
                     onChange={(event) =>
                       setForm({
                         ...form,
-                        productId:
-                          event.target.value,
+                        productId: event.target.value,
                       })
                     }
                   />
                 </div>
 
                 <div className="field">
-                  <label htmlFor="help-subject">
-                    Subject
-                  </label>
+                  <label htmlFor="help-subject">Subject</label>
 
                   <input
                     id="help-subject"
@@ -367,17 +306,14 @@ export default function HelpPage() {
                     onChange={(event) =>
                       setForm({
                         ...form,
-                        subject:
-                          event.target.value,
+                        subject: event.target.value,
                       })
                     }
                   />
                 </div>
 
                 <div className="field">
-                  <label htmlFor="help-message">
-                    Message
-                  </label>
+                  <label htmlFor="help-message">Message</label>
 
                   <textarea
                     id="help-message"
@@ -389,37 +325,24 @@ export default function HelpPage() {
                     onChange={(event) =>
                       setForm({
                         ...form,
-                        message:
-                          event.target.value,
+                        message: event.target.value,
                       })
                     }
                   />
                 </div>
 
-                <button
-                  className="button"
-                  type="submit"
-                >
-                  {busy
-                    ? "Sending…"
-                    : "Send support request"}
+                <button className="button" type="submit">
+                  {busy ? "Sending…" : "Send support request"}
                 </button>
               </fieldset>
 
               {error && (
-                <p
-                  role="alert"
-                  className="field-error"
-                >
+                <p role="alert" className="field-error">
                   {error}
                 </p>
               )}
 
-              {success && (
-                <p role="status">
-                  {success}
-                </p>
-              )}
+              {success && <p role="status">{success}</p>}
             </form>
           </section>
 

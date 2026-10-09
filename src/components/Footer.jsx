@@ -1,7 +1,10 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import categories from "../data/categories";
+
 import { Arrow, categoryPath } from "./StorefrontShared";
+import { WhatsAppLink } from "./WhatsAppSupport.jsx";
+
 import "./GymDrobeStorefront.css";
 
 export default function Footer() {
@@ -10,9 +13,7 @@ export default function Footer() {
   const names = [
     ...new Set(
       (Array.isArray(categories) ? categories : [])
-        .map((item) =>
-          typeof item === "string" ? item : item?.name,
-        )
+        .map((item) => (typeof item === "string" ? item : item?.name))
         .filter(Boolean),
     ),
   ];
@@ -64,6 +65,7 @@ export default function Footer() {
             </Link>
 
             <p>Everything You Need for Every Workout.</p>
+
             <p>
               Discover clothing, shoes and the everyday essentials
               that go in your gym bag.
@@ -82,12 +84,19 @@ export default function Footer() {
               aria-label="Customer services"
             >
               <Link to="/help">Help & contact support</Link>
+
+              <WhatsAppLink className="">
+                WhatsApp support
+              </WhatsAppLink>
+
               <a href="/shipping-and-returns.html">
                 Shipping, cancellation & returns
               </a>
+
               <a href="mailto:support@gymdrobe.com">
                 support@gymdrobe.com
               </a>
+
               <Link to="/offers">Offers & coupons</Link>
               <Link to="/compare">Compare products</Link>
               <Link to="/saved">Saved for later</Link>
@@ -142,6 +151,7 @@ export default function Footer() {
             aria-label="Browse categories"
           >
             <h2>EXPLORE GYMDROBE</h2>
+
             <div>
               {names.map((name) => (
                 <Link key={name} to={categoryPath(name)}>
@@ -157,6 +167,7 @@ export default function Footer() {
             © {new Date().getFullYear()} GymDrobe.
             All rights reserved.
           </p>
+
           <button type="button" onClick={backToTop}>
             BACK TO TOP ↑
           </button>

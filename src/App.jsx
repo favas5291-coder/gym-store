@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect } from "react";
+
 import {
   BrowserRouter,
   Link,
@@ -15,7 +16,11 @@ import {
 } from "./utils/analytics.js";
 
 import { useAuth } from "./context/AuthContext.jsx";
-import StoreProvider, { useStore } from "./context/StoreContext.jsx";
+
+import StoreProvider, {
+  useStore,
+} from "./context/StoreContext.jsx";
+
 import CatalogProvider from "./context/CatalogContext.jsx";
 import ShoppingToolsProvider from "./context/ShoppingToolsContext.jsx";
 
@@ -42,39 +47,36 @@ const AccountPage = lazy(() => import("./pages/AccountPage.jsx"));
 const AddressesPage = lazy(() => import("./pages/AddressesPage.jsx"));
 const SecurityPage = lazy(() => import("./pages/SecurityPage.jsx"));
 
-const OrderSuccessPage = lazy(
-  () => import("./pages/OrderSuccessPage.jsx")
-);
+const OrderSuccessPage = lazy(() => import("./pages/OrderSuccessPage.jsx"));
 const OrdersPage = lazy(() => import("./pages/OrdersPage.jsx"));
-const OrderDetailsPage = lazy(
-  () => import("./pages/OrderDetailsPage.jsx")
-);
-const OrderTrackingPage = lazy(
-  () => import("./pages/OrderTrackingPage.jsx")
-);
+const OrderDetailsPage = lazy(() => import("./pages/OrderDetailsPage.jsx"));
+const OrderTrackingPage = lazy(() => import("./pages/OrderTrackingPage.jsx"));
 const ReceiptPage = lazy(() => import("./pages/ReceiptPage.jsx"));
 const ReturnPage = lazy(() => import("./pages/ReturnPage.jsx"));
 
 const ComparePage = lazy(() => import("./pages/ComparePage.jsx"));
 const SavedPage = lazy(() => import("./pages/SavedPage.jsx"));
-const NotificationsPage = lazy(
-  () => import("./pages/NotificationsPage.jsx")
-);
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage.jsx"));
 const OffersPage = lazy(() => import("./pages/OffersPage.jsx"));
 const HelpPage = lazy(() => import("./pages/HelpPage.jsx"));
 
-const AdminSupportPage = lazy(
-  () => import("./pages/AdminSupportPage.jsx")
+const AdminDashboardPage = lazy(
+  () => import("./pages/AdminDashboardPage.jsx"),
 );
-const AdminOrdersPage = lazy(
-  () => import("./pages/AdminOrdersPage.jsx")
+
+const AdminCustomersPage = lazy(
+  () =>
+    import("./pages/AdminDashboardPage.jsx").then(
+      (module) => ({
+        default: module.AdminCustomersPage,
+      }),
+    ),
 );
-const AdminProductsPage = lazy(
-  () => import("./pages/AdminProductsPage.jsx")
-);
-const AdminReturnsPage = lazy(
-  () => import("./pages/AdminReturnsPage.jsx")
-);
+
+const AdminSupportPage = lazy(() => import("./pages/AdminSupportPage.jsx"));
+const AdminOrdersPage = lazy(() => import("./pages/AdminOrdersPage.jsx"));
+const AdminProductsPage = lazy(() => import("./pages/AdminProductsPage.jsx"));
+const AdminReturnsPage = lazy(() => import("./pages/AdminReturnsPage.jsx"));
 
 const StoreConsolePage = import.meta.env.DEV
   ? lazy(() => import("./pages/StoreConsolePage.jsx"))
@@ -113,7 +115,7 @@ function AccountRequired({ children }) {
     return (
       <Navigate
         to={`/login?next=${encodeURIComponent(
-          location.pathname + location.search
+          location.pathname + location.search,
         )}`}
         replace
       />
@@ -134,7 +136,7 @@ function AdminRequired({ children }) {
     return (
       <Navigate
         to={`/login?next=${encodeURIComponent(
-          location.pathname + location.search
+          location.pathname + location.search,
         )}`}
         replace
       />
@@ -148,10 +150,9 @@ function AdminRequired({ children }) {
   return children;
 }
 
-// Preserve the intended destination from old signup links.
-// Password-reset tokens and other old parameters are not forwarded.
 function LegacyLoginRedirect() {
   const { search } = useLocation();
+
   const next = new URLSearchParams(search).get("next");
 
   return (
@@ -170,7 +171,10 @@ function ScrollToTop() {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "instant" });
+    window.scrollTo({
+      top: 0,
+      behavior: "instant",
+    });
   }, [pathname]);
 
   return null;
@@ -239,33 +243,49 @@ function CheckoutHeader() {
 }
 
 function Layout() {
-  const { cart, wishlist, toast, closeToast } = useStore();
+  const {
+    cart,
+    wishlist,
+    toast,
+    closeToast,
+  } = useStore();
+
   const { user } = useAuth();
   const location = useLocation();
 
   const analyticsCartKey = JSON.stringify(
-    cart.map((item) => [item.id, item.quantity, item.price])
+    cart.map((item) => [
+      item.id,
+      item.quantity,
+      item.price,
+    ]),
   );
 
   useEffect(() => {
-    const currentPath =
+    const path =
       location.pathname.replace(/\/+$/, "") || "/";
 
-    if (currentPath !== "/cart" || !cart.length) return;
+    if (path !== "/cart" || !cart.length) return;
 
     const track = () =>
       trackOnce(
         `cart:${analyticsVisitKey()}`,
         "view_cart",
-        commercePayload(cart)
+        commercePayload(cart),
       );
 
     track();
 
-    window.addEventListener("gymdrobe-analytics-ready", track);
+    window.addEventListener(
+      "gymdrobe-analytics-ready",
+      track,
+    );
 
     return () => {
-      window.removeEventListener("gymdrobe-analytics-ready", track);
+      window.removeEventListener(
+        "gymdrobe-analytics-ready",
+        track,
+      );
     };
   }, [location.pathname, analyticsCartKey]);
 
@@ -274,7 +294,6 @@ function Layout() {
 
   const isCheckout = currentPath === "/checkout";
 
-  // Keep old recovery URLs out of analytics during their redirect.
   const isRecovery =
     currentPath === "/forgot-password" ||
     currentPath === "/reset-password";
@@ -294,12 +313,38 @@ function Layout() {
         <>
           <Navbar
             cartCount={cart.reduce(
-              (total, item) => total + Number(item.quantity || 0),
-              0
+              (total, item) =>
+                total + Number(item.quantity || 0),
+              0,
             )}
             wishlistCount={wishlist.length}
           />
+
           <StoreUtilityBar />
+
+          {user?.role === "admin" && (
+            <nav
+              aria-label="Admin quick access"
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "20px",
+                padding: "12px 20px",
+                background: "#f3f4f6",
+              }}
+            >
+              <Link className="text-link" to="/admin">
+                Admin dashboard
+              </Link>
+
+              <Link
+                className="text-link"
+                to="/admin/customers"
+              >
+                Customers
+              </Link>
+            </nav>
+          )}
         </>
       )}
 
@@ -319,34 +364,26 @@ function Layout() {
 
               <Route
                 path="/checkout"
-                element={<CheckoutPage key={user?.id || "guest"} />}
+                element={
+                  <CheckoutPage key={user?.id || "guest"} />
+                }
               />
 
               <Route path="/login" element={<LoginPage />} />
-
-              <Route
-                path="/signup"
-                element={<LegacyLoginRedirect />}
-              />
-              <Route
-                path="/forgot-password"
-                element={<LegacyLoginRedirect />}
-              />
-              <Route
-                path="/reset-password"
-                element={<LegacyLoginRedirect />}
-              />
+              <Route path="/signup" element={<LegacyLoginRedirect />} />
+              <Route path="/forgot-password" element={<LegacyLoginRedirect />} />
+              <Route path="/reset-password" element={<LegacyLoginRedirect />} />
 
               <Route path="/compare" element={<ComparePage />} />
               <Route path="/saved" element={<SavedPage />} />
-              <Route
-                path="/notifications"
-                element={<NotificationsPage />}
-              />
+              <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/offers" element={<OffersPage />} />
+
               <Route
                 path="/help"
-                element={<HelpPage key={user?.id || "guest"} />}
+                element={
+                  <HelpPage key={user?.id || "guest"} />
+                }
               />
 
               <Route
@@ -373,6 +410,29 @@ function Layout() {
                   <AccountRequired>
                     <AddressesPage key={user?.id} />
                   </AccountRequired>
+                }
+              />
+
+              <Route
+                path="/admin"
+                element={
+                  <AdminRequired>
+                    <AdminDashboardPage />
+                  </AdminRequired>
+                }
+              />
+
+              <Route
+                path="/admin/dashboard"
+                element={<Navigate to="/admin" replace />}
+              />
+
+              <Route
+                path="/admin/customers"
+                element={
+                  <AdminRequired>
+                    <AdminCustomersPage />
+                  </AdminRequired>
                 }
               />
 
@@ -412,26 +472,17 @@ function Layout() {
                 }
               />
 
-              <Route
-                path="/order-success"
-                element={<OrderSuccessPage />}
-              />
+              <Route path="/order-success" element={<OrderSuccessPage />} />
               <Route path="/orders" element={<OrdersPage />} />
-              <Route
-                path="/orders/:orderId"
-                element={<OrderDetailsPage />}
-              />
-              <Route
-                path="/orders/:orderId/track"
-                element={<OrderTrackingPage />}
-              />
-              <Route
-                path="/orders/:orderId/receipt"
-                element={<ReceiptPage />}
-              />
+              <Route path="/orders/:orderId" element={<OrderDetailsPage />} />
+              <Route path="/orders/:orderId/track" element={<OrderTrackingPage />} />
+              <Route path="/orders/:orderId/receipt" element={<ReceiptPage />} />
+
               <Route
                 path="/orders/:orderId/return"
-                element={<ReturnPage key={user?.id || "guest"} />}
+                element={
+                  <ReturnPage key={user?.id || "guest"} />
+                }
               />
 
               {import.meta.env.DEV && StoreConsolePage && (
