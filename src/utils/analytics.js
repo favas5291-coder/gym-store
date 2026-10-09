@@ -1,6 +1,4 @@
-import {
-  getDiscountedPrice,
-} from "./productPricing.js";
+import { getDiscountedPrice } from "./productPricing.js";
 
 const ID = String(
   import.meta.env.VITE_GA_MEASUREMENT_ID || "",
@@ -10,8 +8,7 @@ const DEBUG =
   import.meta.env.DEV &&
   import.meta.env.VITE_ANALYTICS_DEBUG === "true";
 
-const CONSENT_KEY =
-  "gymdrobe-analytics-consent-v1";
+const CONSENT_KEY = "gymdrobe-analytics-consent-v1";
 
 const sent = new Set();
 const purchases = new Set();
@@ -19,36 +16,80 @@ const purchases = new Set();
 let initialized = false;
 let lastPath = "";
 let visit = 0;
+let consent = null;
 
-export const analyticsConfigured =
-  /^G-[A-Z0-9]+$/.test(ID);
+export const analyticsConfigured = /^G-[A-Z0-9]+$/.test(ID);
+
+function normalizeConsent(value) {
+  return value === "granted" || value === "denied"
+    ? value
+    : null;
+}
 
 export function getAnalyticsConsent() {
   try {
-    return localStorage.getItem(CONSENT_KEY);
+    return (
+      normalizeConsent(localStorage.getItem(CONSENT_KEY)) ||
+      consent
+    );
   } catch {
-    return null;
+    return consent;
   }
 }
 
-let consent = getAnalyticsConsent();
+consent = getAnalyticsConsent();
 
-function safePath(
-  path = window.location.pathname,
-) {
+function amount(value) {
+  if (
+    value == null ||
+    value === "" ||
+    !["number", "string"].includes(typeof value)
+  ) {
+    return null;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) && parsed >= 0
+    ? parsed
+    : null;
+}
+
+function roundMoney(value) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function identifier(value) {
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value).trim();
+  }
+
+  if (value && typeof value === "object") {
+    return identifier(value.id ?? value._id);
+  }
+
+  return "";
+}
+
+function safePath(path = window.location.pathname) {
   const publicPath =
     /^(\/|\/shop\/?|\/cart\/?|\/wishlist\/?|\/checkout\/?|\/offers\/?|\/product\/[^/]+\/?)$/;
 
   return publicPath.test(path) ? path : "/";
 }
 
+function safeLocation() {
+  return window.location.origin + safePath();
+}
+
 function safeReferrer() {
   try {
     const url = new URL(document.referrer);
 
-    return (
-      url.origin + safePath(url.pathname)
-    );
+    // Retain the referring site without external query strings or paths.
+    return url.origin === window.location.origin
+      ? url.origin + safePath(url.pathname)
+      : url.origin + "/";
   } catch {
     return "";
   }
@@ -78,8 +119,7 @@ export function initAnalytics() {
     return;
   }
 
-  window.dataLayer =
-    window.dataLayer || [];
+  window.dataLayer = window.dataLayer || [];
 
   gtag("consent", "default", {
     analytics_storage: "granted",
@@ -94,39 +134,31 @@ export function initAnalytics() {
     send_page_view: false,
     allow_google_signals: false,
     allow_ad_personalization_signals: false,
-    page_location:
-      window.location.origin + safePath(),
+    page_location: safeLocation(),
     page_referrer: safeReferrer(),
   });
 
-  const script =
-    document.createElement("script");
+  if (!document.getElementById("gymdrobe-google-analytics")) {
+    const script = document.createElement("script");
 
-  script.async = true;
+    script.id = "gymdrobe-google-analytics";
+    script.async = true;
+    script.src =
+      `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(ID)}`;
 
-  script.src =
-    `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(ID)}`;
-
-  script.id = "gymdrobe-google-analytics";
-
-  document.head.appendChild(script);
+    document.head.appendChild(script);
+  }
 
   initialized = true;
 }
 
 export function setAnalyticsConsent(value) {
-  consent =
-    value === "granted"
-      ? "granted"
-      : "denied";
+  consent = value === "granted" ? "granted" : "denied";
 
   try {
-    localStorage.setItem(
-      CONSENT_KEY,
-      consent,
-    );
+    localStorage.setItem(CONSENT_KEY, consent);
   } catch {
-    // Keep the preference for this visit.
+    // Retain the preference in memory for this visit.
   }
 
   if (initialized) {
@@ -142,54 +174,45 @@ export function setAnalyticsConsent(value) {
   );
 }
 
-export function trackEvent(
-  name,
-  parameters = {},
-) {
+export function trackEvent(name, parameters = {}) {
   try {
-    if (DEBUG) {
-      console.debug(
-        "[GymDrobe analytics]",
-        name,
-        parameters,
-      );
-    }
-
     if (
       consent !== "granted" ||
-      !analyticsConfigured
+      !analyticsConfigured ||
+      typeof name !== "string" ||
+      !/^[a-zA-Z][a-zA-Z0-9_]{0,39}$/.test(name)
     ) {
       return false;
     }
 
     initAnalytics();
 
-    gtag("event", name, {
+    const payload = {
       ...parameters,
-      page_location:
-        window.location.origin + safePath(),
+      page_location: safeLocation(),
       page_referrer: safeReferrer(),
-    });
+      ...(DEBUG ? { debug_mode: true } : {}),
+    };
 
+    if (DEBUG) {
+      console.debug("[GymDrobe analytics]", name, payload);
+    }
+
+    gtag("event", name, payload);
+
+    // True means queued locally, not confirmed delivered to Google.
     return true;
   } catch {
     return false;
   }
 }
 
-export function trackOnce(
-  key,
-  name,
-  parameters,
-) {
+export function trackOnce(key, name, parameters) {
   if (sent.has(key)) {
     return false;
   }
 
-  const tracked = trackEvent(
-    name,
-    parameters,
-  );
+  const tracked = trackEvent(name, parameters);
 
   if (tracked) {
     sent.add(key);
@@ -199,144 +222,127 @@ export function trackOnce(
 }
 
 export function trackPageView(pathname) {
-  analyticsVisitKey();
+  const visitKey = analyticsVisitKey();
 
-  // Skip private account, admin and order pages.
   if (safePath(pathname) !== pathname) {
-    return;
+    return false;
   }
 
-  trackOnce(
-    `page:${analyticsVisitKey()}`,
-    "page_view",
-    {
-      page_title:
-        pathname.startsWith("/product/")
-          ? "GymDrobe product"
-          : `GymDrobe ${
-              pathname === "/"
-                ? "home"
-                : pathname.slice(1)
-            }`,
-    },
-  );
+  return trackOnce(`page:${visitKey}`, "page_view", {
+    page_title: pathname.startsWith("/product/")
+      ? "GymDrobe product"
+      : `GymDrobe ${
+          pathname === "/" ? "home" : pathname.slice(1)
+        }`,
+  });
 }
 
-// Cart/order rows already contain discounted prices.
-export function commercePayload(
-  rows,
-  merchandiseValue,
-) {
-  const items = (
-    Array.isArray(rows) ? rows : []
-  )
-    .map((row) => ({
-      item_id: String(
-        row.id ||
-          row.productId ||
-          row.product ||
-          row._id ||
-          "",
-      ),
+// Cart and order rows already contain discounted unit prices.
+export function commercePayload(rows, merchandiseValue) {
+  const items = (Array.isArray(rows) ? rows : []).flatMap(
+    (row) => {
+      if (!row || typeof row !== "object") {
+        return [];
+      }
 
-      item_name: String(
-        row.name || "",
-      ).slice(0, 200),
+      const id =
+        identifier(row.id) ||
+        identifier(row.productId) ||
+        identifier(row.product) ||
+        identifier(row._id);
 
-      item_brand: String(
-        row.brand || "GymDrobe",
-      ).slice(0, 100),
+      const price = amount(row.price);
+      const quantity =
+        row.quantity == null ? 1 : Number(row.quantity);
 
-      item_category: String(
-        row.category || "",
-      ).slice(0, 100),
+      if (
+        !id ||
+        price == null ||
+        !Number.isSafeInteger(quantity) ||
+        quantity < 1 ||
+        !Number.isFinite(price * quantity)
+      ) {
+        return [];
+      }
 
-      item_variant: [
-        row.selectedColor,
-        row.selectedSize,
-      ]
-        .filter(Boolean)
-        .join(" / "),
-
-      price: Math.max(
-        0,
-        Number(row.price) || 0,
-      ),
-
-      quantity: Math.max(
-        1,
-        Math.floor(
-          Number(row.quantity) || 1,
-        ),
-      ),
-    }))
-    .filter((item) => item.item_id);
+      return [{
+        item_id: id,
+        item_name: String(row.name || "").slice(0, 200),
+        item_brand: String(row.brand || "GymDrobe").slice(0, 100),
+        item_category: String(row.category || "").slice(0, 100),
+        item_variant: [
+          row.selectedColor,
+          row.selectedSize,
+        ]
+          .filter((value) => value != null && value !== "")
+          .join(" / ")
+          .slice(0, 200),
+        price,
+        quantity,
+      }];
+    },
+  );
 
   const subtotal = items.reduce(
-    (sum, item) =>
-      sum + item.price * item.quantity,
+    (sum, item) => sum + item.price * item.quantity,
     0,
   );
 
-  const value =
-    merchandiseValue != null &&
-    Number.isFinite(
-      Number(merchandiseValue),
-    )
-      ? Math.max(
-          0,
-          Number(merchandiseValue),
-        )
-      : subtotal;
+  if (!Number.isFinite(subtotal)) {
+    return { currency: "INR", value: 0, items: [] };
+  }
 
-  const ratio =
-    subtotal > 0
-      ? Math.min(1, value / subtotal)
-      : 1;
+  const override = amount(merchandiseValue);
+  const value =
+    override == null ? subtotal : Math.min(subtotal, override);
+
+  const ratio = subtotal > 0 ? value / subtotal : 1;
 
   return {
     currency: "INR",
-    value:
-      Math.round(value * 100) / 100,
-
+    value: roundMoney(value),
     items: items.map((item) => ({
       ...item,
+      // Keep proportional coupon allocation without whole-rupee rounding.
       price: item.price * ratio,
     })),
   };
 }
 
 export function trackProductView(product) {
-  const id =
-    product?.id || product?._id;
+  const id = identifier(product?.id ?? product?._id);
 
   if (!id) {
-    return;
+    return false;
   }
 
-  trackOnce(
+  const payload = commercePayload([{
+    ...product,
+    id,
+    price: getDiscountedPrice(product),
+    quantity: 1,
+  }]);
+
+  if (!payload.items.length) {
+    return false;
+  }
+
+  return trackOnce(
     `product:${analyticsVisitKey()}:${id}`,
     "view_item",
-    commercePayload([
-      {
-        ...product,
-        price: getDiscountedPrice(product),
-        quantity: 1,
-      },
-    ]),
+    payload,
   );
 }
 
 export function trackPurchase(order) {
-  const id = String(
-    order?.orderNumber ||
-      order?.id ||
-      "",
+  const id = identifier(
+    order?.orderNumber ?? order?.id ?? order?._id,
   );
 
   const confirmedStatuses = [
     "confirmed",
     "processing",
+    "packed",
     "shipped",
     "out-for-delivery",
     "delivered",
@@ -344,98 +350,71 @@ export function trackPurchase(order) {
 
   if (
     !id ||
-    !confirmedStatuses.includes(
-      order.status,
-    )
-  ) {
-    return;
-  }
-
-  if (
+    !confirmedStatuses.includes(order?.status) ||
     !["paid", "partially-paid"].includes(
-      order.payment?.status,
+      order?.payment?.status,
     )
   ) {
-    return;
+    return false;
   }
 
-  const key =
-    `gymdrobe-analytics-purchase:${id}`;
+  const key = `gymdrobe-analytics-purchase:${id}`;
 
   if (purchases.has(id)) {
-    return;
+    return false;
   }
 
   try {
-    if (
-      localStorage.getItem(key) === "sent"
-    ) {
-      return;
+    if (localStorage.getItem(key) === "sent") {
+      return false;
     }
   } catch {
     // Memory deduplication remains available.
   }
 
   const pricing = order.pricing || {};
+  const payment = order.payment || {};
 
-  const total =
-    Number(pricing.finalTotal);
-
-  const shipping =
-    Number(pricing.shipping);
+  const total = amount(pricing.finalTotal);
+  const shipping = amount(pricing.shipping);
+  const discountedSubtotal = amount(pricing.totalAfterCoupon);
 
   const merchandise =
-    pricing.totalAfterCoupon != null
-      ? Number(pricing.totalAfterCoupon)
-      : Number.isFinite(total) &&
-          Number.isFinite(shipping)
-        ? total - shipping
-        : null;
+    discountedSubtotal ??
+    (total != null && shipping != null
+      ? Math.max(0, total - shipping)
+      : null);
+
+  const commerce = commercePayload(order.items, merchandise);
+
+  if (!commerce.items.length) {
+    return false;
+  }
+
+  const paid = amount(payment.amountPaid);
+  const due = amount(payment.amountDue);
+  const method = payment.method || order.paymentMethod;
 
   const payload = {
-    ...commercePayload(
-      order.items,
-      merchandise,
-    ),
-
+    ...commerce,
     transaction_id: id,
-
-    payment_type:
-      order.payment.method ||
-      order.paymentMethod,
-
-    ...(Number.isFinite(shipping)
-      ? { shipping }
-      : {}),
-
-    ...(Number.isFinite(
-      Number(order.payment.amountPaid),
-    )
-      ? {
-          amount_paid: Number(
-            order.payment.amountPaid,
-          ),
-        }
-      : {}),
-
-    ...(Number.isFinite(
-      Number(order.payment.amountDue),
-    )
-      ? {
-          amount_due: Number(
-            order.payment.amountDue,
-          ),
-        }
-      : {}),
+    ...(method ? { payment_type: method } : {}),
+    ...(shipping != null ? { shipping } : {}),
+    ...(paid != null ? { amount_paid: paid } : {}),
+    ...(due != null ? { amount_due: due } : {}),
   };
 
-  if (trackEvent("purchase", payload)) {
-    purchases.add(id);
-
-    try {
-      localStorage.setItem(key, "sent");
-    } catch {
-      // Use memory deduplication for this visit.
-    }
+  if (!trackEvent("purchase", payload)) {
+    return false;
   }
+
+  purchases.add(id);
+
+  try {
+    localStorage.setItem(key, "sent");
+  } catch {
+    // Use memory deduplication for this visit.
+  }
+
+  return true;
 }
