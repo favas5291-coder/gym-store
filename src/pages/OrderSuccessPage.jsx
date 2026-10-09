@@ -11,6 +11,7 @@ import {
 
 import { getOrderById } from "../services/orderApi.js";
 import { money } from "../utils/productPricing.js";
+import { trackPurchase } from "../utils/analytics.js";
 
 import EmptyState from "../components/EmptyState.jsx";
 
@@ -45,6 +46,7 @@ function statusLabel(value) {
     "payment-pending": "Payment pending",
     confirmed: "Confirmed",
     processing: "Processing",
+    packed: "Packed",
     shipped: "Shipped",
     "out-for-delivery": "Out for delivery",
     delivered: "Delivered",
@@ -71,33 +73,40 @@ export default function OrderSuccessPage() {
   } = useAuth();
 
   const orderId = params.get("orderId");
+  const userId = user?._id || user?.id || "";
 
-  const [order, setOrder] = useState(null);
+  const scope = JSON.stringify([
+    String(userId),
+    orderId || "",
+    Boolean(token),
+  ]);
+
+  const [loadedOrder, setLoadedOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
 
-  const userId = user?._id || user?.id || "";
+  const order =
+    loadedOrder?.scope === scope
+      ? loadedOrder.order
+      : null;
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadOrder() {
-      setOrder(null);
+      setLoadedOrder(null);
       setError("");
       setLoading(true);
 
-      if (authLoading) {
-        return;
-      }
+      if (authLoading) return;
 
       if (!orderId) {
         setLoading(false);
         return;
       }
 
-      // A stored token requires an authenticated session.
-      // Do not fall back to a guest order while it is unresolved.
+      // An unresolved account session must not use guest data.
       if (token && !userId) {
         setError(
           "Your account session could not be verified. Please sign in again to view this order.",
@@ -120,7 +129,10 @@ export default function OrderSuccessPage() {
           : getLocalOrder(orderId, null);
 
         if (!cancelled) {
-          setOrder(result || null);
+          setLoadedOrder({
+            scope,
+            order: result || null,
+          });
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -148,7 +160,57 @@ export default function OrderSuccessPage() {
     authLoading,
     revision,
     attempt,
+    scope,
   ]);
+
+  useEffect(() => {
+    // Account purchases use the order returned by the backend.
+    if (
+      authLoading ||
+      loading ||
+      error ||
+      !order ||
+      !userId ||
+      !token
+    ) {
+      return;
+    }
+
+    function track() {
+      // The utility checks order/payment status, consent,
+      // and whether this purchase was already queued.
+      trackPurchase(order);
+    }
+
+    track();
+
+    window.addEventListener(
+      "gymdrobe-analytics-ready",
+      track,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "gymdrobe-analytics-ready",
+        track,
+      );
+    };
+  }, [
+    order,
+    userId,
+    token,
+    authLoading,
+    loading,
+    error,
+  ]);
+
+  function refreshOrder() {
+    setAttempt((current) => current + 1);
+  }
+
+  const loginPath = `/login?next=${encodeURIComponent(
+    `/order-success?orderId=${encodeURIComponent(orderId || "")}`,
+  )}`;
 
   if (authLoading || loading) {
     return (
@@ -176,17 +238,15 @@ export default function OrderSuccessPage() {
           <button
             type="button"
             className="button secondary"
-            onClick={() =>
-              setAttempt((current) => current + 1)
-            }
+            onClick={refreshOrder}
           >
             Retry
           </button>
 
-          {!userId && (
+          {(!userId || !token) && (
             <Link
               className="button secondary"
-              to="/login"
+              to={loginPath}
             >
               Sign in
             </Link>
@@ -203,17 +263,15 @@ export default function OrderSuccessPage() {
         to="/orders"
         label="View my orders"
       >
-        Open your order history to see orders
-        available for this account or guest session.
+        Open your order history to see orders available
+        for this account or guest session.
       </EmptyState>
     );
   }
 
   const payment = order.payment || {};
   const refund = order.refund || {};
-
-  const method =
-    payment.method || order.paymentMethod;
+  const method = payment.method || order.paymentMethod;
 
   const isCodAdvance = method === "cod-partial";
   const isCancelled = order.status === "cancelled";
@@ -221,26 +279,16 @@ export default function OrderSuccessPage() {
   const isConfirmed = [
     "confirmed",
     "processing",
+    "packed",
     "shipped",
     "out-for-delivery",
     "delivered",
   ].includes(order.status);
 
-  const amountPaid = recordedAmount(
-    payment.amountPaid,
-  );
-
-  const amountDue = recordedAmount(
-    payment.amountDue,
-  );
-
-  const advanceAmount = recordedAmount(
-    payment.advanceAmount,
-  );
-
-  const refundAmount = recordedAmount(
-    refund.amount,
-  );
+  const amountPaid = recordedAmount(payment.amountPaid);
+  const amountDue = recordedAmount(payment.amountDue);
+  const advanceAmount = recordedAmount(payment.advanceAmount);
+  const refundAmount = recordedAmount(refund.amount);
 
   const refundComplete =
     refund.status === "refunded" ||
@@ -254,9 +302,13 @@ export default function OrderSuccessPage() {
     refund.status === "manual-required";
 
   const displayId =
-    order.orderNumber || order.id || orderId;
+    order.orderNumber || order.id || order._id || orderId;
 
-  const totalItems = (order.items || []).reduce(
+  const items = Array.isArray(order.items)
+    ? order.items
+    : [];
+
+  const totalItems = items.reduce(
     (total, item) =>
       total + (Number(item.quantity) || 0),
     0,
@@ -270,6 +322,7 @@ export default function OrderSuccessPage() {
     "Customer";
 
   let heading = "Your order is awaiting confirmation.";
+
   let message =
     "Check your order details for the latest payment and confirmation status.";
 
@@ -283,7 +336,10 @@ export default function OrderSuccessPage() {
         ? "Your order has been delivered."
         : "Your order is confirmed.";
 
-    if (isCodAdvance && payment.status === "partially-paid") {
+    if (
+      isCodAdvance &&
+      payment.status === "partially-paid"
+    ) {
       message =
         "Your COD advance has been received. The remaining balance is payable on delivery.";
     } else if (payment.status === "paid") {
@@ -345,9 +401,7 @@ export default function OrderSuccessPage() {
 
         <p>
           {customerName}
-
           <br />
-
           {[
             order.shippingAddress?.city,
             order.shippingAddress?.pincode,
@@ -371,9 +425,7 @@ export default function OrderSuccessPage() {
         </p>
 
         {isCodAdvance && advanceAmount !== null && (
-          <p>
-            COD advance: {money(advanceAmount)}
-          </p>
+          <p>COD advance: {money(advanceAmount)}</p>
         )}
 
         {amountPaid !== null && (
@@ -396,8 +448,8 @@ export default function OrderSuccessPage() {
 
         {isCancelled && (
           <p className="muted">
-            No COD balance will be collected for
-            this cancelled order.
+            No COD balance will be collected for this
+            cancelled order.
           </p>
         )}
       </div>
@@ -461,6 +513,16 @@ export default function OrderSuccessPage() {
         >
           Continue shopping
         </Link>
+
+        {!isConfirmed && !isCancelled && (
+          <button
+            type="button"
+            className="button secondary"
+            onClick={refreshOrder}
+          >
+            Refresh order status
+          </button>
+        )}
       </div>
     </div>
   );

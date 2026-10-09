@@ -1,610 +1,370 @@
 import {
   getDiscountedPrice,
   getOriginalPrice,
-  number,
 } from "./productPricing.js";
-
 
 export {
   getDiscountedPrice,
 } from "./productPricing.js";
 
-
 // ======================================================
 // HELPERS
 // ======================================================
 
-const count = (
-  value
-) =>
-  Math.max(
-    0,
-
-    Math.floor(
-      number(
-        value
-      )
-    )
-  );
-
-
-const own = (
-  object,
-  key
-) =>
-  Object.prototype
-    .hasOwnProperty.call(
-      object ||
-        {},
-      key
-    );
-
-
-function productId(
-  product
-) {
+function isObject(value) {
   return (
-    product?.id ??
-    product?._id ??
-    product?.legacyId ??
-    ""
+    value != null &&
+    typeof value === "object" &&
+    !Array.isArray(value)
   );
 }
 
-
-// ======================================================
-// CHECK WHETHER PRODUCT REALLY HAS VARIANT INVENTORY
-//
-// Important:
-//
-// {} is truthy in JavaScript.
-//
-// So:
-//
-// variants: {}
-//
-// must NOT be treated as a real variant structure.
-// ======================================================
-
-function hasVariants(
-  product
-) {
-  return Boolean(
-    product?.variants &&
-      typeof product.variants ===
-        "object" &&
-      !Array.isArray(
-        product.variants
-      ) &&
-      Object.keys(
-        product.variants
-      ).length >
-        0
+function own(object, key) {
+  return Object.prototype.hasOwnProperty.call(
+    object || {},
+    key,
   );
 }
 
-
-// ======================================================
-// NORMALIZE OPTION LISTS
-// ======================================================
-
-function getSizes(
-  product
-) {
-  return Array.isArray(
-    product?.sizes
-  )
-    ? product.sizes
-        .map(
-          String
-        )
-        .filter(
-          Boolean
-        )
-    : [];
-}
-
-
-function getColors(
-  product
-) {
-  return Array.isArray(
-    product?.colors
-  )
-    ? product.colors
-        .map(
-          String
-        )
-        .filter(
-          Boolean
-        )
-    : [];
-}
-
-
-// ======================================================
-// TOTAL PRODUCT STOCK
-// ======================================================
-
-export function getTotalStock(
-  product
-) {
+function numeric(value) {
   if (
-    !product ||
-    product.stockStatus ===
-      "out-of-stock"
+    !["number", "string"].includes(typeof value)
   ) {
+    return null;
+  }
+
+  if (
+    typeof value === "string" &&
+    !value.trim()
+  ) {
+    return null;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed)
+    ? parsed
+    : null;
+}
+
+function count(value) {
+  const parsed = numeric(value);
+
+  if (parsed == null || parsed < 0) {
     return 0;
   }
 
+  const result = Math.floor(parsed);
 
-  function sum(
-    value
-  ) {
-    if (
-      value &&
-      typeof value ===
-        "object"
-    ) {
-      return Object.values(
-        value
-      ).reduce(
-        (
-          total,
-          child
-        ) =>
-          total +
-          sum(
-            child
-          ),
+  return Number.isSafeInteger(result)
+    ? result
+    : 0;
+}
 
-        0
-      );
-    }
-
-
-    return count(
-      value
-    );
-  }
-
-
-  if (
-    hasVariants(
-      product
-    )
-  ) {
-    return sum(
-      product.variants
-    );
-  }
-
-
-  return count(
-    product.stock
+function productId(product) {
+  return (
+    [
+      product?.id,
+      product?._id,
+      product?.legacyId,
+    ].find(
+      (value) =>
+        ["string", "number"].includes(
+          typeof value,
+        ) &&
+        String(value).trim(),
+    ) ?? ""
   );
 }
 
+function options(values) {
+  return [
+    ...new Set(
+      (Array.isArray(values) ? values : [])
+        .filter((value) =>
+          ["string", "number"].includes(
+            typeof value,
+          ),
+        )
+        .map(String)
+        .filter((value) => value.trim()),
+    ),
+  ];
+}
+
+function option(value) {
+  return value == null || value === ""
+    ? null
+    : String(value);
+}
+
+function hasVariants(product) {
+  return (
+    isObject(product?.variants) &&
+    Object.keys(product.variants).length > 0
+  );
+}
+
+function unavailable(product) {
+  return (
+    !isObject(product) ||
+    product.isActive === false ||
+    product.stockStatus === "out-of-stock"
+  );
+}
+
+function validSelection(product, size, color) {
+  const sizes = options(product?.sizes);
+  const colors = options(product?.colors);
+
+  const validSize = sizes.length
+    ? sizes.includes(option(size))
+    : option(size) === null;
+
+  const validColor = colors.length
+    ? colors.includes(option(color))
+    : option(color) === null;
+
+  return validSize && validColor;
+}
+
+// ======================================================
+// TOTAL AVAILABLE STOCK
+// ======================================================
+
+export function getTotalStock(product) {
+  if (unavailable(product)) {
+    return 0;
+  }
+
+  // Empty variant objects use the product's shared stock.
+  if (!hasVariants(product)) {
+    return count(product.stock);
+  }
+
+  const sizes = options(product.sizes);
+  const colors = options(product.colors);
+
+  const sizeOptions = sizes.length
+    ? sizes
+    : [null];
+
+  const colorOptions = colors.length
+    ? colors
+    : [null];
+
+  let total = 0;
+
+  // Count only inventory belonging to declared options.
+  for (const color of colorOptions) {
+    for (const size of sizeOptions) {
+      total = Math.min(
+        Number.MAX_SAFE_INTEGER,
+        total +
+          getVariantStock(product, size, color),
+      );
+    }
+  }
+
+  return total;
+}
 
 // ======================================================
 // SELECTED VARIANT STOCK
 //
-// SUPPORTED STRUCTURES:
+// Supported inventory:
 //
-// 1. COLOUR + SIZE
-//    variants[color][size]
-//
-// 2. COLOUR ONLY
-//    variants[color].default
-//
-// 3. SIZE ONLY
-//    variants[size]
-//
-// 4. NO OPTIONS
-//    product.stock
+// Colour + size: variants[colour][size]
+// Colour only:  variants[colour].default
+//               or variants[colour]
+// Size only:    variants[size]
+// No options:   variants.default
+// Shared stock: product.stock when variants is empty
 // ======================================================
 
 export function getVariantStock(
   product,
   selectedSize = null,
-  selectedColor = null
+  selectedColor = null,
 ) {
   if (
-    !product ||
-    product.stockStatus ===
-      "out-of-stock"
-  ) {
-    return 0;
-  }
-
-
-  const sizes =
-    getSizes(
-      product
-    );
-
-
-  const colors =
-    getColors(
-      product
-    );
-
-
-  // ====================================================
-  // VALIDATE REQUIRED SIZE
-  // ====================================================
-
-  if (
-    sizes.length >
-      0 &&
-    (
-      !selectedSize ||
-      !sizes.includes(
-        String(
-          selectedSize
-        )
-      )
+    unavailable(product) ||
+    !validSelection(
+      product,
+      selectedSize,
+      selectedColor,
     )
   ) {
     return 0;
   }
 
-
-  // ====================================================
-  // VALIDATE REQUIRED COLOUR
-  // ====================================================
-
-  if (
-    colors.length >
-      0 &&
-    (
-      !selectedColor ||
-      !colors.includes(
-        String(
-          selectedColor
-        )
-      )
-    )
-  ) {
-    return 0;
+  if (!hasVariants(product)) {
+    return count(product.stock);
   }
 
+  const sizes = options(product.sizes);
+  const colors = options(product.colors);
 
-  // ====================================================
-  // PRODUCT WITHOUT VARIANTS
-  //
-  // This also handles:
-  //
-  // variants: {}
-  //
-  // correctly.
-  // ====================================================
+  let group = product.variants;
 
-  if (
-    !hasVariants(
-      product
-    )
-  ) {
-    return count(
-      product.stock
-    );
+  if (colors.length) {
+    const colorKey = option(selectedColor);
+
+    if (!own(group, colorKey)) {
+      return 0;
+    }
+
+    group = group[colorKey];
   }
 
-
-  let group =
-    product.variants;
-
-
-  // ====================================================
-  // COLOUR VARIANTS
-  // ====================================================
-
-  if (
-    colors.length >
-    0
-  ) {
-    const colorKey =
-      String(
-        selectedColor
-      );
-
+  if (sizes.length) {
+    const sizeKey = option(selectedSize);
 
     if (
-      !own(
-        group,
-        colorKey
-      )
+      !isObject(group) ||
+      !own(group, sizeKey)
     ) {
       return 0;
     }
 
-
-    group =
-      group[
-        colorKey
-      ];
+    return count(group[sizeKey]);
   }
 
-
-  // ====================================================
-  // SIZE VARIANTS
-  //
-  // COLOUR + SIZE:
-  // group is variants[color]
-  //
-  // SIZE ONLY:
-  // group is variants
-  // ====================================================
-
-  if (
-    sizes.length >
-    0
-  ) {
-    const sizeKey =
-      String(
-        selectedSize
-      );
-
-
-    if (
-      !group ||
-      typeof group !==
-        "object" ||
-      !own(
-        group,
-        sizeKey
-      )
-    ) {
-      return 0;
+  if (colors.length) {
+    if (isObject(group)) {
+      return own(group, "default")
+        ? count(group.default)
+        : 0;
     }
 
-
-    return count(
-      group[
-        sizeKey
-      ]
-    );
+    return count(group);
   }
 
-
-  // ====================================================
-  // COLOUR ONLY
-  //
-  // variants[color].default
-  // ====================================================
-
-  if (
-    colors.length >
-    0
-  ) {
-    return (
-      group &&
-      typeof group ===
-        "object"
-    )
-      ? count(
-          group.default
-        )
-      : count(
-          group
-        );
-  }
-
-
-  // ====================================================
-  // NO DECLARED SIZE / COLOUR
-  //
-  // Normally this uses product.stock.
-  //
-  // But this fallback also safely supports:
-  //
-  // variants.default
-  // ====================================================
-
-  if (
-    group &&
-    typeof group ===
-      "object" &&
-    own(
-      group,
-      "default"
-    )
-  ) {
-    return count(
-      group.default
-    );
-  }
-
-
-  return count(
-    product.stock
-  );
+  return own(group, "default")
+    ? count(group.default)
+    : 0;
 }
-
 
 // ======================================================
 // FIRST AVAILABLE OPTIONS
-//
-// Finds the first actual in-stock combination.
 // ======================================================
 
-export function firstOptions(
-  product
-) {
-  const colors =
-    getColors(
-      product
-    );
+export function firstOptions(product) {
+  const colors = options(product?.colors);
+  const sizes = options(product?.sizes);
 
+  const colorOptions = colors.length
+    ? colors
+    : [null];
 
-  const sizes =
-    getSizes(
-      product
-    );
+  const sizeOptions = sizes.length
+    ? sizes
+    : [null];
 
-
-  const colorOptions =
-    colors.length
-      ? colors
-      : [
-          null,
-        ];
-
-
-  const sizeOptions =
-    sizes.length
-      ? sizes
-      : [
-          null,
-        ];
-
-
-  for (
-    const color
-    of colorOptions
-  ) {
-    for (
-      const size
-      of sizeOptions
-    ) {
+  for (const color of colorOptions) {
+    for (const size of sizeOptions) {
       if (
-        getVariantStock(
-          product,
-          size,
-          color
-        ) >
-        0
+        getVariantStock(product, size, color) > 0
       ) {
         return {
-          selectedColor:
-            color,
-
-          selectedSize:
-            size,
+          selectedColor: color,
+          selectedSize: size,
         };
       }
     }
   }
 
-
+  // Returning an option does not mean it is in stock.
+  // validateCartItem still checks availability.
   return {
-    selectedColor:
-      colors[0] ||
-      null,
-
-    selectedSize:
-      sizes[0] ||
-      null,
+    selectedColor: colors[0] ?? null,
+    selectedSize: sizes[0] ?? null,
   };
 }
 
-
 // ======================================================
 // CART ITEM KEY
-//
-// Same product with different size or colour becomes
-// a separate cart row.
 // ======================================================
 
-export function getCartItemKey(
-  item
-) {
+export function getCartItemKey(item) {
   return JSON.stringify([
-    String(
-      productId(
-        item
-      )
-    ),
-
-    item?.selectedSize ==
-    null
-      ? null
-      : String(
-          item.selectedSize
-        ),
-
-    item?.selectedColor ==
-    null
-      ? null
-      : String(
-          item.selectedColor
-        ),
+    String(productId(item)),
+    option(item?.selectedSize),
+    option(item?.selectedColor),
   ]);
 }
 
-
-// ======================================================
-// SAME CART ITEM
-// ======================================================
-
-export function isSameCartItem(
-  a,
-  b
-) {
+export function isSameCartItem(a, b) {
   return (
-    getCartItemKey(
-      a
-    ) ===
-    getCartItemKey(
-      b
-    )
+    getCartItemKey(a) === getCartItemKey(b)
   );
 }
 
-
 // ======================================================
 // NORMALIZE CART ITEM
+//
+// Call validateCartItem before accepting a new item.
+// Invalid quantities remain invalid instead of
+// silently becoming a quantity of one.
 // ======================================================
 
 export function normalizeCartItem(
   product,
   quantity = 1,
   selectedSize = null,
-  selectedColor = null
+  selectedColor = null,
 ) {
+  const parsed = numeric(quantity);
+
+  const size = options(product?.sizes).length
+    ? option(selectedSize)
+    : null;
+
+  const color = options(product?.colors).length
+    ? option(selectedColor)
+    : null;
+
+  const variantRows = Array.isArray(
+    product?.variantSkus,
+  )
+    ? product.variantSkus
+    : [];
+
+  const variant = variantRows.find(
+    (row) =>
+      row &&
+      option(row.size) === size &&
+      option(row.color) === color,
+  );
+
+  const variantSku =
+    typeof variant?.sku === "string"
+      ? variant.sku.trim()
+      : "";
+
   return {
     ...product,
 
-    originalPrice:
-      getOriginalPrice(
-        product
-      ),
+    id: String(productId(product)),
 
-    price:
-      getDiscountedPrice(
-        product
-      ),
+    originalPrice: getOriginalPrice(product),
+
+    price: getDiscountedPrice(product),
 
     quantity:
-      Math.max(
-        1,
+      Number.isSafeInteger(parsed) && parsed > 0
+        ? parsed
+        : 0,
 
-        Math.floor(
-          number(
-            quantity,
-            1
-          )
-        )
-      ),
+    selectedSize: size,
 
-    selectedSize:
-      selectedSize ==
-      null
-        ? null
-        : String(
-            selectedSize
-          ),
+    selectedColor: color,
 
-    selectedColor:
-      selectedColor ==
-      null
-        ? null
-        : String(
-            selectedColor
-          ),
+    ...(variantSku
+      ? { sku: variantSku }
+      : {}),
   };
 }
-
 
 // ======================================================
 // CART VALIDATION
@@ -614,487 +374,343 @@ export function validateCartItem(
   product,
   quantity,
   size = null,
-  color = null
+  color = null,
 ) {
-  const stock =
-    getVariantStock(
-      product,
-      size,
-      color
-    );
+  const stock = getVariantStock(
+    product,
+    size,
+    color,
+  );
 
-
-  const qty =
-    Number(
-      quantity
-    );
-
-
-  const sizes =
-    getSizes(
-      product
-    );
-
-
-  const colors =
-    getColors(
-      product
-    );
-
-
-  // ====================================================
-  // QUANTITY VALIDATION
-  // ====================================================
-
-  if (
-    !Number.isSafeInteger(
-      qty
-    ) ||
-    qty <
-      1
-  ) {
+  function fail(message) {
     return {
-      valid:
-        false,
-
+      valid: false,
       stock,
-
-      message:
-        "Choose a whole-number quantity of at least 1.",
-    };
-  }
-
-
-  // ====================================================
-  // REQUIRED SIZE
-  // ====================================================
-
-  if (
-    sizes.length >
-      0 &&
-    (
-      !size ||
-      !sizes.includes(
-        String(
-          size
-        )
-      )
-    )
-  ) {
-    return {
-      valid:
-        false,
-
-      stock:
-        0,
-
-      message:
-        "Choose an available size.",
-    };
-  }
-
-
-  // ====================================================
-  // REQUIRED COLOUR
-  // ====================================================
-
-  if (
-    colors.length >
-      0 &&
-    (
-      !color ||
-      !colors.includes(
-        String(
-          color
-        )
-      )
-    )
-  ) {
-    return {
-      valid:
-        false,
-
-      stock:
-        0,
-
-      message:
-        "Choose an available colour.",
-    };
-  }
-
-
-  // ====================================================
-  // OUT OF STOCK
-  // ====================================================
-
-  if (
-    stock <=
-    0
-  ) {
-    let message =
-      "This product is currently out of stock.";
-
-
-    if (
-      sizes.length &&
-      colors.length
-    ) {
-      message =
-        "This size and colour combination is currently out of stock.";
-
-    } else if (
-      sizes.length
-    ) {
-      message =
-        "This size is currently out of stock.";
-
-    } else if (
-      colors.length
-    ) {
-      message =
-        "This colour is currently out of stock.";
-    }
-
-
-    return {
-      valid:
-        false,
-
-      stock,
-
       message,
     };
   }
 
-
-  // ====================================================
-  // QUANTITY > AVAILABLE STOCK
-  // ====================================================
-
   if (
-    qty >
-    stock
+    !isObject(product) ||
+    productId(product) === ""
   ) {
-    return {
-      valid:
-        false,
-
-      stock,
-
-      message:
-        `Only ${stock} available for this selection.`,
-    };
+    return fail(
+      "This product is no longer available.",
+    );
   }
 
+  if (product.isActive === false) {
+    return fail(
+      "This product is no longer available.",
+    );
+  }
+
+  const qty = numeric(quantity);
+
+  if (
+    !Number.isSafeInteger(qty) ||
+    qty < 1
+  ) {
+    return fail(
+      "Choose a whole-number quantity of at least 1.",
+    );
+  }
+
+  const sizes = options(product.sizes);
+  const colors = options(product.colors);
+
+  if (
+    sizes.length &&
+    !sizes.includes(option(size))
+  ) {
+    return fail(
+      "Choose an available size.",
+    );
+  }
+
+  if (
+    colors.length &&
+    !colors.includes(option(color))
+  ) {
+    return fail(
+      "Choose an available colour.",
+    );
+  }
+
+  if (
+    !sizes.length &&
+    option(size) !== null
+  ) {
+    return fail(
+      "This size is no longer available. Remove the item and add it again.",
+    );
+  }
+
+  if (
+    !colors.length &&
+    option(color) !== null
+  ) {
+    return fail(
+      "This colour is no longer available. Remove the item and add it again.",
+    );
+  }
+
+  const rawPrice = numeric(product.price);
+  const sellingPrice = getDiscountedPrice(
+    product,
+  );
+
+  if (
+    rawPrice == null ||
+    rawPrice < 0 ||
+    !Number.isFinite(sellingPrice) ||
+    sellingPrice < 0
+  ) {
+    return fail(
+      "The price for this product is unavailable. Please contact support.",
+    );
+  }
+
+  if (stock <= 0) {
+    const subject =
+      sizes.length && colors.length
+        ? "size and colour combination"
+        : sizes.length
+          ? "size"
+          : colors.length
+            ? "colour"
+            : "product";
+
+    return fail(
+      `This ${subject} is currently out of stock.`,
+    );
+  }
+
+  if (qty > stock) {
+    return fail(
+      `Only ${stock} available for this selection.`,
+    );
+  }
 
   return {
-    valid:
-      true,
-
+    valid: true,
     stock,
-
-    message:
-      "",
+    message: "",
   };
 }
 
+// ======================================================
+// INVENTORY POOL
+//
+// Products without variant inventory share one stock
+// quantity across every size and colour.
+// ======================================================
+
+function inventoryKey(product, size, color) {
+  return JSON.stringify([
+    String(productId(product)),
+
+    hasVariants(product)
+      ? [option(size), option(color)]
+      : "shared-stock",
+  ]);
+}
 
 // ======================================================
 // REVALIDATE CART
-//
-// Used when:
-//
-// - catalogue changes
-// - price changes
-// - stock changes
-// - customer reloads cart
-//
-// It ensures cart rows still match current catalogue data.
 // ======================================================
 
-export function revalidateCart(
-  cart,
-  products
-) {
-  const catalogue =
-    new Map();
+export function revalidateCart(cart, products) {
+  const input = Array.isArray(cart)
+    ? cart
+    : [];
 
+  // Missing catalogue data is not proof that products
+  // have been removed. Call this after catalogue loading.
+  if (!Array.isArray(products)) {
+    return {
+      cart: [...input],
+      changes: [],
+    };
+  }
 
-  for (
-    const product
-    of Array.isArray(
-      products
-    )
-      ? products
-      : []
-  ) {
-    if (
-      !product
-    ) {
+  const catalogue = new Map();
+
+  for (const product of products) {
+    if (!isObject(product)) {
       continue;
     }
-
 
     const ids = [
       product.id,
       product._id,
       product.legacyId,
-    ]
-      .filter(
-        (
-          value
-        ) =>
-          value !=
-          null &&
-          value !==
-          ""
-      )
-      .map(
-        String
-      );
+    ];
 
-
-    for (
-      const id
-      of ids
-    ) {
-      catalogue.set(
-        id,
-        product
-      );
+    for (const id of ids) {
+      if (
+        ["string", "number"].includes(
+          typeof id,
+        ) &&
+        String(id).trim()
+      ) {
+        catalogue.set(String(id), product);
+      }
     }
   }
 
+  const rows = new Map();
+  const usedStock = new Map();
+  const changes = [];
 
-  const rows =
-    new Map();
+  function removed(item, reason) {
+    changes.push({
+      type: "removed",
+      item,
+      reason,
+    });
+  }
 
-
-  const changes =
-    [];
-
-
-  for (
-    const item
-    of Array.isArray(
-      cart
-    )
-      ? cart
-      : []
-  ) {
-    // ==================================================
-    // INVALID CART ROW
-    // ==================================================
-
-    if (
-      !item ||
-      typeof item !==
-        "object"
-    ) {
-      changes.push({
-        type:
-          "removed",
-
-        reason:
-          "Invalid bag item.",
-      });
-
+  for (const item of input) {
+    if (!isObject(item)) {
+      removed(item, "Invalid bag item.");
       continue;
     }
 
-
-    // ==================================================
-    // FIND CURRENT PRODUCT
-    // ==================================================
-
-    const id =
-      String(
-        productId(
-          item
-        )
-      );
-
-
-    const product =
-      catalogue.get(
-        id
-      );
-
+    const product = catalogue.get(
+      String(productId(item)),
+    );
 
     if (
-      !product
+      !product ||
+      product.isActive === false
     ) {
-      changes.push({
-        type:
-          "removed",
-
+      removed(
         item,
-
-        reason:
-          "This product is no longer available.",
-      });
+        "This product is no longer available.",
+      );
 
       continue;
     }
 
-
-    // ==================================================
-    // CHECK CURRENT STOCK
-    // ==================================================
-
-    const stock =
-      getVariantStock(
-        product,
-
-        item.selectedSize,
-
-        item.selectedColor
-      );
-
+    const qty = numeric(item.quantity);
 
     if (
-      stock <=
-      0
+      !Number.isSafeInteger(qty) ||
+      qty < 1
     ) {
-      changes.push({
-        type:
-          "removed",
-
-        item,
-
-        reason:
-          "This selection is no longer available.",
-      });
-
+      removed(item, "Invalid quantity.");
       continue;
     }
 
+    // Validate one unit first. A larger valid quantity
+    // can then be reduced to current available stock.
+    const check = validateCartItem(
+      product,
+      1,
+      item.selectedSize,
+      item.selectedColor,
+    );
 
-    // ==================================================
-    // QUANTITY
-    // ==================================================
-
-    const qty =
-      Number(
-        item.quantity
-      );
-
-
-    if (
-      !Number.isSafeInteger(
-        qty
-      ) ||
-      qty <
-        1
-    ) {
-      changes.push({
-        type:
-          "removed",
-
-        item,
-
-        reason:
-          "Invalid quantity.",
-      });
-
+    if (!check.valid) {
+      removed(item, check.message);
       continue;
     }
 
+    const normalized = normalizeCartItem(
+      product,
+      qty,
+      item.selectedSize,
+      item.selectedColor,
+    );
 
-    // ==================================================
-    // MERGE DUPLICATE CART ROWS
-    // ==================================================
+    // Use the current canonical product ID so legacy
+    // and database references merge into the same row.
+    const key = getCartItemKey(normalized);
+    const previous = rows.get(key);
 
-    const key =
-      getCartItemKey(
-        item
+    const poolKey = inventoryKey(
+      product,
+      normalized.selectedSize,
+      normalized.selectedColor,
+    );
+
+    const alreadyUsed =
+      usedStock.get(poolKey) || 0;
+
+    const remainingStock = Math.max(
+      0,
+      check.stock - alreadyUsed,
+    );
+
+    const accepted = Math.min(
+      qty,
+      remainingStock,
+    );
+
+    if (accepted <= 0) {
+      removed(
+        item,
+        "The available stock is already included in another bag item.",
       );
 
-
-    const previous =
-      rows.get(
-        key
-      );
-
+      continue;
+    }
 
     const combinedQuantity =
-      qty +
-      (
-        previous?.quantity ||
-        0
+      (previous?.quantity || 0) + accepted;
+
+    rows.set(key, {
+      ...normalized,
+      quantity: combinedQuantity,
+    });
+
+    usedStock.set(
+      poolKey,
+      alreadyUsed + accepted,
+    );
+
+    const reasons = [];
+
+    if (previous) {
+      reasons.push(
+        "Matching bag items were combined.",
       );
-
-
-    const quantity =
-      Math.min(
-        stock,
-
-        combinedQuantity
-      );
-
-
-    const normalized =
-      normalizeCartItem(
-        product,
-
-        quantity,
-
-        item.selectedSize ??
-          null,
-
-        item.selectedColor ??
-          null
-      );
-
-
-    // ==================================================
-    // RECORD CHANGES
-    // ==================================================
-
-    const priceChanged =
-      Number(
-        normalized.price
-      ) !==
-      Number(
-        item.price
-      );
-
-
-    const quantityChanged =
-      quantity !==
-      qty;
-
-
-    if (
-      previous ||
-      priceChanged ||
-      quantityChanged
-    ) {
-      changes.push({
-        type:
-          "updated",
-
-        item,
-
-        reason:
-          "Bag updated to current price and available stock.",
-      });
     }
 
+    if (accepted < qty) {
+      reasons.push(
+        "Quantity was reduced to available stock.",
+      );
+    }
 
-    rows.set(
-      key,
-      normalized
-    );
+    if (
+      numeric(item.price) !== normalized.price
+    ) {
+      reasons.push(
+        "The product price was updated.",
+      );
+    }
+
+    if (
+      String(productId(item)) !== normalized.id
+    ) {
+      reasons.push(
+        "The product reference was updated.",
+      );
+    }
+
+    if (reasons.length) {
+      changes.push({
+        type: "updated",
+        item,
+        reason: reasons.join(" "),
+      });
+    }
   }
 
-
   return {
-    cart:
-      [
-        ...rows.values(),
-      ],
-
+    cart: [...rows.values()],
     changes,
   };
 }

@@ -1,27 +1,13 @@
-import {
-  useMemo,
-  useState,
-} from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
-import {
-  Link,
-} from "react-router-dom";
-
-import {
-  useCatalog,
-} from "../context/CatalogContext.jsx";
-
-import {
-  useStore,
-} from "../context/StoreContext.jsx";
+import { useCatalog } from "../context/CatalogContext.jsx";
+import { useStore } from "../context/StoreContext.jsx";
 
 import BagVariantEditor from "./BagVariantEditor.jsx";
-
-import {
-  ProductImage,
-} from "./StorefrontShared.jsx";
-
+import { ProductImage, productPath } from "./StorefrontShared.jsx";
 import PriceSummary from "./PriceSummary.jsx";
+import CouponBox from "./CouponBox.jsx";
 
 import {
   getCartItemKey,
@@ -32,21 +18,29 @@ import {
   calculateOrderPricing,
 } from "../utils/orderCalculations.js";
 
+import { money } from "../utils/productPricing.js";
+
 import {
-  money,
-} from "../utils/productPricing.js";
+  analyticsVisitKey,
+  commercePayload,
+  trackOnce,
+} from "../utils/analytics.js";
 
+function safeAmount(value, fallback = 0) {
+  const parsed = Number(value);
 
-// ======================================================
-// CART
-// ======================================================
+  return Number.isFinite(parsed) && parsed >= 0
+    ? parsed
+    : fallback;
+}
 
 export default function Cart() {
   const {
     products,
-  } =
-    useCatalog();
-
+    loading,
+    error: catalogError,
+    refreshProducts,
+  } = useCatalog();
 
   const {
     cart,
@@ -55,294 +49,207 @@ export default function Cart() {
     wishlist,
     toggleWishlist,
     coupon,
-  } =
-    useStore();
+    catalogReady,
+    notify,
+  } = useStore();
 
+  const [editingKey, setEditingKey] = useState(null);
+  const [retrying, setRetrying] = useState(false);
 
-  const [
-    editing,
-    setEditing,
-  ] =
-    useState(
-      null
-    );
+  const rows = useMemo(() => {
+    const catalog = Array.isArray(products) ? products : [];
 
+    return cart.map((item) => {
+      const product = catalog.find(
+        (entry) =>
+          entry && String(entry.id) === String(item.id),
+      );
 
-  // ====================================================
-  // CART ROWS
-  // ====================================================
+      const quantity = safeAmount(item.quantity);
+      const sellingUnit = safeAmount(item.price);
 
-  const rows =
-    useMemo(
-      () =>
-        cart.map(
-          (
-            item
-          ) => {
-            const product =
-              products.find(
-                (
-                  entry
-                ) =>
-                  String(
-                    entry.id
-                  ) ===
-                  String(
-                    item.id
-                  )
-              );
+      const originalUnit = Math.max(
+        sellingUnit,
+        safeAmount(
+          item.originalPrice ??
+            product?.originalPrice ??
+            product?.price,
+          sellingUnit,
+        ),
+      );
 
+      const lineTotal = sellingUnit * quantity;
+      const originalLineTotal = originalUnit * quantity;
 
-            const quantity =
-              Number(
-                item.quantity ||
-                  0
-              );
-
-
-            const sellingUnit =
-              Number(
-                item.price ||
-                  0
-              );
-
-
-            const originalUnit =
-              Math.max(
-                sellingUnit,
-
-                Number(
-                  item.originalPrice ??
-                    product?.originalPrice ??
-                    product?.price ??
-                    sellingUnit
-                )
-              );
-
-
-            return {
-              ...item,
-
+      const stock =
+        catalogReady && product
+          ? getVariantStock(
               product,
+              item.selectedSize,
+              item.selectedColor,
+            )
+          : null;
 
-              lineTotal:
-                sellingUnit *
-                quantity,
+      const validQuantity =
+        Number.isSafeInteger(quantity) && quantity >= 1;
 
-              originalLineTotal:
-                originalUnit *
-                quantity,
+      const available =
+        catalogReady &&
+        Boolean(product) &&
+        product.isActive !== false &&
+        validQuantity &&
+        stock >= quantity;
 
-              lineSavings:
-                Math.max(
-                  0,
-
-                  originalUnit *
-                    quantity -
-                    sellingUnit *
-                    quantity
-                ),
-            };
-          }
+      return {
+        ...item,
+        product,
+        quantity,
+        stock,
+        available,
+        lineTotal,
+        originalLineTotal,
+        lineSavings: Math.max(
+          0,
+          originalLineTotal - lineTotal,
         ),
+      };
+    });
+  }, [cart, products, catalogReady]);
 
-      [
+  const pricing = useMemo(
+    () =>
+      calculateOrderPricing({
         cart,
-        products,
-      ]
-    );
+        coupon: coupon || null,
+        deliveryMethod: "standard",
+      }),
+    [cart, coupon],
+  );
 
+  const itemCount = rows.reduce(
+    (total, item) => total + item.quantity,
+    0,
+  );
 
-  // ====================================================
-  // ITEM COUNT
-  // ====================================================
+  const productSavings = rows.reduce(
+    (total, item) => total + item.lineSavings,
+    0,
+  );
 
-  const itemCount =
-    rows.reduce(
-      (
-        total,
-        item
-      ) =>
-        total +
-        Number(
-          item.quantity ||
-            0
-        ),
+  const couponSavings = safeAmount(
+    pricing.couponDiscount,
+  );
 
-      0
-    );
-
-
-  // ====================================================
-  // CURRENT PRICING
-  // ====================================================
-
-  const pricing =
-    useMemo(
-      () =>
-        calculateOrderPricing({
-          cart,
-
-          coupon:
-            coupon ||
-            null,
-
-          deliveryMethod:
-            "standard",
-        }),
-
-      [
-        cart,
-        coupon,
-      ]
-    );
-
-
-  // ====================================================
-  // REAL TOTAL SAVINGS
-  // ====================================================
-
-  const productSavings =
-    rows.reduce(
-      (
-        total,
-        item
-      ) =>
-        total +
-        Number(
-          item.lineSavings ||
-            0
-        ),
-
-      0
-    );
-
-
-  const couponSavings =
-    Math.max(
-      0,
-
-      Number(
-        pricing
-          ?.couponDiscount ||
-          0
-      )
-    );
-
-
-  const totalSavings =
-    Math.max(
-      0,
-
-      productSavings +
-        couponSavings
-    );
-
-
-  // ====================================================
-  // INVALID / OUT-OF-STOCK ITEMS
-  // ====================================================
+  const totalSavings = productSavings + couponSavings;
 
   const hasUnavailableItems =
-    rows.some(
-      (
-        item
-      ) => {
-        if (
-          !item.product
-        ) {
-          return true;
-        }
+    catalogReady && rows.some((item) => !item.available);
 
+  const canCheckout =
+    catalogReady &&
+    rows.length > 0 &&
+    !hasUnavailableItems;
 
-        const stock =
-          getVariantStock(
-            item.product,
-            item.selectedSize,
-            item.selectedColor
-          );
+  const editingItem = rows.find(
+    (item) => getCartItemKey(item) === editingKey,
+  );
 
+  const analyticsItemsKey = JSON.stringify(
+    cart.map((item) => [
+      item.id,
+      item.quantity,
+      item.selectedSize,
+      item.selectedColor,
+      item.price,
+    ]),
+  );
 
-        return (
-          stock <
-          Number(
-            item.quantity ||
-              0
-          )
-        );
-      }
+  useEffect(() => {
+    if (!catalogReady || !cart.length) return;
+
+    function track() {
+      trackOnce(
+        `bag:${analyticsVisitKey()}`,
+        "view_cart",
+        commercePayload(
+          cart,
+          pricing.totalAfterCoupon,
+        ),
+      );
+    }
+
+    track();
+
+    window.addEventListener(
+      "gymdrobe-analytics-ready",
+      track,
     );
 
+    return () => {
+      window.removeEventListener(
+        "gymdrobe-analytics-ready",
+        track,
+      );
+    };
+  }, [
+    catalogReady,
+    analyticsItemsKey,
+    pricing.totalAfterCoupon,
+  ]);
 
-  // ====================================================
-  // MOVE TO WISHLIST
-  // ====================================================
-
-  function moveToWishlist(
-    item
-  ) {
+  async function retryCatalog() {
     if (
-      !item.product
+      retrying ||
+      typeof refreshProducts !== "function"
     ) {
       return;
     }
 
+    setRetrying(true);
 
-    const saved =
-      wishlist.some(
-        (
-          product
-        ) =>
-          String(
-            product.id
-          ) ===
-          String(
-            item.product.id
-          )
+    try {
+      await refreshProducts();
+    } catch {
+      notify(
+        "Products could not be refreshed. Please try again.",
+        "error",
       );
-
-
-    if (
-      !saved
-    ) {
-      toggleWishlist(
-        item.product
-      );
+    } finally {
+      setRetrying(false);
     }
-
-
-    removeFromCart(
-      getCartItemKey(
-        item
-      )
-    );
   }
 
+  function moveToWishlist(item) {
+    if (!catalogReady || !item.product) return;
 
-  // ====================================================
-  // EMPTY CART
-  // ====================================================
+    const alreadySaved = wishlist.some(
+      (product) =>
+        String(product.id) === String(item.product.id),
+    );
 
-  if (
-    !rows.length
-  ) {
+    if (!alreadySaved) {
+      const saved = toggleWishlist(item.product);
+
+      // Keep the bag item when persistent saving fails.
+      // StoreContext still retains the wishlist in memory.
+      if (!saved) return;
+    }
+
+    removeFromCart(getCartItemKey(item));
+  }
+
+  if (!rows.length) {
     return (
       <div className="page narrow">
         <div className="empty-state">
-          <h1>
-            Your bag is empty
-          </h1>
-
+          <h1>Your bag is empty</h1>
 
           <p>
-            Pick your workout essentials and come back when you're ready to check out.
+            Pick your workout essentials and come back
+            when you’re ready to check out.
           </p>
 
-
-          <Link
-            className="button"
-            to="/shop"
-          >
+          <Link className="button" to="/shop">
             Shop GymDrobe
           </Link>
         </div>
@@ -350,538 +257,361 @@ export default function Cart() {
     );
   }
 
-
-  // ====================================================
-  // PAGE
-  // ====================================================
-
   return (
     <div className="page cart-page">
-      {/* =================================================
-          HEADING
-      ================================================= */}
-
       <div className="page-heading">
         <div>
-          <h1>
-            Shopping bag
-          </h1>
+          <h1>Shopping bag</h1>
 
-
-          <p className="muted">
+          <p className="muted" aria-live="polite">
             {itemCount}{" "}
-            {itemCount ===
-            1
-              ? "item"
-              : "items"}{" "}
-            in your bag
+            {itemCount === 1 ? "item" : "items"} in your bag
           </p>
         </div>
 
-
-        <Link
-          className="text-link"
-          to="/shop"
-        >
+        <Link className="text-link" to="/shop">
           Continue shopping →
         </Link>
       </div>
 
+      {loading && (
+        <p className="notice" role="status">
+          Checking current prices and available stock…
+        </p>
+      )}
 
-      {/* =================================================
-          CART LAYOUT
-      ================================================= */}
+      {catalogError && (
+        <div className="notice">
+          <p role="alert">
+            Products could not be loaded. Your saved bag
+            is still shown, but availability must be checked
+            before checkout.
+          </p>
+
+          <button
+            type="button"
+            className="button secondary"
+            disabled={retrying}
+            onClick={retryCatalog}
+          >
+            {retrying ? "Retrying…" : "Retry product loading"}
+          </button>
+        </div>
+      )}
 
       <div className="cart-layout">
-        {/* ===============================================
-            ITEMS
-        =============================================== */}
-
         <div className="cart-items">
-          {rows.map(
-            (
-              item
-            ) => {
-              const product =
-                item.product;
+          {rows.map((item) => {
+            const product = item.product;
+            const key = getCartItemKey(item);
 
-
-              const key =
-                getCartItemKey(
-                  item
-                );
-
-
-              if (
-                !product
-              ) {
-                return (
-                  <article
-                    key={
-                      key
-                    }
-                    className="cart-row"
-                  >
-                    <div className="cart-copy">
-                      <h2>
-                        Product unavailable
-                      </h2>
-
-
-                      <p className="field-error">
-                        This product is no longer available in the current catalog.
-                      </p>
-
-
-                      <button
-                        type="button"
-                        className="text-link danger"
-                        onClick={() =>
-                          removeFromCart(
-                            key
-                          )
-                        }
-                      >
-                        Remove from bag
-                      </button>
-                    </div>
-                  </article>
-                );
-              }
-
-
-              const stock =
-                getVariantStock(
-                  product,
-                  item.selectedSize,
-                  item.selectedColor
-                );
-
-
-              const requestedQuantity =
-                Number(
-                  item.quantity ||
-                    0
-                );
-
-
-              const enoughStock =
-                stock >=
-                requestedQuantity;
-
-
-              const productSaved =
-                wishlist.some(
-                  (
-                    entry
-                  ) =>
-                    String(
-                      entry.id
-                    ) ===
-                    String(
-                      product.id
-                    )
-                );
-
-
-              const deliveryEstimate =
-                String(
-                  product.delivery
-                    ?.estimatedDays ||
-                    ""
-                ).trim();
-
-
-              const maxQuantity =
-                Math.max(
-                  1,
-
-                  Math.min(
-                    10,
-                    stock
-                  )
-                );
-
-
+            if (
+              catalogReady &&
+              (!product || product.isActive === false)
+            ) {
               return (
-                <article
-                  key={
-                    key
-                  }
-                  className="cart-row"
-                >
-                  {/* =====================================
-                      IMAGE
-                  ===================================== */}
-
-                  <Link
-                    to={`/product/${encodeURIComponent(
-                      item.id
-                    )}`}
-                    className="cart-thumb"
-                    aria-label={`View ${product.name}`}
-                  >
-                    <ProductImage
-                      product={
-                        product
-                      }
-                    />
-                  </Link>
-
-
-                  {/* =====================================
-                      PRODUCT INFO
-                  ===================================== */}
-
+                <article key={key} className="cart-row">
                   <div className="cart-copy">
-                    <div className="cart-head">
-                      <div>
-                        <p className="eyebrow">
-                          {product.brand ||
-                            "GymDrobe"}
-                        </p>
+                    <h2>{item.name || "Product unavailable"}</h2>
 
-
-                        <Link
-                          to={`/product/${encodeURIComponent(
-                            item.id
-                          )}`}
-                        >
-                          <h2>
-                            {product.name}
-                          </h2>
-                        </Link>
-                      </div>
-
-
-                      <div className="cart-price">
-                        <strong>
-                          {money(
-                            item.lineTotal
-                          )}
-                        </strong>
-
-
-                        {item.lineSavings >
-                          0 && (
-                          <del className="muted">
-                            {money(
-                              item.originalLineTotal
-                            )}
-                          </del>
-                        )}
-                      </div>
-                    </div>
-
-
-                    {/* ===================================
-                        VARIANT
-                    =================================== */}
-
-                    <p className="muted">
-                      {item.selectedColor &&
-                      item.selectedSize
-                        ? `${item.selectedColor} / ${item.selectedSize}`
-
-                        : item.selectedColor ||
-                          item.selectedSize ||
-                          "Standard option"}
+                    <p className="field-error">
+                      This product is no longer available in
+                      the current catalogue.
                     </p>
 
-
-                    {/* ===================================
-                        REAL SAVINGS
-                    =================================== */}
-
-                    {item.lineSavings >
-                      0 && (
-                      <p className="positive">
-                        You save{" "}
-                        {money(
-                          item.lineSavings
-                        )}{" "}
-                        on this item
-                      </p>
-                    )}
-
-
-                    {/* ===================================
-                        DELIVERY
-                    =================================== */}
-
-                    {deliveryEstimate && (
-                      <p className="muted">
-                        Estimated delivery:{" "}
-                        <strong>
-                          {deliveryEstimate}
-                        </strong>
-                      </p>
-                    )}
-
-
-                    {/* ===================================
-                        STOCK
-                    =================================== */}
-
-                    {stock >
-                      0 &&
-                      stock <=
-                        5 && (
-                      <p className="muted">
-                        Only {stock} left for this selection
-                      </p>
-                    )}
-
-
-                    {/* ===================================
-                        CONTROLS
-                    =================================== */}
-
-                    <div className="cart-controls">
-                      <label>
-                        Qty
-
-
-                        <select
-                          value={
-                            item.quantity
-                          }
-                          disabled={
-                            stock <=
-                            0
-                          }
-                          onChange={(
-                            event
-                          ) =>
-                            updateQuantity(
-                              key,
-
-                              Number(
-                                event.target
-                                  .value
-                              )
-                            )
-                          }
-                        >
-                          {Array.from(
-                            {
-                              length:
-                                maxQuantity,
-                            },
-
-                            (
-                              _,
-                              index
-                            ) =>
-                              index +
-                              1
-                          ).map(
-                            (
-                              quantity
-                            ) => (
-                              <option
-                                key={
-                                  quantity
-                                }
-                                value={
-                                  quantity
-                                }
-                              >
-                                {quantity}
-                              </option>
-                            )
-                          )}
-                        </select>
-                      </label>
-
-
-                      <button
-                        type="button"
-                        className="text-link"
-                        onClick={() =>
-                          setEditing(
-                            item
-                          )
-                        }
-                      >
-                        Edit options
-                      </button>
-
-
-                      <button
-                        type="button"
-                        className="text-link"
-                        onClick={() =>
-                          moveToWishlist(
-                            item
-                          )
-                        }
-                      >
-                        {productSaved
-                          ? "Move to wishlist"
-                          : "Save for later"}
-                      </button>
-
-
-                      <button
-                        type="button"
-                        className="text-link danger"
-                        onClick={() =>
-                          removeFromCart(
-                            key
-                          )
-                        }
-                      >
-                        Remove
-                      </button>
-                    </div>
-
-
-                    {/* ===================================
-                        INVALID STOCK
-                    =================================== */}
-
-                    {!enoughStock && (
-                      <p
-                        className="field-error"
-                        role="alert"
-                      >
-                        {stock <=
-                        0
-                          ? "This variant is currently out of stock."
-                          : `Only ${stock} available. Reduce the quantity before checkout.`}
-                      </p>
-                    )}
+                    <button
+                      type="button"
+                      className="text-link danger"
+                      onClick={() => removeFromCart(key)}
+                    >
+                      Remove from bag
+                    </button>
                   </div>
                 </article>
               );
             }
-          )}
+
+            const displayProduct = product || item;
+
+            const productSaved = wishlist.some(
+              (entry) =>
+                String(entry.id) ===
+                String(displayProduct.id),
+            );
+
+            const deliveryEstimate = String(
+              product?.delivery?.estimatedDays || "",
+            ).trim();
+
+            const maxQuantity =
+              item.stock == null
+                ? 1
+                : Math.max(
+                    1,
+                    Math.min(10, Math.floor(item.stock)),
+                  );
+
+            const quantities = Array.from(
+              { length: maxQuantity },
+              (_, index) => index + 1,
+            );
+
+            // Keep the recorded selection visible even if
+            // stock has fallen or quantity exceeds ten.
+            if (
+              Number.isSafeInteger(item.quantity) &&
+              item.quantity >= 1 &&
+              !quantities.includes(item.quantity)
+            ) {
+              quantities.push(item.quantity);
+              quantities.sort((a, b) => a - b);
+            }
+
+            const options = [
+              item.selectedColor,
+              item.selectedSize,
+            ]
+              .filter(Boolean)
+              .join(" / ");
+
+            return (
+              <article key={key} className="cart-row">
+                <Link
+                  to={productPath(item.id)}
+                  className="cart-thumb"
+                  aria-label={`View ${
+                    displayProduct.name || "product"
+                  }`}
+                >
+                  <ProductImage product={displayProduct} />
+                </Link>
+
+                <div className="cart-copy">
+                  <div className="cart-head">
+                    <div>
+                      <p className="eyebrow">
+                        {displayProduct.brand || "GymDrobe"}
+                      </p>
+
+                      <Link to={productPath(item.id)}>
+                        <h2>
+                          {displayProduct.name || "Product"}
+                        </h2>
+                      </Link>
+                    </div>
+
+                    <div className="cart-price">
+                      <strong>{money(item.lineTotal)}</strong>
+
+                      {item.lineSavings > 0 && (
+                        <del className="muted">
+                          {money(item.originalLineTotal)}
+                        </del>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="muted">
+                    {options || "Standard option"}
+                  </p>
+
+                  <p className="muted">
+                    {money(safeAmount(item.price))} each
+                  </p>
+
+                  {item.lineSavings > 0 && (
+                    <p className="positive">
+                      You save {money(item.lineSavings)} on
+                      this selection
+                    </p>
+                  )}
+
+                  {deliveryEstimate && catalogReady && (
+                    <p className="muted">
+                      Estimated delivery:{" "}
+                      <strong>{deliveryEstimate}</strong>
+                    </p>
+                  )}
+
+                  {catalogReady &&
+                    item.stock > 0 &&
+                    item.stock <= 5 && (
+                      <p className="muted">
+                        Only {item.stock} left for this selection
+                      </p>
+                    )}
+
+                  <div className="cart-controls">
+                    <label>
+                      Qty{" "}
+                      <select
+                        aria-label={`Quantity for ${
+                          displayProduct.name || "product"
+                        }`}
+                        value={item.quantity}
+                        disabled={
+                          !catalogReady ||
+                          !product ||
+                          item.stock <= 0
+                        }
+                        onChange={(event) =>
+                          updateQuantity(
+                            key,
+                            Number(event.target.value),
+                          )
+                        }
+                      >
+                        {!quantities.includes(item.quantity) && (
+                          <option
+                            value={item.quantity}
+                            disabled
+                          >
+                            Check quantity
+                          </option>
+                        )}
+
+                        {quantities.map((quantity) => (
+                          <option
+                            key={quantity}
+                            value={quantity}
+                            disabled={
+                              catalogReady &&
+                              quantity > item.stock
+                            }
+                          >
+                            {quantity}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <button
+                      type="button"
+                      className="text-link"
+                      disabled={!catalogReady || !product}
+                      onClick={() => setEditingKey(key)}
+                    >
+                      Edit size / colour
+                    </button>
+
+                    <button
+                      type="button"
+                      className="text-link"
+                      disabled={!catalogReady || !product}
+                      onClick={() => moveToWishlist(item)}
+                    >
+                      {productSaved
+                        ? "Move to wishlist"
+                        : "Save to wishlist"}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="text-link danger"
+                      disabled={!catalogReady}
+                      onClick={() => removeFromCart(key)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+
+                  {catalogReady && !item.available && (
+                    <p className="field-error" role="alert">
+                      {!Number.isSafeInteger(item.quantity) ||
+                      item.quantity < 1
+                        ? "Choose a valid quantity before checkout."
+                        : item.stock <= 0
+                          ? "This variant is currently out of stock. Choose another option or remove it."
+                          : `Only ${item.stock} available. Reduce the quantity before checkout.`}
+                    </p>
+                  )}
+                </div>
+              </article>
+            );
+          })}
         </div>
 
-
-        {/* ===============================================
-            ORDER SUMMARY
-        =============================================== */}
-
         <aside className="cart-summary">
+          <CouponBox subtotal={pricing.subtotal} />
+
           <PriceSummary
-            cart={
-              cart
-            }
-            coupon={
-              coupon
-            }
+            cart={cart}
+            coupon={coupon}
+            deliveryMethod="standard"
           />
 
-
-          {/* =============================================
-              REAL SAVINGS MESSAGE
-          ============================================= */}
-
-          {totalSavings >
-            0 && (
-            <div
-              className="notice"
-              role="status"
-            >
+          {totalSavings > 0 && (
+            <div className="notice" role="status">
               <strong>
-                You saved{" "}
-                {money(
-                  totalSavings
-                )}{" "}
-                on this order
+                Your current savings: {money(totalSavings)}
               </strong>
 
-
-              {couponSavings >
-                0 && (
+              {couponSavings > 0 && (
                 <p className="muted">
-                  Includes{" "}
-                  {money(
-                    couponSavings
-                  )}{" "}
-                  coupon savings.
+                  Includes {money(couponSavings)} coupon
+                  savings.
                 </p>
               )}
             </div>
           )}
 
-
-          {/* =============================================
-              TRUST
-          ============================================= */}
-
           <div className="panel cart-trust">
             <p>
-              <strong>
-                Secure checkout
-              </strong>
+              <strong>Review before payment</strong>
             </p>
 
+            <p className="muted">
+              Choose delivery and payment at checkout.
+              Product availability and pricing are checked
+              again before your order is placed.
+            </p>
 
             <p className="muted">
-              Product availability and pricing are checked again before your order is placed.
+              COD requires a 10% online advance on products
+              after coupon discounts. The remaining balance,
+              including delivery charges, is paid on delivery.
             </p>
           </div>
 
-
-          {/* =============================================
-              CHECKOUT CTA
-          ============================================= */}
-
-          {hasUnavailableItems ? (
-            <>
-              <button
-                type="button"
-                className="button full"
-                disabled
-              >
-                Check unavailable items
-              </button>
-
-
-              <p
-                className="field-error"
-                role="alert"
-              >
-                Update the unavailable products before continuing to checkout.
-              </p>
-            </>
-          ) : (
+          {canCheckout ? (
             <Link
               className="button full"
               to="/checkout"
             >
               Proceed to checkout
             </Link>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="button full"
+                disabled
+              >
+                {!catalogReady
+                  ? "Waiting for product check"
+                  : "Check unavailable items"}
+              </button>
+
+              {hasUnavailableItems && (
+                <p className="field-error" role="alert">
+                  Update the unavailable products before
+                  continuing to checkout.
+                </p>
+              )}
+            </>
           )}
 
-
-          <Link
-            className="text-link"
-            to="/shop"
-          >
+          <Link className="text-link" to="/shop">
             Continue shopping
           </Link>
         </aside>
       </div>
 
-
-      {/* =================================================
-          VARIANT EDITOR
-      ================================================= */}
-
-      {editing && (
+      {editingItem && catalogReady && (
         <BagVariantEditor
-          item={
-            editing
-          }
-          onClose={() =>
-            setEditing(
-              null
-            )
-          }
+          key={editingKey}
+          item={editingItem}
+          onClose={() => setEditingKey(null)}
         />
       )}
     </div>

@@ -98,12 +98,14 @@ export default function AnalyticsController() {
           Help improve GymDrobe
         </strong>
 
-        <p>
-          Allow optional Google Analytics to
-          measure shopping activity. Your name,
-          email, address and payment credentials
-          are not included in our shopping events.
-        </p>
+       <p>
+  Allow optional Google Analytics to measure page visits
+  and shopping activity. Google Analytics processes
+  browser, device and network information. Our shopping
+  events do not include your name, email, delivery
+  address or payment credentials. You can change your
+  choice through Analytics preferences.
+</p>
 
         <div className="purchase-actions">
           <button

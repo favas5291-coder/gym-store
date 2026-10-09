@@ -1,21 +1,12 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+
 import useOrderUpdates from "../hooks/useOrderUpdates.js";
 
-import {
-  useEffect,
-  useState,
-} from "react";
-
-import {
-  Link,
-} from "react-router-dom";
-
-import {
-  useAuth,
-} from "../context/AuthContext.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 
 import {
   getOrders as getLocalOrders,
-  orderStatus,
   orderTotal,
 } from "../utils/customerData.js";
 
@@ -23,9 +14,7 @@ import {
   getOrders as getRemoteOrders,
 } from "../services/orderApi.js";
 
-import {
-  money,
-} from "../utils/productPricing.js";
+import { money } from "../utils/productPricing.js";
 
 import {
   ProductImage,
@@ -33,925 +22,422 @@ import {
 
 import AccountLayout from "../components/AccountLayout.jsx";
 
+import {
+  formatOrderDate,
+  formatOrderStatus,
+} from "../components/OrderPaymentDetails.jsx";
 
-// ======================================================
-// NUMBER
-// ======================================================
+function amount(value) {
+  if (
+    value == null ||
+    value === "" ||
+    typeof value === "boolean"
+  ) {
+    return null;
+  }
 
-function number(
-  value
-) {
-  const parsed =
-    Number(
-      value
-    );
+  const parsed = Number(value);
 
-  return Number.isFinite(
-    parsed
-  )
+  return Number.isFinite(parsed) && parsed >= 0
     ? parsed
-    : 0;
+    : null;
 }
 
+function paymentLabel(order) {
+  const labels = {
+    paid: "Payment completed",
+    "partially-paid": "Advance paid",
+    pending: "Payment pending",
+    failed: "Payment failed",
+    refunded: "Refunded",
+    "partially-refunded": "Partially refunded",
+  };
 
-// ======================================================
-// PAYMENT METHOD
-// ======================================================
-
-function paymentMethodLabel(
-  order
-) {
-  const method =
-    order?.payment
-      ?.method ||
-    order?.paymentMethod ||
-    "";
-
-
-  if (
-    method ===
-    "cod-partial"
-  ) {
-    return "COD with 10% advance";
-  }
-
-
-  if (
-    method ===
-    "razorpay"
-  ) {
-    return "Full online payment";
-  }
-
-
-  if (
-    method ===
-    "cod"
-  ) {
-    return "Cash on delivery";
-  }
-
-
-  return "Payment not recorded";
-}
-
-
-// ======================================================
-// PAYMENT STATUS
-// ======================================================
-
-function paymentStatusLabel(
-  order
-) {
-  const status =
-    order?.payment
-      ?.status ||
-    "pending";
-
-
-  if (
-    status ===
-    "partially-paid"
-  ) {
-    return "Advance paid";
-  }
-
-
-  if (
-    status ===
-    "paid"
-  ) {
-    return "Paid";
-  }
-
-
-  if (
-    status ===
-    "failed"
-  ) {
-    return "Payment failed";
-  }
-
-
-  if (
-    status ===
-    "refunded"
-  ) {
-    return "Refunded";
-  }
-
-
-  return "Payment pending";
-}
-
-
-// ======================================================
-// PAYMENT STATUS CLASS
-// ======================================================
-
-function paymentStatusClass(
-  order
-) {
-  const status =
-    order?.payment
-      ?.status ||
-    "pending";
-
-
-  if (
-    status ===
-    "paid"
-  ) {
-    return "success";
-  }
-
-
-  if (
-    status ===
-    "partially-paid"
-  ) {
-    return "partial";
-  }
-
-
-  if (
-    status ===
-      "failed" ||
-    status ===
-      "refunded"
-  ) {
-    return "cancelled";
-  }
-
-
-  return "pending";
-}
-
-
-// ======================================================
-// TOTAL
-// ======================================================
-
-function getOrderTotal(
-  order
-) {
-  const paymentTotal =
-    number(
-      order?.payment
-        ?.totalAmount
-    );
-
-
-  if (
-    paymentTotal >
-    0
-  ) {
-    return paymentTotal;
-  }
-
-
-  const pricingTotal =
-    number(
-      order?.pricing
-        ?.finalTotal
-    );
-
-
-  if (
-    pricingTotal >
-    0
-  ) {
-    return pricingTotal;
-  }
-
-
-  return number(
-    orderTotal(
-      order
-    )
+  return (
+    labels[order.payment?.status] ||
+    "Payment not recorded"
   );
 }
 
+function methodLabel(order) {
+  const labels = {
+    razorpay: "Full online payment",
+    "cod-partial": "COD with 10% advance",
+    cod: "Cash on delivery",
+  };
 
-// ======================================================
-// AMOUNT PAID
-// ======================================================
-
-function getAmountPaid(
-  order
-) {
-  return Math.max(
-    0,
-
-    number(
-      order?.payment
-        ?.amountPaid
-    )
+  return (
+    labels[
+      order.payment?.method ||
+        order.paymentMethod
+    ] || "Payment method not recorded"
   );
 }
 
-
-// ======================================================
-// AMOUNT DUE
-// ======================================================
-
-function getAmountDue(
-  order
-) {
-  return Math.max(
-    0,
-
-    number(
-      order?.payment
-        ?.amountDue
+function fulfilmentLabel(order) {
+  if (
+    order.status === "payment-pending" &&
+    ["paid", "partially-paid"].includes(
+      order.payment?.status,
     )
-  );
+  ) {
+    return "Awaiting order confirmation";
+  }
+
+  return formatOrderStatus(order.status);
 }
 
+function PaymentSummary({ order }) {
+  const payment = order.payment || {};
+  const refund = order.refund || {};
 
-// ======================================================
-// PAYMENT SUMMARY
-// ======================================================
+  const paid = amount(payment.amountPaid);
+  const due = amount(payment.amountDue);
+  const refundAmount = amount(refund.amount);
 
-function PaymentSummary({
-  order,
-}) {
-  const method =
-    order?.payment
-      ?.method ||
-    order?.paymentMethod ||
-    "";
+  const cod = ["cod", "cod-partial"].includes(
+    payment.method || order.paymentMethod,
+  );
 
-
-  const paymentStatus =
-    order?.payment
-      ?.status ||
-    "pending";
-
-
-  const amountPaid =
-    getAmountPaid(
-      order
-    );
-
-
-  const amountDue =
-    getAmountDue(
-      order
-    );
-
-
-  const advanceAmount =
-    Math.max(
-      0,
-
-      number(
-        order?.payment
-          ?.advanceAmount
-      )
-    );
-
-
-  const balanceStatus =
-    order?.payment
-      ?.balanceStatus ||
-    "";
-
-
-  const refundStatus =
-    order?.refund
-      ?.status ||
-    "not-requested";
-
-
-  const refundAmount =
-    Math.max(
-      0,
-
-      number(
-        order?.refund
-          ?.amount
-      )
-    );
-
-
-  // ====================================================
-  // CANCELLED / REFUND
-  // ====================================================
-
-  if (
-    order?.status ===
-    "cancelled"
-  ) {
-    if (
-      refundStatus ===
-        "refunded" &&
-      refundAmount >
-        0
-    ) {
-      return (
-        <div className="order-payment-info">
-          <p>
-            <strong>
-              {paymentMethodLabel(
-                order
-              )}
-            </strong>
-          </p>
-
-          <p className="order-payment-refund">
-            Refunded:{" "}
-            <strong>
-              {money(
-                refundAmount
-              )}
-            </strong>
-          </p>
-        </div>
-      );
-    }
-
-
-    if (
-      refundStatus ===
-        "pending" &&
-      refundAmount >
-        0
-    ) {
-      return (
-        <div className="order-payment-info">
-          <p>
-            <strong>
-              {paymentMethodLabel(
-                order
-              )}
-            </strong>
-          </p>
-
-          <p>
-            Refund processing:{" "}
-            <strong>
-              {money(
-                refundAmount
-              )}
-            </strong>
-          </p>
-        </div>
-      );
-    }
-
-
-    if (
-      refundStatus ===
-        "manual-required" &&
-      refundAmount >
-        0
-    ) {
-      return (
-        <div className="order-payment-info">
-          <p>
-            <strong>
-              {paymentMethodLabel(
-                order
-              )}
-            </strong>
-          </p>
-
-          <p>
-            Refund under review:{" "}
-            <strong>
-              {money(
-                refundAmount
-              )}
-            </strong>
-          </p>
-        </div>
-      );
-    }
-
-
-    return (
-      <div className="order-payment-info">
-        <p>
-          <strong>
-            {paymentMethodLabel(
-              order
-            )}
-          </strong>
-        </p>
-      </div>
-    );
-  }
-
-
-  // ====================================================
-  // PARTIAL COD
-  // ====================================================
-
-  if (
-    method ===
-    "cod-partial"
-  ) {
-    const paidAdvance =
-      amountPaid >
-      0
-        ? amountPaid
-        : advanceAmount;
-
-
-    if (
-      paymentStatus ===
-        "paid" ||
-      balanceStatus ===
-        "collected"
-    ) {
-      return (
-        <div className="order-payment-info">
-          <p>
-            <strong>
-              COD with 10% advance
-            </strong>
-          </p>
-
-          <p className="order-payment-success">
-            Payment completed
-          </p>
-
-          <small>
-            Total paid:{" "}
-            {money(
-              getOrderTotal(
-                order
-              )
-            )}
-          </small>
-        </div>
-      );
-    }
-
-
-    if (
-      paymentStatus ===
-      "partially-paid"
-    ) {
-      return (
-        <div className="order-payment-info">
-          <p>
-            <strong>
-              COD with 10% advance
-            </strong>
-          </p>
-
-          <p className="order-payment-success">
-            Advance paid:{" "}
-            <strong>
-              {money(
-                paidAdvance
-              )}
-            </strong>
-          </p>
-
-          {amountDue >
-            0 && (
-            <small>
-              Pay on delivery:{" "}
-              <strong>
-                {money(
-                  amountDue
-                )}
-              </strong>
-            </small>
-          )}
-        </div>
-      );
-    }
-
-
-    return (
-      <div className="order-payment-info">
-        <p>
-          <strong>
-            COD with 10% advance
-          </strong>
-        </p>
-
-        <small>
-          {paymentStatusLabel(
-            order
-          )}
-        </small>
-      </div>
-    );
-  }
-
-
-  // ====================================================
-  // FULL ONLINE
-  // ====================================================
-
-  if (
-    method ===
-    "razorpay"
-  ) {
-    return (
-      <div className="order-payment-info">
-        <p>
-          <strong>
-            Full online payment
-          </strong>
-        </p>
-
-        {paymentStatus ===
-        "paid" ? (
-          <p className="order-payment-success">
-            Paid:{" "}
-            <strong>
-              {money(
-                amountPaid ||
-                  getOrderTotal(
-                    order
-                  )
-              )}
-            </strong>
-          </p>
-        ) : (
-          <small>
-            {paymentStatusLabel(
-              order
-            )}
-          </small>
-        )}
-      </div>
-    );
-  }
-
-
-  // ====================================================
-  // LEGACY COD
-  // ====================================================
+  const refunded = [
+    "refunded",
+    "processed",
+    "completed",
+  ].includes(refund.status);
 
   return (
     <div className="order-payment-info">
       <p>
-        <strong>
-          {paymentMethodLabel(
-            order
-          )}
-        </strong>
+        <strong>{methodLabel(order)}</strong>
       </p>
 
-      <small>
-        {paymentStatusLabel(
-          order
+      <p
+        className={
+          payment.status === "paid" ||
+          payment.status === "partially-paid"
+            ? "order-payment-success"
+            : undefined
+        }
+      >
+        <strong>{paymentLabel(order)}</strong>
+      </p>
+
+      {paid != null && (
+        <p>
+          {refunded
+            ? "Amount retained after refund"
+            : "Recorded amount paid"}
+          {": "}
+          <strong>{money(paid)}</strong>
+        </p>
+      )}
+
+      {order.status !== "cancelled" &&
+        due != null && (
+          <p>
+            {cod
+              ? "Balance due on delivery"
+              : "Amount remaining"}
+            {": "}
+            <strong>{money(due)}</strong>
+          </p>
         )}
-      </small>
+
+      {order.status === "cancelled" && cod && (
+        <p className="muted">
+          No remaining COD balance will be
+          collected.
+        </p>
+      )}
+
+      {refund.status &&
+        ![
+          "none",
+          "not-requested",
+          "not-applicable",
+        ].includes(refund.status) && (
+          <p>
+            Refund:{" "}
+            {formatOrderStatus(refund.status)}
+            {refundAmount != null
+              ? ` · ${money(refundAmount)}`
+              : ""}
+          </p>
+        )}
+
+      {order.status === "payment-pending" && (
+        <p className="notice">
+          {["paid", "partially-paid"].includes(
+            payment.status,
+          )
+            ? "Payment is recorded. Order confirmation is pending. Do not pay again."
+            : "Payment confirmation is pending. If money was deducted, do not pay again; contact support with your order number."}
+        </p>
+      )}
     </div>
   );
 }
 
-
-// ======================================================
-// ORDERS PAGE
-// ======================================================
-
 export default function OrdersPage() {
-  // Keeps guest/local orders reactive.
   useOrderUpdates();
-
 
   const {
     user,
     token,
-  } =
-    useAuth();
+    loading: authLoading,
+    authError,
+  } = useAuth();
 
+  const scope = JSON.stringify([
+    user?.id || null,
+    token || null,
+  ]);
 
-  // ====================================================
-  // MONGODB ORDERS
-  // ====================================================
+  const [snapshot, setSnapshot] = useState({
+    scope: "",
+    orders: [],
+    loading: false,
+    error: "",
+  });
 
-  const [
-    remoteOrders,
-    setRemoteOrders,
-  ] =
-    useState([]);
+  const [refresh, setRefresh] = useState(0);
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("");
+  const [days, setDays] = useState("");
 
+  useEffect(() => {
+    if (
+      authLoading ||
+      authError ||
+      !user ||
+      !token
+    ) {
+      return;
+    }
 
-  const [
-    loading,
-    setLoading,
-  ] =
-    useState(
-      Boolean(
-        user
-      )
+    let cancelled = false;
+    let timer;
+    let running = false;
+
+    async function loadOrders() {
+      if (cancelled || running) return;
+
+      running = true;
+      clearTimeout(timer);
+
+      setSnapshot((current) => ({
+        scope,
+
+        orders:
+          current.scope === scope
+            ? current.orders
+            : [],
+
+        loading: true,
+        error: "",
+      }));
+
+      try {
+        const result =
+          await getRemoteOrders(token);
+
+        if (cancelled) return;
+
+        if (!Array.isArray(result)) {
+          throw new Error(
+            "GymDrobe returned an unreadable order list.",
+          );
+        }
+
+        const orders = result.filter(
+          (order) =>
+            order &&
+            typeof order === "object",
+        );
+
+        setSnapshot({
+          scope,
+          orders,
+          loading: false,
+          error: "",
+        });
+
+        if (
+          orders.some(
+            (order) =>
+              order.status ===
+              "payment-pending",
+          )
+        ) {
+          timer = setTimeout(() => {
+            if (
+              document.visibilityState ===
+              "visible"
+            ) {
+              loadOrders();
+            }
+          }, 15000);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setSnapshot((current) => ({
+            scope,
+
+            orders:
+              current.scope === scope
+                ? current.orders
+                : [],
+
+            loading: false,
+
+            error:
+              error.message ||
+              "Your orders could not be loaded. Please retry.",
+          }));
+        }
+      } finally {
+        running = false;
+      }
+    }
+
+    function onVisible() {
+      if (
+        document.visibilityState === "visible"
+      ) {
+        loadOrders();
+      }
+    }
+
+    loadOrders();
+
+    document.addEventListener(
+      "visibilitychange",
+      onVisible,
     );
 
+    window.addEventListener(
+      "online",
+      loadOrders,
+    );
 
-  const [
-    loadError,
-    setLoadError,
-  ] =
-    useState("");
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
 
+      document.removeEventListener(
+        "visibilitychange",
+        onVisible,
+      );
 
-  // ====================================================
-  // FILTERS
-  // ====================================================
+      window.removeEventListener(
+        "online",
+        loadOrders,
+      );
+    };
+  }, [
+    scope,
+    authLoading,
+    authError,
+    refresh,
+  ]);
 
-  const [
-    query,
-    setQuery,
-  ] =
-    useState("");
+  const current =
+    snapshot.scope === scope
+      ? snapshot
+      : null;
 
+  const orders = user
+    ? current?.orders || []
+    : getLocalOrders(null);
 
-  const [
-    status,
-    setStatus,
-  ] =
-    useState("");
-
-
-  const [
-    days,
-    setDays,
-  ] =
-    useState("");
-
-
-  // ====================================================
-  // LOAD SIGNED-IN USER ORDERS FROM MONGODB
-  // ====================================================
-
-  useEffect(
-    () => {
-      let cancelled =
-        false;
-
-
-      async function loadOrders() {
-        // Guest:
-        // localStorage orders are used instead.
-
-        if (
-          !user
-        ) {
-          setRemoteOrders(
-            []
-          );
-
-
-          setLoadError(
-            ""
-          );
-
-
-          setLoading(
-            false
-          );
-
-
-          return;
-        }
-
-
-        // Logged-in user should have JWT.
-
-        if (
-          !token
-        ) {
-          setRemoteOrders(
-            []
-          );
-
-
-          setLoading(
-            false
-          );
-
-
-          setLoadError(
-            "Your sign-in session has expired. Please sign in again."
-          );
-
-
-          return;
-        }
-
-
-        setLoading(
-          true
-        );
-
-
-        setLoadError(
-          ""
-        );
-
-
-        try {
-          const orders =
-            await getRemoteOrders(
-              token
-            );
-
-
-          if (
-            cancelled
-          ) {
-            return;
-          }
-
-
-          setRemoteOrders(
-            Array.isArray(
-              orders
-            )
-              ? orders
-              : []
-          );
-
-        } catch (
-          error
-        ) {
-          if (
-            cancelled
-          ) {
-            return;
-          }
-
-
-          console.error(
-            "Load orders error:",
-            error
-          );
-
-
-          setRemoteOrders(
-            []
-          );
-
-
-          setLoadError(
-            error.message ||
-              "Your orders could not be loaded."
-          );
-
-        } finally {
-          if (
-            !cancelled
-          ) {
-            setLoading(
-              false
-            );
-          }
-        }
-      }
-
-
-      loadOrders();
-
-
-      return () => {
-        cancelled =
-          true;
-      };
-    },
-    [
-      user?.id,
-      token,
-    ]
+  const loading = Boolean(
+    authLoading ||
+      (user &&
+        token &&
+        !authError &&
+        (!current || current.loading)),
   );
 
+  const loadError =
+    authError ||
+    (user && !token
+      ? "Your session has expired. Please sign in again."
+      : current?.error || "");
 
-  // ====================================================
-  // CHOOSE ORDER SOURCE
-  // ====================================================
+  const search = query.trim().toLowerCase();
 
-  /*
-    Signed-in customer:
-      MongoDB / Express API
+  const matches = (
+    Array.isArray(orders) ? orders : []
+  ).filter((order) => {
+    if (!order) return false;
 
-    Guest:
-      Existing localStorage preview orders
-  */
+    if (
+      status &&
+      order.status !== status
+    ) {
+      return false;
+    }
 
-  const orders =
-    user
-      ? remoteOrders
-      : getLocalOrders(
-          null
-        );
-
-
-  // ====================================================
-  // FILTER ORDERS
-  // ====================================================
-
-  const normalizedQuery =
-    query
-      .trim()
-      .toLowerCase();
-
-
-  const matches =
-    orders.filter(
-      (
-        order
-      ) => {
-        const matchesStatus =
-          !status ||
-          order.status ===
-            status;
-
-
-        const createdTime =
-          Date.parse(
-            order.createdAt
-          );
-
-
-        const matchesDate =
-          !days ||
-          (
-            Number.isFinite(
-              createdTime
-            ) &&
-            Date.now() -
-              createdTime <=
-              Number(
-                days
-              ) *
-                86400000
-          );
-
-
-        const searchableText =
-          [
-            order.id,
-
-            order.orderNumber,
-
-            paymentMethodLabel(
-              order
-            ),
-
-            paymentStatusLabel(
-              order
-            ),
-
-            ...(
-              order.items ||
-              []
-            ).map(
-              (
-                item
-              ) =>
-                item.name
-            ),
-          ]
-            .filter(
-              Boolean
-            )
-            .join(
-              " "
-            )
-            .toLowerCase();
-
-
-        const matchesSearch =
-          !normalizedQuery ||
-          searchableText.includes(
-            normalizedQuery
-          );
-
-
-        return (
-          matchesStatus &&
-          matchesDate &&
-          matchesSearch
-        );
-      }
+    const created = Date.parse(
+      order.createdAt,
     );
 
+    if (
+      days &&
+      (!Number.isFinite(created) ||
+        Date.now() - created >
+          Number(days) * 86400000)
+    ) {
+      return false;
+    }
 
-  // ====================================================
-  // PAGE
-  // ====================================================
+    const items = Array.isArray(order.items)
+      ? order.items
+      : [];
+
+    const searchable = [
+      order.id,
+      order.orderNumber,
+      methodLabel(order),
+      paymentLabel(order),
+      ...items.map((item) => item.name),
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return (
+      !search ||
+      searchable.includes(search)
+    );
+  });
 
   return (
-    <AccountLayout title="Orders & returns">
-      <p className="muted">
-        {user
-          ? "Your signed-in orders are loaded from your GymDrobe account."
-          : "Guest orders are saved on this device. Sign in before checkout to save future orders to your account."}
-      </p>
+    <AccountLayout title="My orders">
+      <div className="page-heading">
+        <p className="muted">
+          {user
+            ? "Your orders and payment status are loaded from your GymDrobe account."
+            : "Guest order summaries are stored on this device. Sign in before checkout to save future orders to your account."}
+        </p>
 
-
-      {/* =================================================
-          LOAD ERROR
-      ================================================= */}
+        {user && token && (
+          <button
+            type="button"
+            className="button secondary compact"
+            disabled={loading}
+            onClick={() =>
+              setRefresh(
+                (value) => value + 1,
+              )
+            }
+          >
+            {loading
+              ? "Refreshing…"
+              : "Refresh orders"}
+          </button>
+        )}
+      </div>
 
       {loadError && (
         <p
@@ -962,103 +448,61 @@ export default function OrdersPage() {
         </p>
       )}
 
-
-      {/* =================================================
-          SEARCH
-      ================================================= */}
-
       <div className="field order-search">
         <label htmlFor="order-search">
           Search your orders
         </label>
 
-
         <input
           id="order-search"
           type="search"
-          placeholder="Product name or order ID"
+          placeholder="Product name or order number"
           value={query}
-          onChange={(
-            event
-          ) =>
-            setQuery(
-              event.target
-                .value
-            )
+          onChange={(event) =>
+            setQuery(event.target.value)
           }
         />
       </div>
 
-
-      {/* =================================================
-          FILTERS
-      ================================================= */}
-
       <div className="browse-controls">
         <label>
           Status{" "}
-
           <select
-            aria-label="Filter orders by status"
             value={status}
-            onChange={(
-              event
-            ) =>
-              setStatus(
-                event.target
-                  .value
-              )
+            onChange={(event) =>
+              setStatus(event.target.value)
             }
           >
             <option value="">
               All orders
             </option>
 
-
             {[
               "payment-pending",
               "confirmed",
               "processing",
+              "packed",
               "shipped",
               "out-for-delivery",
               "delivered",
               "cancelled",
-            ].map(
-              (
-                itemStatus
-              ) => (
-                <option
-                  key={
-                    itemStatus
-                  }
-                  value={
-                    itemStatus
-                  }
-                >
-                  {itemStatus.replaceAll(
-                    "-",
-                    " "
-                  )}
-                </option>
-              )
-            )}
+            ].map((value) => (
+              <option
+                key={value}
+                value={value}
+              >
+                {formatOrderStatus(value)}
+              </option>
+            ))}
           </select>
         </label>
 
-
         <label>
           Placed in{" "}
-
           <select
-            aria-label="Filter orders by date"
             value={days}
-            onChange={(
-              event
-            ) =>
-              setDays(
-                event.target
-                  .value
-              )
+            onChange={(event) =>
+              setDays(event.target.value)
             }
           >
             <option value="">
@@ -1080,171 +524,85 @@ export default function OrdersPage() {
         </label>
       </div>
 
+      {loading && (
+        <p role="status">
+          Loading your latest orders…
+        </p>
+      )}
 
-      {/* =================================================
-          LOADING
-      ================================================= */}
+      {!authLoading &&
+        !authError &&
+        matches.map((order, index) => {
+          const id =
+            order.orderNumber || order.id;
 
-      {loading &&
-        user && (
-          <div className="empty-state">
-            <h3>
-              Loading your orders…
-            </h3>
+          const items = Array.isArray(
+            order.items,
+          )
+            ? order.items
+            : [];
 
-            <p>
-              Getting your latest GymDrobe orders.
-            </p>
-          </div>
-        )}
+          const total =
+            amount(
+              order.payment?.totalAmount,
+            ) ??
+            amount(
+              order.pricing?.finalTotal,
+            ) ??
+            amount(orderTotal(order));
 
-
-      {/* =================================================
-          ORDER CARDS
-      ================================================= */}
-
-      {!loading &&
-        matches.map(
-          (
-            order
-          ) => (
+          return (
             <article
               className="order-card"
-              key={
-                order.id ||
-                order.orderNumber
-              }
+              key={id || index}
             >
-              {/* =========================================
-                  HEADER
-              ========================================= */}
-
               <div className="order-card-head">
                 <div>
                   <strong>
-                    {new Date(
-                      order.createdAt
-                    ).toLocaleDateString(
-                      "en-IN",
-                      {
-                        day:
-                          "numeric",
-
-                        month:
-                          "short",
-
-                        year:
-                          "numeric",
-                      }
+                    {formatOrderDate(
+                      order.createdAt,
                     )}
                   </strong>
 
-
                   <small>
-                    {order.id ||
-                      order.orderNumber}
+                    {id ||
+                      "Order number not recorded"}
                   </small>
                 </div>
 
-
                 <span
                   className={`status-pill ${
-                    order.status ===
-                    "cancelled"
+                    order.status === "cancelled"
                       ? "cancelled"
                       : order.status ===
-                        "payment-pending"
+                          "payment-pending"
                         ? "pending"
                         : ""
                   }`}
                 >
-                  {order.status ===
-                  "payment-pending"
-                    ? "Payment pending"
-                    : orderStatus(
-                        order
-                      )}
+                  {fulfilmentLabel(order)}
                 </span>
               </div>
 
-
-              {/* =========================================
-                  PRODUCT IMAGES
-              ========================================= */}
-
               <div className="order-preview">
-                {(order.items || [])
-                  .slice(
-                    0,
-                    3
-                  )
-                  .map(
-                    (
-                      item,
-                      index
-                    ) => (
-                      <ProductImage
-                        key={`${order.id || order.orderNumber}-${item.id || item.productId || index}`}
-                        product={
-                          item
-                        }
-                      />
-                    )
-                  )}
+                {items
+                  .slice(0, 3)
+                  .map((item, itemIndex) => (
+                    <ProductImage
+                      key={`${id}-${itemIndex}`}
+                      product={item}
+                    />
+                  ))}
               </div>
 
-
-              {/* =========================================
-                  PRODUCT NAMES
-              ========================================= */}
-
               <p>
-                {(order.items || [])
-                  .map(
-                    (
-                      item
-                    ) =>
-                      item.name
-                  )
-                  .join(
-                    ", "
-                  )}
+                {items
+                  .map((item) => item.name)
+                  .filter(Boolean)
+                  .join(", ")}
               </p>
 
-
-              {/* =========================================
-                  PAYMENT
-              ========================================= */}
-
-              <PaymentSummary
-                order={
-                  order
-                }
-              />
-
-
-              {/* =========================================
-                  PAYMENT STATUS BADGE
-              ========================================= */}
-
-              {user && (
-                <div className="order-payment-status-row">
-                  <span
-                    className={`status-pill ${paymentStatusClass(
-                      order
-                    )}`}
-                  >
-                    {paymentStatusLabel(
-                      order
-                    )}
-                  </span>
-                </div>
-              )}
-
-
-              {/* =========================================
-                  TOTAL + DETAILS
-              ========================================= */}
+              <PaymentSummary order={order} />
 
               <div className="order-card-bottom">
                 <div>
@@ -1253,35 +611,29 @@ export default function OrdersPage() {
                   </small>
 
                   <strong>
-                    {money(
-                      getOrderTotal(
-                        order
-                      )
-                    )}
+                    {total == null
+                      ? "Not recorded"
+                      : money(total)}
                   </strong>
                 </div>
 
-
-                <Link
-                  className="text-link"
-                  to={`/orders/${encodeURIComponent(
-                    order.id ||
-                      order.orderNumber
-                  )}`}
-                >
-                  View details →
-                </Link>
+                {id && (
+                  <Link
+                    className="text-link"
+                    to={`/orders/${encodeURIComponent(
+                      id,
+                    )}`}
+                  >
+                    View details →
+                  </Link>
+                )}
               </div>
             </article>
-          )
-        )}
-
-
-      {/* =================================================
-          EMPTY STATE
-      ================================================= */}
+          );
+        })}
 
       {!loading &&
+        !loadError &&
         !matches.length && (
           <div className="empty-state">
             <h3>
@@ -1290,15 +642,11 @@ export default function OrdersPage() {
                 : "Your first order is waiting"}
             </h3>
 
-
             <p>
               {orders.length
-                ? "Try another order ID, product name, status, or date range."
-                : user
-                  ? "You haven't placed an order with this account yet."
-                  : "Explore the collection and find your next training favourite."}
+                ? "Try another product, order number, status or date range."
+                : "Explore the collection and find your next training favourite."}
             </p>
-
 
             <Link
               className="button"
