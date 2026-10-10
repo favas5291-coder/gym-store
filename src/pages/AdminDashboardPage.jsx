@@ -1,57 +1,106 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  Link,
+  NavLink,
+} from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext.jsx";
 
 import {
   getAdminDashboard,
   getAdminCustomers,
+  setAdminCustomerStatus,
 } from "../services/adminApi.js";
 
 import {
   formatOrderStatus,
 } from "../components/OrderPaymentDetails.jsx";
 
+import Modal from "../components/Modal.jsx";
+
 import "./AdminDashboardPage.css";
 
-function date(value) {
-  if (!value) return "Not recorded";
+const money = (value) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 2,
+  }).format(value);
 
+function date(value, short = false) {
   const parsed = new Date(value);
 
-  return Number.isNaN(parsed.getTime())
-    ? "Not recorded"
-    : parsed.toLocaleDateString("en-IN");
+  if (Number.isNaN(parsed.getTime())) {
+    return "Not recorded";
+  }
+
+  return parsed.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    ...(short ? {} : { year: "numeric" }),
+    timeZone: "Asia/Kolkata",
+  });
 }
 
-function paymentLabel(status) {
-  if (status === "paid") {
-    return "Payment completed";
+function Phone({ value, source }) {
+  if (!value) {
+    return (
+      <span className="gd-admin-muted">
+        Not added
+      </span>
+    );
   }
 
-  if (status === "partially-paid") {
-    return "Advance paid";
-  }
+  const digits = String(value).replace(/\D/g, "");
 
-  return formatOrderStatus(status);
+  return (
+    <div className="gd-admin-phone">
+      <a
+        href={
+          "tel:" +
+          (digits.length === 10
+            ? "+91" + digits
+            : digits)
+        }
+      >
+        {digits.length === 10
+          ? "+91 " + digits
+          : value}
+      </a>
+
+      {source === "order" && (
+        <small>Latest order contact</small>
+      )}
+    </div>
+  );
 }
 
 function AdminMenu() {
+  const links = [
+    ["/admin", "Overview"],
+    ["/admin/orders", "Orders"],
+    ["/admin/products", "Products"],
+    ["/admin/customers", "Customers"],
+    ["/admin/returns", "Returns"],
+    ["/admin/support", "Support"],
+  ];
+
   return (
     <nav
       className="gd-admin-menu"
       aria-label="Admin sections"
     >
-      <Link to="/admin">Dashboard</Link>
-      <Link to="/admin/customers">Customers</Link>
-      <Link to="/admin/products">Products</Link>
-      <Link to="/admin/orders">Orders</Link>
-      <Link to="/admin/returns">
-        Returns & exchanges
-      </Link>
-      <Link to="/admin/support">
-        Support inbox
-      </Link>
+      {links.map(([to, label]) => (
+        <NavLink key={to} to={to} end>
+          {label}
+        </NavLink>
+      ))}
     </nav>
   );
 }
@@ -91,11 +140,7 @@ function Access({ children }) {
     );
   }
 
-  if (
-    !user ||
-    !token ||
-    user.role !== "admin"
-  ) {
+  if (!user || !token || user.role !== "admin") {
     return (
       <div className="page">
         <h1>Admin access required</h1>
@@ -113,36 +158,38 @@ function Access({ children }) {
   return children({
     user,
     token,
-    key: `${user.id || user._id}:${token}`,
+    key: (user.id || user._id) + ":" + token,
   });
 }
 
-function ErrorNotice({ error }) {
-  return error ? (
-    <p className="error-box" role="alert">
-      {error}
-    </p>
-  ) : null;
-}
+function useAdminData(loader, token, options) {
+  const query = JSON.stringify(options);
 
-function Dashboard({ user, token }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
 
+  const refresh = useCallback(() => {
+    setAttempt((value) => value + 1);
+  }, []);
+
   useEffect(() => {
     const controller = new AbortController();
     let cancelled = false;
 
+    setData(null);
     setLoading(true);
     setError("");
 
-    getAdminDashboard(token, {
+    loader(token, {
+      ...JSON.parse(query),
       signal: controller.signal,
     })
       .then((result) => {
-        if (!cancelled) setData(result);
+        if (!cancelled) {
+          setData(result);
+        }
       })
       .catch((failure) => {
         if (
@@ -153,71 +200,219 @@ function Dashboard({ user, token }) {
         }
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       });
 
     return () => {
       cancelled = true;
       controller.abort();
     };
-  }, [token, attempt]);
+  }, [loader, token, query, attempt]);
 
-  const cards = [
-    [
-      "Customers",
-      "customers",
-      "/admin/customers",
-    ],
-    [
-      "Active products",
-      "activeProducts",
-      "/admin/products",
-    ],
-    [
-      "Orders awaiting fulfilment",
-      "openOrders",
-      "/admin/orders",
-    ],
-    [
-      "Payments awaiting confirmation",
-      "pendingPayments",
-      "/admin/orders",
-    ],
-    [
-      "Low-stock products",
-      "lowStockProducts",
-      "/admin/products",
-    ],
-    [
-      "Out-of-stock products",
-      "outOfStockProducts",
-      "/admin/products",
-    ],
-    [
-      "Returns awaiting action",
-      "pendingReturns",
-      "/admin/returns",
-    ],
-    [
-      "Open support conversations",
-      "openSupport",
-      "/admin/support",
-    ],
-  ];
+  return {
+    data,
+    loading,
+    error,
+    refresh,
+  };
+}
+
+function LoadNotice({
+  loading,
+  error,
+  refresh,
+}) {
+  return (
+    <>
+      {loading && (
+        <p role="status">
+          Loading store information…
+        </p>
+      )}
+
+      {error && (
+        <div
+          className="gd-admin-alert"
+          role="alert"
+        >
+          <p>{error}</p>
+
+          <button
+            type="button"
+            className="button secondary"
+            onClick={refresh}
+          >
+            Try again
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+function SalesChart({ points }) {
+  const [selected, setSelected] = useState(
+    points.at(-1)?.date,
+  );
+
+  const maximum = Math.max(
+    1,
+    ...points.map((point) => point.sales),
+  );
+
+  const chosen =
+    points.find((point) => point.date === selected) ||
+    points.at(-1);
+
+  const compact = (value) =>
+    new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      notation: "compact",
+      maximumFractionDigits: 1,
+    }).format(value);
+
+  return (
+    <>
+      <div className="gd-sales-chart">
+        <div
+          className="gd-sales-axis"
+          aria-hidden="true"
+        >
+          {[1, 0.75, 0.5, 0.25, 0].map((ratio) => (
+            <span
+              key={ratio}
+              style={{
+                top: (1 - ratio) * 100 + "%",
+              }}
+            >
+              {compact(maximum * ratio)}
+            </span>
+          ))}
+        </div>
+
+        <div className="gd-sales-scroll">
+          <div
+            className="gd-sales-bars"
+            role="group"
+            aria-label="Daily sales chart"
+            style={{
+              gridTemplateColumns:
+                "repeat(" +
+                points.length +
+                ", minmax(28px, 1fr))",
+
+              minWidth: points.length * 32,
+            }}
+          >
+            {points.map((point, index) => (
+              <div
+                className="gd-sales-column"
+                key={point.date}
+              >
+                <button
+                  type="button"
+                  className={
+                    "gd-sales-bar " +
+                    (chosen?.date === point.date
+                      ? "selected"
+                      : "")
+                  }
+                  aria-label={
+                    date(point.date) +
+                    ": " +
+                    money(point.sales) +
+                    ", " +
+                    point.orders +
+                    " orders"
+                  }
+                  aria-pressed={
+                    chosen?.date === point.date
+                  }
+                  title={
+                    date(point.date) +
+                    ": " +
+                    money(point.sales)
+                  }
+                  onFocus={() =>
+                    setSelected(point.date)
+                  }
+                  onClick={() =>
+                    setSelected(point.date)
+                  }
+                >
+                  <span
+                    style={{
+                      height:
+                        (point.sales / maximum) *
+                          100 +
+                        "%",
+                    }}
+                  />
+                </button>
+
+                <small>
+                  {points.length <= 7 ||
+                  index % 5 === 0 ||
+                  index === points.length - 1
+                    ? date(point.date, true)
+                    : ""}
+                </small>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {chosen && (
+        <p
+          className="gd-sales-selected"
+          aria-live="polite"
+        >
+          <strong>{date(chosen.date)}</strong>
+          <span>{money(chosen.sales)} sales</span>
+          <span>{chosen.orders} orders</span>
+        </p>
+      )}
+
+      <p className="gd-admin-muted">
+        Tap a bar to see that day's sales.
+        Dates use Indian time.
+      </p>
+    </>
+  );
+}
+
+function Dashboard({ user, token }) {
+  const [days, setDays] = useState("7");
+  const [source, setSource] = useState("real");
+
+  const {
+    data,
+    loading,
+    error,
+    refresh,
+  } = useAdminData(
+    getAdminDashboard,
+    token,
+    { days, source },
+  );
 
   return (
     <div className="page gd-admin-page">
-      <div className="page-heading">
+      <div className="gd-admin-heading">
         <div>
           <p className="eyebrow">
             GYMDROBE ADMIN
           </p>
 
-          <h1>Store dashboard</h1>
+          <h1>Your store at a glance</h1>
 
-          <p className="muted">
-            Welcome, {user.name}. Here is your
-            store overview.
+          <p className="gd-admin-muted">
+            Welcome, {user.name}. See sales and
+            manage your store here.
           </p>
         </div>
 
@@ -225,128 +420,338 @@ function Dashboard({ user, token }) {
           type="button"
           className="button secondary"
           disabled={loading}
-          onClick={() =>
-            setAttempt((value) => value + 1)
-          }
+          onClick={refresh}
         >
           {loading ? "Refreshing…" : "Refresh"}
         </button>
       </div>
 
       <AdminMenu />
-      <ErrorNotice error={error} />
 
-      {loading && (
-        <p role="status">
-          Loading your store information…
+      <div className="gd-admin-controls">
+        <label>
+          Date range
+
+          <select
+            value={days}
+            onChange={(event) =>
+              setDays(event.target.value)
+            }
+          >
+            <option value="7">
+              Last 7 days
+            </option>
+
+            <option value="30">
+              Last 30 days
+            </option>
+          </select>
+        </label>
+
+        <label>
+          Order type
+
+          <select
+            value={source}
+            onChange={(event) =>
+              setSource(event.target.value)
+            }
+          >
+            <option value="real">
+              Real orders
+            </option>
+
+            <option value="test">
+              Test orders
+            </option>
+          </select>
+        </label>
+
+        <Link
+          className="button"
+          to="/admin/products"
+        >
+          Manage products
+        </Link>
+      </div>
+
+      {source === "test" && (
+        <p className="gd-admin-test">
+          Test orders shown. These amounts are
+          for testing.
         </p>
       )}
 
+      <LoadNotice
+        loading={loading}
+        error={error}
+        refresh={refresh}
+      />
+
       {data && (
         <>
-          <div
-            className="gd-admin-stats"
-            aria-busy={loading}
-          >
-            {cards.map(([label, field, to]) => (
+          <div className="gd-admin-stats">
+            {[
+              [
+                "Sales",
+                money(data.sales.summary.sales),
+                "After recorded refunds · last " +
+                  days +
+                  " days",
+                "/admin/orders",
+              ],
+              [
+                "Orders",
+                data.sales.summary.orders,
+                "Confirmed orders · last " +
+                  days +
+                  " days",
+                "/admin/orders",
+              ],
+              [
+                "Customers",
+                data.stats.customers,
+                data.stats.blockedCustomers +
+                  " blocked accounts",
+                "/admin/customers",
+              ],
+              [
+                "Products",
+                data.stats.activeProducts,
+                "Active products in your shop",
+                "/admin/products",
+              ],
+            ].map(([label, value, detail, to]) => (
               <Link
                 className="gd-admin-stat"
                 to={to}
-                key={field}
+                key={label}
               >
                 <span>{label}</span>
-
-                <strong>
-                  {Number(
-                    data.stats[field] || 0,
-                  ).toLocaleString("en-IN")}
-                </strong>
-
-                <small>View details →</small>
+                <strong>{value}</strong>
+                <small>{detail}</small>
               </Link>
             ))}
           </div>
 
-          <p className="muted">
-            Low stock means 1–10 units. Counts
-            include stored test orders.
-            {" "}
-            {Number(data.stats.testOrders || 0)}
-            {" "}test orders are recorded.
-            {" "}Last updated:{" "}
-            {new Date(
-              data.generatedAt,
-            ).toLocaleString("en-IN")}.
-            {error &&
-              " These are the last successfully loaded figures."}
-          </p>
+          <section
+            className="gd-admin-panel"
+            aria-labelledby="gd-sales-title"
+          >
+            <div className="gd-admin-heading">
+              <div>
+                <h2 id="gd-sales-title">
+                  Daily sales
+                </h2>
 
-          <section className="panel">
-            <div className="page-heading">
-              <h2>Recent orders</h2>
+                <p className="gd-admin-muted">
+                  Confirmed order value, including
+                  delivery, after recorded refunds.
+                </p>
+              </div>
+
+              <strong className="gd-sales-total">
+                {money(data.sales.summary.sales)}
+              </strong>
+            </div>
+
+            <div className="gd-admin-payment-summary">
+              <span>
+                Received for these orders
+                <strong>
+                  {money(data.sales.summary.received)}
+                </strong>
+              </span>
+
+              <span>
+                Balance still due
+                <strong>
+                  {money(data.sales.summary.due)}
+                </strong>
+              </span>
+            </div>
+
+            {data.sales.summary.orders === 0 ? (
+              <div className="gd-admin-empty-chart">
+                <h3>
+                  No confirmed sales in this period yet
+                </h3>
+
+                <p>
+                  Change the date range or order type
+                  to view other orders.
+                </p>
+              </div>
+            ) : (
+              <SalesChart
+                key={data.generatedAt}
+                points={data.sales.points}
+              />
+            )}
+
+            <p className="gd-admin-muted">
+              Pending and cancelled orders are
+              excluded. A COD advance is only part
+              of the money received. Today is still
+              in progress.
+            </p>
+          </section>
+
+          <section
+            className="gd-admin-panel"
+            aria-labelledby="gd-tasks-title"
+          >
+            <h2 id="gd-tasks-title">
+              Needs your attention
+            </h2>
+
+            <div className="gd-admin-tasks">
+              {[
+                [
+                  "Orders to fulfil",
+                  data.stats.openOrders,
+                  "/admin/orders",
+                ],
+                [
+                  "Awaiting payment",
+                  data.stats.pendingPayments,
+                  "/admin/orders",
+                ],
+                [
+                  "Low stock · 1–10 units",
+                  data.stats.lowStockProducts,
+                  "/admin/products",
+                ],
+                [
+                  "Out of stock",
+                  data.stats.outOfStockProducts,
+                  "/admin/products",
+                ],
+                [
+                  "Return requests",
+                  data.stats.pendingReturns,
+                  "/admin/returns",
+                ],
+                [
+                  "Support conversations",
+                  data.stats.openSupport,
+                  "/admin/support",
+                ],
+              ].map(([label, value, to]) => (
+                <Link to={to} key={label}>
+                  <span>{label}</span>
+                  <strong>{value}</strong>
+                  <span aria-hidden="true">→</span>
+                </Link>
+              ))}
+            </div>
+
+            <p className="gd-admin-muted">
+              Order tasks use the selected order
+              type across all dates.
+            </p>
+          </section>
+
+          <section
+            className="gd-admin-panel"
+            aria-labelledby="gd-recent-title"
+          >
+            <div className="gd-admin-heading">
+              <h2 id="gd-recent-title">
+                Latest orders
+              </h2>
 
               <Link
                 className="text-link"
                 to="/admin/orders"
               >
-                Manage orders →
+                View all orders →
               </Link>
             </div>
 
             {data.recentOrders.length ? (
-              <div className="comparison-scroll">
-                <table className="data-table">
+              <div className="gd-admin-table-scroll">
+                <table className="gd-admin-table">
                   <caption className="sr-only">
-                    Five most recent store orders
+                    Latest five orders of the
+                    selected type
                   </caption>
 
                   <thead>
                     <tr>
-                      <th scope="col">Order</th>
-                      <th scope="col">Customer</th>
-                      <th scope="col">Date</th>
-                      <th scope="col">
-                        Order status
-                      </th>
-                      <th scope="col">Payment</th>
+                      <th>Order</th>
+                      <th>Customer</th>
+                      <th>Contact number</th>
+                      <th>Total</th>
+                      <th>Order status</th>
+                      <th>Payment</th>
                     </tr>
                   </thead>
 
                   <tbody>
-                    {data.recentOrders.map(
-                      (order) => (
-                        <tr key={order.orderNumber}>
-                          <td>
+                    {data.recentOrders.map((order) => (
+                      <tr key={order.orderNumber}>
+                        <td>
+                          <strong>
                             {order.orderNumber}
-                          </td>
-                          <td>
-                            {order.customerName}
-                          </td>
-                          <td>
+                          </strong>
+
+                          <small>
                             {date(order.createdAt)}
-                          </td>
-                          <td>
-                            {formatOrderStatus(
-                              order.status,
-                            )}
-                          </td>
-                          <td>
-                            {paymentLabel(
-                              order.paymentStatus,
-                            )}
-                          </td>
-                        </tr>
-                      ),
-                    )}
+                          </small>
+                        </td>
+
+                        <td>
+                          {order.customerName}
+                        </td>
+
+                        <td>
+                          <Phone
+                            value={order.customerPhone}
+                          />
+                        </td>
+
+                        <td>
+                          {order.total == null
+                            ? "Not recorded"
+                            : money(order.total)}
+                        </td>
+
+                        <td>
+                          {formatOrderStatus(
+                            order.status,
+                          )}
+                        </td>
+
+                        <td>
+                          {order.paymentStatus === "paid"
+                            ? "Payment completed"
+                            : order.paymentStatus ===
+                                "partially-paid"
+                              ? "Advance paid"
+                              : formatOrderStatus(
+                                  order.paymentStatus,
+                                )}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
             ) : (
-              <p>
-                No orders have been recorded yet.
-              </p>
+              <p>No orders of this type yet.</p>
             )}
           </section>
+
+          <p className="gd-admin-muted">
+            Updated{" "}
+            {new Date(
+              data.generatedAt,
+            ).toLocaleString("en-IN", {
+              timeZone: "Asia/Kolkata",
+            })}{" "}
+            IST.
+          </p>
         </>
       )}
     </div>
@@ -363,113 +768,137 @@ function Customers({ token }) {
     page: 1,
   });
 
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [attempt, setAttempt] = useState(0);
+  const {
+    data,
+    loading,
+    error,
+    refresh,
+  } = useAdminData(
+    getAdminCustomers,
+    token,
+    filters,
+  );
+
+  const [selected, setSelected] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [actionError, setActionError] = useState("");
+
+  const action = useRef(null);
+  const mounted = useRef(false);
 
   useEffect(() => {
-    const controller = new AbortController();
-    let cancelled = false;
-
-    setLoading(true);
-    setError("");
-    setData(null);
-
-    getAdminCustomers(token, {
-      ...filters,
-      signal: controller.signal,
-    })
-      .then((result) => {
-        if (!cancelled) setData(result);
-      })
-      .catch((failure) => {
-        if (
-          !cancelled &&
-          failure.name !== "AbortError"
-        ) {
-          setError(failure.message);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    mounted.current = true;
 
     return () => {
-      cancelled = true;
-      controller.abort();
+      mounted.current = false;
+      action.current?.abort();
     };
-  }, [token, filters, attempt]);
+  }, []);
 
-  function apply(event) {
-    event.preventDefault();
+  async function changeStatus() {
+    if (!selected || action.current) return;
 
-    setFilters({
-      search: search.trim(),
-      status,
-      page: 1,
-    });
+    const controller = new AbortController();
+
+    action.current = controller;
+    setBusy(true);
+    setActionError("");
+    setNotice("");
+
+    try {
+      const result = await setAdminCustomerStatus(
+        token,
+        selected,
+        !selected.isActive,
+        { signal: controller.signal },
+      );
+
+      if (mounted.current) {
+        setNotice(result.message);
+      }
+    } catch (failure) {
+      if (
+        mounted.current &&
+        failure.name !== "AbortError"
+      ) {
+        setActionError(
+          failure.message +
+            " Refresh the list to check the current status.",
+        );
+      }
+    } finally {
+      action.current = null;
+
+      if (mounted.current) {
+        setBusy(false);
+        setSelected(null);
+        refresh();
+      }
+    }
   }
 
   return (
     <div className="page gd-admin-page">
-      <div className="page-heading">
+      <div className="gd-admin-heading">
         <div>
           <p className="eyebrow">
             GYMDROBE ADMIN
           </p>
-          <h1>Customers</h1>
+
+          <h1>Your customers</h1>
+
+          <p className="gd-admin-muted">
+            Find customer details and manage
+            account access.
+          </p>
         </div>
 
         <button
           type="button"
           className="button secondary"
-          disabled={loading}
-          onClick={() =>
-            setAttempt((value) => value + 1)
-          }
+          disabled={loading || busy}
+          onClick={refresh}
         >
-          {loading ? "Refreshing…" : "Refresh"}
+          Refresh
         </button>
       </div>
 
       <AdminMenu />
 
-      <p className="muted">
-        Registered customer accounts. Phone numbers
-        appear after customers add them to their
-        profile.
-      </p>
-
       <form
         className="gd-admin-filters"
-        onSubmit={apply}
+        onSubmit={(event) => {
+          event.preventDefault();
+
+          setFilters({
+            search: search.trim(),
+            status,
+            page: 1,
+          });
+        }}
       >
-        <div className="field">
-          <label htmlFor="admin-customer-search">
-            Search customers
-          </label>
+        <label>
+          Search customers
 
           <input
-            id="admin-customer-search"
             type="search"
             maxLength={80}
-            placeholder="Name, email or phone"
+            placeholder="Name, email or profile number"
             value={search}
+            disabled={busy}
             onChange={(event) =>
               setSearch(event.target.value)
             }
           />
-        </div>
+        </label>
 
-        <div className="field">
-          <label htmlFor="admin-customer-status">
-            Account status
-          </label>
+        <label>
+          Account status
 
           <select
-            id="admin-customer-status"
             value={status}
+            disabled={busy}
             onChange={(event) =>
               setStatus(event.target.value)
             }
@@ -477,18 +906,21 @@ function Customers({ token }) {
             <option value="">
               All customers
             </option>
+
             <option value="active">
               Active
             </option>
+
             <option value="disabled">
-              Disabled
+              Blocked
             </option>
           </select>
-        </div>
+        </label>
 
         <button
           type="submit"
           className="button"
+          disabled={busy}
         >
           Search
         </button>
@@ -496,6 +928,7 @@ function Customers({ token }) {
         <button
           type="button"
           className="button secondary"
+          disabled={busy}
           onClick={() => {
             setSearch("");
             setStatus("");
@@ -511,111 +944,165 @@ function Customers({ token }) {
         </button>
       </form>
 
-      <ErrorNotice error={error} />
-
-      {error && (
-        <button
-          type="button"
-          className="button secondary"
-          onClick={() =>
-            setAttempt((value) => value + 1)
-          }
+      {notice && (
+        <p
+          className="gd-admin-success"
+          role="status"
         >
-          Retry
-        </button>
+          {notice}
+        </p>
       )}
 
-      {loading && (
-        <p role="status">Loading customers…</p>
+      {actionError && (
+        <p
+          className="gd-admin-alert"
+          role="alert"
+        >
+          {actionError}
+        </p>
       )}
+
+      <LoadNotice
+        loading={loading}
+        error={error}
+        refresh={refresh}
+      />
 
       {data && (
         <>
-          <p className="muted" role="status">
+          <p
+            className="gd-admin-muted"
+            role="status"
+          >
             {data.total} customers found
           </p>
 
           {data.customers.length ? (
-            <div className="panel comparison-scroll">
-              <table className="data-table">
+            <div className="gd-admin-panel gd-admin-table-scroll">
+              <table className="gd-admin-table">
                 <caption className="sr-only">
-                  Registered customer accounts
+                  Customer contacts and account controls
                 </caption>
 
                 <thead>
                   <tr>
-                    <th scope="col">Name</th>
-                    <th scope="col">Email</th>
-                    <th scope="col">Phone</th>
-                    <th scope="col">Joined</th>
-                    <th scope="col">Orders</th>
-                    <th scope="col">Account</th>
+                    <th>Customer</th>
+                    <th>Contact number</th>
+                    <th>Joined</th>
+                    <th>Orders</th>
+                    <th>Status</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {data.customers.map(
-                    (customer) => (
-                      <tr key={customer.id}>
-                        <td>{customer.name}</td>
+                  {data.customers.map((person) => (
+                    <tr key={person.id}>
+                      <td>
+                        <strong>
+                          {person.name}
+                        </strong>
 
-                        <td className="gd-admin-email">
-                          {customer.email}
-                        </td>
+                        <small className="gd-admin-email">
+                          {person.email}
+                        </small>
+                      </td>
 
-                        <td>
-                          {customer.phone ||
-                            "Not added"}
-                        </td>
+                      <td>
+                        <Phone
+                          value={person.phone}
+                          source={person.phoneSource}
+                        />
+                      </td>
 
-                        <td>
-                          {date(customer.createdAt)}
-                        </td>
+                      <td>
+                        {date(person.createdAt)}
+                      </td>
 
-                        <td>
-                          {customer.orderCount}
-                        </td>
+                      <td>
+                        {person.orderCount}
+                      </td>
 
-                        <td>
-                          {customer.isActive
+                      <td>
+                        <span
+                          className={
+                            "gd-admin-badge " +
+                            (person.isActive
+                              ? "active"
+                              : "blocked")
+                          }
+                        >
+                          {person.isActive
                             ? "Active"
-                            : "Disabled"}
-                        </td>
-                      </tr>
-                    ),
-                  )}
+                            : "Blocked"}
+                        </span>
+                      </td>
+
+                      <td>
+                        <button
+                          type="button"
+                          className={
+                            "gd-admin-action " +
+                            (person.isActive
+                              ? "danger"
+                              : "")
+                          }
+                          disabled={busy || loading}
+                          aria-label={
+                            (person.isActive
+                              ? "Block "
+                              : "Unblock ") +
+                            person.name
+                          }
+                          onClick={() =>
+                            setSelected(person)
+                          }
+                        >
+                          {person.isActive
+                            ? "Block user"
+                            : "Unblock user"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           ) : (
-            <div className="empty-state">
+            <div className="gd-admin-panel">
               <h2>No customers found</h2>
+
               <p>
-                Try another search or clear the
-                filters.
+                Try another search or clear the filters.
               </p>
             </div>
           )}
 
-          <p className="muted">
-            Order counts include pending,
-            cancelled and test orders.
+          <p className="gd-admin-muted">
+            When a profile number is missing, the
+            latest order contact is shown and
+            labelled. Search uses profile numbers.
+            Order counts include test and cancelled
+            orders.
           </p>
 
-          {(data.pages > 1 || data.page > 1) && (
+          {data.pages > 1 && (
             <nav
-              className="pagination"
+              className="gd-admin-pagination"
               aria-label="Customer pages"
             >
               <button
                 type="button"
+                className="button secondary"
                 disabled={
-                  loading || data.page <= 1
+                  busy ||
+                  loading ||
+                  data.page <= 1
                 }
                 onClick={() =>
                   setFilters((value) => ({
                     ...value,
-                    page: value.page - 1,
+                    page: data.page - 1,
                   }))
                 }
               >
@@ -628,14 +1115,16 @@ function Customers({ token }) {
 
               <button
                 type="button"
+                className="button secondary"
                 disabled={
+                  busy ||
                   loading ||
                   data.page >= data.pages
                 }
                 onClick={() =>
                   setFilters((value) => ({
                     ...value,
-                    page: value.page + 1,
+                    page: data.page + 1,
                   }))
                 }
               >
@@ -644,6 +1133,66 @@ function Customers({ token }) {
             </nav>
           )}
         </>
+      )}
+
+      {selected && (
+        <Modal
+          title={
+            selected.isActive
+              ? "Block customer?"
+              : "Unblock customer?"
+          }
+          onClose={() => {
+            if (!busy) {
+              setSelected(null);
+            }
+          }}
+        >
+          <div className="gd-admin-confirm">
+            <p>
+              <strong>{selected.name}</strong>
+              <br />
+              {selected.email}
+            </p>
+
+            <p>
+              {selected.isActive
+                ? "This customer will be unable to sign in or use account actions. Their existing orders remain available to admins."
+                : "This customer can sign in again with Google. Previously saved login sessions will stay invalid."}
+            </p>
+
+            <div className="purchase-actions">
+              <button
+                type="button"
+                className="button secondary"
+                disabled={busy}
+                onClick={() =>
+                  setSelected(null)
+                }
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className={
+                  "button " +
+                  (selected.isActive
+                    ? "gd-admin-danger"
+                    : "")
+                }
+                disabled={busy}
+                onClick={changeStatus}
+              >
+                {busy
+                  ? "Saving…"
+                  : selected.isActive
+                    ? "Block customer"
+                    : "Unblock customer"}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );
@@ -667,7 +1216,10 @@ export function AdminCustomersPage() {
   return (
     <Access>
       {({ token, key }) => (
-        <Customers key={key} token={token} />
+        <Customers
+          key={key}
+          token={token}
+        />
       )}
     </Access>
   );
