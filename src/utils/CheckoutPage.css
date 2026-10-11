@@ -1,0 +1,93 @@
+.gd-checkout .gd-checkout-fields {
+  min-width: 0;
+}
+
+.gd-checkout .gd-checkout-fields legend {
+  padding-inline: 6px;
+  font-weight: 700;
+}
+
+.gd-checkout .check {
+  align-items: flex-start;
+  min-height: 44px;
+}
+
+.gd-checkout .check input {
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+
+.gd-checkout .gd-checkout-item {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 16px;
+  padding-block: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.gd-checkout .gd-checkout-item:last-child {
+  border-bottom: 0;
+}
+
+.gd-checkout .gd-checkout-item h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.gd-checkout .gd-checkout-item p {
+  margin-block: 7px;
+  overflow-wrap: anywhere;
+}
+
+.gd-checkout .gd-checkout-photo {
+  width: 88px;
+  height: 110px;
+  object-fit: contain;
+  background: #f8fafc;
+}
+
+.gd-checkout .error-box {
+  margin-block: 20px;
+  overflow-wrap: anywhere;
+}
+
+.gd-checkout .error-box .purchase-actions {
+  flex-wrap: wrap;
+}
+
+.gd-checkout button,
+.gd-checkout .button {
+  min-height: 44px;
+}
+
+.gd-checkout textarea {
+  width: 100%;
+  font: inherit;
+}
+
+.gd-checkout :focus-visible {
+  outline: 3px solid #c2410c;
+  outline-offset: 3px;
+}
+
+@media (max-width: 900px) {
+  .gd-checkout .checkout-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gd-checkout .checkout-summary {
+    position: static;
+  }
+}
+
+@media (max-width: 420px) {
+  .gd-checkout .gd-checkout-item {
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .gd-checkout .gd-checkout-photo {
+    width: 64px;
+    height: 82px;
+  }
+}

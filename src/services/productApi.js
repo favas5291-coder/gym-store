@@ -1,11 +1,58 @@
-const API_URL =
-  import.meta.env.VITE_API_URL ||
-  "http://localhost:5000/api";
+const API_URL = (
+  import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+)
+  .trim()
+  .replace(/\/+$/, "");
 
+const REQUEST_TIMEOUT = 60000;
 
-// ======================================================
-// REQUEST HELPER
-// ======================================================
+function apiError(message, { status, code, data } = {}) {
+  const error = new Error(message);
+
+  error.isProductApiError = true;
+
+  if (status !== undefined) {
+    error.status = status;
+  }
+
+  error.code = code || "PRODUCT_REQUEST_FAILED";
+  error.data = data ?? null;
+
+  return error;
+}
+
+function abortError() {
+  const error = new Error("The product request was cancelled.");
+  error.name = "AbortError";
+
+  return error;
+}
+
+function isObject(value) {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      !Array.isArray(value),
+  );
+}
+
+function fallbackMessage(status) {
+  const messages = {
+    400: "Check the product information and try again.",
+    401: "Your session expired. Please sign in again.",
+    403: "Your account does not have permission for this action.",
+    404: "This product or product service could not be found.",
+    409: "This product changed or a code is already used. Refresh and check before retrying.",
+    413: "The product information is too large. Reduce it and try again.",
+    429: "Too many requests. Please wait before trying again.",
+    503: "The product service is temporarily unavailable. Please try again later.",
+  };
+
+  return (
+    messages[status] ||
+    "The server could not complete the product request."
+  );
+}
 
 async function request(
   path,
@@ -13,152 +60,281 @@ async function request(
     token,
     method = "GET",
     body,
-  } = {}
+    signal,
+    timeoutMs = REQUEST_TIMEOUT,
+  } = {},
 ) {
   const headers = {
-    "Content-Type":
-      "application/json",
+    Accept: "application/json",
   };
 
+  let serializedBody;
+
+  if (body !== undefined) {
+    headers["Content-Type"] = "application/json";
+
+    try {
+      serializedBody = JSON.stringify(body);
+    } catch {
+      throw apiError(
+        "The product information could not be prepared. Check it and try again.",
+        {
+          code: "INVALID_PRODUCT_DATA",
+        },
+      );
+    }
+  }
 
   if (token) {
-    headers.Authorization =
-      `Bearer ${token}`;
+    headers.Authorization = `Bearer ${token.trim()}`;
   }
 
+  if (signal?.aborted) {
+    throw abortError();
+  }
 
-  const response =
-    await fetch(
-      `${API_URL}${path}`,
-      {
-        method,
+  const controller = new AbortController();
+  let timedOut = false;
 
-        headers,
+  function cancel() {
+    controller.abort();
+  }
 
-        body:
-          body !== undefined
-            ? JSON.stringify(
-                body
-              )
-            : undefined,
-      }
-    );
+  signal?.addEventListener("abort", cancel, {
+    once: true,
+  });
 
+  const duration =
+    Number.isFinite(timeoutMs) &&
+    timeoutMs > 0 &&
+    timeoutMs <= 120000
+      ? timeoutMs
+      : REQUEST_TIMEOUT;
 
-  let data = {};
-
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, duration);
 
   try {
-    data =
-      await response.json();
+    const response = await fetch(`${API_URL}${path}`, {
+      method,
+      headers,
+      cache: "no-store",
+      signal: controller.signal,
+      body: serializedBody,
+    });
 
-  } catch {
-    data = {};
-  }
+    let data = null;
 
+    try {
+      data = await response.json();
+    } catch (failure) {
+      if (controller.signal.aborted) {
+        throw failure;
+      }
+    }
 
-  if (
-    !response.ok
-  ) {
-    const error =
-      new Error(
-        data.message ||
-          "Product request failed."
+    if (controller.signal.aborted) {
+      throw abortError();
+    }
+
+    if (!response.ok) {
+      const message =
+        typeof data?.message === "string" &&
+        data.message.trim()
+          ? data.message
+          : fallbackMessage(response.status);
+
+      throw apiError(message, {
+        status: response.status,
+        code:
+          typeof data?.code === "string"
+            ? data.code
+            : "PRODUCT_HTTP_ERROR",
+        data,
+      });
+    }
+
+    if (!isObject(data) || data.success !== true) {
+      const message =
+        typeof data?.message === "string" &&
+        data.message.trim()
+          ? data.message
+          : "The server returned an unreadable product response. Refresh and check before retrying.";
+
+      throw apiError(message, {
+        code:
+          typeof data?.code === "string"
+            ? data.code
+            : "INVALID_PRODUCT_RESPONSE",
+        data,
+      });
+    }
+
+    return data;
+  } catch (failure) {
+    if (failure.isProductApiError) {
+      throw failure;
+    }
+
+    if (signal?.aborted) {
+      throw abortError();
+    }
+
+    const saving = method !== "GET";
+
+    if (timedOut) {
+      throw apiError(
+        saving
+          ? "The request timed out. The save result is unknown. Refresh the product list before trying again."
+          : "The product server took too long to respond. Please try again.",
+        {
+          code: "PRODUCT_REQUEST_TIMEOUT",
+        },
       );
+    }
 
-
-    error.status =
-      response.status;
-
-
-    error.data =
-      data;
-
-
-    throw error;
+    throw apiError(
+      saving
+        ? "Connection lost. The save result could not be confirmed. Refresh the product list before trying again."
+        : "Unable to connect to GymDrobe. Check your connection and try again.",
+      {
+        code: "PRODUCT_NETWORK_ERROR",
+      },
+    );
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", cancel);
   }
-
-
-  return data;
 }
 
+function requireToken(token) {
+  if (typeof token !== "string" || !token.trim()) {
+    throw apiError("Please sign in with an admin account.", {
+      status: 401,
+      code: "AUTHENTICATION_REQUIRED",
+    });
+  }
+}
 
-// ======================================================
-// ADMIN TOKEN CHECK
-// ======================================================
-
-function requireToken(
-  token
-) {
+function productId(id) {
   if (
-    !token
+    !["string", "number"].includes(typeof id) ||
+    (typeof id === "number" && !Number.isFinite(id)) ||
+    !String(id).trim() ||
+    String(id).trim().length > 200
   ) {
-    throw new Error(
-      "Admin login is required."
-    );
+    throw apiError("A valid product ID is required.", {
+      code: "INVALID_PRODUCT_ID",
+    });
+  }
+
+  return encodeURIComponent(String(id).trim());
+}
+
+function requireData(data, message) {
+  if (!isObject(data)) {
+    throw apiError(message, {
+      code: "INVALID_PRODUCT_DATA",
+    });
   }
 }
 
+function productFrom(data) {
+  const product = data.product;
 
-// ======================================================
-// PUBLIC — GET ALL PRODUCTS
-// ======================================================
-
-export async function getProducts() {
-  const data =
-    await request(
-      "/products"
-    );
-
-
-  return Array.isArray(
-    data.products
-  )
-    ? data.products
-    : [];
-}
-
-
-// ======================================================
-// PUBLIC — GET ONE PRODUCT
-//
-// Supports:
-// MongoDB ObjectId
-// legacy numeric ID
-// slug
-// ======================================================
-
-export async function getProductById(
-  id
-) {
   if (
-    id == null ||
-    String(id).trim() ===
-      ""
+    !isObject(product) ||
+    !(product._id || product.id || product.slug)
   ) {
-    throw new Error(
-      "Product ID is required."
+    throw apiError(
+      "Product details were not returned. Refresh the product list before retrying.",
+      {
+        code: "INVALID_PRODUCT_RESPONSE",
+        data,
+      },
     );
   }
 
+  return product;
+}
 
-  const data =
-    await request(
-      `/products/${encodeURIComponent(
-        id
-      )}`
+function mutationResult(data, message) {
+  return {
+    success: true,
+    message: data.message || message,
+    product: productFrom(data),
+  };
+}
+
+function positiveInteger(value, fallback, maximum) {
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) &&
+    String(value ?? "").trim()
+    ? Math.min(
+        maximum,
+        Math.max(1, Math.floor(parsed)),
+      )
+    : fallback;
+}
+
+function responseInteger(value, fallback, minimum = 0) {
+  if (value == null) {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+
+  if (
+    typeof value === "boolean" ||
+    !String(value).trim() ||
+    !Number.isSafeInteger(parsed) ||
+    parsed < minimum
+  ) {
+    throw apiError(
+      "The server returned invalid product pagination. Please retry.",
+      {
+        code: "INVALID_PRODUCT_RESPONSE",
+      },
     );
+  }
 
+  return parsed;
+}
 
-  return (
-    data.product ||
-    null
+// ======================================================
+// PUBLIC CATALOGUE
+// ======================================================
+
+export async function getProducts(options = {}) {
+  const data = await request("/products", options);
+
+  if (!Array.isArray(data.products)) {
+    throw apiError(
+      "The product catalogue could not be read. Please retry.",
+      {
+        code: "INVALID_PRODUCT_RESPONSE",
+        data,
+      },
+    );
+  }
+
+  return data.products;
+}
+
+export async function getProductById(id, options = {}) {
+  const data = await request(
+    `/products/${productId(id)}`,
+    options,
   );
+
+  return productFrom(data);
 }
 
-
 // ======================================================
-// ADMIN — GET PRODUCTS
+// ADMIN PRODUCT LIST
 // ======================================================
 
 export async function getAdminProducts(
@@ -170,575 +346,318 @@ export async function getAdminProducts(
     active = "",
     page = 1,
     limit = 25,
-  } = {}
+    signal,
+    timeoutMs,
+  } = {},
 ) {
-  requireToken(
-    token
-  );
+  requireToken(token);
 
+  const params = new URLSearchParams();
 
-  const params =
-    new URLSearchParams();
+  for (const [key, value, maximum] of [
+    ["search", search, 150],
+    ["category", category, 100],
+  ]) {
+    const clean = String(value ?? "").trim();
 
+    if (clean.length > maximum) {
+      throw apiError(
+        `${key === "search" ? "Search" : "Category"} cannot exceed ${maximum} characters.`,
+        {
+          code: "INVALID_PRODUCT_FILTER",
+        },
+      );
+    }
 
-  if (
-    String(
-      search
-    ).trim()
-  ) {
-    params.set(
-      "search",
-      String(
-        search
-      ).trim()
-    );
+    if (clean) {
+      params.set(key, clean);
+    }
   }
 
-
   if (
-    String(
-      category
-    ).trim()
-  ) {
-    params.set(
-      "category",
-      String(
-        category
-      ).trim()
-    );
-  }
-
-
-  if (
-    String(
-      stockStatus
-    ).trim()
-  ) {
-    params.set(
-      "stockStatus",
-      String(
-        stockStatus
-      ).trim()
-    );
-  }
-
-
-  if (
-    active === true ||
-    active === false
-  ) {
-    params.set(
-      "active",
-      String(
-        active
-      )
-    );
-
-  } else if (
-    active ===
-      "true" ||
-    active ===
-      "false"
-  ) {
-    params.set(
-      "active",
-      active
-    );
-  }
-
-
-  const safePage =
-    Math.max(
-      1,
-
-      Number.parseInt(
-        page,
-        10
-      ) ||
-        1
-    );
-
-
-  const safeLimit =
-    Math.min(
-      100,
-
-      Math.max(
-        1,
-
-        Number.parseInt(
-          limit,
-          10
-        ) ||
-          25
-      )
-    );
-
-
-  params.set(
-    "page",
-    String(
-      safePage
+    ["in-stock", "low-stock", "out-of-stock"].includes(
+      stockStatus,
     )
+  ) {
+    params.set("stockStatus", stockStatus);
+  }
+
+  if (
+    [true, false, "true", "false"].includes(active)
+  ) {
+    params.set("active", String(active));
+  }
+
+  const safePage = positiveInteger(page, 1, 1000000);
+  const safeLimit = positiveInteger(limit, 25, 100);
+
+  params.set("page", String(safePage));
+  params.set("limit", String(safeLimit));
+
+  const data = await request(
+    `/products/admin?${params}`,
+    {
+      token,
+      signal,
+      timeoutMs,
+    },
   );
 
-
-  params.set(
-    "limit",
-    String(
-      safeLimit
-    )
-  );
-
-
-  const query =
-    params.toString();
-
-
-  const data =
-    await request(
-      `/products/admin${
-        query
-          ? `?${query}`
-          : ""
-      }`,
+  if (!Array.isArray(data.products)) {
+    throw apiError(
+      "The admin product list could not be read. Please retry.",
       {
-        token,
-      }
+        code: "INVALID_PRODUCT_RESPONSE",
+        data,
+      },
     );
+  }
 
+  if (data.total == null || data.pages == null) {
+    throw apiError(
+      "Product totals were not returned. Please check the backend response.",
+      {
+        code: "INVALID_PRODUCT_RESPONSE",
+        data,
+      },
+    );
+  }
 
   return {
-    products:
-      Array.isArray(
-        data.products
-      )
-        ? data.products
-        : [],
-
-    count:
-      Number(
-        data.count ??
-          0
-      ),
-
-    total:
-      Number(
-        data.total ??
-          0
-      ),
-
-    page:
-      Number(
-        data.page ??
-          safePage
-      ),
-
-    pages:
-      Math.max(
-        1,
-        Number(
-          data.pages ??
-            1
-        )
-      ),
-
-    limit:
-      Number(
-        data.limit ??
-          safeLimit
-      ),
+    products: data.products,
+    count: responseInteger(
+      data.count,
+      data.products.length,
+    ),
+    total: responseInteger(data.total, 0),
+    page: responseInteger(data.page, safePage, 1),
+    pages: responseInteger(data.pages, 1, 1),
+    limit: responseInteger(data.limit, safeLimit, 1),
   };
 }
 
+// ======================================================
+// CATEGORY, SUBCATEGORY AND BRAND OPTIONS
+// ======================================================
+
+export async function getAdminProductOptions(
+  token,
+  options = {},
+) {
+  requireToken(token);
+
+  const data = await request(
+    "/products/admin/options",
+    {
+      ...options,
+      token,
+    },
+  );
+
+  if (
+    !Array.isArray(data.categories) ||
+    !Array.isArray(data.brands) ||
+    !isObject(data.subcategories)
+  ) {
+    throw apiError(
+      "Category and brand options could not be read. Please reload them.",
+      {
+        code: "INVALID_PRODUCT_RESPONSE",
+        data,
+      },
+    );
+  }
+
+  return data;
+}
 
 // ======================================================
-// ADMIN — GET ONE PRODUCT
+// ADMIN PRODUCT DETAILS
 // ======================================================
 
 export async function getAdminProductById(
   token,
-  id
+  id,
+  options = {},
 ) {
-  requireToken(
-    token
+  requireToken(token);
+
+  const data = await request(
+    `/products/admin/${productId(id)}`,
+    {
+      ...options,
+      token,
+    },
   );
 
-
-  if (
-    id == null ||
-    String(id).trim() ===
-      ""
-  ) {
-    throw new Error(
-      "Product ID is required."
-    );
-  }
-
-
-  const data =
-    await request(
-      `/products/admin/${encodeURIComponent(
-        id
-      )}`,
-      {
-        token,
-      }
-    );
-
-
-  return (
-    data.product ||
-    null
-  );
+  return productFrom(data);
 }
 
-
 // ======================================================
-// ADMIN — CREATE PRODUCT
+// CREATE PRODUCT
 // ======================================================
 
 export async function createProduct(
   token,
-  productData
+  productData,
+  options = {},
 ) {
-  requireToken(
-    token
+  requireToken(token);
+  requireData(productData, "Product data is required.");
+
+  const data = await request("/products", {
+    ...options,
+    token,
+    method: "POST",
+    body: productData,
+  });
+
+  return mutationResult(
+    data,
+    "Product created successfully.",
   );
-
-
-  if (
-    !productData ||
-    typeof productData !==
-      "object"
-  ) {
-    throw new Error(
-      "Product data is required."
-    );
-  }
-
-
-  const data =
-    await request(
-      "/products",
-      {
-        token,
-
-        method:
-          "POST",
-
-        body:
-          productData,
-      }
-    );
-
-
-  return {
-    success:
-      Boolean(
-        data.success
-      ),
-
-    message:
-      data.message ||
-      "Product created successfully.",
-
-    product:
-      data.product ||
-      null,
-  };
 }
 
-
 // ======================================================
-// ADMIN — UPDATE PRODUCT
+// UPDATE PRODUCT
 // ======================================================
 
 export async function updateProduct(
   token,
   id,
-  productData
+  productData,
+  options = {},
 ) {
-  requireToken(
-    token
+  requireToken(token);
+  requireData(
+    productData,
+    "Product changes are required.",
   );
 
+  const data = await request(
+    `/products/${productId(id)}`,
+    {
+      ...options,
+      token,
+      method: "PUT",
+      body: productData,
+    },
+  );
 
-  if (
-    id == null ||
-    String(id).trim() ===
-      ""
-  ) {
-    throw new Error(
-      "Product ID is required."
-    );
-  }
-
-
-  if (
-    !productData ||
-    typeof productData !==
-      "object"
-  ) {
-    throw new Error(
-      "Product changes are required."
-    );
-  }
-
-
-  const data =
-    await request(
-      `/products/${encodeURIComponent(
-        id
-      )}`,
-      {
-        token,
-
-        method:
-          "PUT",
-
-        body:
-          productData,
-      }
-    );
-
-
-  return {
-    success:
-      Boolean(
-        data.success
-      ),
-
-    message:
-      data.message ||
-      "Product updated successfully.",
-
-    product:
-      data.product ||
-      null,
-  };
+  return mutationResult(
+    data,
+    "Product updated successfully.",
+  );
 }
 
-
 // ======================================================
-// ADMIN — UPDATE INVENTORY
-//
-// Variant product:
-//
-// {
-//   variants: {
-//     Black: {
-//       S: 5,
-//       M: 10
-//     }
-//   }
-// }
-//
-// Simple product:
-//
-// {
-//   stock: 20
-// }
+// UPDATE INVENTORY
 // ======================================================
 
 export async function updateProductInventory(
   token,
   id,
-  inventoryData
+  inventoryData,
+  options = {},
 ) {
-  requireToken(
-    token
+  requireToken(token);
+  requireData(
+    inventoryData,
+    "Inventory data is required.",
   );
 
-
   if (
-    id == null ||
-    String(id).trim() ===
-      ""
+    !Object.prototype.hasOwnProperty.call(
+      inventoryData,
+      "stock",
+    ) &&
+    !Object.prototype.hasOwnProperty.call(
+      inventoryData,
+      "variants",
+    )
   ) {
-    throw new Error(
-      "Product ID is required."
-    );
-  }
-
-
-  if (
-    !inventoryData ||
-    typeof inventoryData !==
-      "object"
-  ) {
-    throw new Error(
-      "Inventory data is required."
-    );
-  }
-
-
-  const data =
-    await request(
-      `/products/${encodeURIComponent(
-        id
-      )}/inventory`,
+    throw apiError(
+      "Provide stock or variant quantities.",
       {
-        token,
-
-        method:
-          "PUT",
-
-        body:
-          inventoryData,
-      }
+        code: "INVALID_PRODUCT_DATA",
+      },
     );
+  }
 
+  const data = await request(
+    `/products/${productId(id)}/inventory`,
+    {
+      ...options,
+      token,
+      method: "PUT",
+      body: inventoryData,
+    },
+  );
 
-  return {
-    success:
-      Boolean(
-        data.success
-      ),
-
-    message:
-      data.message ||
-      "Inventory updated successfully.",
-
-    product:
-      data.product ||
-      null,
-  };
+  return mutationResult(
+    data,
+    "Inventory updated successfully.",
+  );
 }
 
-
 // ======================================================
-// ADMIN — ARCHIVE PRODUCT
-//
-// DELETE no longer permanently removes the product.
-//
-// Backend changes:
-//
-// isActive = false
+// ARCHIVE PRODUCT
 // ======================================================
 
 export async function archiveProduct(
   token,
-  id
+  id,
+  options = {},
 ) {
-  requireToken(
-    token
+  requireToken(token);
+
+  const data = await request(
+    `/products/${productId(id)}`,
+    {
+      ...options,
+      token,
+      method: "DELETE",
+    },
   );
 
-
-  if (
-    id == null ||
-    String(id).trim() ===
-      ""
-  ) {
-    throw new Error(
-      "Product ID is required."
-    );
-  }
-
-
-  const data =
-    await request(
-      `/products/${encodeURIComponent(
-        id
-      )}`,
-      {
-        token,
-
-        method:
-          "DELETE",
-      }
-    );
-
-
-  return {
-    success:
-      Boolean(
-        data.success
-      ),
-
-    message:
-      data.message ||
-      "Product archived successfully.",
-
-    product:
-      data.product ||
-      null,
-  };
+  return mutationResult(
+    data,
+    "Product archived successfully.",
+  );
 }
 
-
 // ======================================================
-// ADMIN — RESTORE PRODUCT
+// RESTORE PRODUCT
 // ======================================================
 
 export async function restoreProduct(
   token,
-  id
+  id,
+  options = {},
 ) {
-  requireToken(
-    token
+  requireToken(token);
+
+  const data = await request(
+    `/products/${productId(id)}/restore`,
+    {
+      ...options,
+      token,
+      method: "PUT",
+    },
   );
 
-
-  if (
-    id == null ||
-    String(id).trim() ===
-      ""
-  ) {
-    throw new Error(
-      "Product ID is required."
-    );
-  }
-
-
-  const data =
-    await request(
-      `/products/${encodeURIComponent(
-        id
-      )}/restore`,
-      {
-        token,
-
-        method:
-          "PUT",
-      }
-    );
-
-
-  return {
-    success:
-      Boolean(
-        data.success
-      ),
-
-    message:
-      data.message ||
-      "Product restored successfully.",
-
-    product:
-      data.product ||
-      null,
-  };
+  return mutationResult(
+    data,
+    "Product restored successfully.",
+  );
 }
 
-
-// ======================================================
-// BACKWARD-COMPATIBLE NAME
-//
-// Older GymDrobe code may still import:
-//
-// deleteProduct
-//
-// It now performs SAFE ARCHIVING instead.
-// ======================================================
-
+// Keep the existing function name compatible.
+// Deleting a product archives it.
 export async function deleteProduct(
   token,
-  id
+  id,
+  options = {},
 ) {
-  return archiveProduct(
-    token,
-    id
-  );
+  return archiveProduct(token, id, options);
 }

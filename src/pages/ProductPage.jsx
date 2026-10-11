@@ -14,10 +14,7 @@ import {
   resolveProductImage,
 } from "../components/StorefrontShared.jsx";
 
-import {
-  productSpecs,
-  rankRelated,
-} from "../utils/commerce.js";
+import { rankRelated } from "../utils/commerce.js";
 
 import {
   readStorage,
@@ -31,12 +28,32 @@ import { useCatalog } from "../context/CatalogContext.jsx";
 import { money } from "../utils/productPricing.js";
 import useProductReviews from "../hooks/useProductReviews.js";
 
+import {
+  buyingInformation,
+  customerSpecifications,
+  productList,
+  productText,
+  supplierSizeChart,
+} from "../utils/productInformation.js";
+
+import {
+  EXPRESS_SHIPPING,
+  FREE_SHIPPING_LIMIT,
+  STANDARD_SHIPPING,
+} from "../utils/orderCalculations.js";
+
 function ProductDetail({ product, products }) {
   const { compared, toggleCompare } = useShoppingTools();
   const { notify, shoppingKey } = useStore();
   const { rating, count } = useProductReviews(product);
 
   const productId = product.id ?? product._id;
+
+  const information = buyingInformation(product);
+  const sizeChart = supplierSizeChart(product);
+  const specifications = customerSpecifications(product);
+  const description = productText(product.description);
+  const included = productText(product.whatsIncluded);
 
   const deliveryKey = shoppingKey(
     "gymdrobe-delivery-pincode",
@@ -124,33 +141,16 @@ function ProductDetail({ product, products }) {
       String(item.id ?? item._id) === String(productId),
   );
 
-  const highlights = Array.isArray(product.highlights)
-    ? product.highlights
-    : Array.isArray(product.features)
-      ? product.features
-      : [];
-
-  const careInstructions = Array.isArray(
-    product.careInstructions,
-  )
-    ? product.careInstructions
-    : typeof product.careInstructions === "string" &&
-        product.careInstructions.trim()
-      ? [product.careInstructions]
-      : [];
-
-  const freeDeliveryAbove = Number(
-    product.delivery?.freeDeliveryAbove,
+  const highlights = productList(
+    Array.isArray(product.highlights) &&
+      product.highlights.length
+      ? product.highlights
+      : product.features,
   );
 
-  const hasFreeDeliveryThreshold =
-    Number.isFinite(freeDeliveryAbove) &&
-    freeDeliveryAbove > 0;
-
-  const productBadge =
-    typeof product.badge === "string"
-      ? product.badge.trim()
-      : "";
+  const careInstructions = productList(
+    product.careInstructions,
+  );
 
   useEffect(() => {
     const saved = readStorage(recentlyViewedKey, []);
@@ -179,13 +179,26 @@ function ProductDetail({ product, products }) {
     );
   }, [productId, recentlyViewedKey]);
 
-  const related = rankRelated(product, products).slice(0, 5);
+  const related = rankRelated(product, products)
+    .filter(
+      (item) =>
+        item.isActive !== false &&
+        item.delivery?.available !== false,
+    )
+    .slice(0, 5);
 
   function checkDelivery(event) {
     event.preventDefault();
 
     if (!/^[1-9]\d{5}$/.test(pincode)) {
       setDelivery("Enter a valid 6-digit pincode.");
+      return;
+    }
+
+    if (information.deliveryUnavailable) {
+      setDelivery(
+        "This product is currently unavailable for delivery. Contact support for help.",
+      );
       return;
     }
 
@@ -199,9 +212,7 @@ function ProductDetail({ product, products }) {
     }
 
     setDelivery(
-      product.delivery?.available === false
-        ? "This product is currently unavailable for delivery."
-        : "Pincode saved. Delivery availability and dates still need confirmation.",
+      "Pincode saved for checkout. This does not confirm delivery service or a delivery date for your location.",
     );
   }
 
@@ -299,21 +310,16 @@ function ProductDetail({ product, products }) {
         <div className="product-info">
           <div className="product-title-meta">
             <p className="product-brand">
-              {product.brand || "GymDrobe"}
+              {productText(product.brand) ||
+                "Brand not listed"}
             </p>
-
-            {productBadge && (
-              <span className="gm-product-badge">
-                {productBadge}
-              </span>
-            )}
           </div>
 
           <h1>{product.name}</h1>
 
-          {product.description && (
+          {description && (
             <p className="product-summary">
-              {product.description}
+              {description}
             </p>
           )}
 
@@ -329,81 +335,168 @@ function ProductDetail({ product, products }) {
               {count} {count === 1 ? "review" : "reviews"}
             </a>
           ) : (
-            <p className="muted">No customer reviews yet</p>
+            <p className="muted">
+              No customer reviews yet
+            </p>
           )}
 
-          <ProductOptions product={product} />
+          <ProductOptions
+            product={{
+              ...product,
+              returnPolicy: information.returns,
+              delivery: {
+                ...product.delivery,
+                estimatedDays:
+                  information.deliveryUnavailable
+                    ? ""
+                    : information.estimate,
+              },
+            }}
+          />
 
           <div className="delivery-box">
-            <h2>CHECK DELIVERY</h2>
+            <h2>DELIVERY & RETURNS</h2>
 
-            <p className="muted">
-              Enter your pincode to save it for checkout.
+            {information.deliveryUnavailable ? (
+              <p role="status">
+                This product is currently unavailable
+                for delivery.
+              </p>
+            ) : (
+              <>
+                <p className="muted">
+                  Save your pincode for checkout.
+                  Service availability for this location
+                  has not been checked yet.
+                </p>
+
+                <form
+                  onSubmit={checkDelivery}
+                  noValidate
+                >
+                  <label
+                    className="sr-only"
+                    htmlFor="delivery-pincode"
+                  >
+                    Delivery pincode
+                  </label>
+
+                  <input
+                    id="delivery-pincode"
+                    placeholder="Enter 6-digit pincode"
+                    value={pincode}
+                    maxLength={6}
+                    inputMode="numeric"
+                    autoComplete="postal-code"
+                    aria-describedby="delivery-pincode-result"
+                    onChange={(event) => {
+                      setPincode(
+                        event.target.value.replace(/\D/g, ""),
+                      );
+                      setDelivery("");
+                    }}
+                  />
+
+                  <button
+                    className="text-link"
+                    type="submit"
+                  >
+                    Save pincode
+                  </button>
+                </form>
+
+                <p
+                  id="delivery-pincode-result"
+                  role="status"
+                >
+                  {delivery}
+                </p>
+
+                {information.estimate && (
+                  <p>
+                    <strong>
+                      Listed delivery estimate:
+                    </strong>{" "}
+                    {information.estimate}.
+                    {" "}
+                    Your location and preparation time
+                    may affect delivery.
+                  </p>
+                )}
+
+                {information.transit && (
+                  <p>
+                    <strong>Courier transit:</strong>{" "}
+                    {information.transit}.
+                    {" "}
+                    Preparation before dispatch is
+                    additional.
+                  </p>
+                )}
+
+                {!information.estimate &&
+                  !information.transit && (
+                    <p>
+                      Delivery timing is not listed.
+                      Contact support before buying.
+                    </p>
+                  )}
+              </>
+            )}
+
+            <p>
+              <strong>Standard shipping:</strong>{" "}
+              {money(STANDARD_SHIPPING)} below{" "}
+              {money(FREE_SHIPPING_LIMIT)}; free from{" "}
+              {money(FREE_SHIPPING_LIMIT)} on the product
+              subtotal after coupons.
             </p>
 
-            <form onSubmit={checkDelivery}>
-              <label
-                className="sr-only"
-                htmlFor="delivery-pincode"
-              >
-                Delivery pincode
-              </label>
+            <p>
+              Express shipping:{" "}
+              {money(EXPRESS_SHIPPING)} where offered.
+              {" "}
+              Checkout confirms the final charges and
+              available delivery methods.
+            </p>
 
-              <input
-                id="delivery-pincode"
-                placeholder="Enter 6-digit pincode"
-                value={pincode}
-                maxLength={6}
-                inputMode="numeric"
-                autoComplete="postal-code"
-                onChange={(event) => {
-                  setPincode(
-                    event.target.value.replace(/\D/g, ""),
-                  );
-                  setDelivery("");
-                }}
-              />
+            <p>
+              <strong>Returns:</strong>{" "}
+              {information.returns}
+            </p>
 
-              <button className="text-link" type="submit">
-                Check
-              </button>
-            </form>
-
-            {delivery && <p role="status">{delivery}</p>}
-
-            {hasFreeDeliveryThreshold && (
-              <p>
-                Standard delivery is free on qualifying orders
-                of <strong>{money(freeDeliveryAbove)}</strong>{" "}
-                or more after coupons.
-              </p>
+            {information.returnDetails.map(
+              (line, index) => (
+                <p key={index}>{line}</p>
+              ),
             )}
 
-            {product.delivery?.estimatedDays && (
-              <p>
-                <strong>Estimated delivery:</strong>{" "}
-                {product.delivery.estimatedDays}
-              </p>
-            )}
-
-            {product.returnPolicy && (
-              <p>
-                <strong>Returns:</strong>{" "}
-                {product.returnPolicy}
-              </p>
-            )}
+            <Link
+              className="text-link"
+              to={`/help?product=${encodeURIComponent(productId)}`}
+            >
+              Ask about delivery or return conditions →
+            </Link>
           </div>
 
-          <details open className="product-description">
+          <details
+            open
+            className="product-description"
+          >
             <summary>PRODUCT DETAILS</summary>
 
-            {product.description && (
-              <p>{product.description}</p>
+            {description ? (
+              <p>{description}</p>
+            ) : (
+              <p>
+                Detailed product information has not
+                been supplied yet.
+              </p>
             )}
 
             {highlights.length > 0 && (
               <>
-                <h3>Product benefits</h3>
+                <h3>Listed product features</h3>
 
                 <ul>
                   {highlights.map((feature, index) => (
@@ -415,15 +508,15 @@ function ProductDetail({ product, products }) {
               </>
             )}
 
-            {product.whatsIncluded && (
+            {included && (
               <p>
                 <strong>What's included:</strong>{" "}
-                {product.whatsIncluded}
+                {included}
               </p>
             )}
 
             <dl className="spec-grid">
-              {productSpecs(product).map(([label, value]) => (
+              {specifications.map(([label, value]) => (
                 <div key={label}>
                   <dt>{label}</dt>
                   <dd>{value}</dd>
@@ -432,18 +525,82 @@ function ProductDetail({ product, products }) {
             </dl>
           </details>
 
+          {sizeChart && (
+            <details className="product-description">
+              <summary>SUPPLIER SIZE CHART</summary>
+
+              <p className="muted">
+                Use the units and measuring instructions
+                supplied in this chart. Size labels can
+                differ between brands.
+              </p>
+
+              <div
+                className="comparison-scroll"
+                tabIndex={0}
+                role="region"
+                aria-label="Supplier size chart; scroll to see all columns"
+              >
+                <table className="data-table">
+                  <caption>
+                    {sizeChart.caption}
+                  </caption>
+
+                  <thead>
+                    <tr>
+                      {sizeChart.columns.map(
+                        (column, index) => (
+                          <th
+                            key={index}
+                            scope="col"
+                          >
+                            {column}
+                          </th>
+                        ),
+                      )}
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {sizeChart.rows.map((row, index) => (
+                      <tr key={index}>
+                        {row.map((value, cell) =>
+                          cell === 0 ? (
+                            <th
+                              key={cell}
+                              scope="row"
+                            >
+                              {value}
+                            </th>
+                          ) : (
+                            <td key={cell}>
+                              {value}
+                            </td>
+                          ),
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          )}
+
           <details className="product-description">
             <summary>CARE INSTRUCTIONS</summary>
 
             {careInstructions.length ? (
               <ul>
                 {careInstructions.map((line, index) => (
-                  <li key={`${index}-${line}`}>{line}</li>
+                  <li key={`${index}-${line}`}>
+                    {line}
+                  </li>
                 ))}
               </ul>
             ) : (
               <p>
-                Follow the care label supplied with the product.
+                Follow the care label supplied with
+                the product.
               </p>
             )}
           </details>
@@ -482,7 +639,7 @@ function ProductDetail({ product, products }) {
 
       {related.length > 0 && (
         <ProductRow
-          title="COMPLETE YOUR WORKOUT"
+          title="RELATED PRODUCTS"
           products={related}
         />
       )}
@@ -539,22 +696,35 @@ export default function ProductPage() {
     refreshProducts,
   } = useCatalog();
 
-  const catalog = Array.isArray(products) ? products : [];
+  const catalog = Array.isArray(products)
+    ? products
+    : [];
 
   const product = catalog.find(
     (item) =>
       item &&
-      [item.id, item._id, item.legacyId, item.slug].some(
+      item.isActive !== false &&
+      [
+        item.id,
+        item._id,
+        item.legacyId,
+        item.slug,
+      ].some(
         (value) =>
-          value != null && String(value) === String(id),
+          value != null &&
+          String(value) === String(id),
       ),
   );
 
-  if (loading || (loaded === false && !error)) {
+  if (
+    loading ||
+    (loaded === false && !error)
+  ) {
     return (
       <div role="status">
         <EmptyState title="Loading product…">
-          Getting the latest product information from GymDrobe.
+          Getting the latest product information
+          from GymDrobe.
         </EmptyState>
       </div>
     );
@@ -563,7 +733,9 @@ export default function ProductPage() {
   if (error) {
     return (
       <EmptyState title="Unable to load product">
-        <p role="alert">{String(error)}</p>
+        <p role="alert">
+          {String(error)}
+        </p>
 
         <button
           type="button"
@@ -574,7 +746,10 @@ export default function ProductPage() {
         </button>
 
         <p>
-          <Link className="text-link" to="/shop">
+          <Link
+            className="text-link"
+            to="/shop"
+          >
             Back to shop
           </Link>
         </p>
@@ -585,8 +760,12 @@ export default function ProductPage() {
   if (!product) {
     return (
       <EmptyState title="Product not found">
-        This product may no longer be available.{" "}
-        <Link className="text-link" to="/shop">
+        This product may no longer be available.
+        {" "}
+        <Link
+          className="text-link"
+          to="/shop"
+        >
           Explore our current collection.
         </Link>
       </EmptyState>

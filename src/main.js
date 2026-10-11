@@ -8,7 +8,7 @@ import "./tryon.css";
 import "./style.css";
 import "./features.css";
 import "./mobile-commerce.css";
-import "./accessibility.css";
+import "./utils/accessibility.css";
 
 import { readStorage } from "./utils/storage.js";
 import { importGuestShopping } from "./utils/shopperStorage.js";

@@ -42,18 +42,15 @@ const CartPage = lazy(() => import("./pages/CartPage.jsx"));
 const WishlistPage = lazy(() => import("./pages/WishlistPage.jsx"));
 const CheckoutPage = lazy(() => import("./pages/CheckoutPage.jsx"));
 const LoginPage = lazy(() => import("./pages/LoginPage.jsx"));
-
 const AccountPage = lazy(() => import("./pages/AccountPage.jsx"));
 const AddressesPage = lazy(() => import("./pages/AddressesPage.jsx"));
 const SecurityPage = lazy(() => import("./pages/SecurityPage.jsx"));
-
 const OrderSuccessPage = lazy(() => import("./pages/OrderSuccessPage.jsx"));
 const OrdersPage = lazy(() => import("./pages/OrdersPage.jsx"));
 const OrderDetailsPage = lazy(() => import("./pages/OrderDetailsPage.jsx"));
 const OrderTrackingPage = lazy(() => import("./pages/OrderTrackingPage.jsx"));
 const ReceiptPage = lazy(() => import("./pages/ReceiptPage.jsx"));
 const ReturnPage = lazy(() => import("./pages/ReturnPage.jsx"));
-
 const ComparePage = lazy(() => import("./pages/ComparePage.jsx"));
 const SavedPage = lazy(() => import("./pages/SavedPage.jsx"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage.jsx"));
@@ -66,17 +63,30 @@ const AdminDashboardPage = lazy(
 
 const AdminCustomersPage = lazy(
   () =>
-    import("./pages/AdminDashboardPage.jsx").then(
-      (module) => ({
-        default: module.AdminCustomersPage,
-      }),
-    ),
+    import("./pages/AdminDashboardPage.jsx").then((module) => ({
+      default: module.AdminCustomersPage,
+    })),
 );
 
-const AdminSupportPage = lazy(() => import("./pages/AdminSupportPage.jsx"));
-const AdminOrdersPage = lazy(() => import("./pages/AdminOrdersPage.jsx"));
-const AdminProductsPage = lazy(() => import("./pages/AdminProductsPage.jsx"));
-const AdminReturnsPage = lazy(() => import("./pages/AdminReturnsPage.jsx"));
+const AdminSupportPage = lazy(
+  () => import("./pages/AdminSupportPage.jsx"),
+);
+
+const AdminOrdersPage = lazy(
+  () => import("./pages/AdminOrdersPage.jsx"),
+);
+
+const AdminProductsPage = lazy(
+  () => import("./pages/AdminProductsPage.jsx"),
+);
+
+const AdminReturnsPage = lazy(
+  () => import("./pages/AdminReturnsPage.jsx"),
+);
+
+const AdminSuppliersPage = lazy(
+  () => import("./pages/AdminSuppliersPage.jsx"),
+);
 
 const StoreConsolePage = import.meta.env.DEV
   ? lazy(() => import("./pages/StoreConsolePage.jsx"))
@@ -152,7 +162,6 @@ function AdminRequired({ children }) {
 
 function LegacyLoginRedirect() {
   const { search } = useLocation();
-
   const next = new URLSearchParams(search).get("next");
 
   return (
@@ -343,6 +352,13 @@ function Layout() {
               >
                 Customers
               </Link>
+
+              <Link
+                className="text-link"
+                to="/admin/suppliers"
+              >
+                Suppliers
+              </Link>
             </nav>
           )}
         </>
@@ -358,9 +374,18 @@ function Layout() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/shop" element={<Shop />} />
-              <Route path="/product/:id" element={<ProductPage />} />
+
+              <Route
+                path="/product/:id"
+                element={<ProductPage />}
+              />
+
               <Route path="/cart" element={<CartPage />} />
-              <Route path="/wishlist" element={<WishlistPage />} />
+
+              <Route
+                path="/wishlist"
+                element={<WishlistPage />}
+              />
 
               <Route
                 path="/checkout"
@@ -370,20 +395,39 @@ function Layout() {
               />
 
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/signup" element={<LegacyLoginRedirect />} />
-              <Route path="/forgot-password" element={<LegacyLoginRedirect />} />
-              <Route path="/reset-password" element={<LegacyLoginRedirect />} />
 
-              <Route path="/compare" element={<ComparePage />} />
+              <Route
+                path="/signup"
+                element={<LegacyLoginRedirect />}
+              />
+
+              <Route
+                path="/forgot-password"
+                element={<LegacyLoginRedirect />}
+              />
+
+              <Route
+                path="/reset-password"
+                element={<LegacyLoginRedirect />}
+              />
+
+              <Route
+                path="/compare"
+                element={<ComparePage />}
+              />
+
               <Route path="/saved" element={<SavedPage />} />
-              <Route path="/notifications" element={<NotificationsPage />} />
+
+              <Route
+                path="/notifications"
+                element={<NotificationsPage />}
+              />
+
               <Route path="/offers" element={<OffersPage />} />
 
               <Route
                 path="/help"
-                element={
-                  <HelpPage key={user?.id || "guest"} />
-                }
+                element={<HelpPage key={user?.id || "guest"} />}
               />
 
               <Route
@@ -472,11 +516,36 @@ function Layout() {
                 }
               />
 
-              <Route path="/order-success" element={<OrderSuccessPage />} />
+              <Route
+                path="/admin/suppliers"
+                element={
+                  <AdminRequired>
+                    <AdminSuppliersPage />
+                  </AdminRequired>
+                }
+              />
+
+              <Route
+                path="/order-success"
+                element={<OrderSuccessPage />}
+              />
+
               <Route path="/orders" element={<OrdersPage />} />
-              <Route path="/orders/:orderId" element={<OrderDetailsPage />} />
-              <Route path="/orders/:orderId/track" element={<OrderTrackingPage />} />
-              <Route path="/orders/:orderId/receipt" element={<ReceiptPage />} />
+
+              <Route
+                path="/orders/:orderId"
+                element={<OrderDetailsPage />}
+              />
+
+              <Route
+                path="/orders/:orderId/track"
+                element={<OrderTrackingPage />}
+              />
+
+              <Route
+                path="/orders/:orderId/receipt"
+                element={<ReceiptPage />}
+              />
 
               <Route
                 path="/orders/:orderId/return"

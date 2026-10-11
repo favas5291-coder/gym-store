@@ -1,7 +1,7 @@
 import {
   useEffect,
   useId,
-  useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -12,14 +12,11 @@ import {
 
 import VirtualTryOnButton from "./virtual-try-on/VirtualTryOnButton.jsx";
 import FitGuide from "./FitGuide.jsx";
+import { Heart } from "./StorefrontShared.jsx";
 
-import {
-  useShoppingTools,
-} from "../context/ShoppingToolsContext.jsx";
-
-import {
-  useStore,
-} from "../context/StoreContext.jsx";
+import { useShoppingTools } from "../context/ShoppingToolsContext.jsx";
+import { useStore } from "../context/StoreContext.jsx";
+import { useCatalog } from "../context/CatalogContext.jsx";
 
 import {
   firstOptions,
@@ -35,10 +32,28 @@ import {
 } from "../utils/productPricing.js";
 
 import {
-  Heart,
-} from "./StorefrontShared.jsx";
+  buyingInformation,
+  optionLabels,
+  productList,
+} from "../utils/productInformation.js";
 
-export default function ProductOptions({
+import {
+  MAX_PURCHASE_QUANTITY,
+  bagQuantityMessage,
+  latestPurchaseProduct,
+  productPriceAvailable,
+  productReference,
+  purchaseKey,
+  purchaseOptions,
+  purchaseState,
+} from "../utils/productPurchase.js";
+
+const touchTarget = {
+  minHeight: 44,
+  minWidth: 44,
+};
+
+function ProductOptionsContent({
   product,
   onAdded,
 }) {
@@ -50,224 +65,188 @@ export default function ProductOptions({
   const {
     addToCart,
     buyNow,
+    cart,
+    latestCart,
     wishlist,
     toggleWishlist,
+    shoppingKey,
   } = useStore();
 
-  const navigate = useNavigate();
+  const {
+    products,
+    loading,
+    loaded,
+    error: catalogError,
+    catalogReady,
+    getLatestProducts,
+    refreshProducts,
+  } = useCatalog();
 
+  const navigate = useNavigate();
   const instanceId = useId();
 
-  const quantityId =
-    `quantity-${instanceId}`;
+  const stockId = `stock-${instanceId}`;
+  const errorId = `purchase-error-${instanceId}`;
+  const quantityId = `quantity-${instanceId}`;
 
-  const stockId =
-    `stock-${instanceId}`;
+  const mounted = useRef(false);
+  const actionLock = useRef(false);
+  const lastAdded = useRef("");
 
-  const touchTarget = {
-    minHeight: "44px",
-    minWidth: "44px",
-  };
+  const [selection, setSelection] = useState(() => {
+    const initial = firstOptions(product);
+
+    return {
+      size: initial.selectedSize,
+      color: initial.selectedColor,
+      quantity: "1",
+    };
+  });
+
+  const {
+    size,
+    color,
+    quantity,
+  } = selection;
 
   const [guide, setGuide] = useState(false);
-  const [added, setAdded] = useState(false);
-
-  // ====================================================
-  // AVAILABLE OPTIONS
-  // ====================================================
-
-  const sizes = useMemo(
-    () =>
-      Array.isArray(product?.sizes)
-        ? product.sizes.map(String).filter(Boolean)
-        : [],
-    [product?.sizes]
-  );
-
-  const colors = useMemo(
-    () =>
-      Array.isArray(product?.colors)
-        ? product.colors.map(String).filter(Boolean)
-        : [],
-    [product?.colors]
-  );
-
-  const hasSizes = sizes.length > 0;
-  const hasColors = colors.length > 0;
-
-  const benefits = useMemo(
-    () =>
-      Array.isArray(product?.highlights)
-        ? product.highlights
-            .filter(Boolean)
-            .slice(0, 4)
-        : [],
-    [product?.highlights]
-  );
-
-  // ====================================================
-  // INITIAL SELECTION
-  // ====================================================
-
-  const initial = useMemo(
-    () => firstOptions(product),
-    [product]
-  );
-
-  const [size, setSize] = useState(
-    initial.selectedSize
-  );
-
-  const [color, setColor] = useState(
-    initial.selectedColor
-  );
-
-  const [quantity, setQuantity] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [addedKey, setAddedKey] = useState("");
 
   useEffect(() => {
-    const next = firstOptions(product);
+    mounted.current = true;
 
-    setSize(next.selectedSize);
-    setColor(next.selectedColor);
-    setQuantity(1);
-    setAdded(false);
-  }, [
-    product?.id,
-    product?._id,
-    product?.stock,
-    product?.stockStatus,
-    product?.variants,
-    product?.sizes,
-    product?.colors,
-  ]);
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
-  // ====================================================
-  // STOCK AND PRICING
-  // ====================================================
+  const sizes = purchaseOptions(product?.sizes);
+  const colors = purchaseOptions(product?.colors);
+  const labels = optionLabels(product);
+  const information = buyingInformation(product);
 
-  const totalStock = getTotalStock(product);
-  const available = totalStock > 0;
+  const benefits = productList(
+    product?.highlights,
+  ).slice(0, 4);
 
-  const stock = getVariantStock(
+  const ready =
+    typeof catalogReady === "boolean"
+      ? catalogReady
+      : loaded === true && !loading && !catalogError;
+
+  const state = purchaseState(
     product,
     size,
-    color
+    color,
+    quantity,
+    ready,
   );
 
-  const lowStock =
-    stock > 0 && stock <= 5;
+  const totalStock = getTotalStock(product);
+  const sellingPrice = getDiscountedPrice(product);
+  const originalPrice = getOriginalPrice(product);
+  const discount = getDiscountPercentage(product);
 
-  const sellingPrice =
-    getDiscountedPrice(product);
+  const productId = String(
+    productReference(product),
+  );
 
-  const originalPrice =
-    getOriginalPrice(product);
+  const shopper = shoppingKey("gymdrobe-cart");
+  const shopperRef = useRef(shopper);
+  shopperRef.current = shopper;
 
-  const discount =
-    getDiscountPercentage(product);
+  const selectionKey = purchaseKey(
+    product,
+    size,
+    color,
+    state.quantity,
+    shopper,
+  );
 
-  // ====================================================
-  // DELIVERY AND RETURNS
-  // ====================================================
+  const added =
+    addedKey === selectionKey &&
+    addedKey !== "";
 
-  const deliveryEstimate = String(
-    product?.delivery?.estimatedDays || ""
-  ).trim();
+  const showFitGuide =
+    sizes.length > 0 &&
+    labels.size === "Size";
 
-  const deliveryAvailable =
-    product?.delivery?.available !== false;
+  const showTryOn =
+    labels.size === "Size" &&
+    labels.color === "Colour";
 
-  const returnPolicy = String(
-    product?.returnPolicy || ""
-  ).trim();
-
-  // ====================================================
-  // WISHLIST AND WATCH STATUS
-  // ====================================================
-
-  const saved = wishlist.some(
+  const saved = (
+    Array.isArray(wishlist) ? wishlist : []
+  ).some(
     (item) =>
-      String(item.id) === String(product.id)
+      productId &&
+      String(productReference(item)) === productId,
   );
 
-  const watching = watches.some(
+  const watching = (
+    Array.isArray(watches) ? watches : []
+  ).some(
     (item) =>
-      String(item.id) === String(product.id)
+      productId &&
+      String(productReference(item)) === productId,
   );
 
-  // ====================================================
-  // COLOUR STOCK
-  // ====================================================
-
-  function getColorStock(nextColor) {
-    if (!hasColors) {
-      return 0;
+  function changeSelection(update) {
+    if (actionLock.current) {
+      return;
     }
 
-    if (hasSizes) {
-      return sizes.reduce(
-        (total, nextSize) =>
-          total +
+    setSelection((current) => ({
+      ...current,
+      ...update,
+    }));
+
+    setError("");
+    setAddedKey("");
+    lastAdded.current = "";
+  }
+
+  function colorStock(nextColor) {
+    if (sizes.length) {
+      // Shared inventory must not be multiplied by
+      // the number of available option labels.
+      return Math.max(
+        0,
+        ...sizes.map((nextSize) =>
           getVariantStock(
             product,
             nextSize,
-            nextColor
+            nextColor,
           ),
-        0
+        ),
       );
     }
 
     return getVariantStock(
       product,
       null,
-      nextColor
+      nextColor,
     );
   }
-
-  // ====================================================
-  // CHANGE COLOUR
-  // ====================================================
 
   function chooseColor(nextColor) {
     if (
       !colors.includes(String(nextColor)) ||
-      getColorStock(nextColor) <= 0
+      colorStock(nextColor) <= 0
     ) {
       return;
     }
 
-    setAdded(false);
-    setColor(nextColor);
-    setQuantity(1);
-
-    if (
-      hasSizes &&
-      getVariantStock(
-        product,
-        size,
-        nextColor
-      ) <= 0
-    ) {
-      const firstAvailableSize = sizes.find(
-        (option) =>
-          getVariantStock(
-            product,
-            option,
-            nextColor
-          ) > 0
-      );
-
-      setSize(
-        firstAvailableSize ||
-        sizes[0] ||
-        null
-      );
-    }
+    // Keep the selected size or pack.
+    // The customer chooses another combination
+    // when this one is unavailable.
+    changeSelection({
+      color: String(nextColor),
+      quantity: "1",
+    });
   }
-
-  // ====================================================
-  // CHANGE SIZE
-  // ====================================================
 
   function chooseSize(nextSize) {
     if (
@@ -275,261 +254,289 @@ export default function ProductOptions({
       getVariantStock(
         product,
         nextSize,
-        color
+        color,
       ) <= 0
     ) {
       return;
     }
 
-    setAdded(false);
-    setSize(nextSize);
-    setQuantity(1);
+    changeSelection({
+      size: String(nextSize),
+      quantity: "1",
+    });
   }
-
-  // ====================================================
-  // QUANTITY
-  // ====================================================
-
-  function changeQuantity(value) {
-    if (value === "") {
-      setAdded(false);
-      setQuantity("");
-      return;
-    }
-
-    const next = Number(value);
-
-    if (!Number.isFinite(next)) {
-      return;
-    }
-
-    setAdded(false);
-
-    const whole = Math.floor(next);
-
-    setQuantity(
-      Math.min(
-        Math.max(1, whole),
-        Math.max(1, stock)
-      )
-    );
-  }
-
-  function normalizedQuantity() {
-    const next = Number(quantity);
-
-    if (
-      !Number.isSafeInteger(next) ||
-      next < 1
-    ) {
-      return 1;
-    }
-
-    return Math.min(
-      next,
-      Math.max(1, stock)
-    );
-  }
-
-  // ====================================================
-  // VIRTUAL TRY-ON SELECTION
-  // ====================================================
 
   function handleTryOnSelection({
     color: nextColor,
     size: nextSize,
-  }) {
-    let finalColor = nextColor ?? color;
-    let finalSize = nextSize ?? size;
+  } = {}) {
+    const next = {
+      size: sizes.length
+        ? nextSize ?? size
+        : null,
 
-    if (hasColors) {
-      if (
-        !colors.includes(String(finalColor)) ||
-        getColorStock(finalColor) <= 0
-      ) {
-        finalColor =
-          colors.find(
-            (option) =>
-              getColorStock(option) > 0
-          ) ||
-          colors[0] ||
-          null;
-      }
-    } else {
-      finalColor = null;
-    }
+      color: colors.length
+        ? nextColor ?? color
+        : null,
+    };
 
-    if (hasSizes) {
-      if (
-        !sizes.includes(String(finalSize)) ||
-        getVariantStock(
-          product,
-          finalSize,
-          finalColor
-        ) <= 0
-      ) {
-        finalSize =
-          sizes.find(
-            (option) =>
-              getVariantStock(
-                product,
-                option,
-                finalColor
-              ) > 0
-          ) ||
-          sizes[0] ||
-          null;
-      }
-    } else {
-      finalSize = null;
-    }
+    const check = purchaseState(
+      product,
+      next.size,
+      next.color,
+      1,
+      true,
+    );
 
-    setColor(finalColor);
-    setSize(finalSize);
-    setQuantity(1);
-    setAdded(false);
-  }
-
-  // ====================================================
-  // ADD TO BAG
-  // ====================================================
-
-  function handleAddToCart() {
-    if (stock <= 0) {
+    if (!check.canBuy) {
+      setError(check.message);
       return;
     }
 
-    const qty = normalizedQuantity();
-
-    const success = addToCart(
-      product,
-      qty,
-      size,
-      color
-    );
-
-    if (success) {
-      setQuantity(qty);
-      setAdded(true);
-      onAdded?.();
-    }
+    changeSelection({
+      ...next,
+      quantity: "1",
+    });
   }
 
-  // ====================================================
-  // BUY NOW
-  // ====================================================
-
-  function handleBuyNow() {
-    if (stock <= 0) {
+  async function purchase(mode) {
+    if (
+      actionLock.current ||
+      (
+        mode === "bag" &&
+        lastAdded.current === selectionKey
+      )
+    ) {
       return;
     }
 
-    const qty = normalizedQuantity();
+    if (!state.canBuy) {
+      setError(state.message);
+      return;
+    }
 
-    const success = buyNow(
+    const catalogue =
+      typeof getLatestProducts === "function"
+        ? getLatestProducts()
+        : products;
+
+    const latest = latestPurchaseProduct(
+      catalogue,
       product,
-      qty,
-      size,
-      color
     );
 
-    if (success) {
-      navigate("/checkout?mode=buy-now");
+    const check = purchaseState(
+      latest,
+      size,
+      color,
+      quantity,
+      ready,
+    );
+
+    if (!check.canBuy) {
+      setError(check.message);
+      return;
+    }
+
+    if (
+      !productPriceAvailable(product) ||
+      getDiscountedPrice(latest) !== sellingPrice
+    ) {
+      setError(
+        "The price changed. Check the updated product price before trying again.",
+      );
+      return;
+    }
+
+    if (mode === "bag") {
+      const rows =
+        typeof latestCart === "function"
+          ? latestCart()
+          : cart;
+
+      const bagError = bagQuantityMessage(
+        rows,
+        latest,
+        size,
+        color,
+        check.quantity,
+      );
+
+      if (bagError) {
+        setError(bagError);
+        return;
+      }
+    }
+
+    actionLock.current = true;
+    setBusy(true);
+    setError("");
+
+    try {
+      const success = await (
+        mode === "bag"
+          ? addToCart(
+              latest,
+              check.quantity,
+              size,
+              color,
+            )
+          : buyNow(
+              latest,
+              check.quantity,
+              size,
+              color,
+            )
+      );
+
+      if (
+        !mounted.current ||
+        shopperRef.current !== shopper
+      ) {
+        return;
+      }
+
+      if (success !== true) {
+        setError(
+          mode === "bag"
+            ? "Your bag could not be updated. Check the availability message and your existing bag quantities, then try again."
+            : "Checkout could not be prepared. Check availability and try again.",
+        );
+        return;
+      }
+
+      if (mode === "bag") {
+        lastAdded.current = selectionKey;
+        setAddedKey(selectionKey);
+        onAdded?.();
+      } else {
+        navigate("/checkout?mode=buy-now");
+      }
+    } catch (failure) {
+      if (mounted.current) {
+        setError(
+          typeof failure?.message === "string" &&
+            failure.message
+            ? failure.message
+            : "The shopping action could not be completed. Please try again.",
+        );
+      }
+    } finally {
+      actionLock.current = false;
+
+      if (mounted.current) {
+        setBusy(false);
+      }
     }
   }
 
-  // ====================================================
-  // DISPLAY
-  // ====================================================
+  let stockMessage =
+    state.stock <= 0
+      ? totalStock <= 0
+        ? "Out of stock"
+        : "This combination is unavailable. Choose another option."
+      : state.stock <= 5
+        ? `Only ${state.stock} available for this selection`
+        : `${state.stock} available for this selection`;
+
+  if (!state.canBuy) {
+    stockMessage = state.message;
+  }
+
+  const buttonLabel = busy
+    ? "Please wait…"
+    : added
+      ? "Added to bag"
+      : information.deliveryUnavailable
+        ? "Delivery unavailable"
+        : !state.priceAvailable
+          ? "Price unavailable"
+          : totalStock <= 0
+            ? "Out of stock"
+            : state.stock <= 0
+              ? "Choose available options"
+              : "Add to bag";
+
+  const quantityLimit = Math.min(
+    MAX_PURCHASE_QUANTITY,
+    state.stock,
+  );
 
   return (
-    <div className="product-options">
-      {/* Pricing */}
-
+    <div
+      className="product-options"
+      aria-busy={busy}
+    >
       <div className="detail-price">
         <strong>
-          {money(sellingPrice)}
+          {state.priceAvailable
+            ? money(sellingPrice)
+            : "Price unavailable"}
         </strong>
 
-        {discount > 0 && (
-          <>
-            <del>
-              MRP {money(originalPrice)}
-            </del>
-
-            <span>
-              {discount}% OFF
-            </span>
-          </>
-        )}
+        {state.priceAvailable &&
+          discount > 0 &&
+          originalPrice > sellingPrice && (
+            <>
+              <del>
+                Original price {money(originalPrice)}
+              </del>
+              <span>{discount}% OFF</span>
+            </>
+          )}
       </div>
 
       <p className="tax-note">
-        Price includes applicable taxes
+        Shipping and any eligible coupon savings
+        are shown separately at checkout.
       </p>
-
-      {/* Product benefits */}
 
       {benefits.length > 0 && (
         <div className="panel product-buying-benefits">
           <p className="eyebrow">
-            WHY YOU'LL LIKE IT
+            LISTED PRODUCT FEATURES
           </p>
 
           <ul>
             {benefits.map((benefit) => (
-              <li key={benefit}>
-                {benefit}
-              </li>
+              <li key={benefit}>{benefit}</li>
             ))}
           </ul>
         </div>
       )}
 
-      {/* Colour selection */}
-
-      {hasColors && (
-        <fieldset>
+      {colors.length > 0 && (
+        <fieldset disabled={busy}>
           <legend>
-            SELECT COLOUR
-
-            {color && (
-              <span> {color}</span>
-            )}
+            SELECT {labels.color.toUpperCase()}
+            {color && <span> {color}</span>}
           </legend>
 
           <div className="option-list">
             {colors.map((option) => {
-              const optionStock =
-                getColorStock(option);
-
-              const disabled =
-                optionStock <= 0;
+              const unavailable =
+                colorStock(option) <= 0;
 
               return (
                 <button
                   key={option}
                   type="button"
-                  disabled={disabled}
-                  aria-disabled={disabled}
+                  disabled={busy || unavailable}
                   aria-pressed={
-                    String(color) ===
-                    String(option)
+                    String(color) === option
                   }
-                  aria-label={`Colour ${option}${
-                    disabled
+                  aria-label={`${labels.color} ${option}${
+                    unavailable
                       ? ", out of stock"
                       : ""
                   }`}
                   style={touchTarget}
                   title={
-                    disabled
+                    unavailable
                       ? `${option} is out of stock`
-                      : `${option} — ${optionStock} available`
+                      : option
                   }
-                  onClick={() =>
-                    chooseColor(option)
-                  }
+                  onClick={() => chooseColor(option)}
                 >
                   {option}
                 </button>
@@ -539,65 +546,60 @@ export default function ProductOptions({
         </fieldset>
       )}
 
-      {/* Size selection */}
-
-      {hasSizes && (
-        <fieldset>
+      {sizes.length > 0 && (
+        <fieldset disabled={busy}>
           <legend>
-            SELECT SIZE
-
-            {size && (
-              <span> {size}</span>
-            )}
+            SELECT {labels.size.toUpperCase()}
+            {size && <span> {size}</span>}
           </legend>
 
-          <button
-            className="text-link fit-guide-link"
-            type="button"
-            aria-haspopup="dialog"
-            aria-expanded={guide}
-            style={touchTarget}
-            onClick={() => setGuide(true)}
-          >
-            Size & fit guide
-          </button>
+          {showFitGuide && (
+            <button
+              className="text-link fit-guide-link"
+              type="button"
+              aria-haspopup="dialog"
+              aria-expanded={guide}
+              disabled={busy}
+              style={touchTarget}
+              onClick={() => setGuide(true)}
+            >
+              Size & fit guide
+            </button>
+          )}
 
-          <div className="option-list sizes">
+          <div
+            className={`option-list${
+              labels.size === "Size" ? " sizes" : ""
+            }`}
+          >
             {sizes.map((option) => {
-              const optionStock =
+              const unavailable =
                 getVariantStock(
                   product,
                   option,
-                  color
-                );
-
-              const disabled =
-                optionStock <= 0;
+                  color,
+                ) <= 0;
 
               return (
                 <button
                   key={option}
                   type="button"
-                  disabled={disabled}
-                  aria-disabled={disabled}
+                  disabled={busy || unavailable}
                   aria-pressed={
-                    String(size) ===
-                    String(option)
+                    String(size) === option
                   }
-                  aria-label={`Size ${option}${
-                    disabled
-                      ? ", out of stock"
+                  aria-label={`${labels.size} ${option}${
+                    unavailable
+                      ? ", unavailable for this selection"
                       : ""
                   }`}
                   style={touchTarget}
                   title={
-                    disabled
-                      ? `Size ${option} is out of stock`
-                      : `Size ${option} — ${optionStock} available`
+                    unavailable
+                      ? `${option} is unavailable for this selection`
+                      : option
                   }
-                  onClick={() =>
-                    chooseSize(option)
-                  }
+                  onClick={() => chooseSize(option)}
                 >
                   {option}
                 </button>
@@ -607,7 +609,26 @@ export default function ProductOptions({
         </fieldset>
       )}
 
-      {/* Quantity and stock */}
+      {(sizes.length > 0 || colors.length > 0) && (
+        <p
+          className="muted"
+          aria-live="polite"
+        >
+          Your selection:{" "}
+          {[
+            colors.length &&
+              `${labels.color}: ${
+                color || "choose an option"
+              }`,
+            sizes.length &&
+              `${labels.size}: ${
+                size || "choose an option"
+              }`,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+      )}
 
       <div className="quantity-line">
         <label htmlFor={quantityId}>
@@ -618,22 +639,21 @@ export default function ProductOptions({
           id={quantityId}
           type="number"
           min="1"
-          max={Math.max(1, stock)}
+          max={Math.max(1, quantityLimit)}
           step="1"
           inputMode="numeric"
-          aria-describedby={stockId}
           style={touchTarget}
-          disabled={stock <= 0}
+          disabled={busy || state.stock <= 0}
+          aria-describedby={`${stockId} ${errorId}`}
+          aria-invalid={
+            !state.quantityValid ||
+            state.quantity > quantityLimit
+          }
           value={quantity}
           onChange={(event) =>
-            changeQuantity(
-              event.target.value
-            )
-          }
-          onBlur={() =>
-            setQuantity(
-              normalizedQuantity()
-            )
+            changeSelection({
+              quantity: event.target.value,
+            })
           }
         />
 
@@ -643,90 +663,111 @@ export default function ProductOptions({
           aria-live="polite"
           aria-atomic="true"
         >
-          {!available
-            ? "Out of stock"
-            : stock <= 0
-              ? "This selection is unavailable"
-              : lowStock
-                ? `Only ${stock} left for this selection`
-                : `${stock} available`}
+          {stockMessage}
         </span>
       </div>
 
-      {/* Delivery and returns */}
+      {state.priceAvailable &&
+        state.quantityValid &&
+        state.quantity <= quantityLimit && (
+          <p>
+            <strong>Selected items total:</strong>{" "}
+            {money(sellingPrice * state.quantity)}
+
+            <span className="muted">
+              {" "}
+              · Before shipping and coupon savings
+            </span>
+          </p>
+        )}
 
       <div className="panel product-purchase-trust">
-        {deliveryAvailable &&
-          deliveryEstimate && (
-            <p>
-              <strong>Delivery:</strong>{" "}
-              {deliveryEstimate}
-            </p>
-          )}
-
-        {returnPolicy && (
+        {information.deliveryUnavailable ? (
           <p>
-            <strong>Returns:</strong>{" "}
-            {returnPolicy}
+            Delivery is currently unavailable
+            for this product.
+          </p>
+        ) : information.estimate ? (
+          <p>
+            <strong>Listed delivery estimate:</strong>{" "}
+            {information.estimate}
+          </p>
+        ) : (
+          <p>
+            Confirm delivery timing for your
+            location before buying.
           </p>
         )}
 
-        {stock > 0 && (
-          <p className="muted">
-            Availability is based on your
-            selected size and colour.
-          </p>
-        )}
+        <p>
+          <strong>Returns:</strong>{" "}
+          {information.returns}
+        </p>
+
+        <p className="muted">
+          Availability applies to your exact selection.
+          Checkout recalculates prices and checks stock
+          before an order is confirmed.
+        </p>
       </div>
-
-      {/* Purchase buttons */}
 
       <div className="purchase-actions product-primary-actions">
         <button
           type="button"
           className="button"
-          disabled={stock <= 0}
-          aria-describedby={stockId}
+          disabled={busy || !state.canBuy || added}
+          aria-describedby={`${stockId} ${errorId}`}
           style={touchTarget}
-          onClick={handleAddToCart}
+          onClick={() => purchase("bag")}
         >
-          {!available
-            ? "Out of stock"
-            : stock > 0
-              ? "Add to bag"
-              : "Unavailable"}
+          {buttonLabel}
         </button>
 
         <button
           type="button"
           className="button secondary buy-now"
-          disabled={stock <= 0}
-          aria-describedby={stockId}
+          disabled={busy || !state.canBuy}
+          aria-describedby={`${stockId} ${errorId}`}
           style={touchTarget}
-          onClick={handleBuyNow}
+          onClick={() => purchase("buy-now")}
         >
-          Buy now
+          {busy ? "Please wait…" : "Buy now"}
         </button>
       </div>
 
-      {/* Added confirmation */}
+      <div id={errorId}>
+        {error && (
+          <p
+            className="field-error"
+            role="alert"
+          >
+            {error}
+          </p>
+        )}
+      </div>
+
+      {catalogError && (
+        <button
+          type="button"
+          className="text-link"
+          disabled={busy || loading}
+          onClick={refreshProducts}
+        >
+          Retry product availability
+        </button>
+      )}
 
       {added && (
         <div
           className="purchase-feedback"
           role="status"
         >
-          <span>
-            ✓ Added to your bag
-          </span>
-
+          <span>✓ Added to your bag</span>
           <Link to="/cart">
             View bag & checkout →
           </Link>
         </div>
       )}
-
-      {/* Wishlist */}
 
       <button
         type="button"
@@ -734,74 +775,62 @@ export default function ProductOptions({
           saved ? "saved" : ""
         }`}
         aria-pressed={saved}
+        disabled={busy}
         style={touchTarget}
-        onClick={() =>
-          toggleWishlist(product)
-        }
+        onClick={() => toggleWishlist(product)}
       >
         <Heart filled={saved} />
-
-        {saved
-          ? "Wishlisted"
-          : "Save to wishlist"}
+        {saved ? "Wishlisted" : "Save to wishlist"}
       </button>
 
-      {/* Virtual Try-On */}
-
-      <div className="product-secondary-tool">
-        <VirtualTryOnButton
-          product={product}
-          color={color}
-          size={size}
-          onSelectionChange={
-            handleTryOnSelection
-          }
-        />
-      </div>
-
-      {/* Price and availability watch */}
+      {showTryOn && !busy && (
+        <div className="product-secondary-tool">
+          <VirtualTryOnButton
+            product={product}
+            color={color}
+            size={size}
+            onSelectionChange={handleTryOnSelection}
+          />
+        </div>
+      )}
 
       <button
         className="text-link watch-button"
         type="button"
         aria-pressed={watching}
+        disabled={busy}
         style={touchTarget}
-        onClick={() =>
-          watchProduct(product)
-        }
+        onClick={() => watchProduct(product)}
       >
         {watching
           ? "Watching this product ✓"
           : "Watch price & availability"}
       </button>
 
-      {/* Fit guide */}
-
-      {guide && (
+      {guide && showFitGuide && (
         <FitGuide
           product={product}
           color={color}
           onSelectSize={(next) => {
-            const optionStock =
-              getVariantStock(
-                product,
-                next,
-                color
-              );
-
-            if (optionStock > 0) {
-              setSize(next);
-              setQuantity(1);
-              setAdded(false);
-            }
-
+            chooseSize(next);
             setGuide(false);
           }}
-          onClose={() =>
-            setGuide(false)
-          }
+          onClose={() => setGuide(false)}
         />
       )}
     </div>
+  );
+}
+
+export default function ProductOptions({
+  product,
+  onAdded,
+}) {
+  return (
+    <ProductOptionsContent
+      key={String(productReference(product))}
+      product={product}
+      onAdded={onAdded}
+    />
   );
 }

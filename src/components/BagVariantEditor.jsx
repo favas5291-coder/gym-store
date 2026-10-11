@@ -1,28 +1,67 @@
-import { useId, useState } from "react";
+import {
+  useId,
+  useRef,
+  useState,
+} from "react";
 
+import { useAuth } from "../context/AuthContext.jsx";
 import { useStore } from "../context/StoreContext.jsx";
 import { useCatalog } from "../context/CatalogContext.jsx";
 
-import { changeBagVariant } from "../utils/commerce.js";
-
 import {
-  getCartItemKey,
   getVariantStock,
+  revalidateCart,
 } from "../utils/cartUtils.js";
 
-import Modal from "./Modal.jsx";
+import {
+  getDiscountedPrice,
+  money,
+} from "../utils/productPricing.js";
 
-function options(values) {
-  return Array.isArray(values)
-    ? [...new Set(values.map(String).filter(Boolean))]
-    : [];
-}
+import {
+  optionLabels,
+} from "../utils/productInformation.js";
+
+import {
+  latestPurchaseProduct,
+  productPriceAvailable,
+  productReference,
+  purchaseOptions,
+} from "../utils/productPurchase.js";
+
+import {
+  bagEditSignature,
+  previewBagVariant,
+} from "../utils/bagVariantEditing.js";
+
+import Modal from "./Modal.jsx";
 
 export default function BagVariantEditor({
   item,
   onClose,
 }) {
-  const { products, getLatestProducts } = useCatalog();
+  const editorKey = JSON.stringify([
+    productReference(item),
+    item.selectedSize,
+    item.selectedColor,
+  ]);
+
+  return (
+    <Editor
+      key={editorKey}
+      item={item}
+      onClose={onClose}
+    />
+  );
+}
+
+function Editor({ item, onClose }) {
+  const { loading: authLoading } = useAuth();
+
+  const {
+    products,
+    getLatestProducts,
+  } = useCatalog();
 
   const {
     cart,
@@ -32,183 +71,181 @@ export default function BagVariantEditor({
     catalogReady,
   } = useStore();
 
+  const product = latestPurchaseProduct(products, item);
+  const labels = optionLabels(product);
+
+  const sizes = purchaseOptions(product?.sizes);
+  const colors = purchaseOptions(product?.colors);
+
   const fieldId = useId();
-  const originalKey = getCartItemKey(item);
+  const saving = useRef(false);
 
-  const product = (
-    Array.isArray(products) ? products : []
-  ).find(
-    (entry) => String(entry.id) === String(item.id),
-  );
-
-  const currentItem = cart.find(
-    (entry) => getCartItemKey(entry) === originalKey,
-  );
-
-  const colors = options(product?.colors);
-  const sizes = options(product?.sizes);
+  const [busy, setBusy] = useState(false);
 
   const [size, setSize] = useState(
-    item.selectedSize == null
-      ? ""
-      : String(item.selectedSize),
+    String(item.selectedSize ?? ""),
   );
 
   const [color, setColor] = useState(
-    item.selectedColor == null
-      ? ""
-      : String(item.selectedColor),
+    String(item.selectedColor ?? ""),
   );
 
   const [error, setError] = useState("");
 
-  const selectedSize = sizes.length ? size || null : null;
-  const selectedColor = colors.length ? color || null : null;
+  const selectedSize = size || null;
+  const selectedColor = color || null;
 
-  const validSelection =
-    (!sizes.length || sizes.includes(size)) &&
-    (!colors.length || colors.includes(color));
-
-  const selectedKey = getCartItemKey({
-    id: item.id,
+  const preview = previewBagVariant(
+    cart,
+    item,
+    product,
     selectedSize,
     selectedColor,
-  });
-
-  const matchingItem =
-    selectedKey !== originalKey
-      ? cart.find(
-          (entry) => getCartItemKey(entry) === selectedKey,
-        )
-      : null;
-
-  const quantity = Number(
-    currentItem?.quantity ?? item.quantity,
+    catalogReady,
   );
 
-  const combinedQuantity =
-    quantity + Number(matchingItem?.quantity || 0);
-
-  const stock =
-    catalogReady && product && validSelection
-      ? getVariantStock(
-          product,
-          selectedSize,
-          selectedColor,
-        )
-      : 0;
+  const unitPrice = productPriceAvailable(product)
+    ? getDiscountedPrice(product)
+    : null;
 
   const canSave =
-    catalogReady &&
-    Boolean(product) &&
-    product.isActive !== false &&
-    Boolean(currentItem) &&
-    validSelection &&
-    Number.isSafeInteger(combinedQuantity) &&
-    combinedQuantity >= 1 &&
-    stock >= combinedQuantity;
+    preview.canSave &&
+    !authLoading &&
+    !busy;
 
-  function colorHasStock(value) {
-    if (!product) return false;
+  const messageId = `${fieldId}-message`;
 
-    if (!sizes.length) {
-      return getVariantStock(product, null, value) > 0;
+  function close() {
+    if (!saving.current) {
+      onClose();
     }
-
-    return sizes.some(
-      (option) =>
-        getVariantStock(product, option, value) > 0,
-    );
   }
 
-  function changeColor(value) {
-    setColor(value);
-    setError("");
-
-    // Ask the customer to choose a size again if their
-    // previous size is unavailable in the new colour.
-    if (
-      sizes.length &&
-      size &&
-      getVariantStock(product, size, value) <= 0
-    ) {
-      setSize("");
-    }
+  function colorHasStock(value) {
+    return sizes.length
+      ? sizes.some(
+          (option) =>
+            getVariantStock(product, option, value) > 0,
+        )
+      : getVariantStock(product, null, value) > 0;
   }
 
   function submit(event) {
     event.preventDefault();
+
+    if (saving.current) {
+      return;
+    }
+
     setError("");
 
-    if (!catalogReady) {
+    if (authLoading) {
       setError(
-        "Wait for products to load before saving your options.",
+        "Checking your account. Wait a moment before saving.",
       );
       return;
     }
 
-    const latestProducts = getLatestProducts();
-
-    const latestProduct = latestProducts.find(
-      (entry) => String(entry.id) === String(item.id),
-    );
-
-    if (!latestProduct || latestProduct.isActive === false) {
-      setError("This product is no longer available.");
+    if (!preview.canSave) {
+      setError(preview.message);
       return;
     }
 
-    const latestRows = latestCart();
+    saving.current = true;
+    setBusy(true);
 
-    const original = latestRows.find(
-      (entry) => getCartItemKey(entry) === originalKey,
-    );
+    let accepted = false;
 
-    if (!original) {
-      setError(
-        "This bag item changed or was removed. Close this window and check your bag.",
+    try {
+      const catalogue = getLatestProducts();
+
+      if (!Array.isArray(catalogue)) {
+        throw new Error(
+          "Product information is unavailable. Retry the catalogue before saving.",
+        );
+      }
+
+      const latestProduct = latestPurchaseProduct(
+        catalogue,
+        item,
       );
-      return;
+
+      const latestRows = latestCart();
+
+      const checked = previewBagVariant(
+        latestRows,
+        item,
+        latestProduct,
+        selectedSize,
+        selectedColor,
+        catalogReady,
+      );
+
+      if (!checked.canSave) {
+        throw new Error(checked.message);
+      }
+
+      const bagChanged =
+        bagEditSignature(cart) !==
+        bagEditSignature(latestRows);
+
+      const priceChanged =
+        !productPriceAvailable(latestProduct) ||
+        getDiscountedPrice(latestProduct) !== unitPrice;
+
+      if (bagChanged || priceChanged) {
+        throw new Error(
+          "Your bag or price changed. Close this window, review your bag and reopen the options before saving.",
+        );
+      }
+
+      const validated = revalidateCart(
+        checked.cart,
+        catalogue,
+      );
+
+      if (
+        bagEditSignature(checked.cart) !==
+        bagEditSignature(validated.cart)
+      ) {
+        throw new Error(
+          "Your bag needs a stock or price update. Close this window and review it before saving.",
+        );
+      }
+
+      const persisted = setCart(validated.cart);
+
+      if (
+        bagEditSignature(latestCart()) !==
+        bagEditSignature(validated.cart)
+      ) {
+        throw new Error(
+          "The options could not be saved. Check your account and bag, then retry.",
+        );
+      }
+
+      accepted = true;
+
+      // StoreContext warns if browser storage fails.
+      // A successful memory-only update remains usable this visit.
+      if (persisted) {
+        notify("Bag options updated.");
+      }
+    } catch (saveError) {
+      setError(
+        saveError.message ||
+          "The options could not be saved. Please retry.",
+      );
+    } finally {
+      // Prevent another save from a handler belonging
+      // to an already successfully closed editor.
+      saving.current = accepted;
+      setBusy(false);
     }
 
-    const latestSizes = options(latestProduct.sizes);
-    const latestColors = options(latestProduct.colors);
-
-    if (latestSizes.length && !latestSizes.includes(size)) {
-      setError("Choose an available size.");
-      return;
+    if (accepted) {
+      onClose();
     }
-
-    if (
-      latestColors.length &&
-      !latestColors.includes(color)
-    ) {
-      setError("Choose an available colour.");
-      return;
-    }
-
-    const result = changeBagVariant(
-      latestRows,
-      originalKey,
-      latestProduct,
-      latestSizes.length ? size : null,
-      latestColors.length ? color : null,
-    );
-
-    if (result.error) {
-      setError(result.error);
-      return;
-    }
-
-    const saved = setCart(result.cart);
-
-    // StoreContext already shows a warning if persistent
-    // storage fails, while keeping the update in memory.
-    if (saved) {
-      notify("Bag options updated.");
-    }
-
-    onClose();
   }
 
   return (
@@ -216,44 +253,34 @@ export default function BagVariantEditor({
       title={`Edit options · ${
         product?.name || item.name || "Product"
       }`}
-      onClose={onClose}
+      onClose={close}
     >
-      <form onSubmit={submit}>
-        {!catalogReady && (
-          <p className="notice" role="status">
-            Product availability must be checked before
-            saving changes.
-          </p>
-        )}
-
-        {catalogReady && !product && (
-          <p className="field-error" role="alert">
-            This product is no longer available.
-          </p>
-        )}
-
-        {catalogReady && !currentItem && (
-          <p className="field-error" role="alert">
-            This item is no longer in your bag.
-          </p>
-        )}
-
+      <form
+        onSubmit={submit}
+        aria-busy={busy}
+      >
         {colors.length > 0 && (
           <div className="field">
             <label htmlFor={`${fieldId}-color`}>
-              Colour
+              {labels.color}
             </label>
 
             <select
               id={`${fieldId}-color`}
               value={color}
-              disabled={!catalogReady || !currentItem}
-              onChange={(event) =>
-                changeColor(event.target.value)
+              disabled={
+                !catalogReady ||
+                authLoading ||
+                busy
               }
+              aria-describedby={messageId}
+              onChange={(event) => {
+                setColor(event.target.value);
+                setError("");
+              }}
             >
               <option value="" disabled>
-                Choose a colour
+                Choose a {labels.color.toLowerCase()}
               </option>
 
               {color && !colors.includes(color) && (
@@ -283,7 +310,7 @@ export default function BagVariantEditor({
         {sizes.length > 0 && (
           <div className="field">
             <label htmlFor={`${fieldId}-size`}>
-              Size
+              {labels.size}
             </label>
 
             <select
@@ -291,16 +318,21 @@ export default function BagVariantEditor({
               value={size}
               disabled={
                 !catalogReady ||
-                !currentItem ||
-                (colors.length > 0 && !colors.includes(color))
+                authLoading ||
+                busy ||
+                (
+                  colors.length > 0 &&
+                  !colors.includes(color)
+                )
               }
+              aria-describedby={messageId}
               onChange={(event) => {
                 setSize(event.target.value);
                 setError("");
               }}
             >
               <option value="" disabled>
-                Choose a size
+                Choose a {labels.size.toLowerCase()}
               </option>
 
               {size && !sizes.includes(size) && (
@@ -332,37 +364,68 @@ export default function BagVariantEditor({
           </div>
         )}
 
-        {!sizes.length && !colors.length && product && (
-          <p>This product has one standard option.</p>
+        {!sizes.length &&
+          !colors.length &&
+          product && (
+            <p>
+              This product has one standard option.
+            </p>
+          )}
+
+        {preview.quantity > 0 && (
+          <p>
+            Quantity stays at{" "}
+            <strong>{preview.quantity}</strong>.
+            Change quantities in your bag.
+          </p>
         )}
 
-        <p>
-          Quantity stays at {quantity}. Matching bag
-          items are combined only when enough stock
-          is available.
-        </p>
-
-        {matchingItem && (
+        {preview.matchingQuantity > 0 && (
           <p className="notice" role="status">
             Your bag already contains{" "}
-            {matchingItem.quantity} of this selection.
-            The combined quantity will be{" "}
-            <strong>{combinedQuantity}</strong>.
+            {preview.matchingQuantity} of this selection.
+            Saving combines them into{" "}
+            <strong>{preview.combinedQuantity}</strong>{" "}
+            units.
           </p>
         )}
 
-        {catalogReady && product && validSelection && (
-          <p className={canSave ? "muted" : "field-error"}>
-            {stock <= 0
-              ? "This selection is out of stock."
-              : stock < combinedQuantity
-                ? `Only ${stock} available. Your combined quantity would be ${combinedQuantity}. Choose another option or adjust your bag quantity first.`
-                : `${stock} available for this selection.`}
+        {unitPrice != null && (
+          <p className="muted">
+            {money(unitPrice)} each
+
+            {preview.combinedQuantity > 0 && (
+              <>
+                {" "}· Combined item total{" "}
+                {money(
+                  unitPrice * preview.combinedQuantity,
+                )}
+              </>
+            )}
+
+            <br />
+            Before order coupons and delivery charges.
           </p>
         )}
+
+        <p
+          id={messageId}
+          className={
+            preview.canSave ? "muted" : "field-error"
+          }
+          aria-live="polite"
+        >
+          {authLoading
+            ? "Checking your account…"
+            : preview.message ||
+              `${preview.stock} available for this selection. Stock is checked again at checkout.`}
+        </p>
 
         {error && (
-          <p role="alert" className="field-error">
+          <p
+            role="alert"
+            className="field-error"
+          >
             {error}
           </p>
         )}
@@ -373,13 +436,14 @@ export default function BagVariantEditor({
             className="button"
             disabled={!canSave}
           >
-            Save options
+            {busy ? "Saving…" : "Save options"}
           </button>
 
           <button
             type="button"
             className="button secondary"
-            onClick={onClose}
+            disabled={busy}
+            onClick={close}
           >
             Cancel
           </button>

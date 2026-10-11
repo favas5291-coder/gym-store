@@ -1,116 +1,681 @@
+/* ======================================================
+   GYMDROBE ADMIN DASHBOARD
+   ====================================================== */
+
 .gd-admin-page {
+  --gd-admin-ink: #17202a;
+  --gd-admin-muted: #64748b;
+  --gd-admin-border: #e2e8f0;
+  --gd-admin-accent: #c2410c;
+
   max-width: 1280px;
+  min-width: 0;
   margin-inline: auto;
+  color: var(--gd-admin-ink);
 }
+
+.gd-admin-page,
+.gd-admin-page *,
+.gd-admin-page *::before,
+.gd-admin-page *::after {
+  box-sizing: border-box;
+}
+
+.gd-admin-page h1 {
+  margin: 6px 0 10px;
+  font-size: clamp(26px, 3vw, 36px);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.gd-admin-page h2 {
+  margin: 0 0 12px;
+  font-size: 21px;
+  line-height: 1.35;
+}
+
+.gd-admin-page h3 {
+  line-height: 1.4;
+}
+
+.gd-admin-muted {
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+/* ======================================================
+   PAGE HEADING
+   ====================================================== */
+
+.gd-admin-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.gd-admin-heading > div {
+  flex: 1 1 250px;
+  min-width: 0;
+}
+
+.gd-admin-heading > .button {
+  flex-shrink: 0;
+}
+
+/* ======================================================
+   BUTTONS AND KEYBOARD ACCESS
+   ====================================================== */
+
+.gd-admin-page .button,
+.gd-admin-confirm .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 11px 16px;
+  border: 1px solid #17202a;
+  border-radius: 8px;
+  background: #17202a;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.4;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.gd-admin-page .button.secondary,
+.gd-admin-confirm .button.secondary {
+  border-color: #cbd5e1;
+  background: #fff;
+  color: #17202a;
+}
+
+.gd-admin-page .button:hover:not(:disabled),
+.gd-admin-confirm .button:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+.gd-admin-page a:focus-visible,
+.gd-admin-page button:focus-visible,
+.gd-admin-page input:focus-visible,
+.gd-admin-page select:focus-visible,
+.gd-admin-confirm button:focus-visible {
+  outline: 3px solid #c2410c;
+  outline-offset: 3px;
+}
+
+.gd-admin-page button:disabled,
+.gd-admin-confirm button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ======================================================
+   ADMIN NAVIGATION
+   ====================================================== */
 
 .gd-admin-menu {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 20px 0 24px;
+  margin: 24px 0;
 }
 
 .gd-admin-menu a {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: 44px;
-  padding: 8px 14px;
-  border: 1px solid #d1d5db;
+  padding: 10px 16px;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  color: #171717;
-  text-decoration: none;
   background: #fff;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-decoration: none;
 }
 
 .gd-admin-menu a:hover {
-  background: #f3f4f6;
+  border-color: #94a3b8;
+  background: #f8fafc;
 }
 
-.gd-admin-menu a:focus-visible,
-.gd-admin-stat:focus-visible {
-  outline: 3px solid #c2410c;
-  outline-offset: 3px;
+.gd-admin-menu a[aria-current="page"] {
+  border-color: #17202a;
+  background: #17202a;
+  color: #fff;
 }
+
+/* ======================================================
+   DATE CONTROLS AND CUSTOMER FILTERS
+   ====================================================== */
+
+.gd-admin-controls,
+.gd-admin-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.gd-admin-controls label,
+.gd-admin-filters label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.gd-admin-controls select,
+.gd-admin-filters input,
+.gd-admin-filters select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #17202a;
+  font: inherit;
+  font-size: 16px;
+}
+
+.gd-admin-filters > label:first-child,
+.gd-admin-filters > .field:first-child {
+  flex: 1 1 240px;
+}
+
+.gd-admin-filters .field {
+  min-width: 180px;
+  margin: 0;
+}
+
+.gd-admin-filters .field > label {
+  margin-bottom: 7px;
+}
+
+.gd-admin-controls > .button {
+  margin-left: auto;
+}
+
+/* ======================================================
+   SUMMARY CARDS
+   ====================================================== */
 
 .gd-admin-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
-  margin-block: 24px;
+  margin: 24px 0;
 }
 
 .gd-admin-stat {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  min-width: 0;
   padding: 22px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   background: #fff;
-  color: #171717;
+  color: #17202a;
   text-decoration: none;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 3%);
 }
 
 .gd-admin-stat:hover {
   border-color: #c2410c;
 }
 
-.gd-admin-stat span {
+.gd-admin-stat > span {
+  color: #475569;
   font-size: 14px;
-  color: #4b5563;
+  font-weight: 600;
 }
 
-.gd-admin-stat strong {
-  font-size: 34px;
-  line-height: 1.2;
-}
-
-.gd-admin-stat small {
-  color: #c2410c;
-}
-
-.gd-admin-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px;
-  margin-block: 24px;
-}
-
-.gd-admin-filters .field {
-  margin: 0;
-  min-width: 180px;
-}
-
-.gd-admin-filters .field:first-child {
-  flex: 1;
-  min-width: 240px;
-}
-
-.gd-admin-filters label {
-  display: block;
-  margin-bottom: 6px;
-}
-
-.gd-admin-filters input,
-.gd-admin-filters select {
-  width: 100%;
-  min-height: 44px;
-  padding: 10px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  color: #171717;
-  background: #fff;
-}
-
-.gd-admin-email {
+.gd-admin-stat > strong {
+  font-size: clamp(24px, 2.5vw, 34px);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
-.gd-admin-page .data-table {
-  min-width: 650px;
-  width: 100%;
+.gd-admin-stat > small {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.6;
 }
+
+/* ======================================================
+   PANELS AND PAYMENT SUMMARY
+   ====================================================== */
+
+.gd-admin-panel {
+  min-width: 0;
+  margin: 20px 0;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.gd-admin-payment-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 20px 0;
+  padding: 16px;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.gd-admin-payment-summary > span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.gd-admin-payment-summary strong {
+  color: #17202a;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.gd-sales-total {
+  max-width: 100%;
+  color: #17202a;
+  font-size: 25px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.gd-admin-empty-chart {
+  padding: 32px 16px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #64748b;
+  text-align: center;
+}
+
+.gd-admin-empty-chart h3 {
+  margin-top: 0;
+  color: #334155;
+}
+
+/* ======================================================
+   SALES GRAPH
+   ====================================================== */
+
+.gd-sales-chart {
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+  margin-top: 16px;
+  padding-top: 12px;
+}
+
+.gd-sales-axis {
+  position: relative;
+  flex: 0 0 64px;
+  height: 180px;
+  color: #64748b;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.gd-sales-axis > span {
+  position: absolute;
+  right: 0;
+  white-space: nowrap;
+  transform: translateY(-50%);
+}
+
+.gd-sales-scroll {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 #f1f5f9;
+  overscroll-behavior-x: contain;
+}
+
+.gd-sales-bars {
+  display: grid;
+  gap: 4px;
+  background:
+    repeating-linear-gradient(
+      to top,
+      transparent 0,
+      transparent 44px,
+      #e2e8f0 44px,
+      #e2e8f0 45px
+    ) left top / 100% 180px no-repeat;
+}
+
+.gd-sales-column {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+
+.gd-sales-bar {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  height: 180px;
+  padding: 0 3px;
+  border: 0;
+  border-bottom: 1px solid #cbd5e1;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.gd-sales-bar > span {
+  display: block;
+  width: 100%;
+  border-radius: 5px 5px 0 0;
+  background: #fdba74;
+}
+
+.gd-sales-bar.selected > span,
+.gd-sales-bar:hover > span {
+  background: #c2410c;
+}
+
+.gd-sales-bar:focus-visible {
+  outline-offset: -2px;
+}
+
+.gd-sales-column > small {
+  height: 30px;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.gd-sales-selected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 14px 0;
+  padding: 13px 15px;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.gd-sales-selected > span {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ======================================================
+   TASKS THAT NEED ATTENTION
+   ====================================================== */
+
+.gd-admin-tasks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.gd-admin-tasks > a {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 60px;
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334155;
+  text-decoration: none;
+}
+
+.gd-admin-tasks > a:hover {
+  border-color: #cbd5e1;
+}
+
+.gd-admin-tasks strong {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: #17202a;
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ======================================================
+   ORDER AND CUSTOMER TABLES
+   ====================================================== */
+
+.gd-admin-table-scroll {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  overscroll-behavior-x: contain;
+}
+
+.gd-admin-table,
+.gd-admin-page .data-table {
+  width: 100%;
+  min-width: 780px;
+  border-collapse: collapse;
+  color: #17202a;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.gd-admin-table th {
+  padding: 13px 12px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 650;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.gd-admin-table td {
+  padding: 16px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.gd-admin-table tbody > tr:last-child td {
+  border-bottom: 0;
+}
+
+.gd-admin-table tbody > tr:hover {
+  background: #fafbfc;
+}
+
+.gd-admin-table td > small,
+.gd-admin-phone > small {
+  display: block;
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.gd-admin-email {
+  max-width: 260px;
+  overflow-wrap: anywhere;
+}
+
+.gd-admin-phone a {
+  color: #17202a;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.gd-admin-phone a:hover {
+  text-decoration: underline;
+}
+
+/* ======================================================
+   CUSTOMER STATUS AND ACCOUNT ACTIONS
+   ====================================================== */
+
+.gd-admin-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.gd-admin-badge.active {
+  background: #ecfdf5;
+  color: #166534;
+}
+
+.gd-admin-badge.blocked {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.gd-admin-action {
+  min-height: 44px;
+  padding: 9px 13px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #17202a;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.gd-admin-action:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.gd-admin-action.danger {
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.gd-admin-action.danger:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+/* ======================================================
+   MESSAGES AND TEST ORDER NOTICE
+   ====================================================== */
+
+.gd-admin-success,
+.gd-admin-alert,
+.gd-admin-test {
+  margin: 16px 0;
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.gd-admin-success {
+  border-color: #bbf7d0;
+  background: #ecfdf5;
+  color: #166534;
+}
+
+.gd-admin-alert {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.gd-admin-test {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.gd-admin-alert > p:first-child {
+  margin-top: 0;
+}
+
+/* ======================================================
+   PAGINATION
+   ====================================================== */
+
+.gd-admin-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 24px 0;
+  color: #475569;
+  font-size: 14px;
+}
+
+/* ======================================================
+   BLOCK / UNBLOCK CONFIRMATION
+   ====================================================== */
+
+.gd-admin-confirm {
+  max-width: 480px;
+  padding: 8px 4px;
+  color: #17202a;
+}
+
+.gd-admin-confirm p {
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.gd-admin-confirm .purchase-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.gd-admin-confirm .button.gd-admin-danger {
+  border-color: #b91c1c;
+  background: #b91c1c;
+  color: #fff;
+}
+
+/* ======================================================
+   TABLET LAYOUT
+   ====================================================== */
 
 @media (max-width: 950px) {
   .gd-admin-stats {
@@ -118,17 +683,76 @@
   }
 }
 
-@media (max-width: 520px) {
-  .gd-admin-stats {
-    grid-template-columns: 1fr;
+/* ======================================================
+   MOBILE LAYOUT
+   ====================================================== */
+
+@media (max-width: 600px) {
+  .gd-admin-panel {
+    padding: 18px 14px;
   }
 
-  .gd-admin-filters .field {
+  .gd-admin-controls > label {
+    flex: 1 1 130px;
+  }
+
+  .gd-admin-controls > .button {
     width: 100%;
-    min-width: 0 !important;
+    margin-left: 0;
+  }
+
+  .gd-admin-filters > label,
+  .gd-admin-filters > .field {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
   }
 
   .gd-admin-filters > button {
-    flex: 1;
+    flex: 1 1 100px;
+  }
+
+  .gd-admin-tasks {
+    grid-template-columns: 1fr;
+  }
+
+  .gd-admin-menu {
+    gap: 6px;
+  }
+
+  .gd-admin-menu a {
+    padding-inline: 12px;
+    font-size: 13px;
+  }
+
+  .gd-sales-axis {
+    flex-basis: 52px;
+  }
+
+  .gd-sales-chart {
+    gap: 6px;
+  }
+
+  .gd-sales-selected {
+    gap: 6px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .gd-admin-stats {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .gd-admin-stat {
+    padding: 18px;
+  }
+
+  .gd-admin-payment-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .gd-admin-confirm .purchase-actions > .button {
+    flex: 1 1 100%;
   }
 }
