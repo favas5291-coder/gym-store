@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import ProductArtwork from "./ProductArtwork.jsx";
+import { isPublicImageUrl } from "../utils/imageUrl.js";
 
 import {
   getDiscountPercentage,
@@ -61,13 +62,12 @@ export function resolveProductImage(value) {
 
   if (!source) return "";
 
-  // Preserve hosted image URLs and image data.
-  if (
-    /^https?:\/\//i.test(source) ||
-    /^\/\//.test(source) ||
-    /^data:image\//i.test(source) ||
-    /^blob:/i.test(source)
-  ) {
+  if (/^https?:\/\//i.test(source)) {
+    return isPublicImageUrl(source) ? source : "";
+  }
+
+  // Preserve image data and browser-generated previews.
+  if (/^data:image\//i.test(source) || /^blob:/i.test(source)) {
     return source;
   }
 

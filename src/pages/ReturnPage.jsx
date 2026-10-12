@@ -1,395 +1,532 @@
-import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  Link,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 
 import useOrderUpdates from "../hooks/useOrderUpdates.js";
+
 import { useAuth } from "../context/AuthContext.jsx";
 import { useStore } from "../context/StoreContext.jsx";
 import { useCatalog } from "../context/CatalogContext.jsx";
 
 import {
   getOrder as getLocalOrder,
-  updateOrder,
 } from "../utils/customerData.js";
 
-import { returnEligibility } from "../utils/commerce.js";
-import { validateCartItem } from "../utils/cartUtils.js";
-import { makeId } from "../utils/storage.js";
+import {
+  optionLabels,
+} from "../utils/productInformation.js";
+
+import {
+  money,
+} from "../utils/productPricing.js";
+
+import {
+  orderOwnedBy,
+  returnAvailability,
+  itemReturnAvailability,
+  findReturnProduct,
+  replacementOptions,
+  replacementStock,
+  returnPayload,
+  returnReviewKey,
+  matchingReturn,
+  returnAttemptKey,
+  readReturnAttempt,
+  saveReturnAttempt,
+  clearReturnAttempt,
+} from "../utils/customerReturns.js";
 
 import {
   getOrderById,
-  requestReturn as requestRemoteReturn,
+  requestReturn,
 } from "../services/orderApi.js";
 
 import EmptyState from "../components/EmptyState.jsx";
 
-function findProduct(products, item) {
-  const identifiers = [item.id, item.productId]
-    .filter((value) => value != null)
-    .map(String);
-
-  return products.find((product) => {
-    const ids = [product.id, product._id]
-      .filter((value) => value != null)
-      .map(String);
-
-    return (
-      ids.some((value) => identifiers.includes(value)) ||
-      (
-        item.legacyId != null &&
-        product.legacyId != null &&
-        String(item.legacyId) === String(product.legacyId)
-      ) ||
-      (
-        Boolean(item.slug) &&
-        String(item.slug) === String(product.slug)
-      )
-    );
-  });
+function defaultRow(item) {
+  return {
+    selected: false,
+    quantity: 1,
+    size: item.selectedSize ?? "",
+    color: item.selectedColor ?? "",
+  };
 }
 
-function variantLabel(size, color) {
-  return [
-    color,
-    size != null && size !== "" ? `Size ${size}` : "",
-  ].filter(Boolean).join(" · ") || "Default variant";
+function when(value) {
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime())
+    ? "Confirm with support"
+    : date.toLocaleString("en-IN");
 }
 
-function ReturnForm({ orderId }) {
+function unitPrice(value) {
+  if (
+    !["number", "string"].includes(typeof value) ||
+    !String(value).trim()
+  ) {
+    return "Not recorded";
+  }
+
+  const number = Number(value);
+
+  return Number.isFinite(number) && number >= 0
+    ? money(number)
+    : "Not recorded";
+}
+
+function ReturnForm({
+  orderId,
+  userId,
+  token,
+}) {
   const revision = useOrderUpdates();
 
-  const {
-    user,
-    token,
-    loading: authLoading,
-    authError,
-    retrySession,
-  } = useAuth();
-
-  const {
-    products,
-    loading: catalogLoading,
-    error: catalogError,
-    refreshProducts,
-  } = useCatalog();
-
-  const catalogue = Array.isArray(products) ? products : [];
+  const catalog = useCatalog();
   const { notify } = useStore();
   const navigate = useNavigate();
 
+  const catalogRef = useRef(catalog);
+  catalogRef.current = catalog;
+
+  const key = returnAttemptKey(userId, orderId);
+
+  const pending = useRef(
+    readReturnAttempt(key),
+  );
+
+  const [awaiting, setAwaiting] = useState(
+    Boolean(pending.current),
+  );
+
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [retry, setRetry] = useState(0);
   const [loadError, setLoadError] = useState("");
 
   const [type, setType] = useState("return");
   const [chosen, setChosen] = useState({});
   const [reason, setReason] = useState("");
+
   const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting] =
+    useState(false);
+
+  const [now, setNow] = useState(Date.now);
 
   const mounted = useRef(false);
-  const submitLock = useRef(false);
+  const lock = useRef(false);
+  const generation = useRef(0);
+
+  const readController = useRef(null);
+  const saveController = useRef(null);
+  const latestOrder = useRef(null);
   const errorRef = useRef(null);
 
   useEffect(() => {
     mounted.current = true;
 
+    const timer = window.setInterval(() => {
+      setNow(Date.now());
+    }, 30000);
+
     return () => {
       mounted.current = false;
+      generation.current++;
+
+      window.clearInterval(timer);
+
+      readController.current?.abort();
+      saveController.current?.abort();
     };
   }, []);
 
   useEffect(() => {
-    if (error) errorRef.current?.focus();
+    if (error) {
+      errorRef.current?.focus();
+    }
   }, [error]);
 
-  useEffect(() => {
-    if (authLoading) return;
+  const fetchOwnedOrder = useCallback(
+    async signal => {
+      const next = await getOrderById(
+        token,
+        orderId,
+        { signal },
+      );
 
-    let cancelled = false;
-
-    async function loadOrder() {
-      setLoading(true);
-      setLoadError("");
-
-      try {
-        if (authError) {
-          throw new Error(authError);
-        }
-
-        let next;
-
-        if (user) {
-          if (!token) {
-            throw new Error(
-              "Your session has expired. Please sign in again.",
-            );
-          }
-
-          next = await getOrderById(token, orderId);
-        } else {
-          next = getLocalOrder(orderId, null);
-        }
-
-        if (!cancelled) setOrder(next || null);
-      } catch (loadFailure) {
-        if (!cancelled) {
-          setOrder(null);
-          setLoadError(
-            loadFailure.message || "Unable to load this order.",
-          );
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
+      if (!orderOwnedBy(next, userId)) {
+        throw Object.assign(
+          new Error(
+            "This order is not available for your account.",
+          ),
+          { status: 403 },
+        );
       }
+
+      return next;
+    },
+    [token, orderId, userId],
+  );
+
+  const adoptOrder = useCallback(next => {
+    if (
+      latestOrder.current &&
+      returnReviewKey(latestOrder.current) !==
+        returnReviewKey(next)
+    ) {
+      setChosen({});
     }
 
-    loadOrder();
+    latestOrder.current = next;
+    setOrder(next);
+  }, []);
 
-    return () => {
-      cancelled = true;
-    };
+  const confirmSaved = useCallback(
+    next => {
+      const attempt = pending.current;
+
+      if (
+        !attempt ||
+        !matchingReturn(
+          next,
+          attempt.payload,
+          attempt.previousId,
+        )
+      ) {
+        return false;
+      }
+
+      clearReturnAttempt(key);
+      pending.current = null;
+
+      setAwaiting(false);
+      adoptOrder(next);
+
+      notify(
+        "Your request is recorded. Check order details for review updates.",
+        "success",
+      );
+
+      navigate(
+        `/orders/${encodeURIComponent(
+          next.orderNumber || next.id,
+        )}`,
+        { replace: true },
+      );
+
+      return true;
+    },
+    [key, adoptOrder, navigate, notify],
+  );
+
+  const loadOrder = useCallback(async () => {
+    if (lock.current) return;
+
+    readController.current?.abort();
+
+    const controller = new AbortController();
+    readController.current = controller;
+
+    const version = ++generation.current;
+
+    setLoading(true);
+    setLoadError("");
+
+    try {
+      const next = await fetchOwnedOrder(
+        controller.signal,
+      );
+
+      if (
+        !mounted.current ||
+        version !== generation.current
+      ) {
+        return;
+      }
+
+      adoptOrder(next);
+
+      if (
+        !confirmSaved(next) &&
+        pending.current
+      ) {
+        setError(
+          "The saved result is still unconfirmed. Check request status again or contact support before making another request.",
+        );
+      }
+    } catch (failure) {
+      if (
+        mounted.current &&
+        version === generation.current &&
+        failure.name !== "AbortError"
+      ) {
+        if (
+          [401, 403, 404].includes(failure.status)
+        ) {
+          setOrder(null);
+          latestOrder.current = null;
+        }
+
+        setLoadError(
+          failure.message ||
+            "Unable to load this order.",
+        );
+      }
+    } finally {
+      if (
+        mounted.current &&
+        version === generation.current
+      ) {
+        setLoading(false);
+      }
+    }
   }, [
-    orderId,
-    user?.id,
-    user?._id,
-    token,
-    authLoading,
-    authError,
-    revision,
-    retry,
+    fetchOwnedOrder,
+    adoptOrder,
+    confirmSaved,
   ]);
 
-  function defaultRow(item) {
-    return {
-      selected: false,
-      quantity: 1,
-      size: item.selectedSize ?? "",
-      color: item.selectedColor ?? "",
-    };
-  }
+  useEffect(() => {
+    loadOrder();
+  }, [loadOrder, revision]);
 
   function changeRow(index, item, update) {
-    setChosen((previous) => ({
-      ...previous,
+    setChosen(current => ({
+      ...current,
+
       [index]: {
         ...defaultRow(item),
-        ...previous[index],
+        ...current[index],
         ...update,
       },
     }));
-  }
 
-  async function retryProducts() {
-    if (typeof refreshProducts !== "function") return;
-
-    try {
-      await refreshProducts();
-    } catch {
-      if (mounted.current) {
-        setError(
-          "Replacement options could not be refreshed. Please retry or contact support.",
-        );
-      }
-    }
+    setError("");
   }
 
   async function submit(event) {
     event.preventDefault();
 
     if (
-      submitLock.current ||
-      authLoading ||
+      lock.current ||
       loading ||
-      authError
+      pending.current ||
+      !order
     ) {
       return;
     }
 
+    lock.current = true;
+    generation.current++;
+
+    readController.current?.abort();
+
+    setSubmitting(true);
     setError("");
 
+    const controller = new AbortController();
+    saveController.current = controller;
+
+    let sent = false;
+
     try {
-      if (user && !token) {
-        throw new Error("Please sign in again.");
-      }
+      const initial = catalogRef.current;
 
-      const current = user
-        ? order
-        : getLocalOrder(orderId, null);
+      returnPayload(
+        order,
+        chosen,
+        type,
+        reason,
+        initial.products,
+        initial.catalogReady === true ||
+          (
+            initial.loaded === true &&
+            !initial.loading &&
+            !initial.error
+          ),
+      );
 
-      if (!current) {
-        throw new Error("This order could not be found.");
-      }
-
-      const eligibility = returnEligibility(current);
-
-      if (!eligibility.eligible) {
-        throw new Error(
-          eligibility.message || "This request is unavailable.",
-        );
-      }
-
-      const cleanReason = reason.trim();
-
-      if (cleanReason.length < 5 || cleanReason.length > 1000) {
-        throw new Error("Enter a reason of 5–1,000 characters.");
-      }
-
-      if (
-        type === "exchange" &&
-        (catalogLoading || catalogError)
-      ) {
-        throw new Error(
-          "Load current product options before submitting an exchange. You can still request a return.",
-        );
-      }
-
-      const selected = Object.entries(chosen)
-        .filter(([, row]) => row.selected);
-
-      if (!selected.length) {
-        throw new Error("Select at least one item.");
-      }
-
-      if (selected.length > 50) {
-        throw new Error("Select no more than 50 items.");
-      }
-
-      const items = selected.map(([key, row]) => {
-        const index = Number(key);
-        const quantity = Number(row.quantity);
-        const item = current.items?.[index];
-
-        if (
-          !Number.isSafeInteger(index) ||
-          index < 0 ||
-          !item ||
-          !Number.isSafeInteger(quantity) ||
-          quantity < 1 ||
-          quantity > Number(item.quantity)
-        ) {
-          throw new Error("Choose valid item quantities.");
-        }
-
-        if (type === "return") {
-          return { index, quantity, size: null, color: null };
-        }
-
-        const product = findProduct(catalogue, item);
-
-        if (!product || product.isActive === false) {
-          throw new Error(
-            `${item.name}: This product is unavailable for exchange.`,
-          );
-        }
-
-        const size = product.sizes?.length
-          ? String(row.size ?? "") || null
-          : null;
-
-        const color = product.colors?.length
-          ? String(row.color ?? "") || null
-          : null;
-
-        const validation = validateCartItem(
-          product,
-          quantity,
-          size,
-          color,
-        );
-
-        if (!validation.valid) {
-          throw new Error(`${item.name}: ${validation.message}`);
-        }
-
-        const originalSize = item.selectedSize == null
-          ? null
-          : String(item.selectedSize);
-
-        const originalColor = item.selectedColor == null
-          ? null
-          : String(item.selectedColor);
-
-        if (size === originalSize && color === originalColor) {
-          throw new Error(
-            `${item.name}: Choose a different size or colour for exchange.`,
-          );
-        }
-
-        return { index, quantity, size, color };
-      });
-
-      submitLock.current = true;
-      setSubmitting(true);
-
-      let updated;
-
-      if (user) {
-        updated = await requestRemoteReturn(token, orderId, {
-          type,
-          items,
-          reason: cleanReason,
-        });
-      } else {
-        updated = updateOrder(orderId, null, (old) => ({
-          ...old,
-          returnRequest: {
-            id: makeId("RET"),
-            type,
-            status: "requested",
-            items,
-            reason: cleanReason,
-            requestedAt: new Date().toISOString(),
-          },
-        }));
-      }
-
-      if (!updated) {
-        throw new Error(
-          "The updated order was not returned. Open order details to check whether the request was saved before retrying.",
-        );
-      }
+      const fresh = await fetchOwnedOrder(
+        controller.signal,
+      );
 
       if (!mounted.current) return;
 
-      notify(
-        user
-          ? `Your ${type} request was submitted for review.`
-          : "Preview request saved on this device. It has not been sent to GymDrobe.",
-        user ? "success" : "info",
+      if (
+        returnReviewKey(fresh) !==
+        returnReviewKey(order)
+      ) {
+        adoptOrder(fresh);
+
+        setError(
+          "Your order changed. Review its latest items and request status before submitting.",
+        );
+
+        return;
+      }
+
+      const current = catalogRef.current;
+
+      const payload = returnPayload(
+        fresh,
+        chosen,
+        type,
+        reason,
+        current.products,
+        current.catalogReady === true ||
+          (
+            current.loaded === true &&
+            !current.loading &&
+            !current.error
+          ),
       );
 
-      navigate(
-        `/orders/${encodeURIComponent(
-          updated.orderNumber || updated.id || orderId,
-        )}`,
-        { replace: true },
-      );
-    } catch (failure) {
-      if (mounted.current) {
-        setError(
-          failure.message || "Unable to submit your request.",
+      const attempt = {
+        previousId:
+          fresh.returnRequest?.id || "",
+        payload,
+      };
+
+      if (!saveReturnAttempt(key, attempt)) {
+        throw new Error(
+          "Request recovery could not be saved. Allow browser session storage and try again, or contact support.",
         );
       }
-    } finally {
-      submitLock.current = false;
 
-      if (mounted.current) setSubmitting(false);
+      pending.current = attempt;
+
+      setAwaiting(true);
+      sent = true;
+
+      const updated = await requestReturn(
+        token,
+        orderId,
+        payload,
+        { signal: controller.signal },
+      );
+
+      if (!mounted.current) return;
+
+      if (
+        !orderOwnedBy(updated, userId) ||
+        !confirmSaved(updated)
+      ) {
+        throw Object.assign(
+          new Error(
+            "The server did not return matching saved request details.",
+          ),
+          { saveResultUnknown: true },
+        );
+      }
+    } catch (failure) {
+      if (!mounted.current) return;
+
+      if (
+        sent &&
+        failure.saveResultUnknown !== false
+      ) {
+        setAwaiting(true);
+
+        setError(
+          "Your request may have been saved. We will check its status; do not submit another request yet.",
+        );
+
+        try {
+          const fresh = await fetchOwnedOrder(
+            controller.signal,
+          );
+
+          if (!mounted.current) return;
+
+          adoptOrder(fresh);
+
+          if (confirmSaved(fresh)) return;
+
+          setError(
+            "The request could not be confirmed yet. Use Check request status or contact support. Submitting this form does not issue a refund or replacement shipment.",
+          );
+        } catch (readFailure) {
+          if (mounted.current) {
+            if (
+              [401, 403, 404].includes(
+                readFailure.status,
+              )
+            ) {
+              setOrder(null);
+              latestOrder.current = null;
+            }
+
+            setLoadError(
+              readFailure.message ||
+                "Unable to check request status.",
+            );
+          }
+        }
+      } else {
+        if (sent) {
+          clearReturnAttempt(key);
+          pending.current = null;
+          setAwaiting(false);
+        }
+
+        setError(
+          failure.message ||
+            "Unable to submit your request.",
+        );
+
+        if (
+          [401, 403, 404].includes(failure.status)
+        ) {
+          setOrder(null);
+          latestOrder.current = null;
+          setLoadError(failure.message);
+        }
+      }
+    } finally {
+      lock.current = false;
+
+      if (mounted.current) {
+        setSubmitting(false);
+      }
     }
   }
 
-  if (authLoading || loading) {
+  const displayId =
+    order?.orderNumber ||
+    order?.id ||
+    orderId;
+
+  const routeId = encodeURIComponent(displayId);
+  const detailsPath = `/orders/${routeId}`;
+
+  if (loading && !order) {
     return (
       <div className="page narrow">
-        <div className="empty-state" role="status">
+        <div
+          className="empty-state"
+          role="status"
+        >
           <h3>Loading order…</h3>
-          <p>Checking your order and request availability.</p>
+
+          <p>
+            Checking recorded delivery and request
+            availability.
+          </p>
         </div>
       </div>
     );
   }
 
-  if (loadError) {
+  if (!order) {
     return (
       <div className="page narrow">
         <EmptyState
@@ -397,41 +534,71 @@ function ReturnForm({ orderId }) {
           to="/orders"
           label="View orders"
         >
-          {loadError}
+          {loadError ||
+            "This order is not available for your account."}
         </EmptyState>
 
         <button
           type="button"
           className="button secondary"
-          onClick={() => {
-            if (authError && retrySession) retrySession();
-            setRetry((value) => value + 1);
-          }}
+          disabled={loading || submitting}
+          onClick={loadOrder}
         >
           Try again
         </button>
+
+        <Link
+          className="text-link"
+          to="/login"
+        >
+          Check sign-in
+        </Link>
       </div>
     );
   }
 
-  if (!order) {
-    return (
-      <EmptyState
-        title="Order not found"
-        to="/orders"
-        label="View orders"
-      />
-    );
-  }
+  const availability =
+    returnAvailability(order, now);
 
-  const eligibility = returnEligibility(order);
-  const displayId = order.orderNumber || order.id || orderId;
-  const routeId = encodeURIComponent(displayId);
-  const orderItems = Array.isArray(order.items) ? order.items : [];
+  const catalogue = Array.isArray(
+    catalog.products,
+  )
+    ? catalog.products
+    : [];
+
+  const ready =
+    catalog.catalogReady === true ||
+    (
+      catalog.loaded === true &&
+      !catalog.loading &&
+      !catalog.error
+    );
+
+  const blocked =
+    loading ||
+    submitting ||
+    awaiting ||
+    Boolean(loadError);
+
+  const items = Array.isArray(order.items)
+    ? order.items
+    : [];
+
+  const selectable = items.some(
+    item =>
+      itemReturnAvailability(
+        order,
+        item,
+        now,
+      ).eligible,
+  );
 
   return (
     <div className="page narrow">
-      <Link className="text-link" to={`/orders/${routeId}`}>
+      <Link
+        className="text-link"
+        to={detailsPath}
+      >
         ← Order details
       </Link>
 
@@ -442,9 +609,76 @@ function ReturnForm({ orderId }) {
         </div>
       </div>
 
-      {!eligibility.eligible ? (
+      {loadError && (
         <section className="panel">
-          <p>{eligibility.message}</p>
+          <p
+            className="field-error"
+            role="alert"
+          >
+            {loadError}
+          </p>
+
+          <button
+            type="button"
+            className="button secondary"
+            disabled={loading || submitting}
+            onClick={loadOrder}
+          >
+            Reload order
+          </button>
+        </section>
+      )}
+
+      {awaiting && (
+        <section className="panel">
+          <h2>Check your submitted request</h2>
+
+          <p>
+            We have an attempt awaiting confirmation.
+            This page will verify it from your account
+            before allowing another submission.
+          </p>
+
+          <div className="purchase-actions">
+            <button
+              type="button"
+              className="button"
+              disabled={loading || submitting}
+              onClick={loadOrder}
+            >
+              {loading || submitting
+                ? "Checking…"
+                : "Check request status"}
+            </button>
+
+            <Link
+              className="button secondary"
+              to={detailsPath}
+            >
+              View order details
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {error && (
+        <div
+          ref={errorRef}
+          className="field-error"
+          role="alert"
+          tabIndex={-1}
+        >
+          <p>{error}</p>
+        </div>
+      )}
+
+      {!availability.eligible || !selectable ? (
+        <section className="panel">
+          <p>
+            {availability.message ||
+              "No items are currently available for a routine return or exchange. Contact support about your issue."}
+          </p>
+
           <Link
             className="button"
             to={`/help?order=${routeId}`}
@@ -453,31 +687,44 @@ function ReturnForm({ orderId }) {
           </Link>
         </section>
       ) : (
-        <form onSubmit={submit} aria-busy={submitting}>
+        <form
+          onSubmit={submit}
+          aria-busy={submitting}
+        >
           <p className="notice">
-            Submit by{" "}
-            {new Date(eligibility.deadline).toLocaleString("en-IN")}.
-            {" "}
-            {user
-              ? "Your request will be sent to GymDrobe for review. Check the store response for collection or replacement instructions."
-              : "This guest preview saves requests only on this device. Contact support to request help with a real order."}
+            Each item's deadline and conditions come
+            from this purchase. Your request goes to
+            GymDrobe for review. Wait for collection or
+            replacement instructions before sending
+            items.
           </p>
 
           <p className="muted">
-            Return refund calculations account for the selected quantities
-            and their share of coupon savings. Shipping is excluded from
-            the current calculation. Refund approval and completion are
-            recorded separately; submitting this form does not issue a refund.
+            Submitting does not issue a refund. Any
+            approved item refund uses purchased prices
+            and allocated coupon savings; shipping is
+            excluded from the current item calculation.
           </p>
 
-          <fieldset className="option-field" disabled={submitting}>
-            <legend>WHAT WOULD YOU LIKE TO DO?</legend>
+          <fieldset
+            className="option-field"
+            disabled={blocked}
+          >
+            <legend>
+              What would you like to do?
+            </legend>
 
             {[
               ["return", "Return selected items"],
-              ["exchange", "Exchange size or colour"],
-            ].map(([value, label]) => (
-              <label className="check" key={value}>
+              [
+                "exchange",
+                "Exchange available options",
+              ],
+            ].map(([value, name]) => (
+              <label
+                className="check"
+                key={value}
+              >
                 <input
                   type="radio"
                   name="request-type"
@@ -488,47 +735,130 @@ function ReturnForm({ orderId }) {
                     setError("");
                   }}
                 />
-                {label}
+
+                {name}
               </label>
             ))}
           </fieldset>
 
-          {type === "exchange" &&
-            (catalogLoading || catalogError) && (
-              <div className="notice" role="status">
-                <p>
-                  {catalogLoading
-                    ? "Loading replacement options…"
-                    : "Replacement options could not be loaded."}
+          {type === "exchange" && !ready && (
+            <section
+              className="notice"
+              role="status"
+            >
+              <p>
+                {catalog.loading
+                  ? "Loading current replacement options…"
+                  : "Current replacement options are unavailable. You can still choose return."}
+              </p>
+
+              {typeof catalog.refreshProducts ===
+                "function" && (
+                <button
+                  type="button"
+                  className="button secondary"
+                  disabled={
+                    blocked || catalog.loading
+                  }
+                  onClick={() =>
+                    catalog.refreshProducts()
+                  }
+                >
+                  Retry product options
+                </button>
+              )}
+            </section>
+          )}
+
+          {items.map((item, index) => {
+            if (!item) {
+              return (
+                <p
+                  className="field-error"
+                  key={index}
+                >
+                  An item needs support review.
                 </p>
+              );
+            }
 
-                {catalogError && (
-                  <button
-                    type="button"
-                    className="button secondary"
-                    disabled={submitting || catalogLoading}
-                    onClick={retryProducts}
-                  >
-                    Retry product options
-                  </button>
-                )}
-              </div>
-            )}
+            const allowed =
+              itemReturnAvailability(
+                order,
+                item,
+                now,
+              );
 
-          {orderItems.map((item, index) => {
-            const product = findProduct(catalogue, item);
-            const row = chosen[index] || defaultRow(item);
+            const product = findReturnProduct(
+              catalogue,
+              item,
+            );
 
-            const sizes = Array.isArray(product?.sizes)
-              ? [...new Set(product.sizes.map(String))]
-              : [];
+            const row =
+              chosen[index] || defaultRow(item);
 
-            const colors = Array.isArray(product?.colors)
-              ? [...new Set(product.colors.map(String))]
-              : [];
+            const options =
+              replacementOptions(product);
 
-            const exchangeUnavailable =
-              !product || product.isActive === false;
+            const labels = optionLabels(product);
+
+            const stock = ready
+              ? replacementStock(
+                  product,
+                  options.sizes.length
+                    ? row.size || null
+                    : null,
+                  options.colors.length
+                    ? row.color || null
+                    : null,
+                )
+              : 0;
+
+            const selectedSize =
+              options.sizes.includes(
+                String(row.size),
+              )
+                ? row.size
+                : "";
+
+            const selectedColor =
+              options.colors.includes(
+                String(row.color),
+              )
+                ? row.color
+                : "";
+
+            function colorAvailable(color) {
+              return (
+                options.sizes.length
+                  ? options.sizes
+                  : [null]
+              ).some(
+                size =>
+                  replacementStock(
+                    product,
+                    size,
+                    color,
+                  ) > 0,
+              );
+            }
+
+            function sizeAvailable(size) {
+              return (
+                options.colors.length
+                  ? selectedColor
+                    ? [selectedColor]
+                    : options.colors
+                  : [null]
+              ).some(
+                color =>
+                  replacementStock(
+                    product,
+                    size,
+                    color,
+                  ) > 0,
+              );
+            }
 
             return (
               <section
@@ -539,43 +869,101 @@ function ReturnForm({ orderId }) {
                   <input
                     type="checkbox"
                     checked={row.selected}
-                    disabled={submitting}
-                    onChange={(event) =>
+                    disabled={
+                      blocked || !allowed.eligible
+                    }
+                    onChange={event =>
                       changeRow(index, item, {
-                        selected: event.target.checked,
+                        selected:
+                          event.target.checked,
                       })
                     }
                   />
+
                   <strong>{item.name}</strong>
                 </label>
 
                 <p>
-                  {variantLabel(
-                    item.selectedSize,
+                  Purchased options:{" "}
+                  {[
                     item.selectedColor,
-                  )}
-                  {" "}· Ordered quantity {item.quantity}
+                    item.selectedSize,
+                  ]
+                    .filter(
+                      value =>
+                        value != null &&
+                        value !== "",
+                    )
+                    .join(" / ") ||
+                    "Default variant"}
+
+                  {" "}· Quantity: {item.quantity}
                 </p>
 
+                {item.sku && (
+                  <p className="muted">
+                    Purchased SKU: {item.sku}
+                  </p>
+                )}
+
+                <p>
+                  Purchased unit price:{" "}
+                  {unitPrice(item.price)}
+                </p>
+
+                {allowed.eligible ? (
+                  <p className="muted">
+                    Request deadline:{" "}
+                    {when(allowed.deadline)}
+
+                    {!allowed.policyConfirmed &&
+                      " · Return conditions need manual review."}
+                  </p>
+                ) : (
+                  <p className="notice">
+                    {allowed.message}
+                  </p>
+                )}
+
+                {(item.returnPolicy ||
+                  item.returnConditions) && (
+                  <p className="muted">
+                    {[
+                      item.returnPolicy,
+                      item.returnConditions,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                )}
+
                 {row.selected && (
-                  <div className="form-grid">
+                  <fieldset
+                    className="option-field"
+                    disabled={blocked}
+                  >
+                    <legend>Selected item</legend>
+
                     <div className="field">
-                      <label htmlFor={`return-qty-${index}`}>
+                      <label
+                        htmlFor={`return-qty-${index}`}
+                      >
                         Quantity
                       </label>
+
                       <input
                         id={`return-qty-${index}`}
                         type="number"
-                        min={1}
+                        min="1"
                         max={item.quantity}
-                        step={1}
+                        step="1"
                         inputMode="numeric"
                         required
-                        disabled={submitting}
                         value={row.quantity}
-                        onChange={(event) =>
+                        onChange={event =>
                           changeRow(index, item, {
-                            quantity: event.target.value,
+                            quantity:
+                              event.target.value,
                           })
                         }
                       />
@@ -583,169 +971,302 @@ function ReturnForm({ orderId }) {
 
                     {type === "exchange" && (
                       <>
-                        {sizes.length > 0 && (
+                        {options.colors.length > 0 && (
                           <div className="field">
-                            <label htmlFor={`return-size-${index}`}>
-                              Replacement size
-                            </label>
-                            <select
-                              id={`return-size-${index}`}
-                              required
-                              disabled={submitting || catalogLoading}
-                              value={
-                                sizes.includes(String(row.size))
-                                  ? row.size
-                                  : ""
-                              }
-                              onChange={(event) =>
-                                changeRow(index, item, {
-                                  size: event.target.value,
-                                })
-                              }
+                            <label
+                              htmlFor={`return-color-${index}`}
                             >
-                              <option value="">Choose a size</option>
-                              {sizes.map((size) => (
-                                <option key={size} value={size}>
-                                  {size}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-
-                        {colors.length > 0 && (
-                          <div className="field">
-                            <label htmlFor={`return-color-${index}`}>
-                              Replacement colour
+                              Replacement{" "}
+                              {labels.color.toLowerCase()}
                             </label>
+
                             <select
                               id={`return-color-${index}`}
                               required
-                              disabled={submitting || catalogLoading}
-                              value={
-                                colors.includes(String(row.color))
-                                  ? row.color
-                                  : ""
-                              }
-                              onChange={(event) =>
+                              disabled={!ready}
+                              value={selectedColor}
+                              onChange={event =>
                                 changeRow(index, item, {
-                                  color: event.target.value,
+                                  color:
+                                    event.target.value,
                                 })
                               }
                             >
-                              <option value="">Choose a colour</option>
-                              {colors.map((color) => (
-                                <option key={color} value={color}>
-                                  {color}
-                                </option>
-                              ))}
+                              <option value="">
+                                Choose{" "}
+                                {labels.color.toLowerCase()}
+                              </option>
+
+                              {options.colors.map(
+                                color => (
+                                  <option
+                                    key={color}
+                                    value={color}
+                                    disabled={
+                                      ready &&
+                                      !colorAvailable(color)
+                                    }
+                                  >
+                                    {color}
+
+                                    {ready &&
+                                    !colorAvailable(color)
+                                      ? " — unavailable"
+                                      : ""}
+                                  </option>
+                                ),
+                              )}
                             </select>
                           </div>
                         )}
 
-                        {exchangeUnavailable && !catalogLoading && (
-                          <p className="field-error">
-                            This product is unavailable for exchange.
-                            Choose return or contact support.
-                          </p>
+                        {options.sizes.length > 0 && (
+                          <div className="field">
+                            <label
+                              htmlFor={`return-size-${index}`}
+                            >
+                              Replacement{" "}
+                              {labels.size.toLowerCase()}
+                            </label>
+
+                            <select
+                              id={`return-size-${index}`}
+                              required
+                              disabled={!ready}
+                              value={selectedSize}
+                              onChange={event =>
+                                changeRow(index, item, {
+                                  size:
+                                    event.target.value,
+                                })
+                              }
+                            >
+                              <option value="">
+                                Choose{" "}
+                                {labels.size.toLowerCase()}
+                              </option>
+
+                              {options.sizes.map(
+                                size => (
+                                  <option
+                                    key={size}
+                                    value={size}
+                                    disabled={
+                                      ready &&
+                                      !sizeAvailable(size)
+                                    }
+                                  >
+                                    {size}
+
+                                    {ready &&
+                                    !sizeAvailable(size)
+                                      ? " — unavailable"
+                                      : ""}
+                                  </option>
+                                ),
+                              )}
+                            </select>
+                          </div>
                         )}
 
                         <p className="muted">
-                          Choose a different size or colour.
-                          Availability is checked when you submit.
-                          A request does not reserve replacement stock.
+                          {ready
+                            ? `${stock} currently available for the selected replacement.`
+                            : "Load current options before choosing a replacement."}
+
+                          {" "}Choose a different
+                          option. Request submission
+                          does not reserve replacement
+                          stock.
                         </p>
                       </>
                     )}
-                  </div>
+                  </fieldset>
                 )}
               </section>
             );
           })}
 
           <div className="field">
-            <label htmlFor="return-reason">Reason</label>
+            <label htmlFor="return-reason">
+              Reason
+            </label>
+
             <textarea
               id="return-reason"
+              rows={4}
               required
               minLength={5}
               maxLength={1000}
-              rows={4}
+              disabled={blocked}
               value={reason}
-              disabled={submitting}
-              onChange={(event) => setReason(event.target.value)}
+              onChange={event => {
+                setReason(event.target.value);
+                setError("");
+              }}
             />
+
             <small className="muted">
-              Describe the issue in 5–1,000 characters.
+              Describe the issue in 5–1,000
+              characters.
             </small>
           </div>
 
-          {error && (
-            <div
-              ref={errorRef}
-              id="return-form-error"
-              role="alert"
-              tabIndex={-1}
-              className="field-error"
-            >
-              <p>{error}</p>
-              <p>
-                If your connection was interrupted during submission,
-                check order details before trying again.
-              </p>
-            </div>
-          )}
-
           <div className="purchase-actions">
             <button
-              className="button"
               type="submit"
+              className="button"
               disabled={
-                submitting ||
+                blocked ||
                 (
                   type === "exchange" &&
-                  Boolean(catalogLoading || catalogError)
+                  !ready
                 )
               }
             >
               {submitting
                 ? "Submitting…"
-                : user
-                  ? "Submit request for review"
-                  : "Save guest preview request"}
+                : "Submit request for review"}
             </button>
 
             <Link
               className="button secondary"
-              to={`/orders/${routeId}`}
-              onClick={(event) => {
-                if (submitting) event.preventDefault();
-              }}
-              aria-disabled={submitting || undefined}
+              to={detailsPath}
             >
               View order details
             </Link>
           </div>
-
-          {submitting && (
-            <p className="muted" role="status">
-              Saving your request. Please wait…
-            </p>
-          )}
         </form>
       )}
+
+      <p>
+        <Link
+          className="text-link"
+          to={`/help?order=${routeId}`}
+        >
+          Need help with a damaged or incorrect
+          item? Contact GymDrobe support.
+        </Link>
+      </p>
     </div>
   );
 }
 
 export default function ReturnPage() {
-  const { orderId } = useParams();
-  const { user, token } = useAuth();
+  const { orderId = "" } = useParams();
+
+  const {
+    user,
+    token,
+    loading,
+    authError,
+    retrySession,
+  } = useAuth();
+
+  const login =
+    `/login?${new URLSearchParams({
+      next:
+        `/orders/${encodeURIComponent(orderId)}/return`,
+    })}`;
+
+  if (loading) {
+    return (
+      <div
+        className="page narrow"
+        role="status"
+      >
+        Checking your account…
+      </div>
+    );
+  }
+
+  if (authError) {
+    return (
+      <div className="page narrow panel">
+        <h1>Unable to check your account</h1>
+
+        <p
+          className="field-error"
+          role="alert"
+        >
+          {authError}
+        </p>
+
+        <button
+          type="button"
+          className="button"
+          onClick={retrySession}
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  if (!user || !token) {
+    const preview = !user
+      ? getLocalOrder(orderId, null)
+      : null;
+
+    return (
+      <div className="page narrow panel">
+        <h1>Return or exchange</h1>
+
+        <p>
+          {preview
+            ? "This device contains a preview order. It cannot send a real return or exchange request to GymDrobe."
+            : "Sign in with the account that placed this order to submit a request."}
+        </p>
+
+        <div className="purchase-actions">
+          <Link
+            className="button"
+            to={login}
+          >
+            Sign in
+          </Link>
+
+          <Link
+            className="button secondary"
+            to={`/help?order=${encodeURIComponent(orderId)}`}
+          >
+            Contact support
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (user.isActive === false) {
+    return (
+      <div className="page narrow panel">
+        <h1>Account unavailable</h1>
+
+        <p>
+          Contact GymDrobe support for help with your
+          order.
+        </p>
+
+        <Link
+          className="button"
+          to="/help"
+        >
+          Contact support
+        </Link>
+      </div>
+    );
+  }
+
+  const userId = String(
+    user.id || user._id || "",
+  );
 
   return (
     <ReturnForm
-      key={`${user?.id || user?._id || "guest"}:${orderId}:${token || ""}`}
+      key={`${userId}:${orderId}:${token}`}
       orderId={orderId}
+      userId={userId}
+      token={token}
     />
   );
 }

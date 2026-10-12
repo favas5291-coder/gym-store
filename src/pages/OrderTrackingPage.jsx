@@ -1,4 +1,7 @@
-import { Link, useParams } from "react-router-dom";
+import {
+  Link,
+  useParams,
+} from "react-router-dom";
 
 import useCustomerOrder from "../hooks/useCustomerOrder.js";
 
@@ -9,31 +12,12 @@ import OrderPaymentDetails, {
   formatOrderStatus,
 } from "../components/OrderPaymentDetails.jsx";
 
-const stages = [
-  "confirmed",
-  "processing",
-  "shipped",
-  "out-for-delivery",
-  "delivered",
-];
-
-const messages = {
-  confirmed:
-    "Your order is confirmed and awaiting preparation.",
-  processing:
-    "Your order is being prepared for dispatch.",
-  shipped:
-    "Your order has been dispatched.",
-  "out-for-delivery":
-    "Your order is out for delivery. Keep your phone available for the delivery partner.",
-  delivered:
-    "Your order is recorded as delivered.",
-};
-
-function eventTime(value) {
-  const timestamp = Date.parse(value || "");
-  return Number.isFinite(timestamp) ? timestamp : 0;
-}
+import {
+  TRACKING_STAGES,
+  TRACKING_MESSAGES,
+  trackingSummary,
+  trackingText,
+} from "../utils/orderTracking.js";
 
 export default function OrderTrackingPage() {
   const { orderId } = useParams();
@@ -54,9 +38,12 @@ export default function OrderTrackingPage() {
   if (loading) {
     return (
       <div className="page narrow tracking-page">
-        <div className="empty-state" role="status">
-          <h3>Loading tracking…</h3>
-          <p>Getting the latest order information.</p>
+        <div
+          className="empty-state"
+          role="status"
+        >
+          <h1>Loading tracking…</h1>
+          <p>Getting your order information.</p>
         </div>
       </div>
     );
@@ -73,64 +60,97 @@ export default function OrderTrackingPage() {
           {error}
         </EmptyState>
 
-        <button
-          className="button secondary"
-          type="button"
-          disabled={refreshing}
-          onClick={refresh}
-        >
-          {refreshing ? "Retrying…" : "Retry"}
-        </button>
+        <div className="purchase-actions">
+          <button
+            className="button secondary"
+            type="button"
+            disabled={refreshing}
+            onClick={refresh}
+          >
+            {refreshing ? "Retrying…" : "Retry"}
+          </button>
+
+          <Link
+            className="button secondary"
+            to="/login"
+          >
+            Sign in
+          </Link>
+
+          <Link
+            className="text-link"
+            to="/help"
+          >
+            Contact support
+          </Link>
+        </div>
       </div>
     );
   }
 
   if (!order) {
     return (
-      <EmptyState
-        title="Order not found"
-        to="/orders"
-        label="My orders"
-      >
-        Check your order history for available orders.
-      </EmptyState>
+      <div className="page narrow tracking-page">
+        <EmptyState
+          title="Order not found"
+          to="/orders"
+          label="My orders"
+        >
+          Check your order history for available orders.
+        </EmptyState>
+      </div>
     );
   }
 
   const displayId =
     order.orderNumber || order.id || orderId;
 
-  const status =
-    order.status === "packed"
-      ? "processing"
-      : order.status;
+  const detailsPath =
+    `/orders/${encodeURIComponent(
+      order.id || order._id || orderId,
+    )}`;
 
-  const currentIndex = stages.indexOf(status);
-
-  const cancelled = status === "cancelled";
-  const pending = status === "payment-pending";
+  const {
+    status,
+    events,
+    deliveredAt,
+    currentIndex,
+    cancelled,
+    pending,
+    estimate,
+  } = trackingSummary(order);
 
   const paymentReceived =
-    order.payment?.status === "paid" ||
-    order.payment?.status === "partially-paid";
-
-  const events = (
-    Array.isArray(order.tracking?.events)
-      ? [...order.tracking.events]
-      : []
-  ).sort(
-    (a, b) =>
-      eventTime(b.timestamp) -
-      eventTime(a.timestamp),
-  );
+    ["paid", "partially-paid"].includes(
+      order.payment?.status,
+    ) ||
+    Number(order.payment?.amountPaid) > 0 ||
+    Boolean(order.payment?.verifiedAt);
 
   const address = order.shippingAddress;
+
+  const carrier = trackingText(
+    order.tracking?.carrier,
+  );
+
+  const trackingNumber = trackingText(
+    order.tracking?.trackingNumber,
+  );
+
+  const request = order.returnRequest || {};
+
+  const hasRequest = [
+    "requested",
+    "approved",
+    "rejected",
+    "completed",
+  ].includes(request.status);
 
   return (
     <div className="page narrow tracking-page">
       <Link
         className="text-link"
-        to={`/orders/${encodeURIComponent(displayId)}`}
+        to={detailsPath}
       >
         ← Order details
       </Link>
@@ -161,10 +181,10 @@ export default function OrderTrackingPage() {
         </button>
       </div>
 
-      <div className="notice">
+      <p className="notice">
         {isAccountOrder
-          ? "Tracking details are synced with your GymDrobe account."
-          : "Guest tracking details are stored on this device."}
+          ? "These details come from your GymDrobe account order."
+          : "Local preview only. These details are stored on this device and are not live tracking or proof of a real order."}
 
         {lastUpdated && (
           <>
@@ -173,177 +193,270 @@ export default function OrderTrackingPage() {
             {formatOrderDate(lastUpdated)}.
           </>
         )}
-      </div>
+      </p>
+
+      {order.metadata?.demo === true && (
+        <p className="notice">
+          Test order. The recorded payment used
+          Razorpay test mode.
+        </p>
+      )}
 
       {refreshError && (
-        <p className="field-error" role="alert">
-          {refreshError} Showing the last
-          successfully loaded details.
+        <p
+          className="field-error"
+          role="alert"
+        >
+          {refreshError} Showing the last successfully
+          loaded details. Refresh or contact support
+          for an update.
         </p>
       )}
 
       {cancelled ? (
-        <div className="notice">
-          This order has been cancelled and will
-          not be fulfilled.
-
-          {order.cancellation?.reason && (
-            <p>{order.cancellation.reason}</p>
-          )}
-        </div>
-      ) : pending ? (
-        <div className="notice">
-          {paymentReceived
-            ? "Payment has been recorded, but order confirmation is pending. Do not pay again."
-            : "This order is awaiting payment confirmation. Delivery progress will appear after confirmation."}
+        <section className="panel">
+          <h2>ORDER CANCELLED</h2>
 
           <p>
-            Open your order details to check the
-            latest payment status and available
-            actions.
+            This order is recorded as cancelled.
+            Check payment details below for its
+            refund status.
           </p>
-        </div>
+
+          {trackingText(
+            order.cancellation?.reason,
+          ) && (
+            <p>{order.cancellation.reason}</p>
+          )}
+
+          <p>
+            Any previous shipment information below
+            is historical. Contact support if a
+            parcel still arrives.
+          </p>
+        </section>
+      ) : pending ? (
+        <section className="panel">
+          <h2>ORDER CONFIRMATION PENDING</h2>
+
+          <p>
+            {paymentReceived
+              ? "Payment has been recorded, but order confirmation is pending. Do not pay again."
+              : "Payment confirmation has not been recorded. If money was deducted, do not pay again; contact support with your order number."}
+          </p>
+
+          <Link
+            className="text-link"
+            to={detailsPath}
+          >
+            Check payment and available actions →
+          </Link>
+        </section>
       ) : currentIndex >= 0 ? (
         <>
           <ol
             className="tracking-steps"
             aria-label="Delivery progress"
           >
-            {stages.map((stage, index) => (
-              <li
-                key={stage}
-                className={
-                  index <= currentIndex
-                    ? "done"
-                    : ""
-                }
-                aria-current={
-                  stage === status
-                    ? "step"
-                    : undefined
-                }
-              >
-                <span aria-hidden="true">
-                  {index < currentIndex
-                    ? "✓"
-                    : index + 1}
-                </span>
+            {TRACKING_STAGES.map(
+              (stage, index) => (
+                <li
+                  key={stage}
+                  className={
+                    index <= currentIndex
+                      ? "done"
+                      : ""
+                  }
+                  aria-current={
+                    stage === status
+                      ? "step"
+                      : undefined
+                  }
+                >
+                  <span aria-hidden="true">
+                    {index < currentIndex
+                      ? "✓"
+                      : index + 1}
+                  </span>
 
-                <strong>
-                  {formatOrderStatus(stage)}
-                </strong>
-              </li>
-            ))}
+                  <strong>
+                    {formatOrderStatus(stage)}
+                  </strong>
+                </li>
+              ),
+            )}
           </ol>
 
           <section className="panel">
             <h2>ORDER STATUS</h2>
-            <p>{messages[status]}</p>
 
-            {order.delivery?.deliveredAt && (
+            <p>{TRACKING_MESSAGES[status]}</p>
+
+            {status === "delivered" && (
               <p className="muted">
-                Delivered:{" "}
-                {formatOrderDate(
-                  order.delivery.deliveredAt,
-                )}
+                {deliveredAt
+                  ? `Recorded delivery: ${formatOrderDate(
+                      deliveredAt,
+                    )}.`
+                  : "The delivery date has not been recorded. Contact support to confirm it."}
               </p>
             )}
           </section>
         </>
       ) : (
-        <div className="notice">
+        <p className="notice">
           Delivery progress is not available for
-          this order status yet.
-        </div>
+          this order status. Contact support for
+          an update.
+        </p>
       )}
 
       <OrderPaymentDetails order={order} />
 
       <section className="panel">
-        <h2>SHIPMENT INFORMATION</h2>
+        <h2>
+          {cancelled
+            ? "PREVIOUS SHIPMENT INFORMATION"
+            : "SHIPMENT INFORMATION"}
+        </h2>
 
-        {order.tracking?.carrier ? (
+        {pending ? (
           <p>
-            <strong>Carrier:</strong>{" "}
-            {order.tracking.carrier}
+            Shipment information will appear after
+            order confirmation.
           </p>
         ) : (
-          <p>
-            {cancelled
-              ? "This order is cancelled."
-              : pending
-                ? "Shipment information is awaiting order confirmation."
-                : "A carrier has not been assigned yet."}
-          </p>
+          <>
+            <p>
+              {carrier ? (
+                <>
+                  <strong>Carrier:</strong>{" "}
+                  {carrier}
+                </>
+              ) : cancelled ? (
+                "No carrier was recorded."
+              ) : (
+                "A carrier has not been recorded yet."
+              )}
+            </p>
+
+            {trackingNumber && (
+              <p
+                style={{
+                  overflowWrap: "anywhere",
+                }}
+              >
+                <strong>Tracking number:</strong>{" "}
+                {trackingNumber}
+              </p>
+            )}
+          </>
         )}
 
-        {order.tracking?.trackingNumber && (
-          <p>
-            <strong>Tracking number:</strong>{" "}
-            {order.tracking.trackingNumber}
-          </p>
+        {estimate && (
+          <>
+            <p>
+              <strong>Estimated delivery:</strong>{" "}
+              {estimate.label}
+            </p>
+
+            <p
+              className={
+                estimate.overdue
+                  ? "notice"
+                  : "muted"
+              }
+            >
+              {estimate.overdue
+                ? "The recorded estimated date has passed. Delivery is not yet recorded as completed. Contact support for an updated estimate."
+                : "This is an estimate, not a guaranteed delivery date."}
+            </p>
+          </>
         )}
 
         {!cancelled &&
           !pending &&
-          order.tracking?.estimatedDelivery && (
-            <p>
-              <strong>Estimated delivery:</strong>{" "}
-              {formatOrderDate(
-                order.tracking.estimatedDelivery,
-              )}
+          status !== "delivered" &&
+          !estimate && (
+            <p className="muted">
+              A valid delivery estimate has not
+              been recorded yet.
             </p>
           )}
 
-        {order.delivery?.label && (
+        {trackingText(order.delivery?.label) && (
           <p>
             <strong>Delivery method:</strong>{" "}
             {order.delivery.label}
           </p>
         )}
 
-        {order.delivery?.status && (
-          <p>
-            <strong>Recorded delivery status:</strong>{" "}
-            {formatOrderStatus(
-              order.delivery.status,
-            )}
-          </p>
-        )}
-
         <p className="muted">
-          Tracking updates reflect information
-          recorded for your order.
+          Updates reflect information recorded for
+          your order. Refreshing this page does not
+          contact the courier directly.
         </p>
       </section>
+
+      {hasRequest && (
+        <section className="panel">
+          <h2>RETURN / EXCHANGE PROGRESS</h2>
+
+          <p>
+            {request.type === "exchange"
+              ? "Exchange"
+              : "Return"}{" "}
+            request:{" "}
+            {formatOrderStatus(request.status)}.
+          </p>
+
+          <p>
+            This request is separate from the
+            original order&apos;s delivery progress.
+            View order details for the store
+            response, inspection and refund
+            information.
+          </p>
+
+          <Link
+            className="text-link"
+            to={detailsPath}
+          >
+            View request details →
+          </Link>
+        </section>
+      )}
 
       <section className="panel">
         <h2>ORDER ACTIVITY</h2>
 
         {events.length ? (
-          events.map((event, index) => (
+          events.map((event) => (
             <div
               className="tracking-event"
-              key={`${
-                event.status || "event"
-              }-${event.timestamp || index}-${index}`}
+              key={event.key}
             >
               <strong>
                 {event.description ||
                   formatOrderStatus(event.status)}
               </strong>
 
-              {event.status && (
-                <p className="muted">
-                  {formatOrderStatus(event.status)}
-                </p>
-              )}
+              {event.status &&
+                event.description && (
+                  <p className="muted">
+                    {formatOrderStatus(
+                      event.status,
+                    )}
+                  </p>
+                )}
 
-              {event.timestamp && (
-                <p>
-                  {formatOrderDate(event.timestamp)}
-                </p>
-              )}
+              <p>
+                {event.timestamp
+                  ? formatOrderDate(
+                      event.timestamp,
+                    )
+                  : "Event time not recorded or needs confirmation."}
+              </p>
             </div>
           ))
         ) : (
@@ -353,53 +466,79 @@ export default function OrderTrackingPage() {
         )}
       </section>
 
-      {address && (
-        <section className="panel">
-          <h2>DELIVERY ADDRESS</h2>
+      {address &&
+        typeof address === "object" && (
+          <section className="panel">
+            <h2>DELIVERY ADDRESS</h2>
 
-          <p>
-            <strong>
-              {address.fullName ||
-                address.name ||
-                order.customer?.name ||
-                "Customer"}
-            </strong>
-
-            <br />
-
-            {address.addressLine || address.address}
-
-            {address.landmark && (
-              <>
-                <br />
-                {address.landmark}
-              </>
-            )}
-
-            <br />
-
-            {[
-              address.city,
-              address.state,
-              address.pincode,
-            ]
-              .filter(Boolean)
-              .join(", ")}
-          </p>
-
-          {address.phone && (
             <p>
-              <strong>Phone:</strong>{" "}
-              {address.phone}
+              <strong>
+                {trackingText(
+                  address.fullName,
+                ) ||
+                  trackingText(address.name) ||
+                  "Customer"}
+              </strong>
+
+              <br />
+
+              {trackingText(
+                address.addressLine,
+              ) ||
+                trackingText(address.address)}
+
+              <br />
+
+              {trackingText(
+                address.landmark,
+              ) && (
+                <>
+                  {address.landmark}
+                  <br />
+                </>
+              )}
+
+              {[
+                address.city,
+                address.state,
+                address.pincode,
+              ]
+                .map(trackingText)
+                .filter(Boolean)
+                .join(", ")}
             </p>
-          )}
-        </section>
-      )}
+
+            {trackingText(address.phone) && (
+              <p>
+                <strong>Phone:</strong>{" "}
+                {address.phone}
+              </p>
+            )}
+          </section>
+        )}
+
+      <section className="panel">
+        <h2>NEED HELP WITH THIS ORDER?</h2>
+
+        <p>
+          Contact GymDrobe with order number{" "}
+          <strong>{displayId}</strong> for
+          delivery issues, incorrect items or
+          payment questions.
+        </p>
+
+        <Link
+          className="button secondary"
+          to="/help"
+        >
+          Contact support
+        </Link>
+      </section>
 
       <div className="purchase-actions">
         <Link
           className="button secondary"
-          to={`/orders/${encodeURIComponent(displayId)}`}
+          to={detailsPath}
         >
           View order details
         </Link>
@@ -411,7 +550,10 @@ export default function OrderTrackingPage() {
           All orders
         </Link>
 
-        <Link className="button" to="/shop">
+        <Link
+          className="button"
+          to="/shop"
+        >
           Continue shopping
         </Link>
       </div>

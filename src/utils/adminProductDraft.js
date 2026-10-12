@@ -1,4 +1,5 @@
 import { money, getDiscountedPrice } from "./productPricing.js";
+import { isPublicImageUrl } from "./imageUrl.js";
 
 const EMPTY = {
   id: "",
@@ -312,12 +313,7 @@ function validImage(value) {
   }
 
   if (/^https?:\/\//i.test(source)) {
-    try {
-      const url = new URL(source);
-      return !url.username && !url.password;
-    } catch {
-      return false;
-    }
+    return isPublicImageUrl(source);
   }
 
   return (
@@ -453,7 +449,10 @@ function validateBasicDraft(draft) {
     !validImage(draft.image) ||
     lines(draft.imagesText).some((value) => !validImage(value))
   ) {
-    return "Photos must use HTTP/HTTPS image links or website image paths. Computer file paths cannot be used.";
+    return (
+      "Photos must use publicly hosted HTTP/HTTPS links or website image " +
+      "paths. Localhost links and computer file paths cannot be used."
+    );
   }
 
   return "";

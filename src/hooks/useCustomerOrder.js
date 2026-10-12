@@ -16,6 +16,18 @@ import {
   getOrderById,
 } from "../services/orderApi.js";
 
+function emptyState(scope) {
+  return {
+    scope,
+    order: null,
+    loading: true,
+    refreshing: false,
+    error: "",
+    refreshError: "",
+    lastUpdated: null,
+  };
+}
+
 export default function useCustomerOrder(
   orderId,
   { autoRefresh = false } = {},
@@ -24,6 +36,7 @@ export default function useCustomerOrder(
     user,
     token,
     loading: authLoading,
+    authError,
   } = useAuth();
 
   const revision = useOrderUpdates();
@@ -32,57 +45,67 @@ export default function useCustomerOrder(
     user?._id || user?.id || "",
   );
 
+  const sessionError = authError
+    ? String(authError)
+    : user?.isActive === false
+      ? "This account is disabled. Contact GymDrobe support."
+      : token && !userId
+        ? "Your account session could not be verified. Please sign in again."
+        : userId && !token
+          ? "Your sign-in session has expired. Please sign in again."
+          : "";
+
   const scope = JSON.stringify([
     orderId,
     userId,
     token,
+    sessionError,
   ]);
+
+  const activeScope = useRef(scope);
+  activeScope.current = scope;
 
   const refreshRef = useRef(null);
 
-  const [state, setState] = useState({
-    scope: "",
-    order: null,
-    loading: true,
-    refreshing: false,
-    error: "",
-    refreshError: "",
-    lastUpdated: null,
-  });
+  const [state, setState] = useState(
+    () => emptyState(""),
+  );
+
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   const refresh = useCallback(() => {
-    refreshRef.current?.();
+    const current = refreshRef.current;
+
+    if (current?.scope === activeScope.current) {
+      return current.load(true);
+    }
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     let cancelled = false;
-    let inFlight = false;
+    let inFlight = null;
 
-    setState({
-      scope,
-      order: null,
-      loading: true,
-      refreshing: false,
-      error: "",
-      refreshError: "",
-      lastUpdated: null,
-    });
+    const previous = stateRef.current;
 
-    if (authLoading) {
-      refreshRef.current = null;
-      return () => {
-        cancelled = true;
-      };
+    const background =
+      previous.scope === scope &&
+      Boolean(previous.order);
+
+    if (!background) {
+      setState(emptyState(scope));
     }
 
-    async function load(background = false) {
-      if (cancelled || inFlight) {
-        return;
-      }
+    if (authLoading || sessionError) {
+      refreshRef.current = null;
 
-      inFlight = true;
+      return () => controller.abort();
+    }
 
-      if (background) {
+    async function performLoad(backgroundLoad) {
+      if (backgroundLoad) {
         setState((current) => ({
           ...current,
           refreshing: true,
@@ -97,24 +120,34 @@ export default function useCustomerOrder(
           );
         }
 
-        if (token && !userId) {
-          throw new Error(
-            "Your account session could not be verified. Please sign in again.",
-          );
-        }
-
-        if (userId && !token) {
-          throw new Error(
-            "Your sign-in session has expired. Please sign in again.",
-          );
-        }
-
         const order = userId
-          ? await getOrderById(token, orderId)
+          ? await getOrderById(token, orderId, {
+              signal: controller.signal,
+            })
           : getLocalOrder(orderId, null);
 
-        if (cancelled) {
+        if (
+          cancelled ||
+          activeScope.current !== scope
+        ) {
           return;
+        }
+
+        if (order && userId) {
+          const owner =
+            order.user &&
+            typeof order.user === "object"
+              ? order.user.id ?? order.user._id
+              : order.user;
+
+          if (String(owner || "") !== userId) {
+            throw Object.assign(
+              new Error(
+                "This order is not available to your account.",
+              ),
+              { status: 403 },
+            );
+          }
         }
 
         setState({
@@ -127,7 +160,11 @@ export default function useCustomerOrder(
           lastUpdated: new Date().toISOString(),
         });
       } catch (error) {
-        if (cancelled) {
+        if (
+          cancelled ||
+          activeScope.current !== scope ||
+          controller.signal.aborted
+        ) {
           return;
         }
 
@@ -135,43 +172,67 @@ export default function useCustomerOrder(
           error.message ||
           "Unable to load your order.";
 
-        const accessDenied =
-          error.status === 401 ||
-          error.status === 403 ||
-          error.status === 404;
+        const denied = [
+          401,
+          403,
+          404,
+        ].includes(error.status);
 
-        if (background && !accessDenied) {
-          setState((current) => ({
-            ...current,
-            refreshing: false,
-            refreshError: message,
-          }));
-        } else {
-          setState({
-            scope,
-            order: null,
-            loading: false,
-            refreshing: false,
-            error: message,
-            refreshError: "",
-            lastUpdated: null,
-          });
-        }
-      } finally {
-        inFlight = false;
+        setState((current) =>
+          backgroundLoad &&
+          current.order &&
+          !denied
+            ? {
+                ...current,
+                refreshing: false,
+                refreshError: message,
+              }
+            : {
+                ...emptyState(scope),
+                loading: false,
+                error: message,
+              },
+        );
       }
     }
 
-    refreshRef.current = () => load(true);
-    load();
+    function load(backgroundLoad = false) {
+      if (
+        cancelled ||
+        activeScope.current !== scope
+      ) {
+        return Promise.resolve();
+      }
 
-    let timer;
+      if (inFlight) {
+        return inFlight;
+      }
+
+      inFlight = performLoad(
+        backgroundLoad,
+      ).finally(() => {
+        inFlight = null;
+      });
+
+      return inFlight;
+    }
+
+    refreshRef.current = {
+      scope,
+      load,
+    };
+
+    load(background);
 
     function refreshWhenVisible() {
-      if (document.visibilityState === "visible") {
+      if (
+        document.visibilityState === "visible"
+      ) {
         load(true);
       }
     }
+
+    let timer;
 
     if (autoRefresh && userId && token) {
       timer = window.setInterval(
@@ -192,9 +253,10 @@ export default function useCustomerOrder(
 
     return () => {
       cancelled = true;
+      controller.abort();
       refreshRef.current = null;
 
-      if (timer) {
+      if (timer != null) {
         window.clearInterval(timer);
       }
 
@@ -214,20 +276,41 @@ export default function useCustomerOrder(
     userId,
     token,
     authLoading,
+    sessionError,
     revision,
     autoRefresh,
   ]);
 
   const current =
-    state.scope === scope && !authLoading;
+    state.scope === scope &&
+    !authLoading &&
+    !sessionError;
 
   return {
     order: current ? state.order : null,
-    loading: !current || state.loading,
-    refreshing: current && state.refreshing,
-    error: current ? state.error : "",
-    refreshError: current ? state.refreshError : "",
-    lastUpdated: current ? state.lastUpdated : null,
+
+    loading:
+      authLoading ||
+      (!sessionError &&
+        (!current || state.loading)),
+
+    refreshing: Boolean(
+      current && state.refreshing,
+    ),
+
+    error: authLoading
+      ? ""
+      : sessionError ||
+        (current ? state.error : ""),
+
+    refreshError: current
+      ? state.refreshError
+      : "",
+
+    lastUpdated: current
+      ? state.lastUpdated
+      : null,
+
     isAccountOrder: Boolean(userId),
     refresh,
   };
