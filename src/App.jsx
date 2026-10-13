@@ -62,10 +62,8 @@ const AdminDashboardPage = lazy(
   () => import("./pages/AdminDashboardPage.jsx"),
 );
 
-const AdminCustomersPage = lazy(() =>
-  import("./pages/AdminDashboardPage.jsx").then((module) => ({
-    default: module.AdminCustomersPage,
-  })),
+const AdminCustomersPage = lazy(
+  () => import("./pages/AdminCustomersPage.jsx"),
 );
 
 const AdminSupportPage = lazy(
