@@ -3,13 +3,7 @@ import {
   getOriginalPrice,
 } from "./productPricing.js";
 
-export {
-  getDiscountedPrice,
-} from "./productPricing.js";
-
-// ======================================================
-// HELPERS
-// ======================================================
+export { getDiscountedPrice } from "./productPricing.js";
 
 function isObject(value) {
   return (
@@ -27,54 +21,38 @@ function own(object, key) {
 }
 
 function numeric(value) {
-  if (
-    !["number", "string"].includes(typeof value)
-  ) {
+  if (!["number", "string"].includes(typeof value)) {
     return null;
   }
 
-  if (
-    typeof value === "string" &&
-    !value.trim()
-  ) {
+  if (typeof value === "string" && !value.trim()) {
     return null;
   }
 
   const parsed = Number(value);
-
-  return Number.isFinite(parsed)
-    ? parsed
-    : null;
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function count(value) {
   const parsed = numeric(value);
 
-  if (parsed == null || parsed < 0) {
-    return 0;
-  }
+  if (parsed == null || parsed < 0) return 0;
 
   const result = Math.floor(parsed);
 
-  return Number.isSafeInteger(result)
-    ? result
-    : 0;
+  return Number.isSafeInteger(result) ? result : 0;
 }
 
 function productId(product) {
-  return (
-    [
-      product?.id,
-      product?._id,
-      product?.legacyId,
-    ].find(
-      (value) =>
-        ["string", "number"].includes(
-          typeof value,
-        ) &&
-        String(value).trim(),
-    ) ?? ""
-  );
+  return [
+    product?.id,
+    product?._id,
+    product?.legacyId,
+  ].find(
+    (value) =>
+      ["string", "number"].includes(typeof value) &&
+      String(value).trim(),
+  ) ?? "";
 }
 
 function options(values) {
@@ -82,9 +60,7 @@ function options(values) {
     ...new Set(
       (Array.isArray(values) ? values : [])
         .filter((value) =>
-          ["string", "number"].includes(
-            typeof value,
-          ),
+          ["string", "number"].includes(typeof value),
         )
         .map(String)
         .filter((value) => value.trim()),
@@ -128,16 +104,9 @@ function validSelection(product, size, color) {
   return validSize && validColor;
 }
 
-// ======================================================
-// TOTAL AVAILABLE STOCK
-// ======================================================
-
 export function getTotalStock(product) {
-  if (unavailable(product)) {
-    return 0;
-  }
+  if (unavailable(product)) return 0;
 
-  // Empty variant objects use the product's shared stock.
   if (!hasVariants(product)) {
     return count(product.stock);
   }
@@ -145,42 +114,19 @@ export function getTotalStock(product) {
   const sizes = options(product.sizes);
   const colors = options(product.colors);
 
-  const sizeOptions = sizes.length
-    ? sizes
-    : [null];
-
-  const colorOptions = colors.length
-    ? colors
-    : [null];
-
   let total = 0;
 
-  // Count only inventory belonging to declared options.
-  for (const color of colorOptions) {
-    for (const size of sizeOptions) {
+  for (const color of colors.length ? colors : [null]) {
+    for (const size of sizes.length ? sizes : [null]) {
       total = Math.min(
         Number.MAX_SAFE_INTEGER,
-        total +
-          getVariantStock(product, size, color),
+        total + getVariantStock(product, size, color),
       );
     }
   }
 
   return total;
 }
-
-// ======================================================
-// SELECTED VARIANT STOCK
-//
-// Supported inventory:
-//
-// Colour + size: variants[colour][size]
-// Colour only:  variants[colour].default
-//               or variants[colour]
-// Size only:    variants[size]
-// No options:   variants.default
-// Shared stock: product.stock when variants is empty
-// ======================================================
 
 export function getVariantStock(
   product,
@@ -189,11 +135,7 @@ export function getVariantStock(
 ) {
   if (
     unavailable(product) ||
-    !validSelection(
-      product,
-      selectedSize,
-      selectedColor,
-    )
+    !validSelection(product, selectedSize, selectedColor)
   ) {
     return 0;
   }
@@ -210,9 +152,7 @@ export function getVariantStock(
   if (colors.length) {
     const colorKey = option(selectedColor);
 
-    if (!own(group, colorKey)) {
-      return 0;
-    }
+    if (!own(group, colorKey)) return 0;
 
     group = group[colorKey];
   }
@@ -220,10 +160,7 @@ export function getVariantStock(
   if (sizes.length) {
     const sizeKey = option(selectedSize);
 
-    if (
-      !isObject(group) ||
-      !own(group, sizeKey)
-    ) {
+    if (!isObject(group) || !own(group, sizeKey)) {
       return 0;
     }
 
@@ -245,27 +182,13 @@ export function getVariantStock(
     : 0;
 }
 
-// ======================================================
-// FIRST AVAILABLE OPTIONS
-// ======================================================
-
 export function firstOptions(product) {
   const colors = options(product?.colors);
   const sizes = options(product?.sizes);
 
-  const colorOptions = colors.length
-    ? colors
-    : [null];
-
-  const sizeOptions = sizes.length
-    ? sizes
-    : [null];
-
-  for (const color of colorOptions) {
-    for (const size of sizeOptions) {
-      if (
-        getVariantStock(product, size, color) > 0
-      ) {
+  for (const color of colors.length ? colors : [null]) {
+    for (const size of sizes.length ? sizes : [null]) {
+      if (getVariantStock(product, size, color) > 0) {
         return {
           selectedColor: color,
           selectedSize: size,
@@ -274,45 +197,131 @@ export function firstOptions(product) {
     }
   }
 
-  // Returning an option does not mean it is in stock.
-  // validateCartItem still checks availability.
   return {
     selectedColor: colors[0] ?? null,
     selectedSize: sizes[0] ?? null,
   };
 }
 
-// ======================================================
-// CART ITEM KEY
-// ======================================================
+export function getKitGroup(item) {
+  const group = item?.kitGroup;
+
+  if (
+    !isObject(group) ||
+    typeof group.id !== "string" ||
+    !/^[a-zA-Z0-9_-]{8,80}$/.test(group.id) ||
+    typeof group.kitId !== "string" ||
+    !/^[a-f0-9]{24}$/i.test(group.kitId) ||
+    !Number.isSafeInteger(group.version) ||
+    group.version < 0 ||
+    typeof group.name !== "string" ||
+    group.name.length < 2 ||
+    group.name.length > 200 ||
+    !["beginner", "intermediate", "advanced"].includes(
+      group.level,
+    ) ||
+    typeof group.slotKey !== "string" ||
+    !/^[a-z][a-z0-9-]{0,59}$/.test(group.slotKey)
+  ) {
+    return null;
+  }
+
+  return {
+    id: group.id,
+    kitId: group.kitId.toLowerCase(),
+    version: group.version,
+    name: group.name,
+    level: group.level,
+    slotKey: group.slotKey,
+
+    // Checkout integration is still pending.
+    checkoutReady: false,
+
+    reviewReasons: Array.isArray(group.reviewReasons)
+      ? group.reviewReasons
+          .filter((value) => typeof value === "string")
+          .slice(0, 20)
+      : [],
+  };
+}
 
 export function getCartItemKey(item) {
-  return JSON.stringify([
+  const key = [
     String(productId(item)),
     option(item?.selectedSize),
     option(item?.selectedColor),
-  ]);
+  ];
+
+  if (own(item, "kitGroup")) {
+    const group = getKitGroup(item);
+
+    key.push(
+      group ? "kit" : "invalid-kit",
+      group?.id || "",
+      group?.slotKey || "",
+    );
+  }
+
+  return JSON.stringify(key);
 }
 
 export function isSameCartItem(a, b) {
-  return (
-    getCartItemKey(a) === getCartItemKey(b)
-  );
+  return getCartItemKey(a) === getCartItemKey(b);
 }
 
-// ======================================================
-// NORMALIZE CART ITEM
-//
-// Call validateCartItem before accepting a new item.
-// Invalid quantities remain invalid instead of
-// silently becoming a quantity of one.
-// ======================================================
+export function groupCartItems(cart) {
+  const result = [];
+  const kits = new Map();
+
+  for (const item of Array.isArray(cart) ? cart : []) {
+    const group = getKitGroup(item);
+
+    if (!group) {
+      result.push({
+        type: "product",
+        key: getCartItemKey(item),
+        item,
+      });
+      continue;
+    }
+
+    if (!kits.has(group.id)) {
+      const value = {
+        type: "kit",
+        id: group.id,
+        kitId: group.kitId,
+        version: group.version,
+        name: group.name,
+        level: group.level,
+        items: [],
+        checkoutReady: false,
+        reviewReasons: [],
+      };
+
+      kits.set(group.id, value);
+      result.push(value);
+    }
+
+    const kit = kits.get(group.id);
+
+    kit.items.push(item);
+    kit.reviewReasons = [
+      ...new Set([
+        ...kit.reviewReasons,
+        ...group.reviewReasons,
+      ]),
+    ];
+  }
+
+  return result;
+}
 
 export function normalizeCartItem(
   product,
   quantity = 1,
   selectedSize = null,
   selectedColor = null,
+  kitGroup = null,
 ) {
   const parsed = numeric(quantity);
 
@@ -324,9 +333,7 @@ export function normalizeCartItem(
     ? option(selectedColor)
     : null;
 
-  const variantRows = Array.isArray(
-    product?.variantSkus,
-  )
+  const variantRows = Array.isArray(product?.variantSkus)
     ? product.variantSkus
     : [];
 
@@ -337,18 +344,23 @@ export function normalizeCartItem(
       option(row.color) === color,
   );
 
-  const variantSku =
-    typeof variant?.sku === "string"
-      ? variant.sku.trim()
-      : "";
+  const variantSku = typeof variant?.sku === "string"
+    ? variant.sku.trim()
+    : "";
+
+  // Group information is passed explicitly.
+  const {
+    kitGroup: ignoredGroup,
+    ...cleanProduct
+  } = product || {};
+
+  const group = getKitGroup({ kitGroup });
 
   return {
-    ...product,
-
+    ...cleanProduct,
+    ...(group ? { kitGroup: group } : {}),
     id: String(productId(product)),
-
     originalPrice: getOriginalPrice(product),
-
     price: getDiscountedPrice(product),
 
     quantity:
@@ -357,18 +369,10 @@ export function normalizeCartItem(
         : 0,
 
     selectedSize: size,
-
     selectedColor: color,
-
-    ...(variantSku
-      ? { sku: variantSku }
-      : {}),
+    ...(variantSku ? { sku: variantSku } : {}),
   };
 }
-
-// ======================================================
-// CART VALIDATION
-// ======================================================
 
 export function validateCartItem(
   product,
@@ -376,41 +380,25 @@ export function validateCartItem(
   size = null,
   color = null,
 ) {
-  const stock = getVariantStock(
-    product,
-    size,
-    color,
-  );
+  const stock = getVariantStock(product, size, color);
 
-  function fail(message) {
-    return {
-      valid: false,
-      stock,
-      message,
-    };
-  }
+  const fail = (message) => ({
+    valid: false,
+    stock,
+    message,
+  });
 
   if (
     !isObject(product) ||
-    productId(product) === ""
+    productId(product) === "" ||
+    product.isActive === false
   ) {
-    return fail(
-      "This product is no longer available.",
-    );
-  }
-
-  if (product.isActive === false) {
-    return fail(
-      "This product is no longer available.",
-    );
+    return fail("This product is no longer available.");
   }
 
   const qty = numeric(quantity);
 
-  if (
-    !Number.isSafeInteger(qty) ||
-    qty < 1
-  ) {
+  if (!Number.isSafeInteger(qty) || qty < 1) {
     return fail(
       "Choose a whole-number quantity of at least 1.",
     );
@@ -419,46 +407,28 @@ export function validateCartItem(
   const sizes = options(product.sizes);
   const colors = options(product.colors);
 
-  if (
-    sizes.length &&
-    !sizes.includes(option(size))
-  ) {
-    return fail(
-      "Choose an available size.",
-    );
+  if (sizes.length && !sizes.includes(option(size))) {
+    return fail("Choose an available size.");
   }
 
-  if (
-    colors.length &&
-    !colors.includes(option(color))
-  ) {
-    return fail(
-      "Choose an available colour.",
-    );
+  if (colors.length && !colors.includes(option(color))) {
+    return fail("Choose an available colour.");
   }
 
-  if (
-    !sizes.length &&
-    option(size) !== null
-  ) {
+  if (!sizes.length && option(size) !== null) {
     return fail(
       "This size is no longer available. Remove the item and add it again.",
     );
   }
 
-  if (
-    !colors.length &&
-    option(color) !== null
-  ) {
+  if (!colors.length && option(color) !== null) {
     return fail(
       "This colour is no longer available. Remove the item and add it again.",
     );
   }
 
   const rawPrice = numeric(product.price);
-  const sellingPrice = getDiscountedPrice(
-    product,
-  );
+  const sellingPrice = getDiscountedPrice(product);
 
   if (
     rawPrice == null ||
@@ -472,14 +442,13 @@ export function validateCartItem(
   }
 
   if (stock <= 0) {
-    const subject =
-      sizes.length && colors.length
-        ? "size and colour combination"
-        : sizes.length
-          ? "size"
-          : colors.length
-            ? "colour"
-            : "product";
+    const subject = sizes.length && colors.length
+      ? "size and colour combination"
+      : sizes.length
+        ? "size"
+        : colors.length
+          ? "colour"
+          : "product";
 
     return fail(
       `This ${subject} is currently out of stock.`,
@@ -492,66 +461,37 @@ export function validateCartItem(
     );
   }
 
-  return {
-    valid: true,
-    stock,
-    message: "",
-  };
+  return { valid: true, stock, message: "" };
 }
-
-// ======================================================
-// INVENTORY POOL
-//
-// Products without variant inventory share one stock
-// quantity across every size and colour.
-// ======================================================
 
 function inventoryKey(product, size, color) {
   return JSON.stringify([
     String(productId(product)),
-
     hasVariants(product)
       ? [option(size), option(color)]
       : "shared-stock",
   ]);
 }
 
-// ======================================================
-// REVALIDATE CART
-// ======================================================
-
 export function revalidateCart(cart, products) {
-  const input = Array.isArray(cart)
-    ? cart
-    : [];
+  const input = Array.isArray(cart) ? cart : [];
 
-  // Missing catalogue data is not proof that products
-  // have been removed. Call this after catalogue loading.
   if (!Array.isArray(products)) {
-    return {
-      cart: [...input],
-      changes: [],
-    };
+    return { cart: [...input], changes: [] };
   }
 
   const catalogue = new Map();
 
   for (const product of products) {
-    if (!isObject(product)) {
-      continue;
-    }
+    if (!isObject(product)) continue;
 
-    const ids = [
+    for (const id of [
       product.id,
       product._id,
       product.legacyId,
-    ];
-
-    for (const id of ids) {
+    ]) {
       if (
-        ["string", "number"].includes(
-          typeof id,
-        ) &&
+        ["string", "number"].includes(typeof id) &&
         String(id).trim()
       ) {
         catalogue.set(String(id), product);
@@ -564,14 +504,15 @@ export function revalidateCart(cart, products) {
   const changes = [];
 
   function removed(item, reason) {
-    changes.push({
-      type: "removed",
-      item,
-      reason,
-    });
+    changes.push({ type: "removed", item, reason });
   }
 
-  for (const item of input) {
+  // Preserve existing individual-product behaviour.
+  const ordinaryItems = input.filter(
+    (row) => !isObject(row) || !own(row, "kitGroup"),
+  );
+
+  for (const item of ordinaryItems) {
     if (!isObject(item)) {
       removed(item, "Invalid bag item.");
       continue;
@@ -581,30 +522,18 @@ export function revalidateCart(cart, products) {
       String(productId(item)),
     );
 
-    if (
-      !product ||
-      product.isActive === false
-    ) {
-      removed(
-        item,
-        "This product is no longer available.",
-      );
-
+    if (!product || product.isActive === false) {
+      removed(item, "This product is no longer available.");
       continue;
     }
 
     const qty = numeric(item.quantity);
 
-    if (
-      !Number.isSafeInteger(qty) ||
-      qty < 1
-    ) {
+    if (!Number.isSafeInteger(qty) || qty < 1) {
       removed(item, "Invalid quantity.");
       continue;
     }
 
-    // Validate one unit first. A larger valid quantity
-    // can then be reduced to current available stock.
     const check = validateCartItem(
       product,
       1,
@@ -624,28 +553,19 @@ export function revalidateCart(cart, products) {
       item.selectedColor,
     );
 
-    // Use the current canonical product ID so legacy
-    // and database references merge into the same row.
     const key = getCartItemKey(normalized);
     const previous = rows.get(key);
 
-    const poolKey = inventoryKey(
+    const pool = inventoryKey(
       product,
       normalized.selectedSize,
       normalized.selectedColor,
     );
 
-    const alreadyUsed =
-      usedStock.get(poolKey) || 0;
-
-    const remainingStock = Math.max(
-      0,
-      check.stock - alreadyUsed,
-    );
-
+    const used = usedStock.get(pool) || 0;
     const accepted = Math.min(
       qty,
-      remainingStock,
+      Math.max(0, check.stock - used),
     );
 
     if (accepted <= 0) {
@@ -653,51 +573,32 @@ export function revalidateCart(cart, products) {
         item,
         "The available stock is already included in another bag item.",
       );
-
       continue;
     }
 
-    const combinedQuantity =
-      (previous?.quantity || 0) + accepted;
-
     rows.set(key, {
       ...normalized,
-      quantity: combinedQuantity,
+      quantity: (previous?.quantity || 0) + accepted,
     });
 
-    usedStock.set(
-      poolKey,
-      alreadyUsed + accepted,
-    );
+    usedStock.set(pool, used + accepted);
 
     const reasons = [];
 
     if (previous) {
-      reasons.push(
-        "Matching bag items were combined.",
-      );
+      reasons.push("Matching bag items were combined.");
     }
 
     if (accepted < qty) {
-      reasons.push(
-        "Quantity was reduced to available stock.",
-      );
+      reasons.push("Quantity was reduced to available stock.");
     }
 
-    if (
-      numeric(item.price) !== normalized.price
-    ) {
-      reasons.push(
-        "The product price was updated.",
-      );
+    if (numeric(item.price) !== normalized.price) {
+      reasons.push("The product price was updated.");
     }
 
-    if (
-      String(productId(item)) !== normalized.id
-    ) {
-      reasons.push(
-        "The product reference was updated.",
-      );
+    if (String(productId(item)) !== normalized.id) {
+      reasons.push("The product reference was updated.");
     }
 
     if (reasons.length) {
@@ -706,6 +607,160 @@ export function revalidateCart(cart, products) {
         item,
         reason: reasons.join(" "),
       });
+    }
+  }
+
+  const kitRows = new Map();
+
+  for (
+    const item of input.filter(
+      (row) => isObject(row) && own(row, "kitGroup"),
+    )
+  ) {
+    const group = getKitGroup(item);
+
+    if (!group) {
+      removed(
+        item,
+        "Invalid Fitness Kit group information. Rebuild this kit.",
+      );
+      continue;
+    }
+
+    if (!kitRows.has(group.id)) {
+      kitRows.set(group.id, []);
+    }
+
+    kitRows.get(group.id).push({ item, group });
+  }
+
+  for (const entries of kitRows.values()) {
+    const reasons = new Set(
+      entries.flatMap((entry) => entry.group.reviewReasons),
+    );
+
+    const first = entries[0].group;
+    const seen = new Set();
+    const proposedStock = new Map(usedStock);
+    const components = [];
+
+    for (const { item, group } of entries) {
+      if (seen.has(group.slotKey)) {
+        reasons.add(
+          "This kit has duplicate sections. Edit the complete kit.",
+        );
+      }
+
+      seen.add(group.slotKey);
+
+      if (
+        group.kitId !== first.kitId ||
+        group.version !== first.version ||
+        group.name !== first.name ||
+        group.level !== first.level
+      ) {
+        reasons.add(
+          "Kit group information changed. Edit the complete kit.",
+        );
+      }
+
+      const product = catalogue.get(
+        String(productId(item)),
+      );
+
+      const check = validateCartItem(
+        product,
+        item.quantity,
+        item.selectedSize,
+        item.selectedColor,
+      );
+
+      if (!check.valid) {
+        reasons.add(check.message);
+
+        // Keep the customer's chosen quantity and component.
+        components.push({
+          ...item,
+          kitGroup: group,
+        });
+
+        continue;
+      }
+
+      const normalized = normalizeCartItem(
+        product,
+        item.quantity,
+        item.selectedSize,
+        item.selectedColor,
+        group,
+      );
+
+      const pool = inventoryKey(
+        product,
+        normalized.selectedSize,
+        normalized.selectedColor,
+      );
+
+      const total =
+        (proposedStock.get(pool) || 0) +
+        normalized.quantity;
+
+      proposedStock.set(pool, total);
+
+      if (total > check.stock) {
+        reasons.add(
+          "Kit items share stock with other bag items. Edit the complete kit quantities.",
+        );
+      }
+
+      if (numeric(item.price) !== normalized.price) {
+        reasons.add(
+          "A kit product price changed. Refresh the complete kit estimate.",
+        );
+      }
+
+      components.push(normalized);
+    }
+
+    if (seen.size !== entries.length) {
+      for (const { item } of entries) {
+        removed(
+          item,
+          "This Fitness Kit has duplicate sections. Rebuild the complete kit.",
+        );
+      }
+      continue;
+    }
+
+    if (!reasons.size) {
+      for (const [key, value] of proposedStock) {
+        usedStock.set(key, value);
+      }
+    }
+
+    for (const component of components) {
+      const next = {
+        ...component,
+        kitGroup: {
+          ...component.kitGroup,
+          checkoutReady: false,
+          reviewReasons: [...reasons],
+        },
+      };
+
+      rows.set(getCartItemKey(next), next);
+
+      if (
+        JSON.stringify(next.kitGroup) !==
+        JSON.stringify(component.kitGroup)
+      ) {
+        changes.push({
+          type: "updated",
+          item: component,
+          reason:
+            "Fitness Kit needs review. Its component quantities were preserved.",
+        });
+      }
     }
   }
 

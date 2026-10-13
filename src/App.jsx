@@ -56,16 +56,16 @@ const SavedPage = lazy(() => import("./pages/SavedPage.jsx"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage.jsx"));
 const OffersPage = lazy(() => import("./pages/OffersPage.jsx"));
 const HelpPage = lazy(() => import("./pages/HelpPage.jsx"));
+const FitnessKitsPage = lazy(() => import("./pages/FitnessKitsPage.jsx"));
 
 const AdminDashboardPage = lazy(
   () => import("./pages/AdminDashboardPage.jsx"),
 );
 
-const AdminCustomersPage = lazy(
-  () =>
-    import("./pages/AdminDashboardPage.jsx").then((module) => ({
-      default: module.AdminCustomersPage,
-    })),
+const AdminCustomersPage = lazy(() =>
+  import("./pages/AdminDashboardPage.jsx").then((module) => ({
+    default: module.AdminCustomersPage,
+  })),
 );
 
 const AdminSupportPage = lazy(
@@ -86,6 +86,22 @@ const AdminReturnsPage = lazy(
 
 const AdminSuppliersPage = lazy(
   () => import("./pages/AdminSuppliersPage.jsx"),
+);
+
+const AdminKitsPage = lazy(
+  () => import("./pages/AdminKitsPage.jsx"),
+);
+
+const AdminPackingLocationsPage = lazy(
+  () => import("./pages/AdminPackingLocationsPage.jsx"),
+);
+
+const AdminShippingProfilesPage = lazy(
+  () => import("./pages/AdminShippingProfilesPage.jsx"),
+);
+
+const AdminKitPreviewPage = lazy(
+  () => import("./pages/AdminKitPreviewPage.jsx"),
 );
 
 const StoreConsolePage = import.meta.env.DEV
@@ -224,7 +240,10 @@ function CheckoutHeader() {
             letterSpacing: "-1px",
           }}
         >
-          GYM<span style={{ color: "#c2410c" }}>DROBE</span>
+          GYM
+          <span style={{ color: "#c2410c" }}>
+            DROBE
+          </span>
         </Link>
 
         <Link
@@ -252,15 +271,11 @@ function CheckoutHeader() {
 }
 
 function Layout() {
-  const {
-    cart,
-    wishlist,
-    toast,
-    closeToast,
-  } = useStore();
-
+  const { cart, wishlist, toast, closeToast } = useStore();
   const { user } = useAuth();
   const location = useLocation();
+
+  const accountKey = user?.id || user?._id || "guest";
 
   const analyticsCartKey = JSON.stringify(
     cart.map((item) => [
@@ -359,6 +374,34 @@ function Layout() {
               >
                 Suppliers
               </Link>
+
+              <Link
+                className="text-link"
+                to="/admin/kits"
+              >
+                Fitness Kits
+              </Link>
+
+              <Link
+                className="text-link"
+                to="/admin/kits/preview"
+              >
+                Kit price preview
+              </Link>
+
+              <Link
+                className="text-link"
+                to="/admin/packing-locations"
+              >
+                Packing locations
+              </Link>
+
+              <Link
+                className="text-link"
+                to="/admin/shipping-profiles"
+              >
+                Shipping profiles
+              </Link>
             </nav>
           )}
         </>
@@ -373,185 +416,108 @@ function Layout() {
           <Suspense fallback={<PageLoading />}>
             <Routes>
               <Route path="/" element={<Home />} />
-              <Route path="/shop" element={<Shop />} />
 
-              <Route
-                path="/product/:id"
-                element={<ProductPage />}
-              />
-
-              <Route path="/cart" element={<CartPage />} />
-
-              <Route
-                path="/wishlist"
-                element={<WishlistPage />}
-              />
+              {[
+                ["/shop", Shop],
+                ["/product/:id", ProductPage],
+                ["/kits", FitnessKitsPage],
+                ["/kits/:kitId", FitnessKitsPage],
+                ["/cart", CartPage],
+                ["/wishlist", WishlistPage],
+                ["/login", LoginPage],
+                ["/compare", ComparePage],
+                ["/saved", SavedPage],
+                ["/notifications", NotificationsPage],
+                ["/offers", OffersPage],
+                ["/order-success", OrderSuccessPage],
+                ["/orders", OrdersPage],
+                ["/orders/:orderId", OrderDetailsPage],
+                ["/orders/:orderId/track", OrderTrackingPage],
+                ["/orders/:orderId/receipt", ReceiptPage],
+              ].map(([path, Page]) => (
+                <Route
+                  key={path}
+                  path={path}
+                  element={<Page />}
+                />
+              ))}
 
               <Route
                 path="/checkout"
-                element={
-                  <CheckoutPage key={user?.id || "guest"} />
-                }
+                element={<CheckoutPage key={accountKey} />}
               />
-
-              <Route path="/login" element={<LoginPage />} />
-
-              <Route
-                path="/signup"
-                element={<LegacyLoginRedirect />}
-              />
-
-              <Route
-                path="/forgot-password"
-                element={<LegacyLoginRedirect />}
-              />
-
-              <Route
-                path="/reset-password"
-                element={<LegacyLoginRedirect />}
-              />
-
-              <Route
-                path="/compare"
-                element={<ComparePage />}
-              />
-
-              <Route path="/saved" element={<SavedPage />} />
-
-              <Route
-                path="/notifications"
-                element={<NotificationsPage />}
-              />
-
-              <Route path="/offers" element={<OffersPage />} />
 
               <Route
                 path="/help"
-                element={<HelpPage key={user?.id || "guest"} />}
-              />
-
-              <Route
-                path="/account"
-                element={
-                  <AccountRequired>
-                    <AccountPage key={user?.id} />
-                  </AccountRequired>
-                }
-              />
-
-              <Route
-                path="/account/security"
-                element={
-                  <AccountRequired>
-                    <SecurityPage key={user?.id} />
-                  </AccountRequired>
-                }
-              />
-
-              <Route
-                path="/addresses"
-                element={
-                  <AccountRequired>
-                    <AddressesPage key={user?.id} />
-                  </AccountRequired>
-                }
-              />
-
-              <Route
-                path="/admin"
-                element={
-                  <AdminRequired>
-                    <AdminDashboardPage />
-                  </AdminRequired>
-                }
-              />
-
-              <Route
-                path="/admin/dashboard"
-                element={<Navigate to="/admin" replace />}
-              />
-
-              <Route
-                path="/admin/customers"
-                element={
-                  <AdminRequired>
-                    <AdminCustomersPage />
-                  </AdminRequired>
-                }
-              />
-
-              <Route
-                path="/admin/support"
-                element={
-                  <AdminRequired>
-                    <AdminSupportPage />
-                  </AdminRequired>
-                }
-              />
-
-              <Route
-                path="/admin/orders"
-                element={
-                  <AdminRequired>
-                    <AdminOrdersPage />
-                  </AdminRequired>
-                }
-              />
-
-              <Route
-                path="/admin/products"
-                element={
-                  <AdminRequired>
-                    <AdminProductsPage />
-                  </AdminRequired>
-                }
-              />
-
-              <Route
-                path="/admin/returns"
-                element={
-                  <AdminRequired>
-                    <AdminReturnsPage />
-                  </AdminRequired>
-                }
-              />
-
-              <Route
-                path="/admin/suppliers"
-                element={
-                  <AdminRequired>
-                    <AdminSuppliersPage />
-                  </AdminRequired>
-                }
-              />
-
-              <Route
-                path="/order-success"
-                element={<OrderSuccessPage />}
-              />
-
-              <Route path="/orders" element={<OrdersPage />} />
-
-              <Route
-                path="/orders/:orderId"
-                element={<OrderDetailsPage />}
-              />
-
-              <Route
-                path="/orders/:orderId/track"
-                element={<OrderTrackingPage />}
-              />
-
-              <Route
-                path="/orders/:orderId/receipt"
-                element={<ReceiptPage />}
+                element={<HelpPage key={accountKey} />}
               />
 
               <Route
                 path="/orders/:orderId/return"
-                element={
-                  <ReturnPage key={user?.id || "guest"} />
-                }
+                element={<ReturnPage key={accountKey} />}
+              />
+
+              {[
+                "/signup",
+                "/forgot-password",
+                "/reset-password",
+              ].map((path) => (
+                <Route
+                  key={path}
+                  path={path}
+                  element={<LegacyLoginRedirect />}
+                />
+              ))}
+
+              {[
+                ["/account", AccountPage],
+                ["/account/security", SecurityPage],
+                ["/addresses", AddressesPage],
+              ].map(([path, Page]) => (
+                <Route
+                  key={path}
+                  path={path}
+                  element={
+                    <AccountRequired>
+                      <Page key={accountKey} />
+                    </AccountRequired>
+                  }
+                />
+              ))}
+
+              {[
+                ["/admin", AdminDashboardPage],
+                ["/admin/customers", AdminCustomersPage],
+                ["/admin/support", AdminSupportPage],
+                ["/admin/orders", AdminOrdersPage],
+                ["/admin/products", AdminProductsPage],
+                ["/admin/returns", AdminReturnsPage],
+                ["/admin/suppliers", AdminSuppliersPage],
+                ["/admin/kits", AdminKitsPage],
+                ["/admin/kits/preview", AdminKitPreviewPage],
+                [
+                  "/admin/packing-locations",
+                  AdminPackingLocationsPage,
+                ],
+                [
+                  "/admin/shipping-profiles",
+                  AdminShippingProfilesPage,
+                ],
+              ].map(([path, Page]) => (
+                <Route
+                  key={path}
+                  path={path}
+                  element={
+                    <AdminRequired>
+                      <Page key={accountKey} />
+                    </AdminRequired>
+                  }
+                />
+              ))}
+
+              <Route
+                path="/admin/dashboard"
+                element={<Navigate to="/admin" replace />}
               />
 
               {import.meta.env.DEV && StoreConsolePage && (
@@ -569,8 +535,8 @@ function Layout() {
                     to="/"
                     label="Back to home"
                   >
-                    The link may have changed. Explore GymDrobe
-                    from the homepage.
+                    The link may have changed.
+                    Explore GymDrobe from the homepage.
                   </EmptyState>
                 }
               />
@@ -595,7 +561,7 @@ function StorefrontApplication() {
   const { user } = useAuth();
 
   return (
-    <StoreProvider key={user?.id || "guest"}>
+    <StoreProvider key={user?.id || user?._id || "guest"}>
       <ShoppingToolsProvider>
         <Layout />
       </ShoppingToolsProvider>

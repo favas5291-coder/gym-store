@@ -37,21 +37,20 @@ export function reviewCart(cart, products, ready) {
   const rows = input.map((item, index) => {
     const product = latestPurchaseProduct(products, item);
     const key = getCartItemKey(item);
-
     const quantity = amount(item?.quantity);
 
     const quantityValid =
-      Number.isSafeInteger(quantity) && quantity >= 1;
+      Number.isSafeInteger(quantity) &&
+      quantity >= 1;
 
     const currentPriceKnown = productPriceAvailable(product);
     const cachedPrice = amount(item?.price);
 
-    const unitPrice =
-      ready && product
-        ? currentPriceKnown
-          ? getDiscountedPrice(product)
-          : null
-        : cachedPrice;
+    const unitPrice = ready && product
+      ? currentPriceKnown
+        ? getDiscountedPrice(product)
+        : null
+      : cachedPrice;
 
     const originalUnit =
       ready && product && currentPriceKnown
@@ -103,7 +102,8 @@ export function reviewCart(cart, products, ready) {
 
     const pool = JSON.stringify([
       String(
-        productReference(product) || productReference(item),
+        productReference(product) ||
+        productReference(item),
       ),
       variantInventory
         ? [
@@ -161,7 +161,6 @@ export function reviewCart(cart, products, ready) {
       total - (row.quantityValid ? row.quantity : 0);
 
     row.stock = row.state.stock;
-
     row.stockRemaining = Math.max(
       0,
       row.stock - otherQuantity,
@@ -177,10 +176,7 @@ export function reviewCart(cart, products, ready) {
 
     row.message = row.state.message;
 
-    if (
-      !row.message &&
-      (!row.priceSafe || !row.lineSafe)
-    ) {
+    if (!row.message && (!row.priceSafe || !row.lineSafe)) {
       row.message =
         "This item has an unsupported price or total. Review its quantity or contact support before checkout.";
     }
@@ -206,9 +202,21 @@ export function reviewCart(cart, products, ready) {
         "These options share stock with other items in your bag. Reduce quantities before checkout.";
     }
 
+    const kitComponent =
+      Object.prototype.hasOwnProperty.call(
+        row,
+        "kitGroup",
+      );
+
+    if (kitComponent) {
+      row.message =
+        "Fitness Kit checkout is not enabled yet. Edit or remove the complete kit.";
+    }
+
     row.available = ready && !row.message;
 
     row.canAdjust =
+      !kitComponent &&
       ready &&
       row.base.canBuy &&
       row.priceSafe &&

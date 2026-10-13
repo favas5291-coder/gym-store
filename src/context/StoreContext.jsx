@@ -1,9 +1,4 @@
 import {
-  commercePayload,
-  trackEvent,
-} from "../utils/analytics.js";
-
-import {
   createContext,
   useCallback,
   useContext,
@@ -13,11 +8,18 @@ import {
   useState,
 } from "react";
 
+import {
+  commercePayload,
+  trackEvent,
+} from "../utils/analytics.js";
+
 import { useCatalog } from "./CatalogContext.jsx";
 import { useAuth } from "./AuthContext.jsx";
 
 import {
   getCartItemKey,
+  getKitGroup,
+  groupCartItems,
   normalizeCartItem,
   revalidateCart,
   validateCartItem,
@@ -34,48 +36,42 @@ import {
   writeSession,
 } from "../utils/shopperStorage.js";
 
+import { resolveCoupon } from "../utils/orderCalculations.js";
+
 import {
-  resolveCoupon,
-} from "../utils/orderCalculations.js";
+  getFitnessKit,
+  quoteFitnessKit,
+} from "../services/kitApi.js";
+
+import {
+  prepareKitCart,
+  kitGroupSignature,
+} from "../utils/kitCart.js";
+
+import { inspectKitSelections } from "../utils/kitBuilder.js";
 
 const StoreContext = createContext(null);
 
-// ======================================================
-// STORAGE HELPERS
-// ======================================================
-
 function readArray(key) {
   const saved = readStorage(key, []);
-
-  return Array.isArray(saved)
-    ? saved.filter(Boolean)
-    : [];
+  return Array.isArray(saved) ? saved.filter(Boolean) : [];
 }
 
 function readBuyNow(key) {
   const saved = readSession(key, []);
-
-  return Array.isArray(saved)
-    ? saved[0] || null
-    : null;
+  return Array.isArray(saved) ? saved[0] || null : null;
 }
 
 function idsFor(value) {
   const values =
     value && typeof value === "object"
-      ? [
-          value.id,
-          value._id,
-          value.legacyId,
-        ]
+      ? [value.id, value._id, value.legacyId]
       : [value];
 
   return values
     .filter(
       (id) =>
-        ["string", "number"].includes(
-          typeof id,
-        ) &&
+        ["string", "number"].includes(typeof id) &&
         String(id).trim(),
     )
     .map(String);
@@ -84,10 +80,9 @@ function idsFor(value) {
 function wishlistIds(rows) {
   return [
     ...new Set(
-      (Array.isArray(rows) ? rows : [])
-        .flatMap((item) =>
-          idsFor(item).slice(0, 1),
-        ),
+      (Array.isArray(rows) ? rows : []).flatMap(
+        (item) => idsFor(item).slice(0, 1),
+      ),
     ),
   ];
 }
@@ -95,61 +90,44 @@ function wishlistIds(rows) {
 function findProduct(products, value) {
   const ids = new Set(idsFor(value));
 
-  return (
-    Array.isArray(products) ? products : []
-  ).find(
+  return (Array.isArray(products) ? products : []).find(
     (product) =>
       product &&
-      idsFor(product).some((id) =>
-        ids.has(id),
-      ),
+      idsFor(product).some((id) => ids.has(id)),
   );
 }
 
 function resolveWishlist(saved, products) {
   const ids = new Set(wishlistIds(saved));
 
-  return (
-    Array.isArray(products) ? products : []
-  ).filter(
+  return (Array.isArray(products) ? products : []).filter(
     (product) =>
       product &&
       product.isActive !== false &&
-      idsFor(product).some((id) =>
-        ids.has(id),
-      ),
+      idsFor(product).some((id) => ids.has(id)),
   );
 }
 
 function sameValue(a, b) {
   try {
-    return (
-      JSON.stringify(a) === JSON.stringify(b)
-    );
+    return JSON.stringify(a) === JSON.stringify(b);
   } catch {
     return false;
   }
 }
 
-// Each account has its own temporary memory.
-// Failed saves cannot carry into another account.
 function makeMemory() {
   return {
     cart: [],
     wishlist: [],
     coupon: null,
     buyNow: null,
-
     cartMemory: false,
     wishlistMemory: false,
     couponMemory: false,
     buyNowMemory: false,
   };
 }
-
-// ======================================================
-// SHARED STOCK VALIDATION
-// ======================================================
 
 function validateBagQuantity(
   product,
@@ -166,9 +144,7 @@ function validateBagQuantity(
     color,
   );
 
-  if (!result.valid) {
-    return result;
-  }
+  if (!result.valid) return result;
 
   const hasVariantInventory =
     product.variants &&
@@ -176,28 +152,29 @@ function validateBagQuantity(
     !Array.isArray(product.variants) &&
     Object.keys(product.variants).length > 0;
 
-  if (hasVariantInventory) {
-    return result;
-  }
-
-  // Without variant inventory, all options use the
-  // same product.stock quantity.
   const ids = new Set(idsFor(product));
 
-  const otherQuantity = rows.reduce(
-    (sum, row) => {
-      if (
-        !row ||
-        getCartItemKey(row) === replacingKey ||
-        !idsFor(row).some((id) => ids.has(id))
-      ) {
-        return sum;
-      }
+  const otherQuantity = rows.reduce((sum, row) => {
+    if (
+      !row ||
+      getCartItemKey(row) === replacingKey ||
+      !idsFor(row).some((id) => ids.has(id))
+    ) {
+      return sum;
+    }
 
-      return sum + Number(row.quantity || 0);
-    },
-    0,
-  );
+    if (
+      hasVariantInventory &&
+      (
+        String(row.selectedSize ?? "") !== String(size ?? "") ||
+        String(row.selectedColor ?? "") !== String(color ?? "")
+      )
+    ) {
+      return sum;
+    }
+
+    return sum + Number(row.quantity || 0);
+  }, 0);
 
   const remaining = Math.max(
     0,
@@ -216,55 +193,23 @@ function validateBagQuantity(
   return result;
 }
 
-// ======================================================
-// SHOPPING ANALYTICS
-// ======================================================
-
 function trackShopping(name, rows) {
   try {
-    trackEvent(
-      name,
-      commercePayload(rows),
-    );
+    trackEvent(name, commercePayload(rows));
   } catch {
-    // Analytics must not interrupt shopping.
+    // Analytics failure must not interrupt shopping.
   }
 }
 
-// ======================================================
-// STORE PROVIDER
-// ======================================================
-
-export default function StoreProvider({
-  children,
-}) {
-  const {
-    user,
-    loading: authLoading,
-  } = useAuth();
-
+export default function StoreProvider({ children }) {
+  const { user, loading: authLoading } = useAuth();
   const memoryByScope = useRef(new Map());
 
   const keys = {
-    cart: shoppingKey(
-      "gymdrobe-cart",
-      user,
-    ),
-
-    wishlist: shoppingKey(
-      "gymdrobe-wishlist",
-      user,
-    ),
-
-    coupon: shoppingKey(
-      "gymdrobe-coupon",
-      user,
-    ),
-
-    buyNow: shoppingKey(
-      "gymdrobe-buy-now",
-      user,
-    ),
+    cart: shoppingKey("gymdrobe-cart", user),
+    wishlist: shoppingKey("gymdrobe-wishlist", user),
+    coupon: shoppingKey("gymdrobe-coupon", user),
+    buyNow: shoppingKey("gymdrobe-buy-now", user),
   };
 
   const scope = JSON.stringify([
@@ -275,14 +220,9 @@ export default function StoreProvider({
   ]);
 
   if (!memoryByScope.current.has(scope)) {
-    memoryByScope.current.set(
-      scope,
-      makeMemory(),
-    );
+    memoryByScope.current.set(scope, makeMemory());
   }
 
-  // Changing accounts creates fresh displayed state.
-  // Unsaved data remains attached to its original scope.
   return (
     <ScopedStoreProvider
       key={scope}
@@ -295,10 +235,6 @@ export default function StoreProvider({
     </ScopedStoreProvider>
   );
 }
-
-// ======================================================
-// ACCOUNT-SPECIFIC STORE
-// ======================================================
 
 function ScopedStoreProvider({
   children,
@@ -327,6 +263,9 @@ function ScopedStoreProvider({
     Array.isArray(products);
 
   const mounted = useRef(true);
+  const kitSaveLock = useRef(false);
+  const authLoadingRef = useRef(authLoading);
+  authLoadingRef.current = authLoading;
 
   const [cart, setCartState] = useState(() => {
     const value = memory.cartMemory
@@ -334,47 +273,33 @@ function ScopedStoreProvider({
       : readArray(cartKey);
 
     memory.cart = value;
-
     return value;
   });
 
-  const [
-    savedWishlist,
-    setWishlistState,
-  ] = useState(() => {
+  const [savedWishlist, setWishlistState] = useState(() => {
     const value = memory.wishlistMemory
       ? memory.wishlist
       : wishlistIds(readArray(wishlistKey));
 
     memory.wishlist = value;
-
     return value;
   });
 
-  const [coupon, setCouponState] = useState(
-    () => {
-      const value = memory.couponMemory
-        ? memory.coupon
-        : resolveCoupon(
-            readStorage(couponKey, null),
-          );
+  const [coupon, setCouponState] = useState(() => {
+    const value = memory.couponMemory
+      ? memory.coupon
+      : resolveCoupon(readStorage(couponKey, null));
 
-      memory.coupon = value;
+    memory.coupon = value;
+    return value;
+  });
 
-      return value;
-    },
-  );
-
-  const [
-    buyNowItem,
-    setBuyNowItem,
-  ] = useState(() => {
+  const [buyNowItem, setBuyNowItem] = useState(() => {
     const value = memory.buyNowMemory
       ? memory.buyNow
       : readBuyNow(buyNowKey);
 
     memory.buyNow = value;
-
     return value;
   });
 
@@ -382,32 +307,19 @@ function ScopedStoreProvider({
   const toastId = useRef(0);
 
   const wishlist = useMemo(
-    () =>
-      resolveWishlist(
-        savedWishlist,
-        products,
-      ),
+    () => resolveWishlist(savedWishlist, products),
     [savedWishlist, products],
   );
 
-  // ====================================================
-  // NOTIFICATIONS
-  // ====================================================
+  const notify = useCallback((message, type = "success") => {
+    if (!mounted.current) return;
 
-  const notify = useCallback(
-    (message, type = "success") => {
-      if (!mounted.current) {
-        return;
-      }
-
-      setToast({
-        message,
-        type,
-        id: ++toastId.current,
-      });
-    },
-    [],
-  );
+    setToast({
+      message,
+      type,
+      id: ++toastId.current,
+    });
+  }, []);
 
   useEffect(() => {
     mounted.current = true;
@@ -418,21 +330,11 @@ function ScopedStoreProvider({
   }, []);
 
   useEffect(() => {
-    if (!toast) {
-      return;
-    }
+    if (!toast) return;
 
-    const timer = setTimeout(
-      () => setToast(null),
-      4500,
-    );
-
+    const timer = setTimeout(() => setToast(null), 4500);
     return () => clearTimeout(timer);
   }, [toast?.id]);
-
-  // ====================================================
-  // CURRENT CATALOGUE / ACCOUNT GUARDS
-  // ====================================================
 
   const latestProducts = useCallback(() => {
     const value =
@@ -440,23 +342,17 @@ function ScopedStoreProvider({
         ? getLatestProducts()
         : products;
 
-    return Array.isArray(value)
-      ? value
-      : null;
+    return Array.isArray(value) ? value : null;
   }, [getLatestProducts, products]);
 
   const accountAvailable = useCallback(() => {
-    // Ignore callbacks belonging to an old account.
-    if (!mounted.current) {
-      return false;
-    }
+    if (!mounted.current) return false;
 
     if (authLoading) {
       notify(
         "Checking your account. Please wait a moment.",
         "info",
       );
-
       return false;
     }
 
@@ -464,14 +360,9 @@ function ScopedStoreProvider({
   }, [authLoading, notify]);
 
   const requireCatalog = useCallback(() => {
-    if (!accountAvailable()) {
-      return false;
-    }
+    if (!accountAvailable()) return false;
 
-    if (
-      catalogReady &&
-      latestProducts() !== null
-    ) {
+    if (catalogReady && latestProducts() !== null) {
       return true;
     }
 
@@ -491,14 +382,8 @@ function ScopedStoreProvider({
     notify,
   ]);
 
-  // ====================================================
-  // READ / SAVE BAG
-  // ====================================================
-
   const rawCart = useCallback(() => {
-    if (!mounted.current) {
-      return [];
-    }
+    if (!mounted.current) return [];
 
     return memory.cartMemory
       ? memory.cart
@@ -509,133 +394,73 @@ function ScopedStoreProvider({
     const rows = rawCart();
     const catalogue = latestProducts();
 
-    if (
-      catalogReady &&
-      catalogue !== null
-    ) {
-      return revalidateCart(
-        rows,
-        catalogue,
-      ).cart;
+    if (catalogReady && catalogue !== null) {
+      return revalidateCart(rows, catalogue).cart;
     }
 
     return rows;
-  }, [
-    rawCart,
-    catalogReady,
-    latestProducts,
-  ]);
+  }, [rawCart, catalogReady, latestProducts]);
 
-  const commitCart = useCallback(
-    (next) => {
-      if (!accountAvailable()) {
-        return false;
-      }
+  const commitCart = useCallback((next) => {
+    if (!accountAvailable()) return false;
 
-      const saved = writeStorage(
-        cartKey,
-        next,
+    const saved = writeStorage(cartKey, next);
+
+    memory.cart = next;
+    memory.cartMemory = !saved;
+    setCartState(next);
+
+    if (!saved) {
+      notify(
+        "Bag updated for this visit. Browser storage is unavailable.",
+        "warning",
       );
+    }
 
-      memory.cart = next;
-      memory.cartMemory = !saved;
+    return saved;
+  }, [accountAvailable, cartKey, memory, notify]);
 
-      setCartState(next);
+  const refreshBuyNow = useCallback((item) => {
+    if (!accountAvailable()) return false;
 
-      if (!saved) {
-        notify(
-          "Bag updated for this visit. Browser storage is unavailable.",
-          "warning",
-        );
-      }
-
-      return saved;
-    },
-    [
-      accountAvailable,
-      cartKey,
-      memory,
-      notify,
-    ],
-  );
-
-  // ====================================================
-  // BUY NOW STORAGE
-  // ====================================================
-
-  const refreshBuyNow = useCallback(
-    (item) => {
-      if (!accountAvailable()) {
-        return false;
-      }
-
-      const next = item || null;
-
-      const saved = writeSession(
-        buyNowKey,
-        next ? [next] : [],
-      );
-
-      memory.buyNow = next;
-      memory.buyNowMemory = !saved;
-
-      setBuyNowItem(next);
-
-      if (!saved) {
-        notify(
-          "Buy Now updated for this visit. Browser session storage is unavailable.",
-          "warning",
-        );
-      }
-
-      return saved;
-    },
-    [
-      accountAvailable,
+    const next = item || null;
+    const saved = writeSession(
       buyNowKey,
-      memory,
-      notify,
-    ],
-  );
+      next ? [next] : [],
+    );
+
+    memory.buyNow = next;
+    memory.buyNowMemory = !saved;
+    setBuyNowItem(next);
+
+    if (!saved) {
+      notify(
+        "Buy Now updated for this visit. Browser session storage is unavailable.",
+        "warning",
+      );
+    }
+
+    return saved;
+  }, [accountAvailable, buyNowKey, memory, notify]);
 
   const clearBuyNow = useCallback(
     () => refreshBuyNow(null),
     [refreshBuyNow],
   );
 
-  // ====================================================
-  // RECONCILE WITH A SUCCESSFUL CATALOGUE RESPONSE
-  // ====================================================
-
   useEffect(() => {
-    if (
-      authLoading ||
-      !catalogReady
-    ) {
-      return;
-    }
+    if (authLoading || !catalogReady) return;
 
     const savedCart = rawCart();
-
-    const checked = revalidateCart(
-      savedCart,
-      products,
-    );
+    const checked = revalidateCart(savedCart, products);
 
     memory.cart = checked.cart;
     setCartState(checked.cart);
 
-    if (
-      !sameValue(savedCart, checked.cart)
-    ) {
-      const saved = commitCart(
-        checked.cart,
-      );
+    if (!sameValue(savedCart, checked.cart)) {
+      const saved = commitCart(checked.cart);
 
-      if (
-        saved &&
-        checked.changes.length
-      ) {
+      if (saved && checked.changes.length) {
         notify(
           "Your bag was updated to current prices and available stock.",
           "info",
@@ -648,18 +473,13 @@ function ScopedStoreProvider({
       : readBuyNow(buyNowKey);
 
     const nextBuyNow = savedBuyNow
-      ? revalidateCart(
-          [savedBuyNow],
-          products,
-        ).cart[0] || null
+      ? revalidateCart([savedBuyNow], products).cart[0] || null
       : null;
 
     memory.buyNow = nextBuyNow;
     setBuyNowItem(nextBuyNow);
 
-    if (
-      !sameValue(savedBuyNow, nextBuyNow)
-    ) {
+    if (!sameValue(savedBuyNow, nextBuyNow)) {
       refreshBuyNow(nextBuyNow);
     }
   }, [
@@ -674,76 +494,48 @@ function ScopedStoreProvider({
     notify,
   ]);
 
-  // ====================================================
-  // SYNC LOCAL STORAGE CHANGES FROM OTHER TABS
-  //
-  // Synchronization does not send shopping events.
-  // Unsaved changes stay in this account's memory.
-  // ====================================================
-
   useEffect(() => {
     function sync(event) {
-      if (
-        !mounted.current ||
-        authLoading
-      ) {
-        return;
-      }
+      if (!mounted.current || authLoading) return;
 
       if (
         event.storageArea &&
-        event.storageArea !==
-          window.localStorage
+        event.storageArea !== window.localStorage
       ) {
         return;
       }
 
       if (
-        (event.key === cartKey ||
-          event.key === null) &&
+        (event.key === cartKey || event.key === null) &&
         !memory.cartMemory
       ) {
         const rows = readArray(cartKey);
         const catalogue = latestProducts();
 
         const checked =
-          catalogReady &&
-          catalogue !== null
-            ? revalidateCart(
-                rows,
-                catalogue,
-              )
-            : {
-                cart: rows,
-                changes: [],
-              };
+          catalogReady && catalogue !== null
+            ? revalidateCart(rows, catalogue)
+            : { cart: rows, changes: [] };
 
         memory.cart = checked.cart;
         setCartState(checked.cart);
 
-        if (
-          !sameValue(rows, checked.cart)
-        ) {
+        if (!sameValue(rows, checked.cart)) {
           commitCart(checked.cart);
         }
       }
 
       if (
-        (event.key === wishlistKey ||
-          event.key === null) &&
+        (event.key === wishlistKey || event.key === null) &&
         !memory.wishlistMemory
       ) {
-        const next = wishlistIds(
-          readArray(wishlistKey),
-        );
-
+        const next = wishlistIds(readArray(wishlistKey));
         memory.wishlist = next;
         setWishlistState(next);
       }
 
       if (
-        (event.key === couponKey ||
-          event.key === null) &&
+        (event.key === couponKey || event.key === null) &&
         !memory.couponMemory
       ) {
         const next = resolveCoupon(
@@ -755,16 +547,10 @@ function ScopedStoreProvider({
       }
     }
 
-    window.addEventListener(
-      "storage",
-      sync,
-    );
+    window.addEventListener("storage", sync);
 
     return () => {
-      window.removeEventListener(
-        "storage",
-        sync,
-      );
+      window.removeEventListener("storage", sync);
     };
   }, [
     authLoading,
@@ -777,14 +563,8 @@ function ScopedStoreProvider({
     memory,
   ]);
 
-  // ====================================================
-  // REPLACE / UPDATE BAG
-  // ====================================================
-
   function setCart(value) {
-    if (!requireCatalog()) {
-      return false;
-    }
+    if (!requireCatalog()) return false;
 
     const next =
       typeof value === "function"
@@ -796,23 +576,90 @@ function ScopedStoreProvider({
         "Your bag could not be updated. Please retry.",
         "error",
       );
-
       return false;
     }
 
-    const checked = revalidateCart(
-      next,
-      latestProducts(),
+    const existingGroups = groupCartItems(rawCart()).filter(
+      (row) => row.type === "kit",
     );
 
-    const saved = commitCart(
-      checked.cart,
+    const proposedGroups = groupCartItems(next).filter(
+      (row) => row.type === "kit",
     );
 
-    if (
-      saved &&
-      checked.changes.length
-    ) {
+    const signature = (group) =>
+      JSON.stringify(
+        group.items
+          .map((row) => [
+            getCartItemKey(row),
+            Number(row.quantity),
+            getKitGroup(row)?.kitId,
+            getKitGroup(row)?.version,
+          ])
+          .sort((a, b) =>
+            String(a[0]).localeCompare(String(b[0])),
+          ),
+      );
+
+    for (const group of proposedGroups) {
+      const previous = existingGroups.find(
+        (row) => row.id === group.id,
+      );
+
+      if (
+        !previous ||
+        signature(previous) !== signature(group)
+      ) {
+        notify(
+          "Edit a Fitness Kit in the kit builder. Its components cannot be changed individually.",
+          "error",
+        );
+        return false;
+      }
+    }
+
+    for (const group of existingGroups) {
+      if (
+        proposedGroups.some((row) => row.id === group.id)
+      ) {
+        continue;
+      }
+
+      for (const component of group.items) {
+        const {
+          kitGroup: ignored,
+          ...plainComponent
+        } = component;
+
+        const componentKey = getCartItemKey(plainComponent);
+
+        const total = (rows) =>
+          rows
+            .filter(
+              (row) =>
+                !getKitGroup(row) &&
+                getCartItemKey(row) === componentKey,
+            )
+            .reduce(
+              (sum, row) =>
+                sum + Number(row.quantity || 0),
+              0,
+            );
+
+        if (total(next) > total(rawCart())) {
+          notify(
+            "Remove or edit the complete Fitness Kit; its components cannot become individual bag items automatically.",
+            "error",
+          );
+          return false;
+        }
+      }
+    }
+
+    const checked = revalidateCart(next, latestProducts());
+    const saved = commitCart(checked.cart);
+
+    if (saved && checked.changes.length) {
       notify(
         "Your bag was updated to current prices and available stock.",
         "info",
@@ -822,24 +669,15 @@ function ScopedStoreProvider({
     return saved;
   }
 
-  // ====================================================
-  // ADD TO BAG
-  // ====================================================
-
   function addToCart(
     product,
     quantity = 1,
     size = null,
     color = null,
   ) {
-    if (!requireCatalog()) {
-      return false;
-    }
+    if (!requireCatalog()) return false;
 
-    const canonical = findProduct(
-      latestProducts(),
-      product,
-    );
+    const canonical = findProduct(latestProducts(), product);
 
     const basic = validateCartItem(
       canonical,
@@ -862,18 +700,14 @@ function ScopedStoreProvider({
       color,
     );
 
-    const itemKey = getCartItemKey(
-      preview,
-    );
+    const itemKey = getCartItemKey(preview);
 
     const existing = rows.find(
-      (row) =>
-        getCartItemKey(row) === itemKey,
+      (row) => getCartItemKey(row) === itemKey,
     );
 
     const total =
-      Number(quantity) +
-      Number(existing?.quantity || 0);
+      Number(quantity) + Number(existing?.quantity || 0);
 
     const check = validateBagQuantity(
       canonical,
@@ -898,50 +732,28 @@ function ScopedStoreProvider({
 
     const next = existing
       ? rows.map((row) =>
-          getCartItemKey(row) === itemKey
-            ? item
-            : row,
+          getCartItemKey(row) === itemKey ? item : row,
         )
       : [...rows, item];
 
     const saved = commitCart(next);
 
-    trackShopping(
-      "add_to_cart",
-      [
-        {
-          ...item,
-          quantity: Number(quantity),
-        },
-      ],
-    );
+    trackShopping("add_to_cart", [
+      { ...item, quantity: Number(quantity) },
+    ]);
 
-    if (saved) {
-      notify("Added to your bag.");
-    }
+    if (saved) notify("Added to your bag.");
 
-    // The action still succeeds for this visit
-    // when browser storage is unavailable.
     return true;
   }
 
-  // ====================================================
-  // UPDATE QUANTITY
-  // ====================================================
-
-  function updateQuantity(
-    itemKey,
-    quantity,
-  ) {
-    if (!requireCatalog()) {
-      return false;
-    }
+  function updateQuantity(itemKey, quantity) {
+    if (!requireCatalog()) return false;
 
     const rows = latestCart();
 
     const row = rows.find(
-      (item) =>
-        getCartItemKey(item) === itemKey,
+      (item) => getCartItemKey(item) === itemKey,
     );
 
     if (!row) {
@@ -949,14 +761,18 @@ function ScopedStoreProvider({
         "This bag item is no longer available.",
         "info",
       );
-
       return false;
     }
 
-    const product = findProduct(
-      latestProducts(),
-      row,
-    );
+    if (getKitGroup(row)) {
+      notify(
+        "Edit the complete Fitness Kit to change its quantities or options.",
+        "info",
+      );
+      return false;
+    }
+
+    const product = findProduct(latestProducts(), row);
 
     const check = validateBagQuantity(
       product,
@@ -988,62 +804,164 @@ function ScopedStoreProvider({
     );
 
     const difference =
-      updated.quantity -
-      Number(row.quantity);
+      updated.quantity - Number(row.quantity);
 
     if (difference !== 0) {
       trackShopping(
         difference > 0
           ? "add_to_cart"
           : "remove_from_cart",
-        [
-          {
-            ...updated,
-            quantity: Math.abs(difference),
-          },
-        ],
+        [{
+          ...updated,
+          quantity: Math.abs(difference),
+        }],
       );
     }
 
     return true;
   }
 
-  // ====================================================
-  // REMOVE FROM BAG
-  // ====================================================
-
-  function removeFromCart(itemKey) {
-    // Removal works even when the catalogue API fails.
-    if (!accountAvailable()) {
-      return false;
+  async function saveFitnessKit({
+    kitId,
+    version,
+    selections,
+    groupId = "",
+    expectedGroupSignature = "",
+  }) {
+    if (kitSaveLock.current) {
+      throw new Error(
+        "A kit is already being saved. Please wait.",
+      );
     }
+
+    if (!requireCatalog()) {
+      throw new Error(
+        "Wait for your account and product catalogue to finish loading.",
+      );
+    }
+
+    if (!Array.isArray(selections)) {
+      throw new Error("Kit choices are missing.");
+    }
+
+    const chosen = JSON.parse(JSON.stringify(selections));
+    const before = rawCart();
+    const bagSignature = JSON.stringify(before);
+    const replacing = Boolean(groupId);
+
+    if (
+      replacing &&
+      (
+        !expectedGroupSignature ||
+        kitGroupSignature(before, groupId) !==
+          expectedGroupSignature
+      )
+    ) {
+      throw new Error(
+        "This kit changed in your bag. Reopen it before saving edits.",
+      );
+    }
+
+    kitSaveLock.current = true;
+
+    try {
+      const data = await getFitnessKit(kitId);
+
+      if (data.kit.version !== version) {
+        throw new Error(
+          "This kit template changed. Reload the kit and review your choices.",
+        );
+      }
+
+      const checked = inspectKitSelections(
+        data.kit,
+        data.products,
+        chosen,
+      );
+
+      if (checked.errors.length) {
+        throw new Error(checked.errors.join(" "));
+      }
+
+      // Save choices only. Payment and final costs are
+      // checked again during the future kit checkout flow.
+      const quote = await quoteFitnessKit(
+        data.kit,
+        checked.selections,
+      );
+
+      if (
+        !mounted.current ||
+        authLoadingRef.current
+      ) {
+        throw new Error(
+          "Your account changed while saving. Reopen your bag.",
+        );
+      }
+
+      const current = rawCart();
+
+      if (JSON.stringify(current) !== bagSignature) {
+        throw new Error(
+          "Your bag changed while the kit was being checked. Review your bag and retry.",
+        );
+      }
+
+      const id =
+        groupId || `kit_${crypto.randomUUID()}`;
+
+      const prepared = prepareKitCart({
+        cart: current,
+        kit: data.kit,
+        products: data.products,
+        selections: chosen,
+        quote,
+        groupId: id,
+        replacing,
+      });
+
+      const persisted = commitCart(prepared.cart);
+
+      if (persisted) {
+        notify(
+          replacing
+            ? "Fitness Kit changes saved to your bag."
+            : "Fitness Kit added to your bag.",
+        );
+      }
+
+      return {
+        groupId: id,
+        persisted,
+        quote,
+      };
+    } finally {
+      kitSaveLock.current = false;
+    }
+  }
+
+  function removeKitFromCart(groupId) {
+    if (!accountAvailable()) return false;
 
     const rows = rawCart();
 
     const removed = rows.filter(
-      (item) =>
-        getCartItemKey(item) === itemKey,
+      (row) => getKitGroup(row)?.id === groupId,
     );
 
-    if (!removed.length) {
-      return false;
-    }
+    if (!removed.length) return false;
 
     const saved = commitCart(
       rows.filter(
-        (item) =>
-          getCartItemKey(item) !== itemKey,
+        (row) => getKitGroup(row)?.id !== groupId,
       ),
     );
 
-    trackShopping(
-      "remove_from_cart",
-      removed,
-    );
+    trackShopping("remove_from_cart", removed);
 
     if (saved) {
       notify(
-        "Removed from your bag.",
+        "Fitness Kit removed from your bag.",
         "info",
       );
     }
@@ -1051,63 +969,69 @@ function ScopedStoreProvider({
     return true;
   }
 
-  // ====================================================
-  // WISHLIST
-  // ====================================================
+  function removeFromCart(itemKey) {
+    if (!accountAvailable()) return false;
+
+    const rows = rawCart();
+
+    const removed = rows.filter(
+      (item) => getCartItemKey(item) === itemKey,
+    );
+
+    if (!removed.length) return false;
+
+    const group = getKitGroup(removed[0]);
+
+    if (group) {
+      return removeKitFromCart(group.id);
+    }
+
+    const saved = commitCart(
+      rows.filter(
+        (item) => getCartItemKey(item) !== itemKey,
+      ),
+    );
+
+    trackShopping("remove_from_cart", removed);
+
+    if (saved) {
+      notify("Removed from your bag.", "info");
+    }
+
+    return true;
+  }
 
   function toggleWishlist(product) {
-    if (!requireCatalog()) {
-      return false;
-    }
+    if (!requireCatalog()) return false;
 
     const canonical = findProduct(
       latestProducts(),
       product,
     );
 
-    if (
-      !canonical ||
-      canonical.isActive === false
-    ) {
+    if (!canonical || canonical.isActive === false) {
       notify(
         "This product is no longer available.",
         "error",
       );
-
       return false;
     }
 
     const rows = memory.wishlistMemory
       ? memory.wishlist
-      : wishlistIds(
-          readArray(wishlistKey),
-        );
+      : wishlistIds(readArray(wishlistKey));
 
-    const ids = new Set(
-      idsFor(canonical),
-    );
-
-    const exists = rows.some(
-      (id) => ids.has(id),
-    );
+    const ids = new Set(idsFor(canonical));
+    const exists = rows.some((id) => ids.has(id));
 
     const next = exists
-      ? rows.filter(
-          (id) => !ids.has(id),
-        )
-      : [
-          ...rows,
-          idsFor(canonical)[0],
-        ];
+      ? rows.filter((id) => !ids.has(id))
+      : [...rows, idsFor(canonical)[0]];
 
-    const saved = writeStorage(
-      wishlistKey,
-      next,
-    );
+    const saved = writeStorage(wishlistKey, next);
 
     memory.wishlist = next;
     memory.wishlistMemory = !saved;
-
     setWishlistState(next);
 
     notify(
@@ -1122,14 +1046,8 @@ function ScopedStoreProvider({
     return saved;
   }
 
-  // ====================================================
-  // COUPONS
-  // ====================================================
-
   function setCoupon(value) {
-    if (!accountAvailable()) {
-      return false;
-    }
+    if (!accountAvailable()) return false;
 
     const next = resolveCoupon(value);
 
@@ -1140,7 +1058,6 @@ function ScopedStoreProvider({
 
     memory.coupon = next;
     memory.couponMemory = !saved;
-
     setCouponState(next);
 
     if (!saved) {
@@ -1153,19 +1070,13 @@ function ScopedStoreProvider({
     return saved;
   }
 
-  // ====================================================
-  // BUY NOW
-  // ====================================================
-
   function buyNow(
     product,
     quantity = 1,
     size = null,
     color = null,
   ) {
-    if (!requireCatalog()) {
-      return false;
-    }
+    if (!requireCatalog()) return false;
 
     const canonical = findProduct(
       latestProducts(),
@@ -1196,10 +1107,6 @@ function ScopedStoreProvider({
     return true;
   }
 
-  // ====================================================
-  // CONTEXT VALUE
-  // ====================================================
-
   return (
     <StoreContext.Provider
       value={{
@@ -1208,21 +1115,25 @@ function ScopedStoreProvider({
         addToCart,
         updateQuantity,
         removeFromCart,
+        removeKitFromCart,
+        saveFitnessKit,
+
+        kitGroups: groupCartItems(cart).filter(
+          (row) => row.type === "kit",
+        ),
+
+        kitCheckoutEnabled: false,
 
         wishlist,
         toggleWishlist,
-
         coupon,
         setCoupon,
-
         buyNowItem,
         buyNow,
         clearBuyNow,
         refreshBuyNow,
-
         notify,
         toast,
-
         closeToast: () => setToast(null),
 
         shoppingKey: (name) =>
@@ -1237,17 +1148,11 @@ function ScopedStoreProvider({
   );
 }
 
-// ======================================================
-// STORE HOOK
-// ======================================================
-
 export function useStore() {
   const value = useContext(StoreContext);
 
   if (!value) {
-    throw new Error(
-      "StoreProvider is missing.",
-    );
+    throw new Error("StoreProvider is missing.");
   }
 
   return value;
