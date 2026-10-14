@@ -32,18 +32,12 @@ function normalizeMeeshoLink(value) {
     );
   }
 
-  const allowedAddress =
-    /^https:\/\/(?:www\.)?meesho\.com(?::443)?(?:\/|$|[?#])/i.test(
-      input
-    );
-
   const allowedHostname = [
     "meesho.com",
     "www.meesho.com",
   ].includes(url.hostname);
 
   if (
-    !allowedAddress ||
     url.protocol !== "https:" ||
     !allowedHostname ||
     url.username ||
