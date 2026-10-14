@@ -1,3 +1,4 @@
+import AdminItemSourcing from "../components/AdminItemSourcing.jsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -573,24 +574,14 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
                       key={`${item.productId || item.id}-${index}`}
                       style={{
                         display: "flex",
+                        flexWrap: "wrap",
                         justifyContent: "space-between",
                         gap: "16px",
                         padding: "12px 0",
                         borderBottom: "1px solid #f1f1f1",
                       }}
                     >
-                      <div>
-                        <strong>{item.name}</strong>
-                        <div className="muted">
-                          Qty: {item.quantity}
-                          {item.selectedSize
-                            ? ` · Size: ${item.selectedSize}`
-                            : ""}
-                          {item.selectedColor
-                            ? ` · Colour: ${item.selectedColor}`
-                            : ""}
-                        </div>
-                      </div>
+                      <AdminItemSourcing key={`${item.productId || item.id}-${index}`} item={item} />
                       <strong>
                         {money(
                           Number(item.price || 0) * Number(item.quantity || 0),
@@ -1427,3 +1418,4 @@ export default function AdminOrdersPage() {
     />
   );
 }
+

@@ -98,10 +98,6 @@ const AdminShippingProfilesPage = lazy(
   () => import("./pages/AdminShippingProfilesPage.jsx"),
 );
 
-const AdminKitPreviewPage = lazy(
-  () => import("./pages/AdminKitPreviewPage.jsx"),
-);
-
 const StoreConsolePage = import.meta.env.DEV
   ? lazy(() => import("./pages/StoreConsolePage.jsx"))
   : null;
@@ -382,13 +378,6 @@ function Layout() {
 
               <Link
                 className="text-link"
-                to="/admin/kits/preview"
-              >
-                Kit price preview
-              </Link>
-
-              <Link
-                className="text-link"
                 to="/admin/packing-locations"
               >
                 Packing locations
@@ -492,7 +481,6 @@ function Layout() {
                 ["/admin/returns", AdminReturnsPage],
                 ["/admin/suppliers", AdminSuppliersPage],
                 ["/admin/kits", AdminKitsPage],
-                ["/admin/kits/preview", AdminKitPreviewPage],
                 [
                   "/admin/packing-locations",
                   AdminPackingLocationsPage,

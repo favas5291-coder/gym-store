@@ -627,6 +627,15 @@ function ProductEditor({
             </div>
           </section>
 
+          <section className="ap-section">
+            <h3>Private sourcing link</h3>
+            <Field label="Meesho Product Link" help="Paste the original Meesho listing link. Visible only to admins for sourcing orders.">
+              <input type="url" name="meeshoProductLink" maxLength={2000}
+                value={draft.meeshoProductLink} placeholder="https://www.meesho.com/product-name/p/example"
+                onChange={event => change("meeshoProductLink", event.target.value)} />
+            </Field>
+            <p className="ap-help">Optional. Clear the field to remove it. This supports manual purchasing; Meesho stock and prices are not synchronised.</p>
+          </section>
           <SupplyFields
             draft={draft}
             setDraft={setDraft}

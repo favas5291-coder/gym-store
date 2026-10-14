@@ -1,3 +1,4 @@
+import { normalizeMeeshoLink } from "./meeshoUrl.js";
 import { money, getDiscountedPrice } from "./productPricing.js";
 import { isPublicImageUrl } from "./imageUrl.js";
 
@@ -38,6 +39,7 @@ const EMPTY = {
   freeDeliveryAbove: "500",
   supplier: "",
   purchaseCost: "",
+  meeshoProductLink: "",
   stockSource: "unconfirmed",
   dispatchBy: "unconfirmed",
   preparationDaysMin: "",
@@ -140,6 +142,7 @@ function draftFor(product) {
   const draft = { ...EMPTY };
 
   for (const key of [
+    "meeshoProductLink",
     "productCode",
     "sku",
     "name",
@@ -326,6 +329,7 @@ function validImage(value) {
 }
 
 function validateBasicDraft(draft) {
+  try { normalizeMeeshoLink(draft.meeshoProductLink); } catch (error) { return error.message; }
   if (
     draft.name.trim().length < 2 ||
     draft.name.trim().length > 200
@@ -937,6 +941,7 @@ export function payloadFor(draft, original = null) {
 
   put("supplier", draft.supplier || null);
   put("purchaseCost", nullableNumber(draft.purchaseCost));
+  put("meeshoProductLink", normalizeMeeshoLink(draft.meeshoProductLink));
   put("returnsEligible", draft.returnsEligible);
   put("returnWindowDays", Number(draft.returnWindowDays));
 
