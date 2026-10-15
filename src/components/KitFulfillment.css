@@ -1,0 +1,86 @@
+.gd-kit-progress fieldset {
+  min-width: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 18px 0;
+}
+
+.gd-kit-progress legend {
+  font-weight: 700;
+  padding-inline: 6px;
+}
+
+.gd-kit-progress-card {
+  border-top: 1px solid #e5e7eb;
+  padding: 16px 0;
+  overflow-wrap: anywhere;
+}
+
+.gd-kit-progress-field {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+  font-size: 14px;
+}
+
+.gd-kit-progress-field input,
+.gd-kit-progress-field select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #17202a;
+  font: inherit;
+}
+
+.gd-kit-progress-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+  gap: 12px;
+}
+
+.gd-kit-progress-check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 14px 0;
+  min-height: 44px;
+}
+
+.gd-kit-progress-check input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.gd-kit-progress .purchase-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.gd-kit-progress input:focus-visible,
+.gd-kit-progress select:focus-visible {
+  outline: 3px solid #c2410c;
+  outline-offset: 3px;
+}
+
+.gd-kit-progress fieldset:disabled {
+  opacity: 0.7;
+}
+
+@media (max-width: 540px) {
+  .gd-kit-progress-field input,
+  .gd-kit-progress-field select {
+    font-size: 16px;
+  }
+
+  .gd-kit-progress fieldset {
+    padding: 12px;
+  }
+}

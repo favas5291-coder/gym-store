@@ -1,4 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
 import {
   Link,
   useNavigate,
@@ -22,28 +27,56 @@ import {
   productId,
 } from "../utils/kitBuilder.js";
 
-import { kitGroupSignature } from "../utils/kitCart.js";
-import { readStorage, writeStorage } from "../utils/storage.js";
-import { getVariantStock } from "../utils/cartUtils.js";
-import { getDiscountedPrice, money } from "../utils/productPricing.js";
-import { ProductImage } from "../components/StorefrontShared.jsx";
+import {
+  kitGroupSignature,
+} from "../utils/kitCart.js";
+
+import {
+  readStorage,
+  writeStorage,
+} from "../utils/storage.js";
+
+import {
+  getVariantStock,
+} from "../utils/cartUtils.js";
+
+import {
+  getDiscountedPrice,
+  money,
+} from "../utils/productPricing.js";
+
+import {
+  ProductImage,
+} from "../components/StorefrontShared.jsx";
 
 export default function FitnessKitsPage() {
   const { kitId } = useParams();
-  const { shoppingKey, kitGroups = [] } = useStore();
+
+  const {
+    shoppingKey,
+    kitGroups = [],
+  } = useStore();
+
   const [params] = useSearchParams();
 
-  const groupId = params.get("group") || "";
+  const groupId =
+    params.get("group") || "";
 
   const group = kitGroups.find(
-    (value) => value.id === groupId && value.kitId === kitId,
+    (value) =>
+      value.id === groupId &&
+      value.kitId === kitId,
   );
 
-  const editingMissing = Boolean(groupId && !group);
+  const editingMissing = Boolean(
+    groupId && !group,
+  );
 
   const storageKey = shoppingKey(
     `gymdrobe-kit-builder:${kitId || "levels"}${
-      groupId ? `:edit:${groupId}` : ""
+      groupId
+        ? `:edit:${groupId}`
+        : ""
     }`,
   );
 
@@ -51,22 +84,33 @@ export default function FitnessKitsPage() {
     <div className="page fitness-kits">
       <div className="page-heading">
         <h1>Build your Fitness Kit</h1>
-        <Link to="/shop">Shop individual products</Link>
+
+        <Link to="/shop">
+          Shop individual products
+        </Link>
       </div>
 
       <p>
-        Everything You Need for Every Workout. Choose useful gear
-        for your routine and skip what you already own.
+        Everything You Need for Every Workout.
+        Choose useful gear for your routine and
+        skip what you already own.
       </p>
 
       {editingMissing ? (
         <section className="panel">
-          <h2>This kit is no longer in your bag</h2>
+          <h2>
+            This kit is no longer in your bag
+          </h2>
+
           <p>
-            Return to your bag to check the current items.
-            No selections were replaced.
+            Return to your bag to check the current
+            items. No selections were replaced.
           </p>
-          <Link className="button" to="/cart">
+
+          <Link
+            className="button"
+            to="/cart"
+          >
             Return to bag
           </Link>
         </section>
@@ -97,7 +141,10 @@ export default function FitnessKitsPage() {
 
         .kit-level-grid {
           grid-template-columns:
-            repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+            repeat(
+              auto-fit,
+              minmax(min(100%, 260px), 1fr)
+            );
         }
 
         .fitness-kits .panel {
@@ -163,7 +210,8 @@ export default function FitnessKitsPage() {
 
         @media (min-width: 900px) {
           .kit-builder-layout {
-            grid-template-columns: minmax(0, 1fr) 330px;
+            grid-template-columns:
+              minmax(0, 1fr) 330px;
           }
 
           .kit-builder-summary {
@@ -196,12 +244,18 @@ function Levels() {
     setKits(null);
     setError("");
 
-    getFitnessKits({ signal: abort.signal })
+    getFitnessKits({
+      signal: abort.signal,
+    })
       .then((rows) => {
-        if (!abort.signal.aborted) setKits(rows);
+        if (!abort.signal.aborted) {
+          setKits(rows);
+        }
       })
       .catch((failure) => {
-        if (!abort.signal.aborted) setError(failure.message);
+        if (!abort.signal.aborted) {
+          setError(failure.message);
+        }
       });
 
     return () => abort.abort();
@@ -211,10 +265,15 @@ function Levels() {
     return (
       <section>
         <p role="alert">{error}</p>
+
         <button
           type="button"
           className="button"
-          onClick={() => setRevision((value) => value + 1)}
+          onClick={() =>
+            setRevision(
+              (value) => value + 1,
+            )
+          }
         >
           Retry
         </button>
@@ -223,19 +282,31 @@ function Levels() {
   }
 
   if (!kits) {
-    return <p role="status">Loading Fitness Kits…</p>;
+    return (
+      <p role="status">
+        Loading Fitness Kits…
+      </p>
+    );
   }
 
   if (!kits.length) {
     return (
       <section className="panel">
-        <h2>Fitness Kits are being prepared</h2>
+        <h2>
+          Fitness Kits are being prepared
+        </h2>
+
         <p>
-          Our kit selections will appear here when their products
-          and arrangements are configured. You can shop
+          Our kit selections will appear here
+          when their products and arrangements
+          are configured. You can shop
           individual products now.
         </p>
-        <Link className="button" to="/shop">
+
+        <Link
+          className="button"
+          to="/shop"
+        >
           Browse products
         </Link>
       </section>
@@ -245,7 +316,10 @@ function Levels() {
   return (
     <div className="kit-level-grid">
       {kits.map((kit) => (
-        <article className="panel" key={kit.id}>
+        <article
+          className="panel"
+          key={kit.id}
+        >
           <h2>{kit.name}</h2>
           <p>{kit.audience}</p>
           <p>{kit.explanation}</p>
@@ -253,7 +327,11 @@ function Levels() {
 
           <Link
             className="button"
-            to={`/kits/${encodeURIComponent(kit.id)}`}
+            to={
+              `/kits/${encodeURIComponent(
+                kit.id,
+              )}`
+            }
           >
             Customize kit
           </Link>
@@ -263,7 +341,11 @@ function Levels() {
   );
 }
 
-function LoadKit({ kitId, storageKey, group }) {
+function LoadKit({
+  kitId,
+  storageKey,
+  group,
+}) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
@@ -274,12 +356,21 @@ function LoadKit({ kitId, storageKey, group }) {
     setData(null);
     setError("");
 
-    getFitnessKit(kitId, { signal: abort.signal })
+    getFitnessKit(
+      kitId,
+      {
+        signal: abort.signal,
+      },
+    )
       .then((value) => {
-        if (!abort.signal.aborted) setData(value);
+        if (!abort.signal.aborted) {
+          setData(value);
+        }
       })
       .catch((failure) => {
-        if (!abort.signal.aborted) setError(failure.message);
+        if (!abort.signal.aborted) {
+          setError(failure.message);
+        }
       });
 
     return () => abort.abort();
@@ -287,47 +378,84 @@ function LoadKit({ kitId, storageKey, group }) {
 
   return (
     <>
-      <Link to="/kits">← Choose kit level</Link>
+      <Link to="/kits">
+        ← Choose kit level
+      </Link>
 
       {error ? (
         <section>
           <p role="alert">{error}</p>
+
           <button
             className="button secondary"
             type="button"
-            onClick={() => setRevision((value) => value + 1)}
+            onClick={() =>
+              setRevision(
+                (value) => value + 1,
+              )
+            }
           >
             Retry
           </button>
         </section>
       ) : !data ? (
-        <p role="status">Loading kit choices…</p>
+        <p role="status">
+          Loading kit choices…
+        </p>
       ) : (
         <Builder
           key={`${data.kit.id}:${revision}`}
           data={data}
           storageKey={storageKey}
           group={group}
-          reload={() => setRevision((value) => value + 1)}
+          reload={() =>
+            setRevision(
+              (value) => value + 1,
+            )
+          }
         />
       )}
     </>
   );
 }
 
-function Builder({ data, storageKey, reload, group }) {
-  const { kit, products } = data;
+function Builder({
+  data,
+  storageKey,
+  reload,
+  group,
+}) {
+  const {
+    kit,
+    products,
+  } = data;
 
-  const { saveFitnessKit, catalogReady } = useStore();
-  const { loading: authLoading } = useAuth();
+  const {
+    saveFitnessKit,
+    catalogReady,
+  } = useStore();
+
+  const {
+    loading: authLoading,
+  } = useAuth();
+
   const navigate = useNavigate();
 
-  const [expectedGroupSignature] = useState(() =>
-    group ? kitGroupSignature(group.items, group.id) : "",
-  );
+  const [expectedGroupSignature] =
+    useState(() =>
+      group
+        ? kitGroupSignature(
+            group.items,
+            group.id,
+          )
+        : "",
+    );
 
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState("");
+  const [saving, setSaving] =
+    useState(false);
+
+  const [saveError, setSaveError] =
+    useState("");
 
   const saveLock = useRef(false);
   const alive = useRef(true);
@@ -343,48 +471,93 @@ function Builder({ data, storageKey, reload, group }) {
   const [restored] = useState(() =>
     restoreKitSelections(
       kit,
-      readStorage(storageKey, null) ||
-        (group
-          ? {
-              version: group.version,
-              selections: [
-                ...group.items.map((item) => ({
-                  slotKey: item.kitGroup.slotKey,
-                  included: true,
-                  productId: productId(item),
-                  selectedSize: item.selectedSize ?? null,
-                  selectedColor: item.selectedColor ?? null,
-                  quantity: item.quantity,
-                })),
 
-                ...defaultKitSelections(kit)
-                  .filter(
-                    (row) =>
-                      !group.items.some(
-                        (item) =>
-                          item.kitGroup.slotKey === row.slotKey,
-                      ),
-                  )
-                  .map((row) => ({
-                    ...row,
-                    included: false,
-                  })),
-              ],
-            }
-          : null),
+      readStorage(storageKey, null) ||
+        (
+          group
+            ? {
+                version: group.version,
+
+                selections: [
+                  ...group.items.map(
+                    (item) => ({
+                      slotKey:
+                        item.kitGroup.slotKey,
+
+                      included: true,
+                      productId: productId(item),
+
+                      selectedSize:
+                        item.selectedSize ?? null,
+
+                      selectedColor:
+                        item.selectedColor ?? null,
+
+                      quantity: item.quantity,
+                    }),
+                  ),
+
+                  ...defaultKitSelections(kit)
+                    .filter(
+                      (row) =>
+                        !group.items.some(
+                          (item) =>
+                            item.kitGroup.slotKey ===
+                            row.slotKey,
+                        ),
+                    )
+                    .map((row) => ({
+                      ...row,
+                      included: false,
+                    })),
+                ],
+              }
+            : null
+        ),
     ),
   );
 
-  const [selections, setSelections] = useState(restored.selections);
-  const [coupon, setCoupon] = useState("");
-  const [deliveryMethod, setDeliveryMethod] = useState("standard");
-  const [paymentMethod, setPaymentMethod] = useState("razorpay");
-  const [result, setResult] = useState(null);
-  const [quoteError, setQuoteError] = useState("");
-  const [quoting, setQuoting] = useState(false);
-  const [storageError, setStorageError] = useState(false);
-  const [retry, setRetry] = useState(0);
-  const [templateChanged, setTemplateChanged] = useState(restored.changed);
+  const [
+    selections,
+    setSelections,
+  ] = useState(restored.selections);
+
+  const [coupon, setCoupon] =
+    useState("");
+
+  const [
+    deliveryMethod,
+    setDeliveryMethod,
+  ] = useState("standard");
+
+  const [
+    paymentMethod,
+    setPaymentMethod,
+  ] = useState("razorpay");
+
+  const [result, setResult] =
+    useState(null);
+
+  const [
+    quoteError,
+    setQuoteError,
+  ] = useState("");
+
+  const [quoting, setQuoting] =
+    useState(false);
+
+  const [
+    storageError,
+    setStorageError,
+  ] = useState(false);
+
+  const [retry, setRetry] =
+    useState(0);
+
+  const [
+    templateChanged,
+    setTemplateChanged,
+  ] = useState(restored.changed);
 
   const initial = useRef(true);
 
@@ -409,12 +582,19 @@ function Builder({ data, storageKey, reload, group }) {
     }
 
     setStorageError(
-      !writeStorage(storageKey, {
-        version: kit.version,
-        selections,
-      }),
+      !writeStorage(
+        storageKey,
+        {
+          version: kit.version,
+          selections,
+        },
+      ),
     );
-  }, [storageKey, kit.version, selections]);
+  }, [
+    storageKey,
+    kit.version,
+    selections,
+  ]);
 
   useEffect(() => {
     const abort = new AbortController();
@@ -424,34 +604,47 @@ function Builder({ data, storageKey, reload, group }) {
 
     if (checked.errors.length) {
       setQuoting(false);
+
       return () => abort.abort();
     }
 
     setQuoting(true);
 
     const timer = setTimeout(() => {
-      quoteFitnessKit(kit, checked.selections, {
-        coupon,
-        deliveryMethod,
-        paymentMethod,
-        signal: abort.signal,
-      })
+      quoteFitnessKit(
+        kit,
+        checked.selections,
+        {
+          coupon,
+          deliveryMethod,
+          paymentMethod,
+          signal: abort.signal,
+        },
+      )
         .then((quote) => {
           if (!abort.signal.aborted) {
-            setResult({ signature, quote });
+            setResult({
+              signature,
+              quote,
+            });
           }
         })
         .catch((failure) => {
           if (!abort.signal.aborted) {
             setQuoteError(failure.message);
 
-            if (failure.code === "KIT_VERSION_CHANGED") {
+            if (
+              failure.code ===
+              "KIT_VERSION_CHANGED"
+            ) {
               setTemplateChanged(true);
             }
           }
         })
         .finally(() => {
-          if (!abort.signal.aborted) setQuoting(false);
+          if (!abort.signal.aborted) {
+            setQuoting(false);
+          }
         });
     }, 600);
 
@@ -479,7 +672,9 @@ function Builder({ data, storageKey, reload, group }) {
       return;
     }
 
-    if (typeof saveFitnessKit !== "function") {
+    if (
+      typeof saveFitnessKit !== "function"
+    ) {
       setSaveError(
         "Update StoreContext.jsx with the kit-saving code first.",
       );
@@ -504,36 +699,48 @@ function Builder({ data, storageKey, reload, group }) {
         );
       }
 
-      if (alive.current) navigate("/cart");
+      if (alive.current) {
+        navigate("/cart");
+      }
     } catch (failure) {
       if (alive.current) {
         setSaveError(
           failure.message ||
-            "The kit could not be saved. Please retry.",
+          "The kit could not be saved. Please retry.",
         );
       }
     } finally {
       saveLock.current = false;
-      if (alive.current) setSaving(false);
+
+      if (alive.current) {
+        setSaving(false);
+      }
     }
   }
 
   function update(slotKey, change) {
-    if (saveLock.current) return;
+    if (saveLock.current) {
+      return;
+    }
 
     setSaveError("");
 
     setSelections((previous) =>
       previous.map((row) =>
         row.slotKey === slotKey
-          ? { ...row, ...change }
+          ? {
+              ...row,
+              ...change,
+            }
           : row,
       ),
     );
   }
 
   const quote =
-    result?.signature === signature ? result.quote : null;
+    result?.signature === signature
+      ? result.quote
+      : null;
 
   return (
     <>
@@ -544,15 +751,21 @@ function Builder({ data, storageKey, reload, group }) {
 
       <p className="notice">
         Kit customization and estimates are available.
-        Kit checkout is still being connected.
+        Save your kit to the bag, then review current
+        prices, package contents and delivery charges
+        at checkout.
       </p>
 
       {group && (
         <p className="notice">
-          Editing {group.name} from your bag. Changes are saved
-          as a separate draft until you choose Save kit changes.
+          Editing {group.name} from your bag.
+          Changes are saved as a separate draft
+          until you choose Save kit changes.
           Saving replaces the complete kit.{" "}
-          <Link to="/cart">Return to bag</Link>
+
+          <Link to="/cart">
+            Return to bag
+          </Link>
         </p>
       )}
 
@@ -566,15 +779,17 @@ function Builder({ data, storageKey, reload, group }) {
 
       {storageError && (
         <p role="alert">
-          Your browser could not save these choices. Keep this
-          page open; refreshing may lose your changes.
+          Your browser could not save these choices.
+          Keep this page open; refreshing may lose
+          your changes.
         </p>
       )}
 
       {templateChanged && (
         <p className="notice">
-          The template changed. Review saved choices or reload
-          the latest kit.{" "}
+          The template changed. Review saved choices
+          or reload the latest kit.{" "}
+
           <button
             type="button"
             disabled={saving}
@@ -595,7 +810,10 @@ function Builder({ data, storageKey, reload, group }) {
               "Reset all choices to the suggested kit?",
             )
           ) {
-            setSelections(defaultKitSelections(kit));
+            setSelections(
+              defaultKitSelections(kit),
+            );
+
             setCoupon("");
           }
         }}
@@ -611,15 +829,21 @@ function Builder({ data, storageKey, reload, group }) {
           <div>
             {kit.slots.map((slot) => {
               const row = selections.find(
-                (value) => value.slotKey === slot.key,
+                (value) =>
+                  value.slotKey === slot.key,
               );
 
               const product = products.find(
-                (value) => productId(value) === row?.productId,
+                (value) =>
+                  productId(value) ===
+                  row?.productId,
               );
 
-              const choices = products.filter((value) =>
-                slot.allowedProducts.includes(productId(value)),
+              const choices = products.filter(
+                (value) =>
+                  slot.allowedProducts.includes(
+                    productId(value),
+                  ),
               );
 
               const available = product
@@ -635,22 +859,33 @@ function Builder({ data, storageKey, reload, group }) {
                   (value) =>
                     value.included &&
                     value.slotKey !== slot.key &&
-                    value.productId === row?.productId &&
-                    value.selectedSize === row?.selectedSize &&
-                    value.selectedColor === row?.selectedColor,
+                    value.productId ===
+                      row?.productId &&
+                    value.selectedSize ===
+                      row?.selectedSize &&
+                    value.selectedColor ===
+                      row?.selectedColor,
                 )
                 .reduce(
-                  (sum, value) => sum + value.quantity,
+                  (sum, value) =>
+                    sum + value.quantity,
                   0,
                 );
 
               const maximum = Math.min(
                 slot.maximumQuantity,
-                Math.max(0, available - otherQuantity),
+
+                Math.max(
+                  0,
+                  available - otherQuantity,
+                ),
               );
 
               return (
-                <section className="panel" key={slot.key}>
+                <section
+                  className="panel"
+                  key={slot.key}
+                >
                   <h3>{slot.label}</h3>
                   <p>{slot.whySelected}</p>
 
@@ -671,11 +906,17 @@ function Builder({ data, storageKey, reload, group }) {
 
                     <input
                       type="checkbox"
-                      checked={row?.included || false}
+                      checked={
+                        row?.included || false
+                      }
                       onChange={(event) =>
-                        update(slot.key, {
-                          included: event.target.checked,
-                        })
+                        update(
+                          slot.key,
+                          {
+                            included:
+                              event.target.checked,
+                          },
+                        )
                       }
                     />
                   </label>
@@ -688,23 +929,34 @@ function Builder({ data, storageKey, reload, group }) {
                         <select
                           value={row.productId}
                           onChange={(event) =>
-                            update(slot.key, {
-                              productId: event.target.value,
-                              selectedSize: null,
-                              selectedColor: null,
-                              quantity: 1,
-                            })
+                            update(
+                              slot.key,
+                              {
+                                productId:
+                                  event.target.value,
+
+                                selectedSize: null,
+                                selectedColor: null,
+                                quantity: 1,
+                              },
+                            )
                           }
                         >
-                          <option value="">Choose a product</option>
+                          <option value="">
+                            Choose a product
+                          </option>
 
                           {row.productId &&
                             !choices.some(
                               (value) =>
-                                productId(value) === row.productId,
+                                productId(value) ===
+                                row.productId,
                             ) && (
-                              <option value={row.productId}>
-                                Saved product unavailable — choose another
+                              <option
+                                value={row.productId}
+                              >
+                                Saved product unavailable
+                                — choose another
                               </option>
                             )}
 
@@ -714,9 +966,17 @@ function Builder({ data, storageKey, reload, group }) {
                               key={productId(value)}
                             >
                               {value.name} ·{" "}
-                              {value.brand || "Brand not recorded"}
+
+                              {value.brand ||
+                                "Brand not recorded"}
+
                               {" · "}
-                              {money(getDiscountedPrice(value))}
+
+                              {money(
+                                getDiscountedPrice(
+                                  value,
+                                ),
+                              )}
                             </option>
                           ))}
                         </select>
@@ -724,30 +984,46 @@ function Builder({ data, storageKey, reload, group }) {
 
                       {!choices.length && (
                         <p>
-                          No eligible products are currently
-                          available. Skip this category or
-                          try again later.
+                          No eligible products are
+                          currently available. Skip
+                          this category or try again
+                          later.
                         </p>
                       )}
 
                       {product && (
                         <>
                           <ProductImage
-                            product={product}
+                            product={{
+                              ...product,
+
+                              selectedColor:
+                                row?.selectedColor,
+                            }}
                             className="kit-builder-photo"
                           />
 
                           <p>
                             {product.name} ·{" "}
-                            {product.brand || "Brand not recorded"}
+
+                            {product.brand ||
+                              "Brand not recorded"}
+
                             {" · "}
-                            {money(getDiscountedPrice(product))} each
+
+                            {money(
+                              getDiscountedPrice(
+                                product,
+                              ),
+                            )} each
                           </p>
 
                           <Link
-                            to={`/product/${encodeURIComponent(
-                              productId(product),
-                            )}`}
+                            to={
+                              `/product/${encodeURIComponent(
+                                productId(product),
+                              )}`
+                            }
                             target="_blank"
                             rel="noopener noreferrer"
                           >
@@ -758,46 +1034,72 @@ function Builder({ data, storageKey, reload, group }) {
                             [
                               "sizes",
                               "selectedSize",
-                              product.optionLabels?.size || "Size",
+                              product.optionLabels
+                                ?.size || "Size",
                             ],
                             [
                               "colors",
                               "selectedColor",
-                              product.optionLabels?.color || "Colour",
+                              product.optionLabels
+                                ?.color || "Colour",
                             ],
-                          ].map(([axis, key, label]) =>
-                            product[axis]?.length > 0 ? (
-                              <label key={key}>
-                                {label}
+                          ].map(
+                            ([axis, key, label]) =>
+                              product[axis]?.length >
+                              0 ? (
+                                <label key={key}>
+                                  {label}
 
-                                <select
-                                  value={row[key] || ""}
-                                  onChange={(event) =>
-                                    update(slot.key, {
-                                      [key]:
-                                        event.target.value || null,
-                                    })
-                                  }
-                                >
-                                  <option value="">
-                                    Choose {label.toLowerCase()}
-                                  </option>
-
-                                  {row[key] &&
-                                    !product[axis].includes(row[key]) && (
-                                      <option value={row[key]}>
-                                        Saved option unavailable
-                                      </option>
-                                    )}
-
-                                  {product[axis].map((value) => (
-                                    <option key={value} value={value}>
-                                      {value}
+                                  <select
+                                    value={
+                                      row[key] || ""
+                                    }
+                                    onChange={(event) =>
+                                      update(
+                                        slot.key,
+                                        {
+                                          [key]:
+                                            event.target
+                                              .value ||
+                                            null,
+                                        },
+                                      )
+                                    }
+                                  >
+                                    <option value="">
+                                      Choose{" "}
+                                      {label.toLowerCase()}
                                     </option>
-                                  ))}
-                                </select>
-                              </label>
-                            ) : null,
+
+                                    {row[key] &&
+                                      !product[
+                                        axis
+                                      ].includes(
+                                        row[key],
+                                      ) && (
+                                        <option
+                                          value={
+                                            row[key]
+                                          }
+                                        >
+                                          Saved option
+                                          unavailable
+                                        </option>
+                                      )}
+
+                                    {product[
+                                      axis
+                                    ].map((value) => (
+                                      <option
+                                        key={value}
+                                        value={value}
+                                      >
+                                        {value}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                              ) : null,
                           )}
 
                           <label>
@@ -806,13 +1108,21 @@ function Builder({ data, storageKey, reload, group }) {
                             <input
                               type="number"
                               min={1}
-                              max={Math.max(1, maximum)}
+                              max={Math.max(
+                                1,
+                                maximum,
+                              )}
                               step={1}
                               value={row.quantity}
                               onChange={(event) =>
-                                update(slot.key, {
-                                  quantity: Number(event.target.value),
-                                })
+                                update(
+                                  slot.key,
+                                  {
+                                    quantity: Number(
+                                      event.target.value,
+                                    ),
+                                  },
+                                )
                               }
                             />
                           </label>
@@ -825,9 +1135,11 @@ function Builder({ data, storageKey, reload, group }) {
 
                           <p>
                             Item estimate:{" "}
+
                             {money(
-                              getDiscountedPrice(product) *
-                                row.quantity,
+                              getDiscountedPrice(
+                                product,
+                              ) * row.quantity,
                             )}
                           </p>
                         </>
@@ -842,9 +1154,14 @@ function Builder({ data, storageKey, reload, group }) {
           <details className="kit-builder-summary">
             <summary>
               Kit summary ·{" "}
+
               {money(
-                quote?.pricing.finalTotal ?? checked.subtotal,
-              )}{" "}
+                quote?.pricing.finalTotal ??
+                checked.subtotal,
+              )}
+
+              {" "}
+
               {quote
                 ? "estimated total"
                 : "items before discounts"}
@@ -857,7 +1174,8 @@ function Builder({ data, storageKey, reload, group }) {
                 <ul>
                   {checked.rows.map((row) => (
                     <li key={row.slotKey}>
-                      {row.name} × {row.quantity} ·{" "}
+                      {row.name} × {row.quantity}
+                      {" "}·{" "}
                       {money(row.linePrice)}
                     </li>
                   ))}
@@ -873,7 +1191,10 @@ function Builder({ data, storageKey, reload, group }) {
                   maxLength={50}
                   value={coupon}
                   onChange={(event) =>
-                    setCoupon(event.target.value.toUpperCase())
+                    setCoupon(
+                      event.target.value
+                        .toUpperCase(),
+                    )
                   }
                   placeholder="Optional"
                 />
@@ -885,11 +1206,18 @@ function Builder({ data, storageKey, reload, group }) {
                 <select
                   value={deliveryMethod}
                   onChange={(event) =>
-                    setDeliveryMethod(event.target.value)
+                    setDeliveryMethod(
+                      event.target.value,
+                    )
                   }
                 >
-                  <option value="standard">Standard</option>
-                  <option value="express">Express</option>
+                  <option value="standard">
+                    Standard
+                  </option>
+
+                  <option value="express">
+                    Express
+                  </option>
                 </select>
               </label>
 
@@ -899,10 +1227,15 @@ function Builder({ data, storageKey, reload, group }) {
                 <select
                   value={paymentMethod}
                   onChange={(event) =>
-                    setPaymentMethod(event.target.value)
+                    setPaymentMethod(
+                      event.target.value,
+                    )
                   }
                 >
-                  <option value="razorpay">Online payment</option>
+                  <option value="razorpay">
+                    Online payment
+                  </option>
+
                   <option value="cod-partial">
                     COD with 10% advance
                   </option>
@@ -912,32 +1245,60 @@ function Builder({ data, storageKey, reload, group }) {
               {checked.errors.length > 0 && (
                 <div role="alert">
                   <h4>Complete your choices</h4>
+
                   <ul>
                     {checked.errors.map((error) => (
-                      <li key={error}>{error}</li>
+                      <li key={error}>
+                        {error}
+                      </li>
                     ))}
                   </ul>
                 </div>
               )}
 
               {quoting && (
-                <p role="status">Updating your estimate…</p>
+                <p role="status">
+                  Updating your estimate…
+                </p>
               )}
 
               {quoteError && (
-                <p role="alert">{quoteError}</p>
+                <p role="alert">
+                  {quoteError}
+                </p>
               )}
 
               <dl>
                 {quote ? (
                   [
-                    ["Item subtotal", quote.pricing.subtotal],
-                    ["Kit savings", quote.pricing.kitDiscount],
-                    ["Coupon savings", quote.pricing.couponDiscount],
-                    ["Shipping estimate", quote.pricing.shipping],
-                    ["Estimated total", quote.pricing.finalTotal],
-                    ["Payable now estimate", quote.payment.amountToPayNow],
-                    ["Remaining balance", quote.payment.amountDue],
+                    [
+                      "Item subtotal",
+                      quote.pricing.subtotal,
+                    ],
+                    [
+                      "Kit savings",
+                      quote.pricing.kitDiscount,
+                    ],
+                    [
+                      "Coupon savings",
+                      quote.pricing.couponDiscount,
+                    ],
+                    [
+                      "Shipping estimate",
+                      quote.pricing.shipping,
+                    ],
+                    [
+                      "Estimated total",
+                      quote.pricing.finalTotal,
+                    ],
+                    [
+                      "Payable now estimate",
+                      quote.payment.amountToPayNow,
+                    ],
+                    [
+                      "Remaining balance",
+                      quote.payment.amountDue,
+                    ],
                   ].map(([label, value]) => (
                     <div key={label}>
                       <dt>{label}</dt>
@@ -946,25 +1307,41 @@ function Builder({ data, storageKey, reload, group }) {
                   ))
                 ) : (
                   <div>
-                    <dt>Items before discounts</dt>
-                    <dd>{money(checked.subtotal)}</dd>
+                    <dt>
+                      Items before discounts
+                    </dt>
+
+                    <dd>
+                      {money(checked.subtotal)}
+                    </dd>
                   </div>
                 )}
               </dl>
 
-              {quote?.discountEligibility?.reasons?.length > 0 && (
+              {quote?.discountEligibility
+                ?.reasons?.length > 0 && (
                 <ul>
-                  {quote.discountEligibility.reasons.map((reason) => (
-                    <li key={reason}>{reason}</li>
-                  ))}
+                  {quote.discountEligibility
+                    .reasons.map((reason) => (
+                      <li key={reason}>
+                        {reason}
+                      </li>
+                    ))}
                 </ul>
               )}
 
               <button
                 type="button"
                 className="button secondary"
-                disabled={checked.errors.length > 0 || quoting}
-                onClick={() => setRetry((value) => value + 1)}
+                disabled={
+                  checked.errors.length > 0 ||
+                  quoting
+                }
+                onClick={() =>
+                  setRetry(
+                    (value) => value + 1,
+                  )
+                }
               >
                 Refresh estimate
               </button>
@@ -992,37 +1369,46 @@ function Builder({ data, storageKey, reload, group }) {
               </button>
 
               {saveError && (
-                <p className="field-error" role="alert">
+                <p
+                  className="field-error"
+                  role="alert"
+                >
                   {saveError}
                 </p>
               )}
 
               <p>
-                Adding to your bag does not place an order or
-                reserve stock. Kit checkout is not enabled yet.
+                Adding to your bag does not place
+                an order or reserve stock. Checkout
+                confirms prices, stock and delivery
+                arrangements before payment.
               </p>
 
               <p>
-                Coupon, delivery and payment choices above are
-                estimates only. They are not applied when saving
-                the kit to your bag.
+                Coupon, delivery and payment choices
+                above are estimates only. They are
+                not applied when saving the kit to
+                your bag.
               </p>
 
               <p>
-                Stock is not reserved. Delivery coverage, packing
-                arrangements and final shipping charges must be
-                checked before payment.
+                Stock is not reserved. Delivery coverage,
+                packing arrangements and final shipping
+                charges must be checked before payment.
               </p>
 
-              <p>{kit.fulfillment?.customerNote}</p>
+              <p>
+                {kit.fulfillment?.customerNote}
+              </p>
 
-              {kit.fulfillment?.mode === "separate-shipments" && (
-                <p>
-                  This setup uses separate shipments. Package
-                  contents and estimates must be confirmed
-                  before purchase.
-                </p>
-              )}
+              {kit.fulfillment?.mode ===
+                "separate-shipments" && (
+                  <p>
+                    This setup uses separate shipments.
+                    Package contents and estimates
+                    must be confirmed before purchase.
+                  </p>
+                )}
             </div>
           </details>
         </div>

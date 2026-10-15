@@ -107,6 +107,7 @@ function KitCheckoutPreview({
   initialCoupon,
 }) {
   const [coupon, setCoupon] = useState(initialCoupon);
+  const [pincode, setPincode] = useState("");
   const [deliveryMethod, setDeliveryMethod] = useState("standard");
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
   const [result, setResult] = useState(null);
@@ -125,6 +126,7 @@ function KitCheckoutPreview({
     coupon,
     deliveryMethod,
     paymentMethod,
+    pincode,
   });
 
   useEffect(() => {
@@ -134,7 +136,7 @@ function KitCheckoutPreview({
     setFailure(null);
     setLoading(false);
 
-    if (!auth.token || !auth.user || partialKit) {
+    if (!auth.token || !auth.user || partialKit || (pincode && !/^[1-9]\d{5}$/.test(pincode))) {
       return () => abort.abort();
     }
 
@@ -148,6 +150,7 @@ function KitCheckoutPreview({
           coupon,
           deliveryMethod,
           paymentMethod,
+          pincode,
         },
         { signal: abort.signal },
       )
@@ -201,8 +204,8 @@ function KitCheckoutPreview({
         ["Item subtotal", quote.pricing.subtotal],
         ["Kit savings", -quote.pricing.kitDiscount],
         ["Coupon savings", -quote.pricing.couponDiscount],
-        ["Shipping estimate", quote.pricing.shipping],
-        ["Estimated order total", quote.pricing.finalTotal],
+        [quote.shippingIsEstimate ? "Shipping estimate" : "Confirmed shipping", quote.pricing.shipping],
+        [quote.shippingIsEstimate ? "Estimated order total" : "Reviewed order total", quote.pricing.finalTotal],
         ["Payable now estimate", quote.payment.amountToPayNow],
         [
           paymentMethod === "cod-partial"
@@ -239,7 +242,14 @@ function KitCheckoutPreview({
       ) : (
         <>
           <section className="panel">
-            <h2>Estimate options</h2>
+            <h2>Review your kit and delivery</h2>
+            <label htmlFor="kit-delivery-pincode">
+              Delivery pincode
+              <input id="kit-delivery-pincode" inputMode="numeric" maxLength={6}
+                value={pincode} placeholder="Enter six-digit pincode"
+                onChange={event => setPincode(event.target.value.replace(/\D/g, "").slice(0, 6))} />
+            </label>
+            {pincode && !/^[1-9]\d{5}$/.test(pincode) && <p className="field-error">Enter a valid six-digit pincode.</p>}
 
             <label>
               Coupon code
@@ -341,9 +351,8 @@ function KitCheckoutPreview({
 
               {quote && (
                 <>
-                  <FulfillmentReadiness
-                    value={quote.fulfillment}
-                  />
+                  <FulfillmentReadiness value={quote.fulfillment} />
+                  <ShippingReview value={quote.shippingReview} />
 
                   {quote.kitSnapshots.map((kit) => (
                     <section className="panel" key={kit.groupId}>
@@ -386,7 +395,7 @@ function KitCheckoutPreview({
                   )}
 
                   <section className="panel">
-                    <h2>Server pricing estimate</h2>
+                    <h2>{quote.shippingIsEstimate ? "Server pricing estimate" : "Reviewed prices and shipping"}</h2>
 
                     <dl className="receipt-totals">
                       {pricingRows.map(([label, value]) => (
@@ -407,11 +416,9 @@ function KitCheckoutPreview({
                     )}
 
                     <p className="notice">
-                      Shipping is estimated using the current
-                      store rates. Packing arrangements and
-                      the number of shipments still require
-                      verification. This estimate is not a
-                      delivery promise.
+                      {quote.shippingIsEstimate
+                        ? "Shipping remains an estimate. Complete the highlighted package and courier checks before payment."
+                        : "The package plan and courier charges are confirmed for your selection and pincode. Delivery days are estimates. Payment integration is still pending; no payment has started."}
                     </p>
                   </section>
                 </>
@@ -582,7 +589,9 @@ function FulfillmentReadiness({ value }) {
 
       <p>
         {value.configurationReady
-          ? "The recorded fulfillment arrangements are complete. Delivery coverage and final shipping still need confirmation."
+          ? value.finalShippingConfirmed
+            ? "Recorded arrangements, package contents and shipping charges are confirmed for this selection."
+            : "The recorded fulfillment arrangements are complete. Delivery coverage and final shipping still need confirmation."
           : "Some fulfillment arrangements need setup before this kit can be purchased."}
       </p>
 
@@ -676,11 +685,28 @@ function FulfillmentReadiness({ value }) {
       </ul>
 
       <p className="notice">
-        These are recorded estimates, not confirmed delivery
-        dates. Exact package count and contents must be
-        disclosed before payment. Software does not physically
-        combine parcels.
+        Preparation and delivery days are estimates. Check the package breakdown and shipping review below. Software does not physically combine parcels.
       </p>
     </section>
   );
+}
+
+function ShippingReview({ value }) {
+  if (!value) return null;
+  return <section className="panel">
+    <h2>Packages and shipping</h2>
+    {value.ready ? <>
+      <p>{value.packageCount} {value.packageCount === 1 ? "package" : "packages"}. Review the contents and delivery estimates for each package.</p>
+      {value.shipments.map(shipment => <article key={shipment.key}>
+        <h3>{shipment.label}</h3>
+        <p>{shipment.carrier} · {shipment.service}</p>
+        <ul>{shipment.contents.map((item, index) => <li key={`${item.itemIndex}-${index}`}>
+          {item.name} · Qty {item.quantity}{item.selectedSize ? ` · ${item.selectedSize}` : ""}{item.selectedColor ? ` · ${item.selectedColor}` : ""}
+        </li>)}</ul>
+        <p>Preparation: {daysRange(shipment.preparationDays)}. Courier transit: {daysRange(shipment.transitDays)}. Total estimate: {daysRange(shipment.estimatedDays)}.</p>
+        <p>Shipping: {money(shipment.shipping)}. Balance on delivery: {money(shipment.amountDueOnDelivery)}.</p>
+      </article>)}
+      <p className="muted">Shipping review expires: {new Date(value.validUntil).toLocaleString("en-IN")}.</p>
+    </> : <><p>The package plan or courier charges need confirmation.</p><ul>{value.issues.map(issue => <li key={issue}>{issue}</li>)}</ul></>}
+  </section>;
 }

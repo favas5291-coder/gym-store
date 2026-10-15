@@ -1,8 +1,25 @@
-import { useState } from "react";
+import {
+  useCallback,
+  useState,
+} from "react";
+
 import { Link } from "react-router-dom";
 
-import { useShoppingTools } from "../context/ShoppingToolsContext.jsx";
-import { useStore } from "../context/StoreContext.jsx";
+import {
+  productImageSources,
+} from "../utils/productImages.js";
+
+import {
+  firstOptions,
+} from "../utils/cartUtils.js";
+
+import {
+  useShoppingTools,
+} from "../context/ShoppingToolsContext.jsx";
+
+import {
+  useStore,
+} from "../context/StoreContext.jsx";
 
 import {
   Heart,
@@ -18,176 +35,110 @@ import ProductOptions from "./ProductOptions.jsx";
 
 import useProductReviews from "../hooks/useProductReviews.js";
 
-
-// ======================================================
-// PRODUCT CARD
-// ======================================================
-
 export default function ProductCard({
   product,
   ...legacy
 }) {
-  const item =
-    product ||
-    legacy;
+  const item = product || legacy;
 
+  const [quickColor, setQuickColor] =
+    useState(null);
+
+  const [quick, setQuick] =
+    useState(false);
+
+  const initialQuickColor =
+    Array.isArray(item.colors) &&
+    item.colors.includes(item.selectedColor)
+      ? item.selectedColor
+      : firstOptions(item).selectedColor;
+
+  const changeQuickColor = useCallback(
+    (color) => {
+      setQuickColor((current) =>
+        current?.id === item.id &&
+        current.color === color
+          ? current
+          : {
+              id: item.id,
+              color,
+            },
+      );
+    },
+    [item.id],
+  );
 
   const {
     compared,
     toggleCompare,
-  } =
-    useShoppingTools();
-
+  } = useShoppingTools();
 
   const {
     wishlist,
     toggleWishlist,
-  } =
-    useStore();
+  } = useStore();
 
+  function openQuick() {
+    setQuickColor({
+      id: item.id,
+      color: initialQuickColor,
+    });
 
-  const [
-    quick,
-    setQuick,
-  ] =
-    useState(
-      false
-    );
+    setQuick(true);
+  }
 
+  const saved = wishlist.some(
+    (entry) =>
+      String(entry.id) === String(item.id),
+  );
 
-  // ====================================================
-  // PRODUCT STATE
-  // ====================================================
+  const isCompared = compared.some(
+    (entry) =>
+      String(entry.id) === String(item.id),
+  );
 
-  const saved =
-    wishlist.some(
-      (
-        entry
-      ) =>
-        String(
-          entry.id
-        ) ===
-        String(
-          item.id
-        )
-    );
-
-
-  const isCompared =
-    compared.some(
-      (
-        entry
-      ) =>
-        String(
-          entry.id
-        ) ===
-        String(
-          item.id
-        )
-    );
-
-
-  const available =
-    inStock(
-      item
-    );
-
-
-  // ====================================================
-  // PRICE
-  // ====================================================
-
-  const price =
-    priceDetails(
-      item
-    );
-
-
-  // ====================================================
-  // REVIEWS
-  // ====================================================
+  const available = inStock(item);
+  const price = priceDetails(item);
 
   const {
     rating,
     count,
-  } =
-    useProductReviews(
-      item
-    );
-
-
-  // ====================================================
-  // SECOND IMAGE
-  // ====================================================
+  } = useProductReviews(item);
 
   const alternateImage =
-    Array.isArray(
-      item.images
-    )
-      ? item.images.find(
-          (
-            src
-          ) =>
-            src &&
-            src !==
-              item.image
-        )
-      : null;
+    productImageSources(item)[1] || null;
 
+  const path = productPath(item.id);
 
-  // ====================================================
-  // PRODUCT LINK
-  // ====================================================
-
-  const path =
-    productPath(
-      item.id
-    );
-
-
-  // ====================================================
-  // PAGE
-  // ====================================================
+  const quickSelectedColor =
+    quickColor?.id === item.id
+      ? quickColor.color
+      : initialQuickColor;
 
   return (
     <article className="gm-product-card">
-      {/* =================================================
-          PRODUCT VISUAL
-      ================================================= */}
-
       <div className="gm-product-visual">
         <Link
           className="gm-product-image"
-          to={
-            path
-          }
+          to={path}
           aria-label={`View ${item.name}`}
         >
-          <ProductImage
-            product={
-              item
-            }
-          />
-
+          <ProductImage product={item} />
 
           {alternateImage && (
             <ProductImage
               className="alternate-photo"
               product={{
                 ...item,
-
-                image:
-                  alternateImage,
+                colorImages: [],
+                images: [],
+                selectedColor: null,
+                image: alternateImage,
               }}
               decorative
             />
           )}
         </Link>
-
-
-        {/* ===============================================
-            BADGE
-        =============================================== */}
 
         {item.badge && (
           <span className="gm-product-badge">
@@ -195,53 +146,30 @@ export default function ProductCard({
           </span>
         )}
 
-
-        {/* ===============================================
-            WISHLIST
-        =============================================== */}
-
         <button
           type="button"
-          className={`card-heart ${
-            saved
-              ? "saved"
-              : ""
-          }`}
-          aria-label={`${
-            saved
-              ? "Remove"
-              : "Save"
-          } ${item.name} ${
-            saved
-              ? "from"
-              : "to"
-          } wishlist`}
-          aria-pressed={
-            saved
+          className={
+            "card-heart " +
+            (saved ? "saved" : "")
           }
-          onClick={() =>
-            toggleWishlist(
-              item
-            )
+          aria-label={
+            `${saved ? "Remove" : "Save"} ` +
+            `${item.name} ` +
+            `${saved ? "from" : "to"} wishlist`
           }
+          aria-pressed={saved}
+          onClick={() => toggleWishlist(item)}
         >
-          <Heart
-            filled={
-              saved
-            }
-          />
+          <Heart filled={saved} />
         </button>
 
-
-        {/* ===============================================
-            REAL REVIEW SCORE
-        =============================================== */}
-
-        {count >
-          0 && (
+        {count > 0 && (
           <span
             className="gm-rating"
-            aria-label={`${rating} out of 5 from ${count} reviews`}
+            aria-label={
+              `${rating} out of 5 ` +
+              `from ${count} reviews`
+            }
           >
             {rating}
 
@@ -255,92 +183,51 @@ export default function ProductCard({
           </span>
         )}
 
-
-        {/* ===============================================
-            STOCK
-        =============================================== */}
-
         {!available && (
           <span className="gm-stock-label">
             OUT OF STOCK
           </span>
         )}
 
-
-        {/* ===============================================
-            PRIMARY CARD ACTION
-        =============================================== */}
-
         <div className="gm-card-action">
           {available ? (
             <button
               type="button"
               aria-label={`Quick add ${item.name}`}
-              onClick={() =>
-                setQuick(
-                  true
-                )
-              }
+              onClick={openQuick}
             >
               QUICK ADD
             </button>
           ) : (
-            <Link
-              to={
-                path
-              }
-            >
+            <Link to={path}>
               VIEW PRODUCT
             </Link>
           )}
         </div>
       </div>
 
-
-      {/* =================================================
-          PRODUCT INFORMATION
-      ================================================= */}
-
       <div className="gm-product-copy">
         <Link
-          to={
-            path
-          }
+          to={path}
           className="gm-product-info-link"
         >
           <p className="gm-product-brand">
-            {item.brand ||
-              "GymDrobe"}
+            {item.brand || "GymDrobe"}
           </p>
 
-
-          <h3>
-            {item.name}
-          </h3>
+          <h3>{item.name}</h3>
         </Link>
-
-
-        {/* ===============================================
-            PRICE
-        =============================================== */}
 
         <p className="gm-product-price">
           <strong>
-            {money(
-              price.selling
-            )}
+            {money(price.selling)}
           </strong>
 
-
-          {price.discount >
-            0 && (
+          {price.discount > 0 && (
             <>
               <del>
-                {money(
-                  price.price
-                )}
+                {money(price.price)}
               </del>
-
 
               <span>
                 {price.discount}% OFF
@@ -349,107 +236,69 @@ export default function ProductCard({
           )}
         </p>
 
-
-        {/* ===============================================
-            SOCIAL PROOF
-        =============================================== */}
-
-        {count >
-          0 && (
+        {count > 0 && (
           <p className="gm-product-proof">
             <span aria-hidden="true">
               ★
             </span>{" "}
 
-            <strong>
-              {rating}
-            </strong>
-
-            {" "}
+            <strong>{rating}</strong>{" "}
 
             <span>
               ({count}{" "}
-              {count ===
-              1
+              {count === 1
                 ? "review"
                 : "reviews"})
             </span>
           </p>
         )}
 
-
-        {/* ===============================================
-            STOCK MESSAGE
-        =============================================== */}
-
         <p
-          className={`gm-product-availability ${
-            available
-              ? "available"
-              : "unavailable"
-          }`}
+          className={
+            "gm-product-availability " +
+            (
+              available
+                ? "available"
+                : "unavailable"
+            )
+          }
         >
           {available
             ? "In stock"
             : "Currently unavailable"}
         </p>
 
-
-        {/* ===============================================
-            STRONG PRODUCT CTA
-        =============================================== */}
-
         <div className="gm-product-card-cta">
           {available ? (
             <button
               type="button"
               className="button full"
-              onClick={() =>
-                setQuick(
-                  true
-                )
-              }
+              onClick={openQuick}
             >
               Quick add
             </button>
           ) : (
             <Link
               className="button full"
-              to={
-                path
-              }
+              to={path}
             >
               View product
             </Link>
           )}
 
-
           <Link
             className="text-link"
-            to={
-              path
-            }
+            to={path}
           >
             View details →
           </Link>
         </div>
 
-
-        {/* ===============================================
-            COMPARE — TERTIARY ACTION
-        =============================================== */}
-
         <button
           className="compare-toggle"
           type="button"
-          aria-pressed={
-            isCompared
-          }
-          onClick={() =>
-            toggleCompare(
-              item
-            )
-          }
+          aria-pressed={isCompared}
+          onClick={() => toggleCompare(item)}
         >
           {isCompared
             ? "✓ Added to comparison"
@@ -457,84 +306,52 @@ export default function ProductCard({
         </button>
       </div>
 
-
-      {/* =================================================
-          QUICK ADD MODAL
-      ================================================= */}
-
       {quick && (
         <Modal
-          title={
-            item.name
-          }
-          onClose={() =>
-            setQuick(
-              false
-            )
-          }
+          title={item.name}
+          onClose={() => setQuick(false)}
           className="quick-modal"
         >
           <div className="quick-layout">
             <ProductImage
-              product={
-                item
-              }
+              product={{
+                ...item,
+                selectedColor: quickSelectedColor,
+              }}
               eager
             />
 
-
             <div>
               <p className="eyebrow">
-                {item.brand ||
-                  "GymDrobe"}
+                {item.brand || "GymDrobe"}
               </p>
 
-
-              {count >
-                0 && (
+              {count > 0 && (
                 <p className="gm-product-proof">
                   <strong>
                     {rating} ★
-                  </strong>
-
-                  {" "}
+                  </strong>{" "}
 
                   <span>
                     {count}{" "}
-                    {count ===
-                    1
+                    {count === 1
                       ? "review"
                       : "reviews"}
                   </span>
                 </p>
               )}
 
-
               <ProductOptions
-                key={
-                  item.id
-                }
-                product={
-                  item
-                }
-                onAdded={() =>
-                  setQuick(
-                    false
-                  )
-                }
+                key={item.id}
+                product={item}
+                onColorChange={changeQuickColor}
+                onAdded={() => setQuick(false)}
               />
-
 
               <Link
                 className="text-link"
-                to={
-                  path
-                }
-                onClick={() =>
-                  setQuick(
-                    false
-                  )
-                }
+                to={path}
+                onClick={() => setQuick(false)}
               >
                 View full product details →
               </Link>

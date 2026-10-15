@@ -1,5 +1,6 @@
 const API_URL = (
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+  import.meta.env.VITE_API_URL ||
+  "http://localhost:5000/api"
 )
   .trim()
   .replace(/\/+$/, "");
@@ -96,8 +97,10 @@ function text(
 function identifier(value) {
   if (
     !["string", "number"].includes(typeof value) ||
-    (typeof value === "number" &&
-      !Number.isFinite(value))
+    (
+      typeof value === "number" &&
+      !Number.isFinite(value)
+    )
   ) {
     throw invalid("A valid order ID is required.");
   }
@@ -144,9 +147,7 @@ function fallbackMessage(status) {
   );
 }
 
-function cancelledError(
-  saveResultUnknown = false,
-) {
+function cancelledError(saveResultUnknown = false) {
   const error = new Error(
     saveResultUnknown
       ? "The request was cancelled. Reload the order to check whether the update was saved."
@@ -264,13 +265,16 @@ async function request(
         unknown
           ? `${message} Reload the order and check its saved state before retrying.`
           : message,
+
         {
           status: response.status,
+
           code:
             typeof data?.code === "string" &&
             data.code
               ? data.code
               : "ADMIN_ORDER_HTTP_ERROR",
+
           data,
           saveResultUnknown: unknown,
         },
@@ -295,14 +299,18 @@ async function request(
         saving && !declaredFailure
           ? `${message} Reload the order before retrying the update.`
           : message,
+
         {
           status: response.status,
+
           code:
             typeof data?.code === "string" &&
             data.code
               ? data.code
               : "INVALID_ADMIN_ORDER_RESPONSE",
+
           data,
+
           saveResultUnknown:
             saving && !declaredFailure,
         },
@@ -324,6 +332,7 @@ async function request(
         saving
           ? "The update timed out. Its save result is unknown. Reload the order before retrying."
           : "The order server took too long to respond. Please try again.",
+
         {
           code: "ADMIN_ORDER_REQUEST_TIMEOUT",
           saveResultUnknown: saving && started,
@@ -335,6 +344,7 @@ async function request(
       saving
         ? "Connection lost. The update could not be confirmed. Reload the order before retrying."
         : "Unable to connect to GymDrobe. Check your connection and try again.",
+
       {
         code: "ADMIN_ORDER_NETWORK_ERROR",
         saveResultUnknown: saving && started,
@@ -363,20 +373,20 @@ function validOrder(order) {
   return (
     ["string", "number"].includes(typeof id) &&
     String(id).trim() !== "" &&
-    (typeof id !== "number" ||
-      Number.isFinite(id))
+    (
+      typeof id !== "number" ||
+      Number.isFinite(id)
+    )
   );
 }
 
-function orderFrom(
-  data,
-  saving = false,
-) {
+function orderFrom(data, saving = false) {
   if (!validOrder(data.order)) {
     throw apiError(
       saving
         ? "The saved order details were not returned. Reload the order before retrying."
         : "Order details could not be read. Please reload.",
+
       {
         code: "INVALID_ADMIN_ORDER_RESPONSE",
         data,
@@ -388,6 +398,64 @@ function orderFrom(
   return data.order;
 }
 
+export async function updateAdminKitFulfillment(
+  token,
+  orderId,
+  changes,
+  options = {},
+) {
+  requireToken(token);
+
+  if (
+    !object(changes) ||
+    !Number.isSafeInteger(changes.revision) ||
+    changes.revision < 0 ||
+    ![
+      "initialize",
+      "component",
+      "parcel",
+      "cod",
+    ].includes(changes.action)
+  ) {
+    throw invalid(
+      "Include the current kit revision and a valid fulfillment action.",
+    );
+  }
+
+  const data = await request(
+    `/orders/admin/orders/${identifier(orderId)}/kit-fulfillment`,
+
+    {
+      ...options,
+      token,
+      method: "PUT",
+      body: changes,
+    },
+  );
+
+  const order = orderFrom(data, true);
+  const progress = order.kitFulfillmentAdmin;
+
+  if (
+    !progress ||
+    !Number.isSafeInteger(progress.revision) ||
+    progress.revision <= changes.revision ||
+    !Array.isArray(progress.components) ||
+    !Array.isArray(progress.parcels)
+  ) {
+    throw apiError(
+      "Saved kit progress could not be verified. Reload the order before another update.",
+
+      {
+        code: "INVALID_KIT_FULFILLMENT_RESPONSE",
+        saveResultUnknown: true,
+      },
+    );
+  }
+
+  return order;
+}
+
 function ordersFrom(data) {
   if (
     !Array.isArray(data.orders) ||
@@ -397,6 +465,7 @@ function ordersFrom(data) {
   ) {
     throw apiError(
       "The order list could not be read. Please retry.",
+
       {
         code: "INVALID_ADMIN_ORDER_RESPONSE",
         data,
@@ -448,6 +517,7 @@ function responseInteger(
   ) {
     throw apiError(
       "The server returned invalid order pagination. Please retry.",
+
       {
         code: "INVALID_ADMIN_ORDER_RESPONSE",
       },
@@ -458,9 +528,7 @@ function responseInteger(
 }
 
 function validDate(value) {
-  if (
-    !/^\d{4}-\d{2}-\d{2}$/.test(value)
-  ) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return false;
   }
 
@@ -532,6 +600,7 @@ export async function getAdminOrders(
 
   const data = await request(
     `/orders/admin/orders?${query}`,
+
     {
       token,
       signal,
@@ -547,6 +616,7 @@ export async function getAdminOrders(
   ) {
     throw apiError(
       "Order totals were not returned. Check the backend response.",
+
       {
         code: "INVALID_ADMIN_ORDER_RESPONSE",
         data,
@@ -556,17 +626,26 @@ export async function getAdminOrders(
 
   return {
     orders,
+
     count: responseInteger(
       data.count,
       orders.length,
     ),
+
     total: responseInteger(data.total, 0),
+
     page: responseInteger(
       data.page,
       safePage,
       1,
     ),
-    pages: responseInteger(data.pages, 1, 1),
+
+    pages: responseInteger(
+      data.pages,
+      1,
+      1,
+    ),
+
     limit: responseInteger(
       data.limit,
       safeLimit,
@@ -582,6 +661,7 @@ export async function getAdminOrderById(
 ) {
   const data = await request(
     `/orders/admin/orders/${identifier(orderId)}`,
+
     {
       ...options,
       token,
@@ -609,9 +689,7 @@ export async function updateAdminOrderStatus(
     1,
   ).toLowerCase();
 
-  if (
-    !FULFILMENT_STATUSES.includes(status)
-  ) {
+  if (!FULFILMENT_STATUSES.includes(status)) {
     throw invalid(
       "Choose a valid fulfilment status.",
     );
@@ -627,9 +705,7 @@ export async function updateAdminOrderStatus(
     );
   }
 
-  if (
-    changes.trackingNumber !== undefined
-  ) {
+  if (changes.trackingNumber !== undefined) {
     body.trackingNumber = text(
       changes.trackingNumber ?? "",
       "Tracking number",
@@ -637,9 +713,7 @@ export async function updateAdminOrderStatus(
     );
   }
 
-  if (
-    changes.estimatedDelivery !== undefined
-  ) {
+  if (changes.estimatedDelivery !== undefined) {
     const value = text(
       changes.estimatedDelivery ?? "",
       "Estimated delivery",
@@ -655,9 +729,7 @@ export async function updateAdminOrderStatus(
     body.estimatedDelivery = value;
   }
 
-  if (
-    changes.codBalanceCollected !== undefined
-  ) {
+  if (changes.codBalanceCollected !== undefined) {
     if (
       typeof changes.codBalanceCollected !==
       "boolean"
@@ -682,6 +754,7 @@ export async function updateAdminOrderStatus(
 
   const data = await request(
     `/orders/admin/orders/${identifier(orderId)}/status`,
+
     {
       ...options,
       token,
@@ -721,6 +794,7 @@ export async function getAdminReturnRequests(
 
   const data = await request(
     `/orders/admin/returns${query}`,
+
     {
       ...options,
       token,
@@ -738,9 +812,7 @@ export async function reviewReturnRequest(
   options = {},
 ) {
   if (!object(changes)) {
-    throw invalid(
-      "A return decision is required.",
-    );
+    throw invalid("A return decision is required.");
   }
 
   const decision = text(
@@ -750,12 +822,8 @@ export async function reviewReturnRequest(
     1,
   ).toLowerCase();
 
-  if (
-    !["approve", "reject"].includes(decision)
-  ) {
-    throw invalid(
-      "Choose approve or reject.",
-    );
+  if (!["approve", "reject"].includes(decision)) {
+    throw invalid("Choose approve or reject.");
   }
 
   const response = text(
@@ -766,10 +834,12 @@ export async function reviewReturnRequest(
 
   const data = await request(
     `/orders/admin/returns/${identifier(orderId)}/review`,
+
     {
       ...options,
       token,
       method: "PUT",
+
       body: {
         decision,
         response,
@@ -800,6 +870,7 @@ export async function completeReturnRequest(
 
   const data = await request(
     `/orders/admin/returns/${identifier(orderId)}/complete`,
+
     {
       ...options,
       token,
@@ -820,9 +891,7 @@ export async function recordReturnRefund(
   options = {},
 ) {
   if (!object(changes)) {
-    throw invalid(
-      "Refund information is required.",
-    );
+    throw invalid("Refund information is required.");
   }
 
   const reference = text(
@@ -834,6 +903,7 @@ export async function recordReturnRefund(
 
   const data = await request(
     `/orders/admin/returns/${identifier(orderId)}/refund`,
+
     {
       ...options,
       token,

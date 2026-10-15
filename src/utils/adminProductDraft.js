@@ -1,6 +1,19 @@
-import { normalizeMeeshoLink } from "./meeshoUrl.js";
-import { money, getDiscountedPrice } from "./productPricing.js";
-import { isPublicImageUrl } from "./imageUrl.js";
+import {
+  normalizeColorImages,
+} from "./productImages.js";
+
+import {
+  normalizeMeeshoLink,
+} from "./meeshoUrl.js";
+
+import {
+  money,
+  getDiscountedPrice,
+} from "./productPricing.js";
+
+import {
+  isPublicImageUrl,
+} from "./imageUrl.js";
 
 const EMPTY = {
   id: "",
@@ -21,6 +34,7 @@ const EMPTY = {
   returnPolicy: "",
   image: "",
   imagesText: "",
+  colorImagesText: {},
   tagsText: "",
   highlightsText: "",
   careInstructionsText: "",
@@ -62,7 +76,10 @@ function unique(values) {
   const seen = new Set();
 
   return values.flatMap((value) => {
-    if (typeof value !== "string" || !value.trim()) {
+    if (
+      typeof value !== "string" ||
+      !value.trim()
+    ) {
       return [];
     }
 
@@ -74,12 +91,15 @@ function unique(values) {
     }
 
     seen.add(key);
+
     return [clean];
   });
 }
 
 function commas(value) {
-  return unique(String(value || "").split(","));
+  return unique(
+    String(value || "").split(","),
+  );
 }
 
 function lines(value) {
@@ -90,27 +110,46 @@ function lines(value) {
 }
 
 function list(value) {
-  return Array.isArray(value) ? value : [];
+  return Array.isArray(value)
+    ? value
+    : [];
 }
 
 function idFor(product) {
-  return product?._id || product?.id || product?.slug || "";
+  return (
+    product?._id ||
+    product?.id ||
+    product?.slug ||
+    ""
+  );
 }
 
 function own(object, key) {
-  return Object.prototype.hasOwnProperty.call(object || {}, key);
+  return Object.prototype.hasOwnProperty.call(
+    object || {},
+    key,
+  );
 }
 
 function safeKey(value) {
   return (
-    !["__proto__", "constructor", "prototype", "default"].includes(value) &&
+    ![
+      "__proto__",
+      "constructor",
+      "prototype",
+      "default",
+    ].includes(value) &&
     !value.startsWith("$") &&
     !value.includes(".") &&
     !/[\u0000-\u001f\u007f]/.test(value)
   );
 }
 
-function validNumber(value, maximum, whole = false) {
+function validNumber(
+  value,
+  maximum,
+  whole = false,
+) {
   return (
     typeof value !== "boolean" &&
     value != null &&
@@ -118,13 +157,18 @@ function validNumber(value, maximum, whole = false) {
     Number.isFinite(Number(value)) &&
     Number(value) >= 0 &&
     Number(value) <= maximum &&
-    (!whole || Number.isSafeInteger(Number(value)))
+    (
+      !whole ||
+      Number.isSafeInteger(Number(value))
+    )
   );
 }
 
 function sellingPrice(product) {
-  return validNumber(product.price, 100000000) &&
+  return (
+    validNumber(product.price, 100000000) &&
     validNumber(product.discount ?? 0, 100)
+  )
     ? money(getDiscountedPrice(product))
     : "Not recorded";
 }
@@ -157,63 +201,151 @@ function draftFor(product) {
     "returnPolicy",
     "image",
   ]) {
-    draft[key] = typeof product[key] === "string" ? product[key] : "";
+    draft[key] =
+      typeof product[key] === "string"
+        ? product[key]
+        : "";
   }
 
   return {
     ...draft,
+
     id: idFor(product),
     gender: product.gender || "Unisex",
     price: String(product.price ?? ""),
     discount: String(product.discount ?? 0),
     stock: String(product.stock ?? 0),
-    variants: JSON.parse(JSON.stringify(product.variants || {})),
+
+    variants: JSON.parse(
+      JSON.stringify(product.variants || {}),
+    ),
+
     variantSkus: list(product.variantSkus),
+
     imagesText: list(product.images).join("\n"),
+
+    colorImagesText: Object.fromEntries(
+      list(product.colorImages)
+        .filter(
+          (row) =>
+            row &&
+            typeof row.color === "string",
+        )
+        .map((row) => [
+          row.color,
+          list(row.images).join("\n"),
+        ]),
+    ),
+
     tagsText: list(product.tags).join(", "),
-    highlightsText: list(product.highlights).join("\n"),
-    careInstructionsText: list(product.careInstructions).join("\n"),
+
+    highlightsText:
+      list(product.highlights).join("\n"),
+
+    careInstructionsText:
+      list(product.careInstructions).join("\n"),
+
     sizesText: list(product.sizes).join(", "),
     colorsText: list(product.colors).join(", "),
-    specificationsText: Object.entries(product.specifications || {})
-      .map(([key, value]) => `${key}: ${String(value ?? "")}`)
+
+    specificationsText: Object.entries(
+      product.specifications || {},
+    )
+      .map(
+        ([key, value]) =>
+          `${key}: ${String(value ?? "")}`,
+      )
       .join("\n"),
+
     isFeatured: Boolean(product.isFeatured),
     isBestSeller: Boolean(product.isBestSeller),
-    isNew: Boolean(product.isNew ?? product.isNewArrival),
+
+    isNew: Boolean(
+      product.isNew ?? product.isNewArrival,
+    ),
+
     isActive: product.isActive !== false,
-    deliveryAvailable: product.delivery?.available !== false,
-    estimatedDays: String(product.delivery?.estimatedDays || ""),
-    freeDeliveryAbove: String(product.delivery?.freeDeliveryAbove ?? 500),
+
+    deliveryAvailable:
+      product.delivery?.available !== false,
+
+    estimatedDays: String(
+      product.delivery?.estimatedDays || "",
+    ),
+
+    freeDeliveryAbove: String(
+      product.delivery?.freeDeliveryAbove ?? 500,
+    ),
+
     supplier: String(
       product.supplier?.id ??
-        product.supplier?._id ??
-        product.supplier ??
-        "",
+      product.supplier?._id ??
+      product.supplier ??
+      "",
     ),
-    purchaseCost: String(product.purchaseCost ?? ""),
-    stockSource: product.fulfillment?.stockSource || "unconfirmed",
-    dispatchBy: product.fulfillment?.dispatchBy || "unconfirmed",
+
+    purchaseCost: String(
+      product.purchaseCost ?? "",
+    ),
+
+    stockSource:
+      product.fulfillment?.stockSource ||
+      "unconfirmed",
+
+    dispatchBy:
+      product.fulfillment?.dispatchBy ||
+      "unconfirmed",
+
     preparationDaysMin: String(
-      product.fulfillment?.preparationDaysMin ?? "",
+      product.fulfillment?.preparationDaysMin ??
+      "",
     ),
+
     preparationDaysMax: String(
-      product.fulfillment?.preparationDaysMax ?? "",
+      product.fulfillment?.preparationDaysMax ??
+      "",
     ),
+
     canSendToPackingLocation:
-      product.fulfillment?.canSendToPackingLocation === true,
+      product.fulfillment
+        ?.canSendToPackingLocation === true,
+
     supplierStockConfirmedAt:
-      product.fulfillment?.supplierStockConfirmedAt || "",
+      product.fulfillment
+        ?.supplierStockConfirmedAt || "",
+
     confirmSupplierStock: false,
-    kitEligible: product.kitSettings?.eligible === true,
-    kitRoles: [...list(product.kitSettings?.roles)],
-    sizeLabel: product.optionLabels?.size || "Size",
-    colorLabel: product.optionLabels?.color || "Colour",
-    transitDaysMin: String(product.delivery?.transitDaysMin ?? ""),
-    transitDaysMax: String(product.delivery?.transitDaysMax ?? ""),
-    returnsEligible: product.returnsEligible || "unconfirmed",
-    returnConditions: product.returnConditions || "",
-    returnWindowDays: String(product.returnWindowDays ?? 7),
+
+    kitEligible:
+      product.kitSettings?.eligible === true,
+
+    kitRoles: [
+      ...list(product.kitSettings?.roles),
+    ],
+
+    sizeLabel:
+      product.optionLabels?.size || "Size",
+
+    colorLabel:
+      product.optionLabels?.color || "Colour",
+
+    transitDaysMin: String(
+      product.delivery?.transitDaysMin ?? "",
+    ),
+
+    transitDaysMax: String(
+      product.delivery?.transitDaysMax ?? "",
+    ),
+
+    returnsEligible:
+      product.returnsEligible || "unconfirmed",
+
+    returnConditions:
+      product.returnConditions || "",
+
+    returnWindowDays: String(
+      product.returnWindowDays ?? 7,
+    ),
   };
 }
 
@@ -221,8 +353,15 @@ function optionRows(draft) {
   const colors = commas(draft.colorsText);
   const sizes = commas(draft.sizesText);
 
-  return (colors.length ? colors : [""]).flatMap((color) =>
-    (sizes.length ? sizes : [""]).map((size) => ({ color, size })),
+  return (
+    colors.length ? colors : [""]
+  ).flatMap((color) =>
+    (
+      sizes.length ? sizes : [""]
+    ).map((size) => ({
+      color,
+      size,
+    })),
   );
 }
 
@@ -240,7 +379,10 @@ function quantityFor(draft, color, size) {
 
     const group = variants[color];
 
-    if (!size && typeof group !== "object") {
+    if (
+      !size &&
+      typeof group !== "object"
+    ) {
       return group ?? 0;
     }
 
@@ -249,7 +391,9 @@ function quantityFor(draft, color, size) {
       : 0;
   }
 
-  return own(variants, size) ? variants[size] : 0;
+  return own(variants, size)
+    ? variants[size]
+    : 0;
 }
 
 function totalStock(draft) {
@@ -259,7 +403,11 @@ function totalStock(draft) {
     rows.some(
       (row) =>
         !validNumber(
-          quantityFor(draft, row.color, row.size),
+          quantityFor(
+            draft,
+            row.color,
+            row.size,
+          ),
           1000000,
           true,
         ),
@@ -270,7 +418,14 @@ function totalStock(draft) {
 
   return rows.reduce(
     (sum, row) =>
-      sum + Number(quantityFor(draft, row.color, row.size)),
+      sum +
+      Number(
+        quantityFor(
+          draft,
+          row.color,
+          row.size,
+        ),
+      ),
     0,
   );
 }
@@ -278,16 +433,22 @@ function totalStock(draft) {
 function buildVariants(draft) {
   const result = Object.create(null);
 
-  for (const { color, size } of optionRows(draft)) {
+  for (
+    const { color, size } of optionRows(draft)
+  ) {
     if (!color && !size) {
       continue;
     }
 
-    const quantity = Number(quantityFor(draft, color, size));
+    const quantity = Number(
+      quantityFor(draft, color, size),
+    );
 
     if (color) {
       result[color] ||= Object.create(null);
-      result[color][size || "default"] = quantity;
+
+      result[color][size || "default"] =
+        quantity;
     } else {
       result[size] = quantity;
     }
@@ -300,10 +461,18 @@ function inventoryKey(draft) {
   return JSON.stringify({
     colors: commas(draft.colorsText),
     sizes: commas(draft.sizesText),
+
     rows: optionRows(draft).map((row) => [
       row.color,
       row.size,
-      Number(quantityFor(draft, row.color, row.size)),
+
+      Number(
+        quantityFor(
+          draft,
+          row.color,
+          row.size,
+        ),
+      ),
     ]),
   });
 }
@@ -328,8 +497,35 @@ function validImage(value) {
   );
 }
 
+function colorPhotosFor(draft) {
+  const colors = commas(
+    draft.colorsText,
+  );
+
+  return normalizeColorImages(
+    colors.map((color) => ({
+      color,
+
+      images: lines(
+        typeof draft.colorImagesText?.[color] ===
+          "string"
+          ? draft.colorImagesText[color]
+          : "",
+      ),
+    })),
+    colors,
+  );
+}
+
 function validateBasicDraft(draft) {
-  try { normalizeMeeshoLink(draft.meeshoProductLink); } catch (error) { return error.message; }
+  try {
+    normalizeMeeshoLink(
+      draft.meeshoProductLink,
+    );
+  } catch (error) {
+    return error.message;
+  }
+
   if (
     draft.name.trim().length < 2 ||
     draft.name.trim().length > 200
@@ -344,15 +540,22 @@ function validateBasicDraft(draft) {
     return "Choose a category of no more than 100 characters.";
   }
 
-  if (!draft.brand.trim() || draft.brand.trim().length > 100) {
+  if (
+    !draft.brand.trim() ||
+    draft.brand.trim().length > 100
+  ) {
     return "Choose the actual brand, using no more than 100 characters.";
   }
 
-  if (draft.subcategory.trim().length > 100) {
+  if (
+    draft.subcategory.trim().length > 100
+  ) {
     return "Subcategory cannot exceed 100 characters.";
   }
 
-  if (!validNumber(draft.price, 100000000)) {
+  if (
+    !validNumber(draft.price, 100000000)
+  ) {
     return "Enter an original price from ₹0 to ₹10,00,00,000.";
   }
 
@@ -360,34 +563,65 @@ function validateBasicDraft(draft) {
     return "Discount must be between 0 and 100%.";
   }
 
-  if (!validNumber(draft.freeDeliveryAbove, 100000000)) {
+  if (
+    !validNumber(
+      draft.freeDeliveryAbove,
+      100000000,
+    )
+  ) {
     return "Enter a valid non-negative delivery threshold.";
   }
 
   const sizes = commas(draft.sizesText);
   const colors = commas(draft.colorsText);
 
-  if (sizes.length > 50 || colors.length > 50) {
+  if (
+    sizes.length > 50 ||
+    colors.length > 50
+  ) {
     return "Use no more than 50 sizes or 50 colours.";
   }
 
   if (
-    sizes.some((value) => !safeKey(value) || value.length > 50) ||
-    colors.some((value) => !safeKey(value) || value.length > 80)
+    sizes.some(
+      (value) =>
+        !safeKey(value) ||
+        value.length > 50,
+    ) ||
+    colors.some(
+      (value) =>
+        !safeKey(value) ||
+        value.length > 80,
+    )
   ) {
     return "Size and colour names cannot contain dots, start with $, use reserved names, or exceed their length limits.";
+  }
+
+  try {
+    colorPhotosFor(draft);
+  } catch (error) {
+    return error.message;
   }
 
   for (const row of optionRows(draft)) {
     if (
       !validNumber(
-        quantityFor(draft, row.color, row.size),
+        quantityFor(
+          draft,
+          row.color,
+          row.size,
+        ),
         1000000,
         true,
       )
     ) {
       const selection =
-        [row.color, row.size].filter(Boolean).join(" / ") ||
+        [
+          row.color,
+          row.size,
+        ]
+          .filter(Boolean)
+          .join(" / ") ||
         "this product";
 
       return `Enter whole stock from 0 to 1,000,000 for ${selection}.`;
@@ -398,7 +632,10 @@ function validateBasicDraft(draft) {
     return "Combined product stock cannot exceed 1,000,000.";
   }
 
-  const specs = lines(draft.specificationsText);
+  const specs = lines(
+    draft.specificationsText,
+  );
+
   const names = new Set();
 
   if (specs.length > 100) {
@@ -407,8 +644,14 @@ function validateBasicDraft(draft) {
 
   for (const line of specs) {
     const colon = line.indexOf(":");
-    const key = line.slice(0, colon).trim();
-    const value = line.slice(colon + 1).trim();
+
+    const key = line
+      .slice(0, colon)
+      .trim();
+
+    const value = line
+      .slice(colon + 1)
+      .trim();
 
     if (
       colon < 1 ||
@@ -427,16 +670,36 @@ function validateBasicDraft(draft) {
     names.add(key.toLowerCase());
   }
 
-  for (const [key, label, maximum, length] of [
-    ["imagesText", "Additional photos", 20, 2000],
-    ["highlightsText", "Main benefits", 30, 500],
-    ["careInstructionsText", "Care instructions", 30, 500],
-  ]) {
+  for (
+    const [key, label, maximum, length] of [
+      [
+        "imagesText",
+        "Additional photos",
+        20,
+        2000,
+      ],
+      [
+        "highlightsText",
+        "Main benefits",
+        30,
+        500,
+      ],
+      [
+        "careInstructionsText",
+        "Care instructions",
+        30,
+        500,
+      ],
+    ]
+  ) {
     const values = lines(draft[key]);
 
     if (
       values.length > maximum ||
-      values.some((value) => value.length > length)
+      values.some(
+        (value) =>
+          value.length > length,
+      )
     ) {
       return `${label}: use no more than ${maximum} entries, each up to ${length} characters.`;
     }
@@ -444,14 +707,18 @@ function validateBasicDraft(draft) {
 
   if (
     commas(draft.tagsText).length > 50 ||
-    commas(draft.tagsText).some((value) => value.length > 100)
+    commas(draft.tagsText).some(
+      (value) => value.length > 100,
+    )
   ) {
     return "Use up to 50 tags, each no longer than 100 characters.";
   }
 
   if (
     !validImage(draft.image) ||
-    lines(draft.imagesText).some((value) => !validImage(value))
+    lines(draft.imagesText).some(
+      (value) => !validImage(value),
+    )
   ) {
     return (
       "Photos must use publicly hosted HTTP/HTTPS links or website image " +
@@ -469,7 +736,8 @@ export const KIT_ROLES = {
   "training-accessories": "Training accessories",
   "gym-bag": "Gym bag",
   "bottle-or-shaker": "Bottle or shaker",
-  "workout-essentials": "Towels, socks and essentials",
+  "workout-essentials":
+    "Towels, socks and essentials",
 };
 
 const SIZE_LABELS = [
@@ -489,7 +757,11 @@ const COLOR_LABELS = [
   "Option",
 ];
 
-const STOCK_SOURCES = ["unconfirmed", "gymdrobe", "supplier"];
+const STOCK_SOURCES = [
+  "unconfirmed",
+  "gymdrobe",
+  "supplier",
+];
 
 const DISPATCH_METHODS = [
   "unconfirmed",
@@ -508,19 +780,29 @@ const SUPPLY_FIELDS = [
 ];
 
 const blank = (value) =>
-  value == null || String(value).trim() === "";
+  value == null ||
+  String(value).trim() === "";
 
 const nullableNumber = (value) =>
-  blank(value) ? null : Number(value);
+  blank(value)
+    ? null
+    : Number(value);
 
-const changed = (draft, original, keys) =>
+const changed = (
+  draft,
+  original,
+  keys,
+) =>
   !original ||
   keys.some(
     (key) =>
-      JSON.stringify(draft[key]) !== JSON.stringify(original[key]),
+      JSON.stringify(draft[key]) !==
+      JSON.stringify(original[key]),
   );
 
-export function normalizeProductOptions(data) {
+export function normalizeProductOptions(
+  data,
+) {
   const fail = () => {
     throw new Error(
       "Supplier and kit settings were not returned correctly. Run the updated product backend, then reload dropdown options.",
@@ -539,21 +821,28 @@ export function normalizeProductOptions(data) {
     fail();
   }
 
-  for (const [field, expected] of [
-    ["kitRoles", Object.keys(KIT_ROLES)],
-    ["sizeOptionLabels", SIZE_LABELS],
-    ["colorOptionLabels", COLOR_LABELS],
-    ["stockSources", STOCK_SOURCES],
-    ["dispatchMethods", DISPATCH_METHODS],
-    ["returnEligibility", ["unconfirmed", "yes", "no"]],
-  ]) {
+  for (
+    const [field, expected] of [
+      ["kitRoles", Object.keys(KIT_ROLES)],
+      ["sizeOptionLabels", SIZE_LABELS],
+      ["colorOptionLabels", COLOR_LABELS],
+      ["stockSources", STOCK_SOURCES],
+      ["dispatchMethods", DISPATCH_METHODS],
+      [
+        "returnEligibility",
+        ["unconfirmed", "yes", "no"],
+      ],
+    ]
+  ) {
     const values = data[field];
 
     if (
       !Array.isArray(values) ||
       values.length !== expected.length ||
       new Set(values).size !== values.length ||
-      expected.some((value) => !values.includes(value))
+      expected.some(
+        (value) => !values.includes(value),
+      )
     ) {
       fail();
     }
@@ -568,35 +857,52 @@ export function normalizeProductOptions(data) {
 
   const supplierIds = new Set();
 
-  const suppliers = data.suppliers.map((row) => {
-    if (
-      !row ||
-      !/^[a-f0-9]{24}$/i.test(row.id) ||
-      supplierIds.has(row.id) ||
-      typeof row.name !== "string" ||
-      !row.name.trim() ||
-      !["draft", "active", "blocked"].includes(row.status) ||
-      typeof row.available !== "boolean" ||
-      typeof row.unavailableReason !== "string" ||
-      typeof row.dispatchToCustomer !== "boolean" ||
-      typeof row.sendToPackingLocation !== "boolean" ||
-      (row.available &&
-        (row.status !== "active" || row.unavailableReason))
-    ) {
-      fail();
-    }
+  const suppliers = data.suppliers.map(
+    (row) => {
+      if (
+        !row ||
+        !/^[a-f0-9]{24}$/i.test(row.id) ||
+        supplierIds.has(row.id) ||
+        typeof row.name !== "string" ||
+        !row.name.trim() ||
+        ![
+          "draft",
+          "active",
+          "blocked",
+        ].includes(row.status) ||
+        typeof row.available !== "boolean" ||
+        typeof row.unavailableReason !==
+          "string" ||
+        typeof row.dispatchToCustomer !==
+          "boolean" ||
+        typeof row.sendToPackingLocation !==
+          "boolean" ||
+        (
+          row.available &&
+          (
+            row.status !== "active" ||
+            row.unavailableReason
+          )
+        )
+      ) {
+        fail();
+      }
 
-    supplierIds.add(row.id);
+      supplierIds.add(row.id);
 
-    return {
-      ...row,
-      name: row.name.trim(),
-    };
-  });
+      return {
+        ...row,
+        name: row.name.trim(),
+      };
+    },
+  );
 
   const subcategories = Object.create(null);
 
-  for (const [key, values] of Object.entries(data.subcategories)) {
+  for (
+    const [key, values] of
+    Object.entries(data.subcategories)
+  ) {
     if (!Array.isArray(values)) {
       fail();
     }
@@ -614,8 +920,15 @@ export function normalizeProductOptions(data) {
   };
 }
 
-export function rangeError(minimum, maximum, label) {
-  if (blank(minimum) && blank(maximum)) {
+export function rangeError(
+  minimum,
+  maximum,
+  label,
+) {
+  if (
+    blank(minimum) &&
+    blank(maximum)
+  ) {
     return "";
   }
 
@@ -631,12 +944,18 @@ export function rangeError(minimum, maximum, label) {
     : "";
 }
 
-export function publicationProblems(draft, options) {
+export function publicationProblems(
+  draft,
+  options,
+) {
   const problems = [];
+
   const selected = options?.suppliers?.find(
     (row) => row.id === draft.supplier,
   );
-  const supplierStock = draft.stockSource === "supplier";
+
+  const supplierStock =
+    draft.stockSource === "supplier";
 
   if (draft.supplier) {
     if (!options?.ready) {
@@ -650,7 +969,7 @@ export function publicationProblems(draft, options) {
     } else if (!selected.available) {
       problems.push(
         selected.unavailableReason ||
-          "The supplier is not ready to publish products.",
+        "The supplier is not ready to publish products.",
       );
     }
 
@@ -678,15 +997,25 @@ export function publicationProblems(draft, options) {
     draft.dispatchBy === "supplier" ||
     draft.canSendToPackingLocation
   ) {
-    problems.push("Select the supplier responsible for this product.");
+    problems.push(
+      "Select the supplier responsible for this product.",
+    );
   }
 
-  if (draft.stockSource === "unconfirmed") {
-    problems.push("Record who holds the stock.");
+  if (
+    draft.stockSource === "unconfirmed"
+  ) {
+    problems.push(
+      "Record who holds the stock.",
+    );
   }
 
-  if (draft.dispatchBy === "unconfirmed") {
-    problems.push("Record who dispatches the product.");
+  if (
+    draft.dispatchBy === "unconfirmed"
+  ) {
+    problems.push(
+      "Record who dispatches the product.",
+    );
   }
 
   if (
@@ -743,7 +1072,11 @@ export function validateDraft(
   }
 
   if (
-    changed(draft, original, ["supplier"]) &&
+    changed(
+      draft,
+      original,
+      ["supplier"],
+    ) &&
     draft.supplier &&
     !/^[a-f0-9]{24}$/i.test(draft.supplier)
   ) {
@@ -751,23 +1084,43 @@ export function validateDraft(
   }
 
   if (
-    changed(draft, original, ["purchaseCost"]) &&
+    changed(
+      draft,
+      original,
+      ["purchaseCost"],
+    ) &&
     !blank(draft.purchaseCost)
   ) {
     const cost = Number(draft.purchaseCost);
 
     if (
-      !validNumber(draft.purchaseCost, 100000000) ||
-      Math.abs(cost * 100 - Math.round(cost * 100)) > 0.00001
+      !validNumber(
+        draft.purchaseCost,
+        100000000,
+      ) ||
+      Math.abs(
+        cost * 100 -
+        Math.round(cost * 100),
+      ) > 0.00001
     ) {
       return "Purchase cost must be non-negative, with no more than two decimal places. Leave unknown costs blank.";
     }
   }
 
-  if (changed(draft, original, SUPPLY_FIELDS)) {
+  if (
+    changed(
+      draft,
+      original,
+      SUPPLY_FIELDS,
+    )
+  ) {
     if (
-      !STOCK_SOURCES.includes(draft.stockSource) ||
-      !DISPATCH_METHODS.includes(draft.dispatchBy)
+      !STOCK_SOURCES.includes(
+        draft.stockSource,
+      ) ||
+      !DISPATCH_METHODS.includes(
+        draft.dispatchBy,
+      )
     ) {
       return "Choose valid stock and dispatch responsibilities.";
     }
@@ -784,7 +1137,14 @@ export function validateDraft(
   }
 
   if (
-    changed(draft, original, ["transitDaysMin", "transitDaysMax"])
+    changed(
+      draft,
+      original,
+      [
+        "transitDaysMin",
+        "transitDaysMax",
+      ],
+    )
   ) {
     const invalid = rangeError(
       draft.transitDaysMin,
@@ -798,48 +1158,80 @@ export function validateDraft(
   }
 
   if (
-    changed(draft, original, ["sizeLabel", "colorLabel"]) &&
-    (!SIZE_LABELS.includes(draft.sizeLabel) ||
-      !COLOR_LABELS.includes(draft.colorLabel))
+    changed(
+      draft,
+      original,
+      ["sizeLabel", "colorLabel"],
+    ) &&
+    (
+      !SIZE_LABELS.includes(draft.sizeLabel) ||
+      !COLOR_LABELS.includes(draft.colorLabel)
+    )
   ) {
     return "Choose valid product option labels.";
   }
 
-  if (changed(draft, original, ["kitEligible", "kitRoles"])) {
+  if (
+    changed(
+      draft,
+      original,
+      ["kitEligible", "kitRoles"],
+    )
+  ) {
     if (
       !Array.isArray(draft.kitRoles) ||
-      draft.kitRoles.some((role) => !Object.hasOwn(KIT_ROLES, role))
+      draft.kitRoles.some(
+        (role) =>
+          !Object.hasOwn(KIT_ROLES, role),
+      )
     ) {
       return "Choose supported Fitness Kit categories.";
     }
 
-    if (draft.kitEligible && !draft.kitRoles.length) {
+    if (
+      draft.kitEligible &&
+      !draft.kitRoles.length
+    ) {
       return "Select at least one kit category, or turn off kit eligibility.";
     }
   }
 
   if (
-    changed(draft, original, [
-      "returnsEligible",
-      "returnWindowDays",
-      "returnConditions",
-      "returnPolicy",
-    ])
+    changed(
+      draft,
+      original,
+      [
+        "returnsEligible",
+        "returnWindowDays",
+        "returnConditions",
+        "returnPolicy",
+      ],
+    )
   ) {
     if (
-      !["unconfirmed", "yes", "no"].includes(draft.returnsEligible)
+      ![
+        "unconfirmed",
+        "yes",
+        "no",
+      ].includes(draft.returnsEligible)
     ) {
       return "Choose a valid return eligibility.";
     }
 
     if (
-      !validNumber(draft.returnWindowDays, 7, true) ||
+      !validNumber(
+        draft.returnWindowDays,
+        7,
+        true,
+      ) ||
       Number(draft.returnWindowDays) < 1
     ) {
       return "The current return flow supports a window of 1–7 days.";
     }
 
-    if (draft.returnConditions.length > 2000) {
+    if (
+      draft.returnConditions.length > 2000
+    ) {
       return "Return conditions cannot exceed 2,000 characters.";
     }
 
@@ -864,21 +1256,34 @@ export function validateDraft(
       (row) => row.id === draft.supplier,
     );
 
-    if (!options?.ready || !supplier?.available) {
+    if (
+      !options?.ready ||
+      !supplier?.available
+    ) {
       return "Reload options and choose an available, verified supplier before confirming stock.";
     }
   }
 
-  // Keep existing unlinked products working. Apply the new setup
-  // when publishing a draft or editing supply responsibilities.
+  // Keep existing unlinked products working.
+  // Apply supply checks when publishing a draft
+  // or editing supply responsibilities.
   if (
     draft.isActive &&
-    (!original ||
+    (
+      !original ||
       !original.isActive ||
       draft.supplier ||
-      changed(draft, original, SUPPLY_FIELDS))
+      changed(
+        draft,
+        original,
+        SUPPLY_FIELDS,
+      )
+    )
   ) {
-    const problems = publicationProblems(draft, options);
+    const problems = publicationProblems(
+      draft,
+      options,
+    );
 
     if (problems.length) {
       return `Before publishing: ${problems[0]}`;
@@ -888,11 +1293,24 @@ export function validateDraft(
   return "";
 }
 
-export function payloadFor(draft, original = null) {
+export function payloadFor(
+  draft,
+  original = null,
+) {
   const payload = {};
 
-  function put(key, value, draftKeys = [key]) {
-    if (changed(draft, original, draftKeys)) {
+  function put(
+    key,
+    value,
+    draftKeys = [key],
+  ) {
+    if (
+      changed(
+        draft,
+        original,
+        draftKeys,
+      )
+    ) {
       payload[key] = value;
     }
   }
@@ -914,19 +1332,42 @@ export function payloadFor(draft, original = null) {
     put(key, draft[key].trim());
   }
 
+  put(
+    "colorImages",
+    colorPhotosFor(draft),
+    [
+      "colorImagesText",
+      "colorsText",
+    ],
+  );
+
   put("price", Number(draft.price));
   put("discount", Number(draft.discount));
 
-  for (const [key, source, values] of [
-    ["images", "imagesText", unique(lines(draft.imagesText))],
-    ["tags", "tagsText", commas(draft.tagsText)],
-    ["highlights", "highlightsText", lines(draft.highlightsText)],
-    [
-      "careInstructions",
-      "careInstructionsText",
-      lines(draft.careInstructionsText),
-    ],
-  ]) {
+  for (
+    const [key, source, values] of [
+      [
+        "images",
+        "imagesText",
+        unique(lines(draft.imagesText)),
+      ],
+      [
+        "tags",
+        "tagsText",
+        commas(draft.tagsText),
+      ],
+      [
+        "highlights",
+        "highlightsText",
+        lines(draft.highlightsText),
+      ],
+      [
+        "careInstructions",
+        "careInstructionsText",
+        lines(draft.careInstructionsText),
+      ],
+    ]
+  ) {
     put(key, values, [source]);
   }
 
@@ -939,17 +1380,42 @@ export function payloadFor(draft, original = null) {
     put(key, draft[key]);
   }
 
-  put("supplier", draft.supplier || null);
-  put("purchaseCost", nullableNumber(draft.purchaseCost));
-  put("meeshoProductLink", normalizeMeeshoLink(draft.meeshoProductLink));
-  put("returnsEligible", draft.returnsEligible);
-  put("returnWindowDays", Number(draft.returnWindowDays));
+  put(
+    "supplier",
+    draft.supplier || null,
+  );
+
+  put(
+    "purchaseCost",
+    nullableNumber(draft.purchaseCost),
+  );
+
+  put(
+    "meeshoProductLink",
+    normalizeMeeshoLink(
+      draft.meeshoProductLink,
+    ),
+  );
+
+  put(
+    "returnsEligible",
+    draft.returnsEligible,
+  );
+
+  put(
+    "returnWindowDays",
+    Number(draft.returnWindowDays),
+  );
 
   const nested = [
     [
       "delivery",
       [
-        ["available", "deliveryAvailable", draft.deliveryAvailable],
+        [
+          "available",
+          "deliveryAvailable",
+          draft.deliveryAvailable,
+        ],
         [
           "estimatedDays",
           "estimatedDays",
@@ -975,17 +1441,29 @@ export function payloadFor(draft, original = null) {
     [
       "fulfillment",
       [
-        ["stockSource", "stockSource", draft.stockSource],
-        ["dispatchBy", "dispatchBy", draft.dispatchBy],
+        [
+          "stockSource",
+          "stockSource",
+          draft.stockSource,
+        ],
+        [
+          "dispatchBy",
+          "dispatchBy",
+          draft.dispatchBy,
+        ],
         [
           "preparationDaysMin",
           "preparationDaysMin",
-          nullableNumber(draft.preparationDaysMin),
+          nullableNumber(
+            draft.preparationDaysMin,
+          ),
         ],
         [
           "preparationDaysMax",
           "preparationDaysMax",
-          nullableNumber(draft.preparationDaysMax),
+          nullableNumber(
+            draft.preparationDaysMax,
+          ),
         ],
         [
           "canSendToPackingLocation",
@@ -997,15 +1475,31 @@ export function payloadFor(draft, original = null) {
     [
       "kitSettings",
       [
-        ["eligible", "kitEligible", draft.kitEligible],
-        ["roles", "kitRoles", [...draft.kitRoles]],
+        [
+          "eligible",
+          "kitEligible",
+          draft.kitEligible,
+        ],
+        [
+          "roles",
+          "kitRoles",
+          [...draft.kitRoles],
+        ],
       ],
     ],
     [
       "optionLabels",
       [
-        ["size", "sizeLabel", draft.sizeLabel],
-        ["color", "colorLabel", draft.colorLabel],
+        [
+          "size",
+          "sizeLabel",
+          draft.sizeLabel,
+        ],
+        [
+          "color",
+          "colorLabel",
+          draft.colorLabel,
+        ],
       ],
     ],
   ];
@@ -1013,8 +1507,16 @@ export function payloadFor(draft, original = null) {
   for (const [group, fields] of nested) {
     const values = {};
 
-    for (const [key, source, value] of fields) {
-      if (changed(draft, original, [source])) {
+    for (
+      const [key, source, value] of fields
+    ) {
+      if (
+        changed(
+          draft,
+          original,
+          [source],
+        )
+      ) {
         values[key] = value;
       }
     }
@@ -1024,27 +1526,43 @@ export function payloadFor(draft, original = null) {
     }
   }
 
-  // Preserve typed specifications unless their text was edited.
-  if (changed(draft, original, ["specificationsText"])) {
-    payload.specifications = Object.fromEntries(
-      lines(draft.specificationsText).map((line) => {
-        const colon = line.indexOf(":");
+  // Preserve typed specifications unless their text changed.
+  if (
+    changed(
+      draft,
+      original,
+      ["specificationsText"],
+    )
+  ) {
+    payload.specifications =
+      Object.fromEntries(
+        lines(
+          draft.specificationsText,
+        ).map((line) => {
+          const colon = line.indexOf(":");
 
-        return [
-          line.slice(0, colon).trim(),
-          line.slice(colon + 1).trim(),
-        ];
-      }),
-    );
+          return [
+            line.slice(0, colon).trim(),
+            line.slice(colon + 1).trim(),
+          ];
+        }),
+      );
   }
 
-  // Detail-only changes never send stock or an old stock matrix.
-  if (!original || inventoryKey(draft) !== inventoryKey(original)) {
+  // Detail-only edits do not send an old stock matrix.
+  if (
+    !original ||
+    inventoryKey(draft) !==
+      inventoryKey(original)
+  ) {
     payload.sizes = commas(draft.sizesText);
     payload.colors = commas(draft.colorsText);
     payload.variants = buildVariants(draft);
 
-    if (!payload.sizes.length && !payload.colors.length) {
+    if (
+      !payload.sizes.length &&
+      !payload.colors.length
+    ) {
       payload.stock = Number(draft.stock);
     }
   }
@@ -1061,32 +1579,54 @@ export function payloadFor(draft, original = null) {
   return payload;
 }
 
-export function conflictFor(draft, original, latestProduct) {
+export function conflictFor(
+  draft,
+  original,
+  latestProduct,
+) {
   const latest = draftFor(latestProduct);
-  const patch = payloadFor(draft, original);
+
+  const patch = payloadFor(
+    draft,
+    original,
+  );
+
   const before = payloadFor(original);
   const now = payloadFor(latest);
 
-  for (const [key, value] of Object.entries(patch)) {
+  for (
+    const [key, value] of
+    Object.entries(patch)
+  ) {
     if (key === "confirmSupplierStock") {
       continue;
     }
 
     if (
-      ["delivery", "fulfillment", "kitSettings", "optionLabels"].includes(
-        key,
-      )
+      [
+        "delivery",
+        "fulfillment",
+        "kitSettings",
+        "optionLabels",
+      ].includes(key)
     ) {
-      for (const child of Object.keys(value)) {
+      for (
+        const child of Object.keys(value)
+      ) {
         if (
-          JSON.stringify(before[key]?.[child]) !==
-          JSON.stringify(now[key]?.[child])
+          JSON.stringify(
+            before[key]?.[child],
+          ) !==
+          JSON.stringify(
+            now[key]?.[child],
+          )
         ) {
           return `The ${key} settings changed while you were editing. Reload the latest product before saving.`;
         }
       }
     } else if (
-      JSON.stringify(before[key]) !== JSON.stringify(now[key])
+      JSON.stringify(before[key]) !==
+      JSON.stringify(now[key])
     ) {
       return `The product's ${key} changed while you were editing. Reload the latest product before saving.`;
     }
@@ -1094,8 +1634,14 @@ export function conflictFor(draft, original, latestProduct) {
 
   if (
     draft.confirmSupplierStock &&
-    (inventoryKey(original) !== inventoryKey(latest) ||
-      SUPPLY_FIELDS.some((key) => original[key] !== latest[key]))
+    (
+      inventoryKey(original) !==
+        inventoryKey(latest) ||
+      SUPPLY_FIELDS.some(
+        (key) =>
+          original[key] !== latest[key],
+      )
+    )
   ) {
     return "Stock or supply details changed. Reload the latest product and check supplier quantities again.";
   }

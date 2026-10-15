@@ -1,14 +1,26 @@
+import PurchasedKitSummary from "../components/PurchasedKitSummary.jsx";
 import AdminItemSourcing from "../components/AdminItemSourcing.jsx";
-import { useEffect, useMemo, useRef, useState } from "react";
+
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
 import { Link } from "react-router-dom";
+
 import { useAuth } from "../context/AuthContext.jsx";
 import { useStore } from "../context/StoreContext.jsx";
+
 import {
   getAdminOrders,
   getAdminOrderById,
   updateAdminOrderStatus,
 } from "../services/adminOrderApi.js";
+
 import "./AdminOrdersPage.css";
+
 const STATUS_FLOW = [
   "confirmed",
   "processing",
@@ -16,6 +28,7 @@ const STATUS_FLOW = [
   "out-for-delivery",
   "delivered",
 ];
+
 const STATUS_OPTIONS = [
   {
     value: "all",
@@ -50,22 +63,39 @@ const STATUS_OPTIONS = [
     label: "Cancelled",
   },
 ];
+
 function statusLabel(value) {
-  const match = STATUS_OPTIONS.find((item) => item.value === value);
+  const match = STATUS_OPTIONS.find(
+    (item) => item.value === value,
+  );
+
   if (match) {
     return match.label;
   }
+
   return String(value || "Unknown")
     .replaceAll("-", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+    .replace(
+      /\b\w/g,
+      (letter) => letter.toUpperCase(),
+    );
 }
+
 function recordedAmount(value) {
-  if (value == null || value === "") return null;
+  if (value == null || value === "") {
+    return null;
+  }
+
   const amount = Number(value);
-  return Number.isFinite(amount) && amount >= 0 ? amount : null;
+
+  return Number.isFinite(amount) && amount >= 0
+    ? amount
+    : null;
 }
+
 function money(value) {
   const amount = recordedAmount(value);
+
   return amount === null
     ? "Not recorded"
     : new Intl.NumberFormat("en-IN", {
@@ -74,35 +104,52 @@ function money(value) {
         maximumFractionDigits: 2,
       }).format(amount);
 }
+
 function formatDate(value) {
   if (!value) {
     return "—";
   }
+
   const date = new Date(value);
+
   if (Number.isNaN(date.getTime())) {
     return "—";
   }
+
   return date.toLocaleString("en-IN", {
     dateStyle: "medium",
     timeStyle: "short",
   });
 }
+
 function dateInputValue(value) {
   if (!value) {
     return "";
   }
+
   const date = new Date(value);
+
   if (Number.isNaN(date.getTime())) {
     return "";
   }
+
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
+
+  const month = String(
+    date.getMonth() + 1,
+  ).padStart(2, "0");
+
+  const day = String(
+    date.getDate(),
+  ).padStart(2, "0");
+
   return `${year}-${month}-${day}`;
 }
+
 function orderIdOf(order) {
   return order?.orderNumber || order?.id || "";
 }
+
 function customerName(order) {
   return (
     order?.customer?.name ||
@@ -111,53 +158,72 @@ function customerName(order) {
     "Customer"
   );
 }
+
 function customerEmail(order) {
-  return order?.customer?.email || order?.user?.email || "";
+  return (
+    order?.customer?.email ||
+    order?.user?.email ||
+    ""
+  );
 }
+
 function createDraft(order) {
   return {
     status: order?.status || "confirmed",
     carrier: order?.tracking?.carrier || "",
     trackingNumber: order?.tracking?.trackingNumber || "",
-    estimatedDelivery: dateInputValue(order?.tracking?.estimatedDelivery),
+
+    estimatedDelivery: dateInputValue(
+      order?.tracking?.estimatedDelivery,
+    ),
+
     codBalanceCollected: false,
   };
 }
+
 function StatusBadge({ status }) {
   const styles = {
     "payment-pending": {
       background: "#fff7ed",
       color: "#9a3412",
     },
+
     confirmed: {
       background: "#eef2ff",
       color: "#3730a3",
     },
+
     processing: {
       background: "#fff7ed",
       color: "#9a3412",
     },
+
     shipped: {
       background: "#eff6ff",
       color: "#1d4ed8",
     },
+
     "out-for-delivery": {
       background: "#fefce8",
       color: "#854d0e",
     },
+
     delivered: {
       background: "#ecfdf5",
       color: "#047857",
     },
+
     cancelled: {
       background: "#fef2f2",
       color: "#b91c1c",
     },
   };
+
   const selectedStyle = styles[status] || {
     background: "#f4f4f5",
     color: "#3f3f46",
   };
+
   return (
     <span
       style={{
@@ -174,127 +240,238 @@ function StatusBadge({ status }) {
     </span>
   );
 }
-function AdminOrderCard({ order, token, notify, onUpdated }) {
+
+function AdminOrderCard({
+  order,
+  token,
+  notify,
+  onUpdated,
+}) {
   const id = orderIdOf(order);
+
   const [expanded, setExpanded] = useState(false);
   const [detailsReady, setDetailsReady] = useState(false);
+
   const mounted = useRef(false);
   const generation = useRef(0);
   const saveLock = useRef(false);
+
   useEffect(() => {
     mounted.current = true;
+
     return () => {
       mounted.current = false;
       generation.current++;
     };
   }, []);
+
   const [detailedOrder, setDetailedOrder] = useState(order);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [draft, setDraft] = useState(() => createDraft(order));
+
+  const [draft, setDraft] = useState(
+    () => createDraft(order),
+  );
+
   useEffect(() => {
-    if (expanded || saveLock.current) return;
+    if (expanded || saveLock.current) {
+      return;
+    }
+
     generation.current++;
+
     setLoadingDetails(false);
     setDetailedOrder(order);
     setDetailsReady(false);
     setDraft(createDraft(order));
   }, [order]);
+
   async function toggleDetails() {
-    if (saveLock.current || loadingDetails) return;
+    if (saveLock.current || loadingDetails) {
+      return;
+    }
+
     if (expanded) {
       if (
-        JSON.stringify(draft) !== JSON.stringify(createDraft(current)) &&
-        !window.confirm("Discard the unsaved order changes?")
-      )
+        JSON.stringify(draft) !==
+          JSON.stringify(createDraft(current)) &&
+        !window.confirm(
+          "Discard the unsaved order changes?",
+        )
+      ) {
         return;
+      }
+
       setExpanded(false);
       return;
     }
+
     setExpanded(true);
     setError("");
+
     if (!token || !id) {
       return;
     }
+
     const version = ++generation.current;
+
     setDetailsReady(false);
     setLoadingDetails(true);
+
     try {
-      const fresh = await getAdminOrderById(token, id);
-      if (!mounted.current || version !== generation.current) return;
-      if (!fresh || !orderIdOf(fresh))
+      const fresh = await getAdminOrderById(
+        token,
+        id,
+      );
+
+      if (
+        !mounted.current ||
+        version !== generation.current
+      ) {
+        return;
+      }
+
+      if (!fresh || !orderIdOf(fresh)) {
         throw new Error(
           "The order details were not returned. Reload before editing.",
         );
+      }
+
       setDetailedOrder(fresh);
       setDraft(createDraft(fresh));
       setDetailsReady(true);
     } catch (loadError) {
-      console.error("Load admin order error:", loadError);
-      if (mounted.current && version === generation.current)
-        setError(loadError.message || "Unable to load this order.");
+      console.error(
+        "Load admin order error:",
+        loadError,
+      );
+
+      if (
+        mounted.current &&
+        version === generation.current
+      ) {
+        setError(
+          loadError.message ||
+            "Unable to load this order.",
+        );
+      }
     } finally {
-      if (mounted.current && version === generation.current)
+      if (
+        mounted.current &&
+        version === generation.current
+      ) {
         setLoadingDetails(false);
+      }
     }
   }
+
   const current = detailedOrder || order;
+
   const cancelled = current?.status === "cancelled";
   const delivered = current?.status === "delivered";
-  const paymentPending = current?.status === "payment-pending";
-  const currentIndex = STATUS_FLOW.indexOf(current?.status);
+
+  const paymentPending =
+    current?.status === "payment-pending";
+
+  const currentIndex = STATUS_FLOW.indexOf(
+    current?.status,
+  );
+
   const isPartialCod =
     current?.payment?.method === "cod-partial" ||
     current?.paymentMethod === "cod-partial";
+
   const isFullOnline =
     current?.payment?.method === "razorpay" ||
     current?.paymentMethod === "razorpay";
-  const advancePercentage = Number(current?.payment?.advancePercentage || 0);
-  const advanceAmount = recordedAmount(current?.payment?.advanceAmount);
-  const amountPaid = recordedAmount(current?.payment?.amountPaid);
-  const amountDue = recordedAmount(current?.payment?.amountDue);
-  const totalAmount = recordedAmount(
-    current?.payment?.totalAmount ?? current?.pricing?.finalTotal,
+
+  const advancePercentage = Number(
+    current?.payment?.advancePercentage || 0,
   );
+
+  const advanceAmount = recordedAmount(
+    current?.payment?.advanceAmount,
+  );
+
+  const amountPaid = recordedAmount(
+    current?.payment?.amountPaid,
+  );
+
+  const amountDue = recordedAmount(
+    current?.payment?.amountDue,
+  );
+
+  const totalAmount = recordedAmount(
+    current?.payment?.totalAmount ??
+      current?.pricing?.finalTotal,
+  );
+
   const codBalancePending =
     isPartialCod &&
     current?.payment?.balanceStatus === "pending" &&
     amountDue > 0;
+
   const deliveryNeedsCodConfirmation =
-    draft.status === "delivered" && codBalancePending;
+    draft.status === "delivered" &&
+    codBalancePending;
+
   async function saveOrder(event) {
     event.preventDefault();
-    if (!token || !id || saveLock.current || !detailsReady) return;
+
+    if (
+      !token ||
+      !id ||
+      saveLock.current ||
+      !detailsReady
+    ) {
+      return;
+    }
+
     if (
       currentIndex < 0 ||
       STATUS_FLOW.indexOf(draft.status) < currentIndex ||
       STATUS_FLOW.indexOf(draft.status) > currentIndex + 1
     ) {
-      setError("Choose the current status or the next fulfilment step.");
+      setError(
+        "Choose the current status or the next fulfilment step.",
+      );
+
       return;
     }
+
     if (
       draft.status === "shipped" &&
-      (!draft.carrier.trim() || !draft.trackingNumber.trim())
+      (
+        !draft.carrier.trim() ||
+        !draft.trackingNumber.trim()
+      )
     ) {
       setError(
         "Enter the courier and tracking number before marking the order shipped.",
       );
+
       return;
     }
+
     if (
       draft.status === "delivered" &&
       isPartialCod &&
-      (amountDue === null ||
+      (
+        amountDue === null ||
         amountPaid === null ||
-        !["partially-paid", "paid"].includes(current?.payment?.status))
+        !["partially-paid", "paid"].includes(
+          current?.payment?.status,
+        )
+      )
     ) {
       setError(
         "Reconcile the verified advance, amount paid and COD balance before marking this order delivered.",
       );
+
       return;
     }
+
     if (
       draft.status === "delivered" &&
       codBalancePending &&
@@ -305,47 +482,74 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
           amountDue,
         )} was collected from the customer before marking this order delivered.`,
       );
+
       return;
     }
+
     saveLock.current = true;
     setSaving(true);
     setError("");
+
     try {
-      const updated = await updateAdminOrderStatus(token, id, {
-        status: draft.status,
-        carrier: draft.carrier,
-        trackingNumber: draft.trackingNumber,
-        estimatedDelivery: draft.estimatedDelivery,
-        codBalanceCollected:
-          draft.status === "delivered" && codBalancePending
-            ? Boolean(draft.codBalanceCollected)
-            : false,
-      });
-      if (!mounted.current) return;
-      if (!updated || !orderIdOf(updated))
+      const updated = await updateAdminOrderStatus(
+        token,
+        id,
+        {
+          status: draft.status,
+          carrier: draft.carrier,
+          trackingNumber: draft.trackingNumber,
+          estimatedDelivery: draft.estimatedDelivery,
+
+          codBalanceCollected:
+            draft.status === "delivered" &&
+            codBalancePending
+              ? Boolean(draft.codBalanceCollected)
+              : false,
+        },
+      );
+
+      if (!mounted.current) {
+        return;
+      }
+
+      if (!updated || !orderIdOf(updated)) {
         throw new Error(
           "The update response did not include the order. Reload its details to check the saved status.",
         );
+      }
+
       setDetailedOrder(updated);
       setDraft(createDraft(updated));
       onUpdated(updated);
+
       notify?.(
-        isPartialCod && draft.status === "delivered" && codBalancePending
+        isPartialCod &&
+        draft.status === "delivered" &&
+        codBalancePending
           ? `Order ${id} delivered and COD balance recorded.`
           : `Order ${id} updated.`,
       );
     } catch (saveError) {
-      console.error("Update admin order error:", saveError);
-      if (mounted.current)
+      console.error(
+        "Update admin order error:",
+        saveError,
+      );
+
+      if (mounted.current) {
         setError(
           saveError.message ||
             "Unable to update this order. Reload its details before retrying.",
         );
+      }
     } finally {
       saveLock.current = false;
-      if (mounted.current) setSaving(false);
+
+      if (mounted.current) {
+        setSaving(false);
+      }
     }
   }
+
   return (
     <article
       className="panel ao-card"
@@ -376,61 +580,62 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
             }}
           >
             <strong>{id}</strong>
+
             <StatusBadge status={current?.status} />
           </div>
+
           <p
             className="muted"
-            style={{
-              margin: 0,
-            }}
+            style={{ margin: 0 }}
           >
             {formatDate(current?.createdAt)}
           </p>
         </div>
-        <div
-          style={{
-            textAlign: "right",
-          }}
-        >
-          <strong
-            style={{
-              fontSize: "18px",
-            }}
-          >
+
+        <div style={{ textAlign: "right" }}>
+          <strong style={{ fontSize: "18px" }}>
             {money(current?.pricing?.finalTotal)}
           </strong>
+
           <p
             className="muted"
-            style={{
-              margin: "4px 0 0",
-            }}
+            style={{ margin: "4px 0 0" }}
           >
             {(current?.items || []).reduce(
-              (sum, item) => sum + Number(item.quantity || 0),
+              (sum, item) =>
+                sum + Number(item.quantity || 0),
               0,
             )}{" "}
             units · {current?.items?.length || 0} order lines
           </p>
         </div>
       </div>
+
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(180px, 1fr))",
           gap: "14px",
         }}
       >
         <div>
           <span className="muted">Customer</span>
+
           <div>
             <strong>{customerName(current)}</strong>
           </div>
+
           {customerEmail(current) && (
-            <div className="muted">{customerEmail(current)}</div>
+            <div className="muted">
+              {customerEmail(current)}
+            </div>
           )}
         </div>
+
         <div>
           <span className="muted">Payment</span>
+
           <div>
             <strong>
               {isPartialCod
@@ -444,9 +649,13 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
                     ).toUpperCase()}
             </strong>
           </div>
+
           <div className="muted">
-            {statusLabel(current?.payment?.status || "pending")}
+            {statusLabel(
+              current?.payment?.status || "pending",
+            )}
           </div>
+
           {isPartialCod && (
             <div
               style={{
@@ -457,49 +666,64 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
             >
               <span>
                 Required advance{" "}
-                {advancePercentage > 0 ? `(${advancePercentage}%)` : ""}:{" "}
+                {advancePercentage > 0
+                  ? `(${advancePercentage}%)`
+                  : ""}:{" "}
                 <strong>{money(advanceAmount)}</strong>
               </span>
+
               <span>
                 Paid: <strong>{money(amountPaid)}</strong>
               </span>
+
               <span>
-                Remaining COD: <strong>{money(amountDue)}</strong>
+                Remaining COD:{" "}
+                <strong>{money(amountDue)}</strong>
               </span>
+
               <span className="muted">
                 Balance:{" "}
-                {statusLabel(current?.payment?.balanceStatus || "pending")}
+                {statusLabel(
+                  current?.payment?.balanceStatus ||
+                    "pending",
+                )}
               </span>
             </div>
           )}
+
           {isFullOnline && (
-            <div
-              style={{
-                marginTop: "8px",
-              }}
-            >
+            <div style={{ marginTop: "8px" }}>
               <span>
                 Paid: <strong>{money(amountPaid)}</strong>
               </span>
             </div>
           )}
         </div>
+
         {!isPartialCod && !isFullOnline && (
           <div>
             <span className="muted">Recorded amounts</span>
+
             <p>
               Paid: <strong>{money(amountPaid)}</strong>
             </p>
+
             <p>
               Due: <strong>{money(amountDue)}</strong>
             </p>
           </div>
         )}
+
         <div>
           <span className="muted">Delivery</span>
+
           <div>
-            <strong>{current?.delivery?.label || "Standard delivery"}</strong>
+            <strong>
+              {current?.delivery?.label ||
+                "Standard delivery"}
+            </strong>
           </div>
+
           <div className="muted">
             {current?.shippingAddress?.city || "—"}
             {" · "}
@@ -507,6 +731,7 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
           </div>
         </div>
       </div>
+
       <div
         style={{
           display: "flex",
@@ -523,6 +748,7 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
         >
           {expanded ? "Hide details" : "Manage order"}
         </button>
+
         <Link
           className="button secondary"
           to={`/orders/${encodeURIComponent(id)}`}
@@ -530,11 +756,13 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
           Customer view
         </Link>
       </div>
+
       {error && (
         <p className="field-error" role="alert">
           {error}
         </p>
       )}
+
       {expanded && (
         <div
           style={{
@@ -550,7 +778,10 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
             </p>
           ) : !detailsReady ? (
             <div>
-              <p>Current order details are required before editing.</p>
+              <p>
+                Current order details are required before editing.
+              </p>
+
               <button
                 type="button"
                 className="button secondary"
@@ -563,36 +794,52 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
             <>
               <section>
                 <h3>1. Ordered items</h3>
+
                 <div
                   style={{
                     display: "grid",
                     gap: "12px",
                   }}
                 >
-                  {(current?.items || []).map((item, index) => (
-                    <div
-                      key={`${item.productId || item.id}-${index}`}
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        justifyContent: "space-between",
-                        gap: "16px",
-                        padding: "12px 0",
-                        borderBottom: "1px solid #f1f1f1",
-                      }}
-                    >
-                      <AdminItemSourcing key={`${item.productId || item.id}-${index}`} item={item} />
-                      <strong>
-                        {money(
-                          Number(item.price || 0) * Number(item.quantity || 0),
-                        )}
-                      </strong>
-                    </div>
-                  ))}
+                  {(current?.items || []).map(
+                    (item, index) => (
+                      <div
+                        key={`${
+                          item.productId || item.id
+                        }-${index}`}
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          justifyContent: "space-between",
+                          gap: "16px",
+                          padding: "12px 0",
+                          borderBottom: "1px solid #f1f1f1",
+                        }}
+                      >
+                        <AdminItemSourcing
+                          key={`${
+                            item.productId || item.id
+                          }-${index}`}
+                          item={item}
+                        />
+
+                        <strong>
+                          {money(
+                            Number(item.price || 0) *
+                              Number(item.quantity || 0),
+                          )}
+                        </strong>
+                      </div>
+                    ),
+                  )}
                 </div>
               </section>
+
               <section>
+                <PurchasedKitSummary order={current} />
+
                 <h3>2. Payment details</h3>
+
                 <div
                   className="panel"
                   style={{
@@ -612,6 +859,7 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
                     <span>Order total</span>
                     <strong>{money(totalAmount)}</strong>
                   </div>
+
                   {isPartialCod && (
                     <>
                       <div
@@ -627,8 +875,12 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
                             ? ` (${advancePercentage}%)`
                             : ""}
                         </span>
-                        <strong>{money(advanceAmount)}</strong>
+
+                        <strong>
+                          {money(advanceAmount)}
+                        </strong>
                       </div>
+
                       <div
                         style={{
                           display: "flex",
@@ -637,8 +889,12 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
                         }}
                       >
                         <span>Remaining COD</span>
-                        <strong>{money(amountDue)}</strong>
+
+                        <strong>
+                          {money(amountDue)}
+                        </strong>
                       </div>
+
                       <div
                         style={{
                           display: "flex",
@@ -647,36 +903,41 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
                         }}
                       >
                         <span>COD balance status</span>
+
                         <strong>
                           {statusLabel(
-                            current?.payment?.balanceStatus || "pending",
+                            current?.payment?.balanceStatus ||
+                              "pending",
                           )}
                         </strong>
                       </div>
+
                       {current?.payment?.advancePaidAt && (
                         <p
                           className="muted"
-                          style={{
-                            margin: 0,
-                          }}
+                          style={{ margin: 0 }}
                         >
                           Advance paid:{" "}
-                          {formatDate(current.payment.advancePaidAt)}
+                          {formatDate(
+                            current.payment.advancePaidAt,
+                          )}
                         </p>
                       )}
+
                       {current?.payment?.balanceCollectedAt && (
                         <p
                           className="muted"
-                          style={{
-                            margin: 0,
-                          }}
+                          style={{ margin: 0 }}
                         >
                           COD balance collected:{" "}
-                          {formatDate(current.payment.balanceCollectedAt)}
+                          {formatDate(
+                            current.payment.balanceCollectedAt,
+                          )}
                         </p>
                       )}
                     </>
                   )}
+
                   {isFullOnline && (
                     <>
                       <div
@@ -687,8 +948,12 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
                         }}
                       >
                         <span>Online amount paid</span>
-                        <strong>{money(amountPaid)}</strong>
+
+                        <strong>
+                          {money(amountPaid)}
+                        </strong>
                       </div>
+
                       <div
                         style={{
                           display: "flex",
@@ -697,68 +962,85 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
                         }}
                       >
                         <span>Amount due</span>
-                        <strong>{money(amountDue)}</strong>
+
+                        <strong>
+                          {money(amountDue)}
+                        </strong>
                       </div>
                     </>
                   )}
+
                   {current?.payment?.razorpayPaymentId && (
                     <p
                       className="muted"
-                      style={{
-                        margin: 0,
-                      }}
+                      style={{ margin: 0 }}
                     >
-                      Razorpay payment ID: {current.payment.razorpayPaymentId}
+                      Razorpay payment ID:{" "}
+                      {current.payment.razorpayPaymentId}
                     </p>
                   )}
                 </div>
               </section>
+
               <section>
                 <h3>3. Shipping address</h3>
+
                 <p>
                   <strong>
                     {current?.shippingAddress?.fullName ||
                       current?.shippingAddress?.name ||
                       customerName(current)}
                   </strong>
+
                   <br />
+
                   {current?.shippingAddress?.addressLine ||
                     current?.shippingAddress?.addressLine1 ||
                     ""}
+
                   {current?.shippingAddress?.addressLine2 && (
                     <>
                       <br />
                       {current.shippingAddress.addressLine2}
                     </>
                   )}
+
                   <br />
+
                   {current?.shippingAddress?.landmark
                     ? `${current.shippingAddress.landmark}, `
                     : ""}
+
                   {current?.shippingAddress?.city || ""}
                   {", "}
                   {current?.shippingAddress?.state || ""}
                   {" - "}
                   {current?.shippingAddress?.pincode || ""}
+
                   <br />
+
                   {current?.shippingAddress?.phone || ""}
                 </p>
               </section>
+
               <section>
                 <h3>4. Shipping and status update</h3>
+
                 {cancelled ? (
                   <p className="notice">
-                    This order was cancelled and cannot move through fulfilment.
+                    This order was cancelled and cannot move
+                    through fulfilment.
                   </p>
                 ) : paymentPending ? (
                   <p className="notice">
-                    Payment is still pending. Fulfilment will unlock only after
-                    GymDrobe verifies the required Razorpay payment.
+                    Payment is still pending. Fulfilment will
+                    unlock only after GymDrobe verifies the
+                    required Razorpay payment.
                   </p>
                 ) : currentIndex < 0 ? (
                   <p className="notice">
-                    This status has no supported fulfilment transition.
-                    Reconcile the order before editing.
+                    This status has no supported fulfilment
+                    transition. Reconcile the order before editing.
                   </p>
                 ) : (
                   <form
@@ -770,7 +1052,10 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
                     }}
                   >
                     <div className="field">
-                      <label htmlFor={`status-${id}`}>Order status</label>
+                      <label htmlFor={`status-${id}`}>
+                        Order status
+                      </label>
+
                       <select
                         id={`status-${id}`}
                         value={draft.status}
@@ -783,30 +1068,39 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
                           }))
                         }
                       >
-                        {STATUS_FLOW.map((flowStatus, index) => (
-                          <option
-                            key={flowStatus}
-                            value={flowStatus}
-                            disabled={
-                              currentIndex >= 0 &&
-                              (index < currentIndex || index > currentIndex + 1)
-                            }
-                          >
-                            {statusLabel(flowStatus)}
-                          </option>
-                        ))}
+                        {STATUS_FLOW.map(
+                          (flowStatus, index) => (
+                            <option
+                              key={flowStatus}
+                              value={flowStatus}
+                              disabled={
+                                currentIndex >= 0 &&
+                                (
+                                  index < currentIndex ||
+                                  index > currentIndex + 1
+                                )
+                              }
+                            >
+                              {statusLabel(flowStatus)}
+                            </option>
+                          ),
+                        )}
                       </select>
+
                       {!delivered &&
                         currentIndex >= 0 &&
                         currentIndex < STATUS_FLOW.length - 1 && (
                           <p className="muted">
                             Next step:{" "}
                             <strong>
-                              {statusLabel(STATUS_FLOW[currentIndex + 1])}
+                              {statusLabel(
+                                STATUS_FLOW[currentIndex + 1],
+                              )}
                             </strong>
                           </p>
                         )}
                     </div>
+
                     <div
                       style={{
                         display: "grid",
@@ -819,6 +1113,7 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
                         <label htmlFor={`carrier-${id}`}>
                           Courier / carrier
                         </label>
+
                         <input
                           id={`carrier-${id}`}
                           type="text"
@@ -833,10 +1128,12 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
                           }
                         />
                       </div>
+
                       <div className="field">
                         <label htmlFor={`tracking-${id}`}>
                           Tracking number
                         </label>
+
                         <input
                           id={`tracking-${id}`}
                           type="text"
@@ -851,10 +1148,12 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
                           }
                         />
                       </div>
+
                       <div className="field">
                         <label htmlFor={`delivery-${id}`}>
                           Estimated delivery
                         </label>
+
                         <input
                           id={`delivery-${id}`}
                           type="date"
@@ -869,6 +1168,7 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
                         />
                       </div>
                     </div>
+
                     {deliveryNeedsCodConfirmation && (
                       <div
                         className="notice"
@@ -879,16 +1179,16 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
                       >
                         <div>
                           <strong>
-                            Remaining COD balance: {money(amountDue)}
+                            Remaining COD balance:{" "}
+                            {money(amountDue)}
                           </strong>
-                          <p
-                            style={{
-                              margin: "6px 0 0",
-                            }}
-                          >
-                            Recorded amount paid: {money(amountPaid)}.
+
+                          <p style={{ margin: "6px 0 0" }}>
+                            Recorded amount paid:{" "}
+                            {money(amountPaid)}.
                           </p>
                         </div>
+
                         <label
                           className="check"
                           style={{
@@ -897,37 +1197,50 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
                         >
                           <input
                             type="checkbox"
-                            checked={Boolean(draft.codBalanceCollected)}
+                            checked={Boolean(
+                              draft.codBalanceCollected,
+                            )}
                             disabled={saving}
                             onChange={(event) =>
                               setDraft((currentDraft) => ({
                                 ...currentDraft,
-                                codBalanceCollected: event.target.checked,
+                                codBalanceCollected:
+                                  event.target.checked,
                               }))
                             }
                           />
+
                           <span>
                             <strong>
-                              I confirm {money(amountDue)} was collected from
-                              the customer.
+                              I confirm {money(amountDue)} was
+                              collected from the customer.
                             </strong>
+
                             <br />
+
                             <small className="muted">
-                              Only confirm this after the delivery payment has
-                              actually been received.
+                              Only confirm this after the delivery
+                              payment has actually been received.
                             </small>
                           </span>
                         </label>
                       </div>
                     )}
+
                     {delivered && (
                       <div className="notice">
                         <strong>Delivered</strong>
+
                         <br />
+
                         Delivered on{" "}
-                        {formatDate(current?.delivery?.deliveredAt)}
+                        {formatDate(
+                          current?.delivery?.deliveredAt,
+                        )}
+
                         {isPartialCod &&
-                          current?.payment?.balanceStatus === "collected" && (
+                          current?.payment?.balanceStatus ===
+                            "collected" && (
                             <>
                               <br />
                               COD balance collected successfully.
@@ -935,6 +1248,7 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
                           )}
                       </div>
                     )}
+
                     <div>
                       <button
                         type="submit"
@@ -942,8 +1256,10 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
                         disabled={
                           saving ||
                           !detailsReady ||
-                          (deliveryNeedsCodConfirmation &&
-                            !draft.codBalanceCollected)
+                          (
+                            deliveryNeedsCodConfirmation &&
+                            !draft.codBalanceCollected
+                          )
                         }
                       >
                         {saving
@@ -958,8 +1274,10 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
                   </form>
                 )}
               </section>
+
               <section>
                 <h3>5. Tracking history</h3>
+
                 {(current?.tracking?.events || []).length ? (
                   <div
                     style={{
@@ -977,14 +1295,14 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
                             paddingLeft: "14px",
                           }}
                         >
-                          <strong>{statusLabel(event.status)}</strong>
-                          <p
-                            style={{
-                              margin: "4px 0",
-                            }}
-                          >
+                          <strong>
+                            {statusLabel(event.status)}
+                          </strong>
+
+                          <p style={{ margin: "4px 0" }}>
                             {event.description || "Order update"}
                           </p>
+
                           <span className="muted">
                             {formatDate(event.timestamp)}
                           </span>
@@ -992,44 +1310,76 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
                       ))}
                   </div>
                 ) : (
-                  <p className="muted">No tracking events yet.</p>
+                  <p className="muted">
+                    No tracking events yet.
+                  </p>
                 )}
               </section>
+
               {current?.refund?.status &&
                 current.refund.status !== "not-requested" && (
                   <section>
                     <h3>Refund record</h3>
+
                     <p>
                       Status:{" "}
-                      <strong>{statusLabel(current.refund.status)}</strong>
+                      <strong>
+                        {statusLabel(current.refund.status)}
+                      </strong>
                     </p>
+
                     <p>
-                      Amount: <strong>{money(current.refund.amount)}</strong>
+                      Amount:{" "}
+                      <strong>
+                        {money(current.refund.amount)}
+                      </strong>
                     </p>
+
                     {current.refund.reference && (
-                      <p>Reference: {current.refund.reference}</p>
+                      <p>
+                        Reference: {current.refund.reference}
+                      </p>
                     )}
+
                     {current.refund.refundedAt && (
-                      <p>Recorded: {formatDate(current.refund.refundedAt)}</p>
+                      <p>
+                        Recorded:{" "}
+                        {formatDate(current.refund.refundedAt)}
+                      </p>
                     )}
+
                     <p className="muted">
-                      A return refund is managed in the returns dashboard.
-                      Recording a manual refund does not send money.
+                      A return refund is managed in the returns
+                      dashboard. Recording a manual refund does
+                      not send money.
                     </p>
                   </section>
                 )}
+
               {current?.returnRequest?.status &&
-                current.returnRequest.status !== "not-requested" && (
+                current.returnRequest.status !==
+                  "not-requested" && (
                   <section>
                     <h3>Return / exchange</h3>
+
                     <p>
                       <strong>
-                        {String(current.returnRequest.type || "").toUpperCase()}
+                        {String(
+                          current.returnRequest.type || "",
+                        ).toUpperCase()}
                       </strong>
+
                       {" · "}
-                      {statusLabel(current.returnRequest.status)}
+
+                      {statusLabel(
+                        current.returnRequest.status,
+                      )}
                     </p>
-                    <Link className="text-link" to="/admin/returns">
+
+                    <Link
+                      className="text-link"
+                      to="/admin/returns"
+                    >
                       Open returns dashboard →
                     </Link>
                   </section>
@@ -1041,8 +1391,10 @@ function AdminOrderCard({ order, token, notify, onUpdated }) {
     </article>
   );
 }
+
 function AdminOrdersWorkspace({ user, token }) {
   const { notify } = useStore();
+
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -1053,18 +1405,23 @@ function AdminOrdersWorkspace({ user, token }) {
   const [pages, setPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [revision, setRevision] = useState(0);
+
   useEffect(() => {
     let cancelled = false;
+
     async function load() {
       if (!token || user?.role !== "admin") {
         if (!cancelled) {
           setOrders([]);
           setLoading(false);
         }
+
         return;
       }
+
       setLoading(true);
       setError("");
+
       try {
         const result = await getAdminOrders(token, {
           status,
@@ -1072,23 +1429,46 @@ function AdminOrdersWorkspace({ user, token }) {
           page,
           limit: 25,
         });
+
         if (cancelled) {
           return;
         }
-        setOrders(Array.isArray(result.orders) ? result.orders : []);
+
+        setOrders(
+          Array.isArray(result.orders)
+            ? result.orders
+            : [],
+        );
+
         setTotal(Number(result.total || 0));
         setPages(Math.max(1, Number(result.pages || 1)));
-        const lastPage = Math.max(1, Number(result.pages || 1));
+
+        const lastPage = Math.max(
+          1,
+          Number(result.pages || 1),
+        );
+
         const nextPage = Math.min(
           lastPage,
           Math.max(1, Number(result.page || page)),
         );
-        if (nextPage !== page) setPage(nextPage);
+
+        if (nextPage !== page) {
+          setPage(nextPage);
+        }
       } catch (loadError) {
-        console.error("Load admin orders error:", loadError);
+        console.error(
+          "Load admin orders error:",
+          loadError,
+        );
+
         if (!cancelled) {
           setOrders([]);
-          setError(loadError.message || "Unable to load orders.");
+
+          setError(
+            loadError.message ||
+              "Unable to load orders.",
+          );
         }
       } finally {
         if (!cancelled) {
@@ -1096,11 +1476,21 @@ function AdminOrdersWorkspace({ user, token }) {
         }
       }
     }
+
     load();
+
     return () => {
       cancelled = true;
     };
-  }, [token, user?.role, status, search, page, revision]);
+  }, [
+    token,
+    user?.role,
+    status,
+    search,
+    page,
+    revision,
+  ]);
+
   const stats = useMemo(() => {
     const values = {
       "payment-pending": 0,
@@ -1111,43 +1501,79 @@ function AdminOrdersWorkspace({ user, token }) {
       delivered: 0,
       cancelled: 0,
     };
+
     for (const order of orders) {
-      if (Object.prototype.hasOwnProperty.call(values, order.status)) {
+      if (
+        Object.prototype.hasOwnProperty.call(
+          values,
+          order.status,
+        )
+      ) {
         values[order.status] += 1;
       }
     }
+
     return values;
   }, [orders]);
+
   function submitSearch(event) {
     event.preventDefault();
+
     setPage(1);
     setSearch(searchInput.trim());
   }
+
   function clearSearch() {
     setSearchInput("");
     setSearch("");
     setPage(1);
   }
+
   function changeStatus(nextStatus) {
     setStatus(nextStatus);
     setPage(1);
   }
+
   function replaceOrder(updated) {
     const id = orderIdOf(updated);
-    if (status !== "all" && updated.status !== status) {
-      setOrders((current) => current.filter((item) => orderIdOf(item) !== id));
-      setTotal((current) => Math.max(0, current - 1));
+
+    if (
+      status !== "all" &&
+      updated.status !== status
+    ) {
+      setOrders((current) =>
+        current.filter(
+          (item) => orderIdOf(item) !== id,
+        ),
+      );
+
+      setTotal((current) =>
+        Math.max(0, current - 1),
+      );
+
       const remaining = Math.max(0, total - 1);
-      const lastPage = Math.max(1, Math.ceil(remaining / 25));
+
+      const lastPage = Math.max(
+        1,
+        Math.ceil(remaining / 25),
+      );
+
       setPages(lastPage);
-      if (page > lastPage) setPage(lastPage);
-      else setRevision((current) => current + 1);
+
+      if (page > lastPage) {
+        setPage(lastPage);
+      } else {
+        setRevision((current) => current + 1);
+      }
     } else {
       setOrders((current) =>
-        current.map((item) => (orderIdOf(item) === id ? updated : item)),
+        current.map((item) =>
+          orderIdOf(item) === id ? updated : item,
+        ),
       );
     }
   }
+
   return (
     <div
       className="page ao-admin"
@@ -1169,33 +1595,45 @@ function AdminOrdersWorkspace({ user, token }) {
         <div>
           <p
             className="muted"
-            style={{
-              marginBottom: "6px",
-            }}
+            style={{ marginBottom: "6px" }}
           >
             GymDrobe Admin
           </p>
+
           <h1>Order management</h1>
+
           <p className="muted">
-            Manage payment verification, COD balances, fulfilment, courier
-            tracking and delivery updates from one place.
+            Manage payment verification, COD balances,
+            fulfilment, courier tracking and delivery updates
+            from one place.
           </p>
         </div>
-        <Link className="button secondary" to="/admin/products">
+
+        <Link
+          className="button secondary"
+          to="/admin/products"
+        >
           Products & stock
         </Link>
-        <Link to="/admin/returns" className="button secondary">
+
+        <Link
+          to="/admin/returns"
+          className="button secondary"
+        >
           Returns & exchanges
         </Link>
       </div>
+
       <p className="muted">
-        Total results match your filters. Status counts below are for the
-        current page only.
+        Total results match your filters. Status counts below
+        are for the current page only.
       </p>
+
       <section
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(130px, 1fr))",
           gap: "12px",
         }}
       >
@@ -1212,9 +1650,7 @@ function AdminOrdersWorkspace({ user, token }) {
           <div
             key={label}
             className="panel"
-            style={{
-              padding: "16px",
-            }}
+            style={{ padding: "16px" }}
           >
             <strong
               style={{
@@ -1224,10 +1660,14 @@ function AdminOrdersWorkspace({ user, token }) {
             >
               {value}
             </strong>
-            <span className="muted">{label}</span>
+
+            <span className="muted">
+              {label}
+            </span>
           </div>
         ))}
       </section>
+
       <section
         className="panel"
         style={{
@@ -1249,15 +1689,22 @@ function AdminOrdersWorkspace({ user, token }) {
             aria-label="Search orders"
             placeholder="Search order, customer, email, phone, city or pincode"
             value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
+            onChange={(event) =>
+              setSearchInput(event.target.value)
+            }
             style={{
               flex: "1 1 280px",
               minHeight: "44px",
             }}
           />
-          <button type="submit" className="button">
+
+          <button
+            type="submit"
+            className="button"
+          >
             Search
           </button>
+
           {(search || searchInput) && (
             <button
               type="button"
@@ -1268,6 +1715,7 @@ function AdminOrdersWorkspace({ user, token }) {
             </button>
           )}
         </form>
+
         <div
           style={{
             display: "flex",
@@ -1279,56 +1727,74 @@ function AdminOrdersWorkspace({ user, token }) {
             type="button"
             className="button secondary"
             disabled={loading}
-            onClick={() => setRevision((current) => current + 1)}
+            onClick={() =>
+              setRevision((current) => current + 1)
+            }
           >
             Refresh orders
           </button>
+
           {STATUS_OPTIONS.map((item) => (
             <button
               key={item.value}
               type="button"
-              className={status === item.value ? "button" : "button secondary"}
+              className={
+                status === item.value
+                  ? "button"
+                  : "button secondary"
+              }
               aria-pressed={status === item.value}
-              onClick={() => changeStatus(item.value)}
+              onClick={() =>
+                changeStatus(item.value)
+              }
             >
               {item.label}
             </button>
           ))}
         </div>
       </section>
+
       {error && (
         <div className="panel">
-          <p className="field-error" role="alert">
+          <p
+            className="field-error"
+            role="alert"
+          >
             {error}
           </p>
+
           <button
             type="button"
             className="button secondary"
             disabled={loading}
-            onClick={() => setRevision((current) => current + 1)}
+            onClick={() =>
+              setRevision((current) => current + 1)
+            }
           >
             Retry loading orders
           </button>
         </div>
       )}
+
       {loading ? (
         <div
           className="panel"
-          style={{
-            padding: "24px",
-          }}
+          style={{ padding: "24px" }}
         >
-          <p className="muted">Loading orders…</p>
+          <p className="muted">
+            Loading orders…
+          </p>
         </div>
       ) : error ? null : orders.length === 0 ? (
         <div
           className="panel"
-          style={{
-            padding: "28px",
-          }}
+          style={{ padding: "28px" }}
         >
           <h2>No orders found</h2>
-          <p className="muted">Try another status filter or search.</p>
+
+          <p className="muted">
+            Try another status filter or search.
+          </p>
         </div>
       ) : (
         <section
@@ -1348,6 +1814,7 @@ function AdminOrdersWorkspace({ user, token }) {
           ))}
         </section>
       )}
+
       {pages > 1 && (
         <div
           style={{
@@ -1362,18 +1829,28 @@ function AdminOrdersWorkspace({ user, token }) {
             type="button"
             className="button secondary"
             disabled={page <= 1 || loading}
-            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            onClick={() =>
+              setPage((current) =>
+                Math.max(1, current - 1),
+              )
+            }
           >
             Previous
           </button>
+
           <strong>
             Page {page} of {pages}
           </strong>
+
           <button
             type="button"
             className="button secondary"
             disabled={page >= pages || loading}
-            onClick={() => setPage((current) => Math.min(pages, current + 1))}
+            onClick={() =>
+              setPage((current) =>
+                Math.min(pages, current + 1),
+              )
+            }
           >
             Next
           </button>
@@ -1382,34 +1859,63 @@ function AdminOrdersWorkspace({ user, token }) {
     </div>
   );
 }
+
 export default function AdminOrdersPage() {
-  const { user, token, authLoading = false } = useAuth();
-  if (authLoading)
+  const {
+    user,
+    token,
+    authLoading = false,
+  } = useAuth();
+
+  if (authLoading) {
     return (
-      <div className="page panel" role="status">
+      <div
+        className="page panel"
+        role="status"
+      >
         Checking admin session…
       </div>
     );
-  if (!user || !token)
+  }
+
+  if (!user || !token) {
     return (
       <div className="page narrow panel">
         <h1>Admin orders</h1>
-        <p>Sign in with an admin account to continue.</p>
-        <Link className="button" to="/login">
+
+        <p>
+          Sign in with an admin account to continue.
+        </p>
+
+        <Link
+          className="button"
+          to="/login"
+        >
           Sign in
         </Link>
       </div>
     );
-  if (user.role !== "admin")
+  }
+
+  if (user.role !== "admin") {
     return (
       <div className="page narrow panel">
         <h1>Admin access required</h1>
-        <p>This page is available to GymDrobe administrators.</p>
-        <Link className="button" to="/">
+
+        <p>
+          This page is available to GymDrobe administrators.
+        </p>
+
+        <Link
+          className="button"
+          to="/"
+        >
           Go home
         </Link>
       </div>
     );
+  }
+
   return (
     <AdminOrdersWorkspace
       key={`${user.id || user._id || "admin"}:${token}`}
@@ -1418,4 +1924,3 @@ export default function AdminOrdersPage() {
     />
   );
 }
-

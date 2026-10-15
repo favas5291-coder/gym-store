@@ -1,7 +1,14 @@
 import { useState } from "react";
 
 import ProductArtwork from "./ProductArtwork.jsx";
-import { isPublicImageUrl } from "../utils/imageUrl.js";
+
+import {
+  productImageSources,
+} from "../utils/productImages.js";
+
+import {
+  isPublicImageUrl,
+} from "../utils/imageUrl.js";
 
 import {
   getDiscountPercentage,
@@ -10,26 +17,30 @@ import {
   money,
 } from "../utils/productPricing.js";
 
-import { getTotalStock } from "../utils/cartUtils.js";
+import {
+  getTotalStock,
+} from "../utils/cartUtils.js";
 
 export { money };
 
-// Import local images so Vite includes them in production.
-// This imports image URLs; the browser still loads images lazily.
+// Import local image URLs so Vite includes them in production.
+// The browser still loads the displayed images lazily.
 const bundledImages = import.meta.glob(
   "/src/assets/**/*.{jpg,jpeg,png,webp,avif,gif,svg,JPG,JPEG,PNG,WEBP,AVIF,GIF,SVG}",
   {
     eager: true,
     query: "?url",
     import: "default",
-  }
+  },
 );
 
 export const productPath = (id) =>
   `/product/${encodeURIComponent(id)}`;
 
 export const categoryPath = (name) =>
-  `/shop?${new URLSearchParams({ category: name })}`;
+  `/shop?${new URLSearchParams({
+    category: name,
+  })}`;
 
 export function priceDetails(product) {
   return {
@@ -37,6 +48,7 @@ export function priceDetails(product) {
       product?.price != null &&
       Number.isFinite(Number(product.price)) &&
       Number(product.price) >= 0,
+
     price: getOriginalPrice(product),
     discount: getDiscountPercentage(product),
     selling: getDiscountedPrice(product),
@@ -51,23 +63,32 @@ export const validProducts = (list) =>
     (product) =>
       product &&
       product.id != null &&
-      product.name
+      product.name,
   );
 
-// Resolve existing source assets, public paths and hosted URLs.
+// Resolve source assets, public paths and hosted image URLs.
 export function resolveProductImage(value) {
-  if (typeof value !== "string") return "";
+  if (typeof value !== "string") {
+    return "";
+  }
 
   const source = value.trim();
 
-  if (!source) return "";
+  if (!source) {
+    return "";
+  }
 
   if (/^https?:\/\//i.test(source)) {
-    return isPublicImageUrl(source) ? source : "";
+    return isPublicImageUrl(source)
+      ? source
+      : "";
   }
 
   // Preserve image data and browser-generated previews.
-  if (/^data:image\//i.test(source) || /^blob:/i.test(source)) {
+  if (
+    /^data:image\//i.test(source) ||
+    /^blob:/i.test(source)
+  ) {
     return source;
   }
 
@@ -86,45 +107,48 @@ export function resolveProductImage(value) {
     // Keep the original path if decoding is invalid.
   }
 
-  pathname = pathname.replace(/^\.\/+/, "");
+  pathname = pathname.replace(/^\.\//, "");
 
   if (pathname.startsWith("src/assets/")) {
     pathname = `/${pathname}`;
-  } else if (pathname.startsWith("../assets/")) {
-    pathname = `/src/assets/${pathname.slice("../assets/".length)}`;
+  } else if (
+    pathname.startsWith("../assets/")
+  ) {
+    pathname =
+      "/src/assets/" +
+      pathname.slice("../assets/".length);
   }
 
   if (pathname.startsWith("/src/assets/")) {
-    // An absent source file cannot be restored by changing its URL.
     return bundledImages[pathname] || "";
   }
 
-  // Files in public are served without the "public" prefix.
+  // Files in public are served without the public prefix.
   if (pathname.startsWith("/public/")) {
     return pathname.slice("/public".length);
   }
 
   if (pathname.startsWith("public/")) {
-    return `/${pathname.slice("public/".length)}`;
+    return (
+      "/" +
+      pathname.slice("public/".length)
+    );
   }
 
-  // Keep public and already-built URLs, including query strings.
+  // Preserve query strings on public and built image URLs.
   return source.startsWith("/")
     ? source
     : `/${source.replace(/^\.\/+/, "")}`;
 }
 
 function imageCandidates(product) {
-  const sources = [
-    product?.image,
-    ...(Array.isArray(product?.images)
-      ? product.images
-      : []),
-  ];
+  const sources = productImageSources(product);
 
   return [
     ...new Set(
-      sources.map(resolveProductImage).filter(Boolean)
+      sources
+        .map(resolveProductImage)
+        .filter(Boolean),
     ),
   ];
 }
@@ -138,6 +162,7 @@ function ProductImageContent({
   fetchPriority,
 }) {
   const [index, setIndex] = useState(0);
+
   const source = sources[index];
 
   if (source) {
@@ -146,11 +171,17 @@ function ProductImageContent({
         key={source}
         src={source}
         className={className}
-        alt={decorative ? "" : product?.name || "Product"}
+        alt={
+          decorative
+            ? ""
+            : product?.name || "Product"
+        }
         loading={eager ? "eager" : "lazy"}
         decoding="async"
         fetchPriority={fetchPriority}
-        onError={() => setIndex((current) => current + 1)}
+        onError={() =>
+          setIndex((current) => current + 1)
+        }
       />
     );
   }
@@ -169,7 +200,9 @@ function ProductImageContent({
         {product?.name || "GymDrobe"}
       </span>
 
-      <small>Illustration · photo unavailable</small>
+      <small>
+        Illustration · photo unavailable
+      </small>
     </span>
   );
 }
@@ -196,7 +229,9 @@ export function ProductImage({
   );
 }
 
-export function Arrow({ direction = "right" }) {
+export function Arrow({
+  direction = "right",
+}) {
   return (
     <svg
       width="20"
@@ -208,7 +243,9 @@ export function Arrow({ direction = "right" }) {
       aria-hidden="true"
       style={
         direction === "left"
-          ? { transform: "rotate(180deg)" }
+          ? {
+              transform: "rotate(180deg)",
+            }
           : undefined
       }
     >
@@ -217,7 +254,9 @@ export function Arrow({ direction = "right" }) {
   );
 }
 
-export function Heart({ filled = false }) {
+export function Heart({
+  filled = false,
+}) {
   return (
     <svg
       width="20"

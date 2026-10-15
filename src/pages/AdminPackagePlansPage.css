@@ -1,0 +1,21 @@
+.gd-package-page .gd-package-fields { min-width: 0; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; margin: 20px 0; }
+.gd-package-page legend { font-weight: 700; padding-inline: 6px; }
+.gd-package-page .gd-package-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 14px; }
+.gd-package-page .gd-package-field { display: grid; gap: 6px; margin: 14px 0; font-size: 14px; font-weight: 600; }
+.gd-package-page input:not([type=checkbox]), .gd-package-page select, .gd-package-page textarea { width: 100%; min-width: 0; min-height: 44px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; font: inherit; color: #17202a; background: #fff; }
+.gd-package-page .gd-package-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-block: 14px; overflow-wrap: anywhere; }
+.gd-package-page .gd-package-picker { border-top: 1px solid #e2e8f0; margin-top: 16px; }
+.gd-package-page .gd-package-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 10px; }
+.gd-package-page .gd-package-choices > div { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px; background: #f8fafc; border-radius: 6px; overflow-wrap: anywhere; }
+.gd-package-page .gd-package-choices small { display: block; margin-top: 6px; color: #64748b; font-size: 12px; }
+.gd-package-page .gd-package-check { display: flex; align-items: flex-start; gap: 10px; margin: 16px 0; }
+.gd-package-page .gd-package-check input { width: 20px; height: 20px; flex-shrink: 0; }
+.gd-package-page summary { min-height: 44px; display: list-item; align-content: center; cursor: pointer; }
+.gd-package-page li { margin-block: 8px; line-height: 1.6; }
+.gd-package-page fieldset:disabled { opacity: .7; }
+.gd-package-page .purchase-actions { margin-top: 16px; }
+@media (max-width: 540px) {
+  .gd-package-page .gd-package-fields { padding: 12px; }
+  .gd-package-page input, .gd-package-page select, .gd-package-page textarea { font-size: 16px; }
+  .gd-package-page .gd-package-choices > div { flex-wrap: wrap; }
+}

@@ -1,12 +1,26 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  Link,
+  useNavigate,
+} from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext.jsx";
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { useStore } from "../context/StoreContext.jsx";
 
 import BagVariantEditor from "./BagVariantEditor.jsx";
-import { ProductImage, productPath } from "./StorefrontShared.jsx";
+
+import {
+  ProductImage,
+  productPath,
+} from "./StorefrontShared.jsx";
+
 import CouponBox from "./CouponBox.jsx";
 
 import {
@@ -15,7 +29,10 @@ import {
 } from "../utils/cartUtils.js";
 
 import { reviewCart } from "../utils/cartReview.js";
-import { bagEditSignature } from "../utils/bagVariantEditing.js";
+
+import {
+  bagEditSignature,
+} from "../utils/bagVariantEditing.js";
 
 import {
   buyingInformation,
@@ -44,7 +61,9 @@ import {
 import "./Cart.css";
 
 export default function Cart() {
-  const { loading: authLoading } = useAuth();
+  const {
+    loading: authLoading,
+  } = useAuth();
 
   const {
     products,
@@ -81,20 +100,32 @@ export default function Cart() {
 
   const shopper = shoppingKey("gymdrobe-cart");
   const shopperRef = useRef(shopper);
+
   shopperRef.current = shopper;
 
-  const ready = catalogReady && !loading && !catalogError;
+  const ready =
+    catalogReady &&
+    !loading &&
+    !catalogError;
 
   const review = useMemo(
     () => reviewCart(cart, products, ready),
     [cart, products, ready],
   );
 
-  const { rows, itemCount, totalsKnown } = review;
+  const {
+    rows,
+    itemCount,
+    totalsKnown,
+  } = review;
+
   const groups = groupCartItems(rows);
 
   const hasKits = rows.some((item) =>
-    Object.prototype.hasOwnProperty.call(item, "kitGroup"),
+    Object.prototype.hasOwnProperty.call(
+      item,
+      "kitGroup",
+    ),
   );
 
   const pricing = calculateOrderPricing({
@@ -103,13 +134,31 @@ export default function Cart() {
     deliveryMethod: "standard",
   });
 
-  const editingItem = rows.find((item) => item.key === editingKey);
-  const canCheckout = review.canCheckout && !authLoading && !hasKits;
-  const savings = review.productSavings + pricing.couponDiscount;
-  const analyticsKey = bagEditSignature(review.pricingRows);
+  const editingItem = rows.find(
+    (item) => item.key === editingKey,
+  );
+
+  const canCheckout =
+    !authLoading &&
+    (
+      hasKits
+        ? ready &&
+          totalsKnown &&
+          rows.length > 0
+        : review.canCheckout
+    );
+
+  const savings =
+    review.productSavings +
+    pricing.couponDiscount;
+
+  const analyticsKey = bagEditSignature(
+    review.pricingRows,
+  );
 
   useEffect(() => {
     mounted.current = true;
+
     return () => {
       mounted.current = false;
     };
@@ -123,21 +172,38 @@ export default function Cart() {
   }, [shopper]);
 
   useEffect(() => {
-    if (!ready || !totalsKnown || !rows.length || hasKits) return;
+    if (
+      !ready ||
+      !totalsKnown ||
+      !rows.length ||
+      hasKits
+    ) {
+      return;
+    }
 
     function track() {
       trackOnce(
         `bag:${analyticsVisitKey()}`,
         "view_cart",
-        commercePayload(review.pricingRows, pricing.totalAfterCoupon),
+        commercePayload(
+          review.pricingRows,
+          pricing.totalAfterCoupon,
+        ),
       );
     }
 
     track();
-    window.addEventListener("gymdrobe-analytics-ready", track);
+
+    window.addEventListener(
+      "gymdrobe-analytics-ready",
+      track,
+    );
 
     return () => {
-      window.removeEventListener("gymdrobe-analytics-ready", track);
+      window.removeEventListener(
+        "gymdrobe-analytics-ready",
+        track,
+      );
     };
   }, [
     ready,
@@ -149,9 +215,15 @@ export default function Cart() {
   ]);
 
   async function retryCatalog() {
-    if (retryLock.current || typeof refreshProducts !== "function") return;
+    if (
+      retryLock.current ||
+      typeof refreshProducts !== "function"
+    ) {
+      return;
+    }
 
     retryLock.current = true;
+
     const startedFor = shopper;
 
     setRetrying(true);
@@ -161,13 +233,22 @@ export default function Cart() {
     try {
       await refreshProducts();
     } catch {
-      if (mounted.current && shopperRef.current === startedFor) {
-        notify("Products could not be refreshed. Please try again.", "error");
+      if (
+        mounted.current &&
+        shopperRef.current === startedFor
+      ) {
+        notify(
+          "Products could not be refreshed. Please try again.",
+          "error",
+        );
       }
     } finally {
       retryLock.current = false;
 
-      if (mounted.current && shopperRef.current === startedFor) {
+      if (
+        mounted.current &&
+        shopperRef.current === startedFor
+      ) {
         setRetrying(false);
       }
     }
@@ -175,7 +256,9 @@ export default function Cart() {
 
   function freshBag() {
     if (authLoading) {
-      throw new Error("Checking your account. Please wait a moment.");
+      throw new Error(
+        "Checking your account. Please wait a moment.",
+      );
     }
 
     if (!ready) {
@@ -194,40 +277,68 @@ export default function Cart() {
 
     const latest = latestCart();
 
-    if (bagEditSignature(cart) !== bagEditSignature(latest)) {
+    if (
+      bagEditSignature(cart) !==
+      bagEditSignature(latest)
+    ) {
       throw new Error(
         "Your bag changed. Review the updated quantities and prices before continuing.",
       );
     }
 
-    return { catalogue, latest };
+    return {
+      catalogue,
+      latest,
+    };
   }
 
   function changeQuantity(item, quantity) {
-    if (actionLock.current) return;
+    if (actionLock.current) {
+      return;
+    }
 
     actionLock.current = true;
+
     setActionError(null);
     setCheckoutError("");
 
     try {
-      const { catalogue, latest } = freshBag();
+      const {
+        catalogue,
+        latest,
+      } = freshBag();
 
       const changed = latest.map((row) =>
-        getCartItemKey(row) === item.key ? { ...row, quantity } : row,
+        getCartItemKey(row) === item.key
+          ? {
+              ...row,
+              quantity,
+            }
+          : row,
       );
 
-      const checked = reviewCart(changed, catalogue, true);
-      const target = checked.rows.find((row) => row.key === item.key);
+      const checked = reviewCart(
+        changed,
+        catalogue,
+        true,
+      );
+
+      const target = checked.rows.find(
+        (row) => row.key === item.key,
+      );
 
       if (!target?.available) {
         throw new Error(
-          target?.message || "This item is no longer in your bag.",
+          target?.message ||
+          "This item is no longer in your bag.",
         );
       }
 
       if (
-        updateQuantity(item.key, quantity) !== true ||
+        updateQuantity(
+          item.key,
+          quantity,
+        ) !== true ||
         !latestCart().some(
           (row) =>
             getCartItemKey(row) === item.key &&
@@ -241,7 +352,10 @@ export default function Cart() {
     } catch (error) {
       setActionError({
         key: item.key,
-        message: error.message || "Quantity could not be updated.",
+
+        message:
+          error.message ||
+          "Quantity could not be updated.",
       });
     } finally {
       actionLock.current = false;
@@ -257,7 +371,11 @@ export default function Cart() {
       .filter((value) => value != null)
       .map(String);
 
-    return (Array.isArray(wishlist) ? wishlist : []).some((entry) =>
+    return (
+      Array.isArray(wishlist)
+        ? wishlist
+        : []
+    ).some((entry) =>
       references.includes(
         String(
           typeof entry === "object"
@@ -269,31 +387,57 @@ export default function Cart() {
   }
 
   function moveToWishlist(item) {
-    if (actionLock.current) return;
+    if (actionLock.current) {
+      return;
+    }
 
     actionLock.current = true;
+
     setActionError(null);
 
     try {
-      const { catalogue, latest } = freshBag();
+      const {
+        catalogue,
+        latest,
+      } = freshBag();
 
-      if (!latest.some((row) => getCartItemKey(row) === item.key)) {
-        throw new Error("This item is no longer in your bag.");
+      if (
+        !latest.some(
+          (row) =>
+            getCartItemKey(row) === item.key,
+        )
+      ) {
+        throw new Error(
+          "This item is no longer in your bag.",
+        );
       }
 
-      const product = latestPurchaseProduct(catalogue, item);
+      const product = latestPurchaseProduct(
+        catalogue,
+        item,
+      );
 
-      if (!product || product.isActive === false) {
-        throw new Error("This product is no longer available to save.");
+      if (
+        !product ||
+        product.isActive === false
+      ) {
+        throw new Error(
+          "This product is no longer available to save.",
+        );
       }
 
-      if (!isSaved(product) && toggleWishlist(product) !== true) {
+      if (
+        !isSaved(product) &&
+        toggleWishlist(product) !== true
+      ) {
         throw new Error(
           "Wishlist saving could not be confirmed. This item stays in your bag.",
         );
       }
 
-      if (removeFromCart(item.key) !== true) {
+      if (
+        removeFromCart(item.key) !== true
+      ) {
         throw new Error(
           "The item is saved to your wishlist, but could not be removed from your bag. Please retry removal.",
         );
@@ -301,7 +445,10 @@ export default function Cart() {
     } catch (error) {
       setActionError({
         key: item.key,
-        message: error.message || "This item could not be moved.",
+
+        message:
+          error.message ||
+          "This item could not be moved.",
       });
     } finally {
       actionLock.current = false;
@@ -313,17 +460,25 @@ export default function Cart() {
     setCheckoutError("");
 
     try {
-      if (authLoading || removeFromCart(item.key) !== true) {
+      if (
+        authLoading ||
+        removeFromCart(item.key) !== true
+      ) {
         throw new Error(
           "The item could not be removed. Check your account and retry.",
         );
       }
 
-      if (editingKey === item.key) setEditingKey(null);
+      if (editingKey === item.key) {
+        setEditingKey(null);
+      }
     } catch (error) {
       setActionError({
         key: item.key,
-        message: error.message || "Removal could not be completed.",
+
+        message:
+          error.message ||
+          "Removal could not be completed.",
       });
     }
   }
@@ -354,31 +509,48 @@ export default function Cart() {
     setCheckoutError("");
 
     try {
-      const { catalogue, latest } = freshBag();
+      const {
+        catalogue,
+        latest,
+      } = freshBag();
 
       if (
         latest.some((item) =>
-          Object.prototype.hasOwnProperty.call(item, "kitGroup"),
+          Object.prototype.hasOwnProperty.call(
+            item,
+            "kitGroup",
+          ),
         )
       ) {
-        throw new Error(
-          "Fitness Kit checkout is still being connected. Remove the complete kit to check out individual products.",
-        );
+        // Checkout validates kit selections, prices,
+        // stock and shipping on the server.
+        navigate("/checkout");
+        return;
       }
 
-      const checked = reviewCart(latest, catalogue, true);
+      const checked = reviewCart(
+        latest,
+        catalogue,
+        true,
+      );
 
       if (!checked.canCheckout) {
         throw new Error(
-          checked.rows.find((row) => !row.available)?.message ||
-            "Refresh products and check your bag quantities and prices before checkout.",
+          checked.rows.find(
+            (row) => !row.available,
+          )?.message ||
+          "Refresh products and check your bag quantities and prices before checkout.",
         );
       }
 
       if (
         !review.canCheckout ||
-        bagEditSignature(review.pricingRows) !==
-          bagEditSignature(checked.pricingRows)
+        bagEditSignature(
+          review.pricingRows,
+        ) !==
+          bagEditSignature(
+            checked.pricingRows,
+          )
       ) {
         throw new Error(
           "Product prices or availability changed. Refresh products and review your bag before checkout.",
@@ -388,7 +560,8 @@ export default function Cart() {
       navigate("/checkout");
     } catch (error) {
       setCheckoutError(
-        error.message || "Checkout could not be opened. Please retry.",
+        error.message ||
+        "Checkout could not be opened. Please retry.",
       );
     }
   }
@@ -398,14 +571,21 @@ export default function Cart() {
       <div className="page narrow cart-page">
         <div className="empty-state">
           <h1>
-            {authLoading ? "Checking your bag…" : "Your bag is empty"}
+            {authLoading
+              ? "Checking your bag…"
+              : "Your bag is empty"}
           </h1>
+
           <p>
             {authLoading
               ? "Please wait while your account is checked."
               : "Find clothing, accessories and workout essentials for your next session."}
           </p>
-          <Link className="button" to="/shop">
+
+          <Link
+            className="button"
+            to="/shop"
+          >
             Shop GymDrobe
           </Link>
         </div>
@@ -418,31 +598,49 @@ export default function Cart() {
       <div className="page-heading">
         <div>
           <h1>Shopping bag</h1>
-          <p className="muted" aria-live="polite">
-            {rows.every((item) => item.quantityValid) &&
+
+          <p
+            className="muted"
+            aria-live="polite"
+          >
+            {rows.every(
+              (item) => item.quantityValid,
+            ) &&
             Number.isSafeInteger(itemCount)
               ? `${itemCount} ${
-                  itemCount === 1 ? "item" : "items"
+                  itemCount === 1
+                    ? "item"
+                    : "items"
                 } in your bag`
               : "Check the quantities of items in your bag"}
           </p>
         </div>
 
-        <Link className="text-link" to="/shop">
+        <Link
+          className="text-link"
+          to="/shop"
+        >
           Continue shopping →
         </Link>
       </div>
 
       {loading && (
-        <p className="notice" role="status">
+        <p
+          className="notice"
+          role="status"
+        >
           Checking current prices and available stock…
         </p>
       )}
 
       {catalogError && (
-        <p className="field-error" role="alert">
-          Products could not be loaded. Your saved bag is shown
-          below. Retry product loading before checkout.
+        <p
+          className="field-error"
+          role="alert"
+        >
+          Products could not be loaded. Your saved bag
+          is shown below. Retry product loading before
+          checkout.
         </p>
       )}
 
@@ -468,14 +666,21 @@ export default function Cart() {
                   ready={ready}
                   disabled={authLoading}
                   error={
-                    actionError?.key === `kit:${entry.id}`
+                    actionError?.key ===
+                    `kit:${entry.id}`
                       ? actionError.message
                       : ""
                   }
-                  onRemove={() => removeKit(entry)}
+                  onRemove={() =>
+                    removeKit(entry)
+                  }
                   onEdit={() =>
                     navigate(
-                      `/kits/${encodeURIComponent(entry.kitId)}?group=${encodeURIComponent(entry.id)}`,
+                      `/kits/${encodeURIComponent(
+                        entry.kitId,
+                      )}?group=${encodeURIComponent(
+                        entry.id,
+                      )}`,
                     )
                   }
                 />
@@ -483,16 +688,26 @@ export default function Cart() {
             }
 
             const item = entry.item;
-            const product = item.product || item;
-            const information = buyingInformation(product);
+
+            const product = {
+              ...(item.product || item),
+              selectedColor: item.selectedColor,
+            };
+
+            const information =
+              buyingInformation(product);
 
             const unavailable =
               ready &&
-              (!item.product || item.product.isActive === false);
+              (
+                !item.product ||
+                item.product.isActive === false
+              );
 
             const variants = [
               item.selectedColor &&
                 `${item.labels.color}: ${item.selectedColor}`,
+
               item.selectedSize &&
                 `${item.labels.size}: ${item.selectedSize}`,
             ]
@@ -500,28 +715,40 @@ export default function Cart() {
               .join(" / ");
 
             const quantityOptions = Array.from(
-              { length: item.maxQuantity },
+              {
+                length: item.maxQuantity,
+              },
               (_, index) => index + 1,
             );
 
             if (
               item.quantityValid &&
-              !quantityOptions.includes(item.quantity)
+              !quantityOptions.includes(
+                item.quantity,
+              )
             ) {
-              quantityOptions.push(item.quantity);
+              quantityOptions.push(
+                item.quantity,
+              );
             }
 
             const optionNames = [
-              purchaseOptions(item.product?.sizes).length > 0 &&
+              purchaseOptions(
+                item.product?.sizes,
+              ).length > 0 &&
                 item.labels.size.toLowerCase(),
-              purchaseOptions(item.product?.colors).length > 0 &&
+
+              purchaseOptions(
+                item.product?.colors,
+              ).length > 0 &&
                 item.labels.color.toLowerCase(),
             ]
               .filter(Boolean)
               .join(" / ");
 
             const id =
-              productReference(item.product) || productReference(item);
+              productReference(item.product) ||
+              productReference(item);
 
             return (
               <article
@@ -532,9 +759,13 @@ export default function Cart() {
                   <Link
                     to={productPath(id)}
                     className="cart-thumb"
-                    aria-label={`View ${product.name || "product"}`}
+                    aria-label={
+                      `View ${product.name || "product"}`
+                    }
                   >
-                    <ProductImage product={product} />
+                    <ProductImage
+                      product={product}
+                    />
                   </Link>
                 )}
 
@@ -542,15 +773,21 @@ export default function Cart() {
                   <div className="cart-head">
                     <div>
                       <p className="eyebrow">
-                        {productText(product.brand) || "Brand not recorded"}
+                        {productText(product.brand) ||
+                          "Brand not recorded"}
                       </p>
 
                       {id && !unavailable ? (
                         <Link to={productPath(id)}>
-                          <h2>{product.name || "Product"}</h2>
+                          <h2>
+                            {product.name || "Product"}
+                          </h2>
                         </Link>
                       ) : (
-                        <h2>{product.name || "Product unavailable"}</h2>
+                        <h2>
+                          {product.name ||
+                            "Product unavailable"}
+                        </h2>
                       )}
                     </div>
 
@@ -569,71 +806,116 @@ export default function Cart() {
                     </div>
                   </div>
 
-                  <p className="muted">{variants || "Standard option"}</p>
+                  <p className="muted">
+                    {variants || "Standard option"}
+                  </p>
 
                   <p className="muted">
                     {item.priceSafe
                       ? `${money(item.unitPrice)} each`
                       : "Price unavailable"}
-                    {!ready ? " · Saved estimate" : ""}
+
+                    {!ready
+                      ? " · Saved estimate"
+                      : ""}
                   </p>
 
                   {item.lineSavings > 0 && (
                     <p className="positive">
-                      Product savings: {money(item.lineSavings)}
+                      Product savings:{" "}
+                      {money(item.lineSavings)}
                     </p>
                   )}
 
-                  {ready && item.available && information.estimate && (
-                    <p className="muted">
-                      Recorded delivery estimate: {information.estimate}
-                    </p>
-                  )}
+                  {ready &&
+                    item.available &&
+                    information.estimate && (
+                      <p className="muted">
+                        Recorded delivery estimate:{" "}
+                        {information.estimate}
+                      </p>
+                    )}
 
-                  {ready && item.available && information.transit && (
-                    <p className="muted">
-                      Courier transit: {information.transit}
-                    </p>
-                  )}
+                  {ready &&
+                    item.available &&
+                    information.transit && (
+                      <p className="muted">
+                        Courier transit:{" "}
+                        {information.transit}
+                      </p>
+                    )}
 
                   {ready && item.product && (
                     <details className="cart-returns">
-                      <summary>Return conditions</summary>
+                      <summary>
+                        Return conditions
+                      </summary>
+
                       <p>{information.returns}</p>
-                      {information.returnDetails.map((detail) => (
-                        <p key={detail}>{detail}</p>
-                      ))}
+
+                      {information.returnDetails.map(
+                        (detail) => (
+                          <p key={detail}>
+                            {detail}
+                          </p>
+                        ),
+                      )}
                     </details>
                   )}
 
                   <div className="cart-controls">
                     <label>
                       Qty{" "}
+
                       <select
-                        aria-label={`Quantity for ${product.name || "product"}`}
-                        aria-describedby={`bag-row-${item.index}`}
+                        aria-label={
+                          `Quantity for ${
+                            product.name || "product"
+                          }`
+                        }
+                        aria-describedby={
+                          `bag-row-${item.index}`
+                        }
                         value={item.quantity ?? ""}
-                        disabled={!item.canAdjust || authLoading}
+                        disabled={
+                          !item.canAdjust ||
+                          authLoading
+                        }
                         onChange={(event) =>
-                          changeQuantity(item, Number(event.target.value))
+                          changeQuantity(
+                            item,
+                            Number(event.target.value),
+                          )
                         }
                       >
                         {!item.quantityValid && (
-                          <option value={item.quantity ?? ""} disabled>
+                          <option
+                            value={item.quantity ?? ""}
+                            disabled
+                          >
                             Check quantity
                           </option>
                         )}
 
-                        {quantityOptions.map((quantity) => (
-                          <option
-                            key={quantity}
-                            value={quantity}
-                            disabled={quantity > item.maxQuantity}
-                          >
-                            {quantity}
-                            {quantity > item.maxQuantity ? " — unavailable" : ""}
-                          </option>
-                        ))}
+                        {quantityOptions.map(
+                          (quantity) => (
+                            <option
+                              key={quantity}
+                              value={quantity}
+                              disabled={
+                                quantity >
+                                item.maxQuantity
+                              }
+                            >
+                              {quantity}
+
+                              {quantity >
+                              item.maxQuantity
+                                ? " — unavailable"
+                                : ""}
+                            </option>
+                          ),
+                        )}
                       </select>
                     </label>
 
@@ -641,7 +923,11 @@ export default function Cart() {
                       <button
                         type="button"
                         className="text-link"
-                        disabled={!ready || authLoading || unavailable}
+                        disabled={
+                          !ready ||
+                          authLoading ||
+                          unavailable
+                        }
                         onClick={() => {
                           setActionError(null);
                           setEditingKey(item.key);
@@ -654,8 +940,14 @@ export default function Cart() {
                     <button
                       type="button"
                       className="text-link"
-                      disabled={!ready || authLoading || unavailable}
-                      onClick={() => moveToWishlist(item)}
+                      disabled={
+                        !ready ||
+                        authLoading ||
+                        unavailable
+                      }
+                      onClick={() =>
+                        moveToWishlist(item)
+                      }
                     >
                       {isSaved(product)
                         ? "Move to wishlist"
@@ -666,7 +958,9 @@ export default function Cart() {
                       type="button"
                       className="text-link danger"
                       disabled={authLoading}
-                      onClick={() => removeItem(item)}
+                      onClick={() =>
+                        removeItem(item)
+                      }
                     >
                       Remove
                     </button>
@@ -674,19 +968,30 @@ export default function Cart() {
 
                   <p
                     id={`bag-row-${item.index}`}
-                    className={item.message ? "field-error" : "muted"}
+                    className={
+                      item.message
+                        ? "field-error"
+                        : "muted"
+                    }
                     aria-live="polite"
                   >
                     {item.message ||
-                      (item.stockRemaining < item.stock
-                        ? `Up to ${item.maxQuantity} for this option after other bag items sharing its stock.`
-                        : item.maxQuantity < item.stock
-                          ? `Up to ${item.maxQuantity} units of this selection per order.`
-                          : `${item.stock} available for this selection.`)}
+                      (
+                        item.stockRemaining <
+                        item.stock
+                          ? `Up to ${item.maxQuantity} for this option after other bag items sharing its stock.`
+                          : item.maxQuantity <
+                              item.stock
+                            ? `Up to ${item.maxQuantity} units of this selection per order.`
+                            : `${item.stock} available for this selection.`
+                      )}
                   </p>
 
                   {actionError?.key === item.key && (
-                    <p className="field-error" role="alert">
+                    <p
+                      className="field-error"
+                      role="alert"
+                    >
                       {actionError.message}
                     </p>
                   )}
@@ -696,7 +1001,10 @@ export default function Cart() {
           })}
         </div>
 
-        <aside className="cart-summary" aria-label="Bag summary">
+        <aside
+          className="cart-summary"
+          aria-label="Bag summary"
+        >
           {hasKits ? (
             <section className="price-summary">
               <h2>Kit pricing needs confirmation</h2>
@@ -704,26 +1012,34 @@ export default function Cart() {
               {totalsKnown && (
                 <dl>
                   <div>
-                    <dt>All items before kit and coupon discounts</dt>
-                    <dd>{money(pricing.subtotal)}</dd>
+                    <dt>
+                      All items before kit and coupon discounts
+                    </dt>
+
+                    <dd>
+                      {money(pricing.subtotal)}
+                    </dd>
                   </div>
                 </dl>
               )}
 
               {!totalsKnown && (
-                <p>Check the highlighted prices and quantities.</p>
+                <p>
+                  Check the highlighted prices and quantities.
+                </p>
               )}
 
               <p className="notice">
-                Kit discounts, coupons and delivery must be
-                calculated together before payment. A final
-                payable total is not available yet.
+                Kit discounts, coupons and delivery must
+                be calculated together before payment.
+                A final payable total is not available yet.
               </p>
 
               <p>
-                Use Edit kit to change choices, then Save kit
-                changes in the builder. Remove the complete kit
-                to check out individual products.
+                Use Edit kit to change choices. Continue
+                to review current server prices, package
+                contents and shipping charges for your
+                delivery pincode.
               </p>
             </section>
           ) : totalsKnown ? (
@@ -731,9 +1047,15 @@ export default function Cart() {
               <fieldset
                 aria-label="Order coupons"
                 disabled={!ready || authLoading}
-                style={{ border: 0, padding: 0, margin: 0 }}
+                style={{
+                  border: 0,
+                  padding: 0,
+                  margin: 0,
+                }}
               >
-                <CouponBox subtotal={pricing.subtotal} />
+                <CouponBox
+                  subtotal={pricing.subtotal}
+                />
               </fieldset>
 
               <section className="price-summary">
@@ -741,13 +1063,19 @@ export default function Cart() {
 
                 <dl>
                   <div>
-                    <dt>Items before product discounts</dt>
-                    <dd>{money(review.originalTotal)}</dd>
+                    <dt>
+                      Items before product discounts
+                    </dt>
+
+                    <dd>
+                      {money(review.originalTotal)}
+                    </dd>
                   </div>
 
                   {review.productSavings > 0 && (
                     <div>
                       <dt>Product savings</dt>
+
                       <dd className="positive">
                         −{money(review.productSavings)}
                       </dd>
@@ -756,12 +1084,16 @@ export default function Cart() {
 
                   <div>
                     <dt>Items subtotal</dt>
-                    <dd>{money(pricing.subtotal)}</dd>
+
+                    <dd>
+                      {money(pricing.subtotal)}
+                    </dd>
                   </div>
 
                   {pricing.couponDiscount > 0 && (
                     <div>
                       <dt>Coupon savings</dt>
+
                       <dd className="positive">
                         −{money(pricing.couponDiscount)}
                       </dd>
@@ -769,7 +1101,10 @@ export default function Cart() {
                   )}
 
                   <div>
-                    <dt>Estimated standard delivery</dt>
+                    <dt>
+                      Estimated standard delivery
+                    </dt>
+
                     <dd>
                       {pricing.shipping > 0
                         ? money(pricing.shipping)
@@ -779,50 +1114,61 @@ export default function Cart() {
 
                   <div className="total">
                     <dt>Estimated total</dt>
-                    <dd>{money(pricing.finalTotal)}</dd>
+
+                    <dd>
+                      {money(pricing.finalTotal)}
+                    </dd>
                   </div>
                 </dl>
 
                 {savings > 0 && (
-                  <p className="positive">Your savings: {money(savings)}</p>
+                  <p className="positive">
+                    Your savings: {money(savings)}
+                  </p>
                 )}
 
                 <p className="muted">
                   Standard delivery is free from{" "}
-                  {money(FREE_SHIPPING_LIMIT)} after coupons.
-                  Your selected delivery method and final charges
-                  are shown at checkout.
+                  {money(FREE_SHIPPING_LIMIT)} after
+                  coupons. Your selected delivery method
+                  and final charges are shown at checkout.
                 </p>
 
                 {!review.canCheckout && (
                   <p className="muted">
-                    Review the highlighted items before using this
-                    estimate to check out.
+                    Review the highlighted items before
+                    using this estimate to check out.
                   </p>
                 )}
               </section>
             </>
           ) : (
-            <p className="notice" role="status">
-              The total cannot be calculated until every item
-              has a valid price and quantity. Correct the
-              highlighted items or remove them.
+            <p
+              className="notice"
+              role="status"
+            >
+              The total cannot be calculated until every
+              item has a valid price and quantity.
+              Correct the highlighted items or remove them.
             </p>
           )}
 
           <div className="panel cart-trust">
-            <p><strong>Review before payment</strong></p>
-
-            <p className="muted">
-              Product prices, variants and stock are checked
-              again before placing your order.
+            <p>
+              <strong>Review before payment</strong>
             </p>
 
             <p className="muted">
-              If you choose COD with a 10% advance, the advance
-              is calculated on products after coupons. The
-              remaining balance includes delivery charges.
-              Review cancellation and refund terms at checkout.
+              Product prices, variants and stock are
+              checked again before placing your order.
+            </p>
+
+            <p className="muted">
+              If you choose COD with a 10% advance,
+              the advance is calculated on products
+              after coupons. The remaining balance
+              includes delivery charges. Review
+              cancellation and refund terms at checkout.
             </p>
           </div>
 
@@ -837,29 +1183,41 @@ export default function Cart() {
               : !ready
                 ? "Waiting for product check"
                 : hasKits
-                  ? "Kit checkout is being connected"
+                  ? "Checkout kit & review delivery"
                   : !review.canCheckout
                     ? "Check highlighted items"
                     : "Proceed to checkout"}
           </button>
 
           {checkoutError && (
-            <p className="field-error" role="alert">{checkoutError}</p>
+            <p
+              className="field-error"
+              role="alert"
+            >
+              {checkoutError}
+            </p>
           )}
 
-          <Link className="text-link cart-continue" to="/shop">
+          <Link
+            className="text-link cart-continue"
+            to="/shop"
+          >
             Continue shopping
           </Link>
         </aside>
       </div>
 
-      {editingItem && ready && !authLoading && (
-        <BagVariantEditor
-          key={editingKey}
-          item={editingItem}
-          onClose={() => setEditingKey(null)}
-        />
-      )}
+      {editingItem &&
+        ready &&
+        !authLoading && (
+          <BagVariantEditor
+            key={editingKey}
+            item={editingItem}
+            onClose={() =>
+              setEditingKey(null)
+            }
+          />
+        )}
     </div>
   );
 }
@@ -872,10 +1230,13 @@ function KitBagGroup({
   onRemove,
   onEdit,
 }) {
-  const totalsKnown = group.items.every((item) => item.lineSafe);
+  const totalsKnown = group.items.every(
+    (item) => item.lineSafe,
+  );
 
   const subtotal = group.items.reduce(
-    (total, item) => total + (item.lineTotal || 0),
+    (total, item) =>
+      total + (item.lineTotal || 0),
     0,
   );
 
@@ -912,11 +1273,17 @@ function KitBagGroup({
     >
       <div className="cart-kit-header">
         <div>
-          <p className="eyebrow">FITNESS KIT · {group.level}</p>
+          <p className="eyebrow">
+            FITNESS KIT · {group.level}
+          </p>
+
           <h2>{group.name}</h2>
+
           <p className="muted">
             {group.items.length} selected{" "}
-            {group.items.length === 1 ? "component" : "components"}
+            {group.items.length === 1
+              ? "component"
+              : "components"}
           </p>
         </div>
 
@@ -943,11 +1310,15 @@ function KitBagGroup({
 
       <div className="cart-kit-components">
         {group.items.map((item) => {
-          const product = item.product || item;
+          const product = {
+            ...(item.product || item),
+            selectedColor: item.selectedColor,
+          };
 
           const variants = [
             item.selectedColor &&
               `${item.labels.color}: ${item.selectedColor}`,
+
             item.selectedSize &&
               `${item.labels.size}: ${item.selectedSize}`,
           ]
@@ -955,7 +1326,8 @@ function KitBagGroup({
             .join(" / ");
 
           const id =
-            productReference(item.product) || productReference(item);
+            productReference(item.product) ||
+            productReference(item);
 
           return (
             <article
@@ -963,34 +1335,53 @@ function KitBagGroup({
               key={`${item.key}:${item.index}`}
             >
               <div className="cart-thumb">
-                <ProductImage product={product} />
+                <ProductImage
+                  product={product}
+                />
               </div>
 
               <div className="cart-copy">
                 <p className="eyebrow">
-                  {productText(product.brand) || "Brand not recorded"}
+                  {productText(product.brand) ||
+                    "Brand not recorded"}
                 </p>
 
-                {id && (!ready || item.product?.isActive !== false) ? (
+                {id &&
+                (
+                  !ready ||
+                  item.product?.isActive !== false
+                ) ? (
                   <Link to={productPath(id)}>
-                    <h3>{product.name || "Product"}</h3>
+                    <h3>
+                      {product.name || "Product"}
+                    </h3>
                   </Link>
                 ) : (
-                  <h3>{product.name || "Product unavailable"}</h3>
+                  <h3>
+                    {product.name ||
+                      "Product unavailable"}
+                  </h3>
                 )}
 
-                <p>{variants || "Standard option"}</p>
+                <p>
+                  {variants || "Standard option"}
+                </p>
 
                 <p>
                   Quantity:{" "}
-                  {item.quantityValid ? item.quantity : "Check quantity"}
+                  {item.quantityValid
+                    ? item.quantity
+                    : "Check quantity"}
                 </p>
 
                 <p>
                   {item.priceSafe
                     ? `${money(item.unitPrice)} each`
                     : "Price unavailable"}
-                  {!ready ? " · Saved estimate" : ""}
+
+                  {!ready
+                    ? " · Saved estimate"
+                    : ""}
                 </p>
 
                 <strong>
@@ -1011,32 +1402,46 @@ function KitBagGroup({
       <div className="cart-kit-footer">
         <p>
           <strong>Component subtotal:</strong>{" "}
+
           {totalsKnown &&
-          Number.isSafeInteger(Math.round(subtotal * 100))
+          Number.isSafeInteger(
+            Math.round(subtotal * 100),
+          )
             ? money(subtotal)
             : "Needs review"}{" "}
+
           · before kit and coupon discounts
         </p>
 
         <p className="notice">
-          This kit is saved in your bag. Use Edit kit to change
-          its contents. Kit checkout is still being connected;
-          no stock is reserved.
+          This kit is saved in your bag. Use Edit kit
+          to change its contents. Checkout confirms
+          current discounts, package contents and
+          delivery charges before payment. No stock
+          is reserved in your bag.
         </p>
 
         {reasons.length > 0 && (
           <div className="field-error">
             <p>Review this kit:</p>
+
             <ul>
               {reasons.map((reason) => (
-                <li key={reason}>{reason}</li>
+                <li key={reason}>
+                  {reason}
+                </li>
               ))}
             </ul>
           </div>
         )}
 
         {error && (
-          <p className="field-error" role="alert">{error}</p>
+          <p
+            className="field-error"
+            role="alert"
+          >
+            {error}
+          </p>
         )}
       </div>
     </section>

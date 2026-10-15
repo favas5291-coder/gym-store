@@ -1,3 +1,5 @@
+import PurchasedKitSummary from "../components/PurchasedKitSummary.jsx";
+
 import {
   useCallback,
   useEffect,
@@ -704,7 +706,11 @@ function OrderDetail({
       <div className="page-heading">
         <div>
           <h1>Order details</h1>
-          <p className="order-id">{displayId}</p>
+
+          <p className="order-id">
+            {displayId}
+          </p>
+
           <p className="muted">
             {formatOrderDate(order.createdAt)}
           </p>
@@ -910,7 +916,7 @@ function OrderDetail({
 
                   <p className="muted">
                     Item prices are before any
-                    order coupon allocation.
+                    kit and coupon allocations.
                   </p>
 
                   {trackingText(
@@ -985,7 +991,9 @@ function OrderDetail({
               <p>{address.email}</p>
             )}
 
-            <p>Delivery: {deliveryLabel}</p>
+            <p>
+              Delivery: {deliveryLabel}
+            </p>
           </section>
 
           {trackingText(order.giftMessage) && (
@@ -1226,10 +1234,12 @@ function OrderDetail({
                 ["Responded", request.respondedAt],
                 ["Approved", request.approvedAt],
                 ["Rejected", request.rejectedAt],
+
                 [
                   "Inspection completed",
                   request.inspectionCompletedAt,
                 ],
+
                 [
                   "Request completed",
                   request.completedAt,
@@ -1271,6 +1281,8 @@ function OrderDetail({
 
         <aside className="order-totals">
           <section className="panel">
+            <PurchasedKitSummary order={order} />
+
             <h2>ORDER SUMMARY</h2>
 
             <dl className="receipt-totals">
@@ -1278,6 +1290,10 @@ function OrderDetail({
                 [
                   "Items subtotal",
                   pricing.subtotal,
+                ],
+                [
+                  "Kit savings",
+                  pricing.kitDiscount ?? 0,
                 ],
                 [
                   "Coupon savings",

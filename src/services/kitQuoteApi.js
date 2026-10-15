@@ -1,5 +1,6 @@
 const API_URL = String(
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api",
+  import.meta.env.VITE_API_URL ||
+  "http://localhost:5000/api",
 )
   .trim()
   .replace(/\/+$/, "");
@@ -20,10 +21,14 @@ export async function previewKitQuote(
   } = {},
 ) {
   if (!token) {
-    throw new Error("Admin sign-in is required.");
+    throw new Error(
+      "Admin sign-in is required.",
+    );
   }
 
-  const id = String(kit?.id || kit?._id || "");
+  const id = String(
+    kit?.id || kit?._id || "",
+  );
 
   if (
     !/^[a-f0-9]{24}$/i.test(id) ||
@@ -35,16 +40,26 @@ export async function previewKitQuote(
     );
   }
 
-  const controller = new AbortController();
-  const abort = () => controller.abort();
+  const controller =
+    new AbortController();
 
-  if (signal?.aborted) abort();
+  const abort = () =>
+    controller.abort();
 
-  signal?.addEventListener("abort", abort, {
-    once: true,
-  });
+  if (signal?.aborted) {
+    abort();
+  }
 
-  const timer = setTimeout(abort, 25000);
+  signal?.addEventListener(
+    "abort",
+    abort,
+    { once: true },
+  );
+
+  const timer = setTimeout(
+    abort,
+    25000,
+  );
 
   try {
     const response = await fetch(
@@ -69,16 +84,22 @@ export async function previewKitQuote(
       },
     );
 
-    const data = await response.json().catch(() => null);
+    const data = await response
+      .json()
+      .catch(() => null);
 
-    if (!response.ok || data?.success !== true) {
+    if (
+      !response.ok ||
+      data?.success !== true
+    ) {
       const error = new Error(
         data?.message ||
-          "The kit preview could not be read.",
+        "The kit preview could not be read.",
       );
 
       error.status = response.status;
       error.code = data?.code;
+
       throw error;
     }
 
@@ -112,14 +133,21 @@ export async function previewKitQuote(
       !Array.isArray(quote.items) ||
       !quote.items.length ||
       !pricingFields.every(
-        (key) => amount(quote.pricing?.[key]),
+        (key) =>
+          amount(quote.pricing?.[key]),
       ) ||
-      !amount(quote.payment?.amountToPayNow) ||
-      !amount(quote.payment?.amountDue) ||
+      !amount(
+        quote.payment?.amountToPayNow,
+      ) ||
+      !amount(
+        quote.payment?.amountDue,
+      ) ||
       !quote.items.every(
         (item) =>
           typeof item.name === "string" &&
-          Number.isSafeInteger(item.quantity) &&
+          Number.isSafeInteger(
+            item.quantity,
+          ) &&
           item.quantity > 0 &&
           itemFields.every(
             (key) => amount(item[key]),
@@ -133,7 +161,10 @@ export async function previewKitQuote(
 
     return quote;
   } catch (error) {
-    if (signal?.aborted || error.status) {
+    if (
+      signal?.aborted ||
+      error.status
+    ) {
       throw error;
     }
 
@@ -152,6 +183,10 @@ export async function previewKitQuote(
     throw error;
   } finally {
     clearTimeout(timer);
-    signal?.removeEventListener("abort", abort);
+
+    signal?.removeEventListener(
+      "abort",
+      abort,
+    );
   }
 }

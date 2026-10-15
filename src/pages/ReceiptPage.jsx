@@ -1,3 +1,4 @@
+import PurchasedKitSummary from "../components/PurchasedKitSummary.jsx";
 import { Link, useParams } from "react-router-dom";
 
 import useCustomerOrder from "../hooks/useCustomerOrder.js";
@@ -104,43 +105,71 @@ export default function ReceiptPage() {
       ["Date", order.createdAt || ""],
       ["Status", formatOrderStatus(order.status)],
       [],
+
       [
         "Product",
         "Size",
         "Colour",
         "Quantity",
-        "Unit INR",
-        "Line INR",
+        "Unit INR before order savings",
+        "Line INR before order savings",
+        "Kit",
+        "Allocated item total INR",
       ],
+
       ...(order.items || []).map((item) => [
         item.name,
         item.selectedSize || "",
         item.selectedColor || "",
         item.quantity,
         item.price,
+
         Number(item.quantity || 0) *
           Number(item.price || 0),
+
+        order.kitSnapshots?.find(
+          (kit) => kit.groupId === item.kit?.groupId,
+        )?.name || "",
+
+        Number.isSafeInteger(
+          item.priceAllocation?.linePaidPaise,
+        )
+          ? item.priceAllocation.linePaidPaise / 100
+          : "Not recorded",
       ]),
+
       [],
+
       [
         "Items subtotal INR",
         pricing.subtotal ?? "Not recorded",
       ],
+
+      [
+        "Kit savings INR",
+        pricing.kitDiscount ?? 0,
+      ],
+
       [
         "Coupon savings INR",
         pricing.couponDiscount ?? "Not recorded",
       ],
+
       [
         "Delivery INR",
         pricing.shipping ?? "Not recorded",
       ],
+
       ["Order total INR", orderTotal(order)],
+
       [],
+
       ...getPaymentRows(order).map(
         ([label, value]) => [
           typeof value === "number"
             ? `${label} INR`
             : label,
+
           value,
         ],
       ),
@@ -153,11 +182,11 @@ export default function ReceiptPage() {
 
     downloadText(
       `${safeName}-receipt.csv`,
+
       rows
-        .map((row) =>
-          row.map(csvCell).join(","),
-        )
+        .map((row) => row.map(csvCell).join(","))
         .join("\r\n"),
+
       "text/csv;charset=utf-8",
     );
   }
@@ -210,7 +239,10 @@ export default function ReceiptPage() {
         </div>
 
         <p className="order-id">{displayId}</p>
-        <p>{formatOrderDate(order.createdAt)}</p>
+
+        <p>
+          {formatOrderDate(order.createdAt)}
+        </p>
 
         <p className="notice">
           {isAccountOrder
@@ -225,6 +257,7 @@ export default function ReceiptPage() {
 
         <p>
           {address.fullName || address.name}
+
           <br />
 
           {address.addressLine || address.address}
@@ -261,7 +294,8 @@ export default function ReceiptPage() {
         <div className="comparison-scroll">
           <table className="data-table">
             <caption className="muted">
-              Order items and prices in INR
+              Order items and prices in INR before kit
+              and coupon savings
             </caption>
 
             <thead>
@@ -290,6 +324,7 @@ export default function ReceiptPage() {
                       <small>
                         {[
                           item.selectedColor,
+
                           item.selectedSize &&
                             `Size ${item.selectedSize}`,
                         ]
@@ -299,7 +334,10 @@ export default function ReceiptPage() {
                     </td>
 
                     <td>{item.quantity}</td>
-                    <td>{showMoney(item.price)}</td>
+
+                    <td>
+                      {showMoney(item.price)}
+                    </td>
 
                     <td>
                       {money(
@@ -317,7 +355,16 @@ export default function ReceiptPage() {
         <dl className="receipt-totals">
           <div>
             <dt>Subtotal</dt>
-            <dd>{showMoney(pricing.subtotal)}</dd>
+            <dd>
+              {showMoney(pricing.subtotal)}
+            </dd>
+          </div>
+
+          <div>
+            <dt>Kit savings</dt>
+            <dd>
+              {showMoney(pricing.kitDiscount ?? 0)}
+            </dd>
           </div>
 
           <div>
@@ -329,13 +376,16 @@ export default function ReceiptPage() {
 
           <div>
             <dt>Delivery</dt>
-            <dd>{showMoney(pricing.shipping)}</dd>
+            <dd>
+              {showMoney(pricing.shipping)}
+            </dd>
           </div>
 
           <div>
             <dt>
               <strong>Order total</strong>
             </dt>
+
             <dd>
               <strong>
                 {money(orderTotal(order))}
@@ -344,16 +394,20 @@ export default function ReceiptPage() {
           </div>
         </dl>
 
+        <PurchasedKitSummary order={order} />
+
         <OrderPaymentDetails order={order} />
 
         <p>
           Delivery:{" "}
           {order.delivery?.label ||
-            (order.deliveryMethod === "express"
-              ? "Express delivery"
-              : order.deliveryMethod === "standard"
-                ? "Standard delivery"
-                : "Not recorded")}
+            (
+              order.deliveryMethod === "express"
+                ? "Express delivery"
+                : order.deliveryMethod === "standard"
+                  ? "Standard delivery"
+                  : "Not recorded"
+            )}
         </p>
 
         {order.giftMessage && (

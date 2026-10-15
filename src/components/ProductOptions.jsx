@@ -1,3 +1,5 @@
+import "./ProductColorImages.css";
+
 import {
   useEffect,
   useId,
@@ -12,11 +14,22 @@ import {
 
 import VirtualTryOnButton from "./virtual-try-on/VirtualTryOnButton.jsx";
 import FitGuide from "./FitGuide.jsx";
-import { Heart } from "./StorefrontShared.jsx";
 
-import { useShoppingTools } from "../context/ShoppingToolsContext.jsx";
-import { useStore } from "../context/StoreContext.jsx";
-import { useCatalog } from "../context/CatalogContext.jsx";
+import {
+  Heart,
+} from "./StorefrontShared.jsx";
+
+import {
+  useShoppingTools,
+} from "../context/ShoppingToolsContext.jsx";
+
+import {
+  useStore,
+} from "../context/StoreContext.jsx";
+
+import {
+  useCatalog,
+} from "../context/CatalogContext.jsx";
 
 import {
   firstOptions,
@@ -48,6 +61,37 @@ import {
   purchaseState,
 } from "../utils/productPurchase.js";
 
+const SWATCHES = {
+  black: "#171717",
+  white: "#fff",
+  blue: "#2563eb",
+  navy: "#172554",
+  "navy blue": "#172554",
+  "light blue": "#7dd3fc",
+  grey: "#737373",
+  gray: "#737373",
+  charcoal: "#374151",
+  red: "#dc2626",
+  green: "#15803d",
+  olive: "#657241",
+  pink: "#f9a8d4",
+  purple: "#7e22ce",
+  yellow: "#facc15",
+  orange: "#f97316",
+  brown: "#854d0e",
+  beige: "#dfcaa7",
+  cream: "#fffdd0",
+  maroon: "#800000",
+};
+
+function swatchColor(value) {
+  return (
+    SWATCHES[
+      String(value).trim().toLowerCase()
+    ] || null
+  );
+}
+
 const touchTarget = {
   minHeight: 44,
   minWidth: 44,
@@ -56,6 +100,7 @@ const touchTarget = {
 function ProductOptionsContent({
   product,
   onAdded,
+  onColorChange,
 }) {
   const {
     watches,
@@ -96,9 +141,25 @@ function ProductOptionsContent({
   const [selection, setSelection] = useState(() => {
     const initial = firstOptions(product);
 
+    const initialColor =
+      Array.isArray(product?.colors) &&
+      product.colors.includes(
+        product.selectedColor,
+      )
+        ? product.selectedColor
+        : initial.selectedColor;
+
     return {
-      size: initial.selectedSize,
-      color: initial.selectedColor,
+      size:
+        getVariantStock(
+          product,
+          initial.selectedSize,
+          initialColor,
+        ) > 0
+          ? initial.selectedSize
+          : null,
+
+      color: initialColor,
       quantity: "1",
     };
   });
@@ -134,7 +195,9 @@ function ProductOptionsContent({
   const ready =
     typeof catalogReady === "boolean"
       ? catalogReady
-      : loaded === true && !loading && !catalogError;
+      : loaded === true &&
+        !loading &&
+        !catalogError;
 
   const state = purchaseState(
     product,
@@ -155,6 +218,7 @@ function ProductOptionsContent({
 
   const shopper = shoppingKey("gymdrobe-cart");
   const shopperRef = useRef(shopper);
+
   shopperRef.current = shopper;
 
   const selectionKey = purchaseKey(
@@ -198,6 +262,15 @@ function ProductOptionsContent({
       return;
     }
 
+    if (
+      Object.prototype.hasOwnProperty.call(
+        update,
+        "color",
+      )
+    ) {
+      onColorChange?.(update.color);
+    }
+
     setSelection((current) => ({
       ...current,
       ...update,
@@ -205,13 +278,14 @@ function ProductOptionsContent({
 
     setError("");
     setAddedKey("");
+
     lastAdded.current = "";
   }
 
   function colorStock(nextColor) {
     if (sizes.length) {
-      // Shared inventory must not be multiplied by
-      // the number of available option labels.
+      // Shared stock must not be multiplied
+      // by the number of option labels.
       return Math.max(
         0,
         ...sizes.map((nextSize) =>
@@ -233,19 +307,31 @@ function ProductOptionsContent({
 
   function chooseColor(nextColor) {
     if (
-      !colors.includes(String(nextColor)) ||
-      colorStock(nextColor) <= 0
+      actionLock.current ||
+      !colors.includes(String(nextColor))
     ) {
       return;
     }
 
-    // Keep the selected size or pack.
-    // The customer chooses another combination
-    // when this one is unavailable.
+    const keepSize =
+      !sizes.length ||
+      getVariantStock(
+        product,
+        size,
+        nextColor,
+      ) > 0;
+
     changeSelection({
       color: String(nextColor),
+      size: keepSize ? size : null,
       quantity: "1",
     });
+
+    if (!keepSize) {
+      setError(
+        `Choose an available ${labels.size.toLowerCase()} for ${nextColor} before adding to your bag.`,
+      );
+    }
   }
 
   function chooseSize(nextSize) {
@@ -369,6 +455,7 @@ function ProductOptionsContent({
     }
 
     actionLock.current = true;
+
     setBusy(true);
     setError("");
 
@@ -402,6 +489,7 @@ function ProductOptionsContent({
             ? "Your bag could not be updated. Check the availability message and your existing bag quantities, then try again."
             : "Checkout could not be prepared. Check availability and try again.",
         );
+
         return;
       }
 
@@ -416,7 +504,7 @@ function ProductOptionsContent({
       if (mounted.current) {
         setError(
           typeof failure?.message === "string" &&
-            failure.message
+          failure.message
             ? failure.message
             : "The shopping action could not be completed. Please try again.",
         );
@@ -481,6 +569,7 @@ function ProductOptionsContent({
               <del>
                 Original price {money(originalPrice)}
               </del>
+
               <span>{discount}% OFF</span>
             </>
           )}
@@ -499,7 +588,9 @@ function ProductOptionsContent({
 
           <ul>
             {benefits.map((benefit) => (
-              <li key={benefit}>{benefit}</li>
+              <li key={benefit}>
+                {benefit}
+              </li>
             ))}
           </ul>
         </div>
@@ -517,28 +608,61 @@ function ProductOptionsContent({
               const unavailable =
                 colorStock(option) <= 0;
 
+              const chipColor =
+                labels.color === "Colour"
+                  ? swatchColor(option)
+                  : null;
+
               return (
                 <button
                   key={option}
                   type="button"
-                  disabled={busy || unavailable}
+                  disabled={busy}
+                  className={
+                    "gd-color-choice" +
+                    (
+                      unavailable
+                        ? " gd-color-unavailable"
+                        : ""
+                    )
+                  }
                   aria-pressed={
                     String(color) === option
                   }
-                  aria-label={`${labels.color} ${option}${
-                    unavailable
-                      ? ", out of stock"
-                      : ""
-                  }`}
+                  aria-label={
+                    `${labels.color} ${option}` +
+                    (
+                      unavailable
+                        ? ", out of stock"
+                        : ""
+                    )
+                  }
                   style={touchTarget}
                   title={
                     unavailable
                       ? `${option} is out of stock`
                       : option
                   }
-                  onClick={() => chooseColor(option)}
+                  onClick={() =>
+                    chooseColor(option)
+                  }
                 >
-                  {option}
+                  {chipColor && (
+                    <span
+                      className="gd-color-chip"
+                      aria-hidden="true"
+                      style={{
+                        backgroundColor: chipColor,
+                      }}
+                    />
+                  )}
+
+                  <span>
+                    {option}
+                    {unavailable
+                      ? " · Out of stock"
+                      : ""}
+                  </span>
                 </button>
               );
             })}
@@ -568,9 +692,14 @@ function ProductOptionsContent({
           )}
 
           <div
-            className={`option-list${
-              labels.size === "Size" ? " sizes" : ""
-            }`}
+            className={
+              "option-list" +
+              (
+                labels.size === "Size"
+                  ? " sizes"
+                  : ""
+              )
+            }
           >
             {sizes.map((option) => {
               const unavailable =
@@ -588,18 +717,23 @@ function ProductOptionsContent({
                   aria-pressed={
                     String(size) === option
                   }
-                  aria-label={`${labels.size} ${option}${
-                    unavailable
-                      ? ", unavailable for this selection"
-                      : ""
-                  }`}
+                  aria-label={
+                    `${labels.size} ${option}` +
+                    (
+                      unavailable
+                        ? ", unavailable for this selection"
+                        : ""
+                    )
+                  }
                   style={touchTarget}
                   title={
                     unavailable
                       ? `${option} is unavailable for this selection`
                       : option
                   }
-                  onClick={() => chooseSize(option)}
+                  onClick={() =>
+                    chooseSize(option)
+                  }
                 >
                   {option}
                 </button>
@@ -620,6 +754,7 @@ function ProductOptionsContent({
               `${labels.color}: ${
                 color || "choose an option"
               }`,
+
             sizes.length &&
               `${labels.size}: ${
                 size || "choose an option"
@@ -671,8 +806,13 @@ function ProductOptionsContent({
         state.quantityValid &&
         state.quantity <= quantityLimit && (
           <p>
-            <strong>Selected items total:</strong>{" "}
-            {money(sellingPrice * state.quantity)}
+            <strong>
+              Selected items total:
+            </strong>{" "}
+
+            {money(
+              sellingPrice * state.quantity,
+            )}
 
             <span className="muted">
               {" "}
@@ -689,7 +829,10 @@ function ProductOptionsContent({
           </p>
         ) : information.estimate ? (
           <p>
-            <strong>Listed delivery estimate:</strong>{" "}
+            <strong>
+              Listed delivery estimate:
+            </strong>{" "}
+
             {information.estimate}
           </p>
         ) : (
@@ -715,7 +858,11 @@ function ProductOptionsContent({
         <button
           type="button"
           className="button"
-          disabled={busy || !state.canBuy || added}
+          disabled={
+            busy ||
+            !state.canBuy ||
+            added
+          }
           aria-describedby={`${stockId} ${errorId}`}
           style={touchTarget}
           onClick={() => purchase("bag")}
@@ -729,9 +876,13 @@ function ProductOptionsContent({
           disabled={busy || !state.canBuy}
           aria-describedby={`${stockId} ${errorId}`}
           style={touchTarget}
-          onClick={() => purchase("buy-now")}
+          onClick={() =>
+            purchase("buy-now")
+          }
         >
-          {busy ? "Please wait…" : "Buy now"}
+          {busy
+            ? "Please wait…"
+            : "Buy now"}
         </button>
       </div>
 
@@ -763,6 +914,7 @@ function ProductOptionsContent({
           role="status"
         >
           <span>✓ Added to your bag</span>
+
           <Link to="/cart">
             View bag & checkout →
           </Link>
@@ -771,16 +923,22 @@ function ProductOptionsContent({
 
       <button
         type="button"
-        className={`button secondary full ${
-          saved ? "saved" : ""
-        }`}
+        className={
+          "button secondary full " +
+          (saved ? "saved" : "")
+        }
         aria-pressed={saved}
         disabled={busy}
         style={touchTarget}
-        onClick={() => toggleWishlist(product)}
+        onClick={() =>
+          toggleWishlist(product)
+        }
       >
         <Heart filled={saved} />
-        {saved ? "Wishlisted" : "Save to wishlist"}
+
+        {saved
+          ? "Wishlisted"
+          : "Save to wishlist"}
       </button>
 
       {showTryOn && !busy && (
@@ -789,7 +947,9 @@ function ProductOptionsContent({
             product={product}
             color={color}
             size={size}
-            onSelectionChange={handleTryOnSelection}
+            onSelectionChange={
+              handleTryOnSelection
+            }
           />
         </div>
       )}
@@ -800,7 +960,9 @@ function ProductOptionsContent({
         aria-pressed={watching}
         disabled={busy}
         style={touchTarget}
-        onClick={() => watchProduct(product)}
+        onClick={() =>
+          watchProduct(product)
+        }
       >
         {watching
           ? "Watching this product ✓"
@@ -825,12 +987,16 @@ function ProductOptionsContent({
 export default function ProductOptions({
   product,
   onAdded,
+  onColorChange,
 }) {
   return (
     <ProductOptionsContent
-      key={String(productReference(product))}
+      key={String(
+        productReference(product),
+      )}
       product={product}
       onAdded={onAdded}
+      onColorChange={onColorChange}
     />
   );
 }

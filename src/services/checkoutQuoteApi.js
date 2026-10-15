@@ -25,6 +25,32 @@ function paise(value) {
   return result;
 }
 
+function validShippingReview(quote) {
+  const review = quote.shippingReview;
+  if (!Array.isArray(quote.items) || !quote.items.length || !review || review.ready !== true || !Number.isSafeInteger(review.shippingPaise) ||
+      review.shippingPaise < 0 || !Number.isSafeInteger(review.packageCount) ||
+      review.packageCount < 1 || !Array.isArray(review.shipments) ||
+      review.shipments.length !== review.packageCount ||
+      !Number.isFinite(new Date(review.validUntil).getTime()) ||
+      new Date(review.validUntil).getTime() <= Date.now() ||
+      review.shippingPaise !== paise(quote.pricing?.shipping)) return false;
+  const units = new Map(); const keys = new Set(); let fees = 0; let due = 0;
+  for (const shipment of review.shipments) {
+    if (!shipment || typeof shipment.key !== "string" || keys.has(shipment.key) ||
+        typeof shipment.carrier !== "string" || !shipment.carrier.trim() ||
+        !Array.isArray(shipment.contents) || !shipment.contents.length ||
+        paise(shipment.shipping) == null || paise(shipment.amountDueOnDelivery) == null) return false;
+    keys.add(shipment.key); fees += paise(shipment.shipping); due += paise(shipment.amountDueOnDelivery);
+    for (const row of shipment.contents) {
+      if (!Number.isSafeInteger(row.itemIndex) || row.itemIndex < 0 ||
+          !quote.items[row.itemIndex] || !Number.isSafeInteger(row.quantity) || row.quantity < 1) return false;
+      units.set(row.itemIndex, (units.get(row.itemIndex) || 0) + row.quantity);
+    }
+  }
+  return fees === review.shippingPaise && due === paise(quote.payment?.amountDue) &&
+    quote.items.every((item, index) => units.get(index) === item.quantity);
+}
+
 function verify(
   quote,
   paymentMethod,
@@ -34,7 +60,8 @@ function verify(
     quote?.previewOnly !== true ||
     quote.purchaseEnabled !== false ||
     quote.inventoryReserved !== false ||
-    quote.shippingIsEstimate !== true ||
+    typeof quote.shippingIsEstimate !== "boolean" ||
+    (quote.shippingIsEstimate === false && !validShippingReview(quote)) ||
     !Array.isArray(quote.items) ||
     !quote.items.length ||
     quote.items.length > 50 ||
@@ -231,6 +258,7 @@ export async function getCheckoutQuote(
     coupon = "",
     deliveryMethod = "standard",
     paymentMethod = "razorpay",
+    pincode = "",
   },
   { signal } = {},
 ) {
@@ -257,7 +285,9 @@ export async function getCheckoutQuote(
     !["standard", "express"].includes(deliveryMethod) ||
     !["razorpay", "cod-partial"].includes(paymentMethod) ||
     typeof coupon !== "string" ||
-    coupon.length > 50
+    coupon.length > 50 ||
+    typeof pincode !== "string" ||
+    (pincode !== "" && !/^[1-9]\d{5}$/.test(pincode))
   ) {
     throw new Error(
       "Check the coupon, delivery and payment choices.",
@@ -352,6 +382,7 @@ export async function getCheckoutQuote(
           coupon: coupon.trim(),
           deliveryMethod,
           paymentMethod,
+          pincode,
         }),
       },
     );
