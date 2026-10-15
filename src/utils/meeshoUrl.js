@@ -1,10 +1,15 @@
+// Existing names preserve compatibility with saved products and orders.
+// This helper validates URL formatting; it never fetches the URL.
+
 function normalizeMeeshoLink(value) {
   if (value == null || value === "") {
     return "";
   }
 
   if (typeof value !== "string") {
-    throw new Error("Meesho Product Link must be a URL.");
+    throw new Error(
+      "Supplier Product Link must be a URL.",
+    );
   }
 
   const input = value.trim();
@@ -15,10 +20,10 @@ function normalizeMeeshoLink(value) {
 
   if (
     input.length > 2000 ||
-    /[\u0000-\u0020\u007f\\]/.test(input)
+    /[\u0000-\u0020\u007f\\<>"`]/.test(input)
   ) {
     throw new Error(
-      "Use a valid HTTPS Meesho listing link without spaces or backslashes."
+      "Use a valid HTTPS supplier product link without spaces, backslashes or markup.",
     );
   }
 
@@ -28,31 +33,62 @@ function normalizeMeeshoLink(value) {
     url = new URL(input);
   } catch {
     throw new Error(
-      "Enter a valid HTTPS Meesho listing link."
+      "Enter a valid HTTPS supplier product link.",
     );
   }
 
-  const allowedHostname = [
-    "meesho.com",
-    "www.meesho.com",
-  ].includes(url.hostname);
+  const host =
+    url.hostname.toLowerCase();
+
+  const labels = host.split(".");
+
+  const publicHostname =
+    labels.length >= 2 &&
+    labels.every((label) =>
+      /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(
+        label,
+      ),
+    ) &&
+    /^[a-z][a-z0-9-]*$/i.test(
+      labels.at(-1),
+    );
+
+  const localHostname = [
+    "localhost",
+    "local",
+    "internal",
+    "lan",
+    "home",
+    "test",
+    "invalid",
+    "example",
+    "onion",
+  ].some(
+    (suffix) =>
+      host === suffix ||
+      host.endsWith(`.${suffix}`),
+  ) ||
+    host === "home.arpa" ||
+    host.endsWith(".home.arpa");
 
   if (
+    !/^https:\/\//i.test(input) ||
     url.protocol !== "https:" ||
-    !allowedHostname ||
     url.username ||
     url.password ||
     url.port ||
+    !publicHostname ||
+    localHostname ||
     url.pathname === "/"
   ) {
     throw new Error(
-      "Use an HTTPS product link on meesho.com or www.meesho.com, without login credentials or a custom port."
+      "Use a full HTTPS product link on a public brand or supplier website, without login credentials, an IP address or a custom port.",
     );
   }
 
   if (url.href.length > 2000) {
     throw new Error(
-      "Meesho Product Link cannot exceed 2,000 characters."
+      "Supplier Product Link cannot exceed 2,000 characters.",
     );
   }
 
