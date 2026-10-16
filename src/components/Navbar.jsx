@@ -263,26 +263,24 @@ function normalizeText(value) {
 }
 
 function safeCount(value) {
-  const number = Number(value);
+  const parsed = Number(value);
 
-  return Number.isFinite(number)
-    ? Math.max(0, Math.floor(number))
+  return Number.isFinite(parsed)
+    ? Math.max(0, Math.floor(parsed))
     : 0;
 }
 
 function getRecentSearches() {
   try {
-    const parsed = JSON.parse(
+    const saved = JSON.parse(
       localStorage.getItem(RECENT_SEARCH_KEY) || "[]",
     );
 
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
+    if (!Array.isArray(saved)) return [];
 
     const seen = new Set();
 
-    return parsed
+    return saved
       .filter((value) => {
         if (
           typeof value !== "string" ||
@@ -293,9 +291,7 @@ function getRecentSearches() {
 
         const key = normalizeText(value);
 
-        if (seen.has(key)) {
-          return false;
-        }
+        if (seen.has(key)) return false;
 
         seen.add(key);
         return true;
@@ -446,13 +442,12 @@ function SearchBox({
   onClear,
   onOpen,
   routeKey,
+  onRemember,
 }) {
   const { products } = useCatalog();
 
   const container = useRef(null);
   const input = useRef(null);
-  const pointerInside = useRef(false);
-  const releaseTimer = useRef(null);
 
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -461,14 +456,10 @@ function SearchBox({
   const clean = value.trim();
 
   const matches = useMemo(() => {
-    if (!clean) {
-      return [];
-    }
+    if (!clean) return [];
 
     const found = [];
 
-    // Stop after six suggestions instead of scanning
-    // the entire catalogue after enough matches exist.
     for (const product of Array.isArray(products)
       ? products
       : []) {
@@ -480,9 +471,7 @@ function SearchBox({
       ) {
         found.push(product);
 
-        if (found.length === 6) {
-          break;
-        }
+        if (found.length === 6) break;
       }
     }
 
@@ -495,17 +484,26 @@ function SearchBox({
           type: "product",
           product,
           label: product.name,
+          href: `/product/${encodeURIComponent(
+            String(product.id),
+          )}`,
         })),
         {
           type: "query",
           label: `Search all results for “${clean}”`,
           query: clean,
+          href: `/shop?${new URLSearchParams({
+            search: clean,
+          })}`,
         },
       ]
     : recent.map((query) => ({
         type: "query",
         label: query,
         query,
+        href: `/shop?${new URLSearchParams({
+          search: query,
+        })}`,
       }));
 
   function close() {
@@ -523,73 +521,41 @@ function SearchBox({
       if (
         !container.current?.contains(event.target)
       ) {
-        pointerInside.current = false;
         setOpen(false);
         setActive(-1);
       }
     }
 
-    function release() {
-      window.clearTimeout(releaseTimer.current);
-
-      releaseTimer.current = window.setTimeout(
-        () => {
-          pointerInside.current = false;
-        },
-        0,
-      );
-    }
-
+    // Do not close suggestions on input blur.
+    // Mobile browsers can blur before delivering
+    // the customer's tap on a suggestion.
     document.addEventListener(
       "pointerdown",
       outside,
     );
-    document.addEventListener(
-      "pointerup",
-      release,
-    );
-    document.addEventListener(
-      "pointercancel",
-      release,
-    );
 
     return () => {
-      window.clearTimeout(releaseTimer.current);
-
       document.removeEventListener(
         "pointerdown",
         outside,
-      );
-      document.removeEventListener(
-        "pointerup",
-        release,
-      );
-      document.removeEventListener(
-        "pointercancel",
-        release,
       );
     };
   }, []);
 
   function choose(option) {
-    if (!option) {
-      return;
-    }
-
-    close();
-    input.current?.blur();
+    if (!option) return;
 
     if (option.type === "product") {
       onPick(option.product);
     } else {
       onSubmit(option.query);
     }
+
+    close();
   }
 
   function handleKey(event) {
-    if (event.nativeEvent.isComposing) {
-      return;
-    }
+    if (event.nativeEvent.isComposing) return;
 
     if (
       event.key === "ArrowDown" ||
@@ -598,6 +564,8 @@ function SearchBox({
       event.preventDefault();
       onOpen();
       setOpen(true);
+
+      if (!options.length) return;
 
       const direction =
         event.key === "ArrowDown" ? 1 : -1;
@@ -613,17 +581,15 @@ function SearchBox({
               options.length
             ) % options.length;
 
-      if (options.length) {
-        setActive(next);
+      setActive(next);
 
-        requestAnimationFrame(() => {
-          document
-            .getElementById(`${listId}-${next}`)
-            ?.scrollIntoView({
-              block: "nearest",
-            });
-        });
-      }
+      requestAnimationFrame(() => {
+        document
+          .getElementById(`${listId}-${next}`)
+          ?.scrollIntoView({
+            block: "nearest",
+          });
+      });
 
       return;
     }
@@ -654,32 +620,15 @@ function SearchBox({
     <div
       className="gn-search"
       ref={container}
-      onPointerDownCapture={() => {
-        window.clearTimeout(releaseTimer.current);
-        pointerInside.current = true;
-      }}
-      onBlur={(event) => {
-        // A mobile tap may blur the input with no
-        // relatedTarget. Keep suggestions mounted
-        // until the native click finishes.
-        if (
-          !pointerInside.current &&
-          !event.currentTarget.contains(
-            event.relatedTarget,
-          )
-        ) {
-          close();
-        }
-      }}
     >
       <form
         className="gn-form"
         role="search"
         onSubmit={(event) => {
           event.preventDefault();
+          onSubmit(value);
           close();
           input.current?.blur();
-          onSubmit(value);
         }}
       >
         <button
@@ -779,17 +728,15 @@ function SearchBox({
                 }
                 role="presentation"
               >
-                <button
+                <Link
+                  to={option.href}
                   id={`${listId}-${index}`}
                   className="gn-option"
-                  type="button"
                   role="option"
                   tabIndex={-1}
                   aria-selected={index === active}
                   style={{
                     width: "100%",
-                    border: 0,
-                    borderRadius: 0,
                     textAlign: "left",
                     font: "inherit",
                     color: "inherit",
@@ -799,9 +746,6 @@ function SearchBox({
                         : "#fff",
                     touchAction: "manipulation",
                   }}
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                  }}
                   onPointerMove={(event) => {
                     if (
                       event.pointerType === "mouse"
@@ -809,7 +753,13 @@ function SearchBox({
                       setActive(index);
                     }
                   }}
-                  onClick={() => choose(option)}
+                  onClick={() => {
+                    // Keep this link mounted and let
+                    // React Router handle navigation.
+                    if (option.type === "query") {
+                      onRemember?.(option.query);
+                    }
+                  }}
                 >
                   {option.type === "product" ? (
                     <Thumbnail
@@ -833,7 +783,6 @@ function SearchBox({
                     {option.type === "product" && (
                       <small>
                         {option.product.category}
-
                         {option.product.brand
                           ? ` · ${option.product.brand}`
                           : ""}
@@ -842,7 +791,7 @@ function SearchBox({
                   </span>
 
                   <Icon name="arrow" size={15} />
-                </button>
+                </Link>
               </li>
             ))}
           </ul>
@@ -971,11 +920,9 @@ export default function Navbar({
 
     update();
 
-    window.addEventListener(
-      "scroll",
-      update,
-      { passive: true },
-    );
+    window.addEventListener("scroll", update, {
+      passive: true,
+    });
 
     return () => {
       window.removeEventListener(
@@ -1008,9 +955,7 @@ export default function Navbar({
   }, []);
 
   useEffect(() => {
-    if (!drawerOpen) {
-      return undefined;
-    }
+    if (!drawerOpen) return undefined;
 
     const element = dialog.current;
     const previousFocus = document.activeElement;
@@ -1085,7 +1030,7 @@ export default function Navbar({
         JSON.stringify(updated),
       );
     } catch {
-      // Search remains usable without storage.
+      // Search remains available without storage.
     }
   }
 
@@ -1294,6 +1239,14 @@ export default function Navbar({
           value={search}
           onChange={setSearch}
           onSubmit={performSearch}
+          onRemember={remember}
+          recent={recent}
+          onClearHistory={clearHistory}
+          onClear={clearSearch}
+          routeKey={location.key}
+          onOpen={() =>
+            setActiveMenu(null)
+          }
           onPick={(product) => {
             closeMenus();
 
@@ -1303,13 +1256,6 @@ export default function Navbar({
               )}`,
             );
           }}
-          recent={recent}
-          onClearHistory={clearHistory}
-          onClear={clearSearch}
-          onOpen={() =>
-            setActiveMenu(null)
-          }
-          routeKey={location.key}
         />
 
         <div className="gn-actions">
@@ -1798,9 +1744,7 @@ export default function Navbar({
                 {group.columns.map(
                   (column) => (
                     <div key={column.title}>
-                      <h3>
-                        {column.title}
-                      </h3>
+                      <h3>{column.title}</h3>
 
                       {column.links.map(
                         (link) => (
