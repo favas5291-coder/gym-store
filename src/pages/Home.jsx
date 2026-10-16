@@ -1,7 +1,15 @@
+import { lazy, Suspense } from "react";
+
 import Hero from "../components/Hero.jsx";
 import CategorySection from "../components/CategorySection.jsx";
-import HomeProductSections from "../components/HomeProductSections.jsx";
-import HomeReviews from "../components/HomeReviews.jsx";
+
+const HomeProductSections = lazy(
+  () => import("../components/HomeProductSections.jsx"),
+);
+
+const HomeReviews = lazy(
+  () => import("../components/HomeReviews.jsx"),
+);
 
 export default function Home() {
   return (
@@ -14,7 +22,9 @@ export default function Home() {
       >
         <div className="gm-home-trust-item">
           <strong>Secure payments</strong>
-          <span>Online payments through Razorpay</span>
+          <span>
+            Online payments through Razorpay
+          </span>
         </div>
 
         <div className="gm-home-trust-item">
@@ -41,9 +51,23 @@ export default function Home() {
 
       <CategorySection />
 
-      <HomeProductSections />
+      <Suspense
+        fallback={
+          <section
+            className="gm-section"
+            role="status"
+            style={{ minHeight: 360 }}
+          >
+            Loading workout products…
+          </section>
+        }
+      >
+        <HomeProductSections />
+      </Suspense>
 
-      <HomeReviews />
+      <Suspense fallback={null}>
+        <HomeReviews />
+      </Suspense>
     </>
   );
 }
