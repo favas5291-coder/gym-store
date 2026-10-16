@@ -1,8 +1,14 @@
 import { Link } from "react-router-dom";
-import { ProductImage, categoryPath } from "./StorefrontShared.jsx";
+
+import {
+  ProductImage,
+  categoryPath,
+} from "./StorefrontShared.jsx";
+
 export default function CategoryCard({
   name,
   icon,
+  images = [],
   offer,
   comingSoon = false,
   outOfStock = false,
@@ -10,10 +16,20 @@ export default function CategoryCard({
   const content = (
     <>
       <div className="gm-category-image">
-        <ProductImage product={{ name, image: icon }} decorative />
+        <ProductImage
+          product={{
+            name,
+            category: name,
+            image: icon,
+            images,
+          }}
+          decorative
+        />
       </div>
+
       <div className="gm-category-copy">
         <h3>{name}</h3>
+
         <strong>
           {comingSoon
             ? "COMING SOON"
@@ -21,6 +37,7 @@ export default function CategoryCard({
               ? "OUT OF STOCK"
               : offer || "SHOP THE EDIT"}
         </strong>
+
         <span>
           {comingSoon
             ? "More gear on the way"
@@ -31,10 +48,20 @@ export default function CategoryCard({
       </div>
     </>
   );
-  return comingSoon ? (
-    <article className="gm-category-card gm-coming-soon">{content}</article>
-  ) : (
-    <Link className="gm-category-card" to={categoryPath(name)}>
+
+  if (comingSoon) {
+    return (
+      <article className="gm-category-card gm-coming-soon">
+        {content}
+      </article>
+    );
+  }
+
+  return (
+    <Link
+      className="gm-category-card"
+      to={categoryPath(name)}
+    >
       {content}
     </Link>
   );
