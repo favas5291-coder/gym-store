@@ -7,6 +7,8 @@ import {
 
 import useOrderUpdates from "./useOrderUpdates.js";
 
+import { guestAccess } from "../utils/guestCheckout.js";
+
 import {
   getOrders as getLocalOrders,
 } from "../utils/customerData.js";
@@ -37,10 +39,14 @@ export default function useCustomerOrders(
   token = "",
 ) {
   const revision = useOrderUpdates();
+  const guest = guestAccess();
+
+  const remote = Boolean(userId || guest);
 
   const scope = JSON.stringify([
     userId,
     token,
+    guest?.token || "",
   ]);
 
   const activeScope = useRef(scope);
@@ -101,10 +107,13 @@ export default function useCustomerOrders(
           );
         }
 
-        const value = userId
-          ? await getRemoteOrders(token, {
-              signal: controller.signal,
-            })
+        const value = remote
+          ? await getRemoteOrders(
+              token,
+              {
+                signal: controller.signal,
+              },
+            )
           : getLocalOrders(null);
 
         const orders = prepareOrderList(
@@ -129,7 +138,8 @@ export default function useCustomerOrders(
           refreshing: false,
           error: "",
           refreshError: "",
-          lastUpdated: new Date().toISOString(),
+          lastUpdated:
+            new Date().toISOString(),
         });
       } catch (failure) {
         if (
@@ -209,7 +219,7 @@ export default function useCustomerOrders(
 
     let timer;
 
-    if (userId && token) {
+    if (remote) {
       timer = window.setInterval(
         whenVisible,
         30000,
@@ -260,6 +270,7 @@ export default function useCustomerOrders(
     userId,
     token,
     revision,
+    remote,
   ]);
 
   return {
@@ -268,6 +279,7 @@ export default function useCustomerOrders(
         ? state
         : empty(scope)
     ),
+
     refresh,
   };
 }

@@ -1,0 +1,36 @@
+.gd-storefront .product-primary-actions .button {
+  font-size: 14px;
+  min-height: 48px;
+}
+
+.gd-storefront .product-primary-actions .buy-now {
+  background: var(--gd-accent, #ff3f6c);
+  border-color: var(--gd-accent, #ff3f6c);
+  color: #fff;
+}
+
+.gd-storefront .product-options fieldset {
+  scroll-margin-block: 100px;
+}
+
+.gd-storefront .product-options fieldset .field-error {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+@media (max-width: 700px) {
+  .gd-storefront .product-primary-actions {
+    padding-bottom: calc(
+      12px + env(safe-area-inset-bottom)
+    );
+  }
+
+  .gd-storefront .product-primary-actions .button {
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  .gd-storefront .product-primary-actions .buy-now {
+    flex: 1;
+  }
+}

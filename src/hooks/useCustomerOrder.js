@@ -8,6 +8,8 @@ import {
 import { useAuth } from "../context/AuthContext.jsx";
 import useOrderUpdates from "./useOrderUpdates.js";
 
+import { guestAccess } from "../utils/guestCheckout.js";
+
 import {
   getOrder as getLocalOrder,
 } from "../utils/customerData.js";
@@ -40,10 +42,13 @@ export default function useCustomerOrder(
   } = useAuth();
 
   const revision = useOrderUpdates();
+  const guest = guestAccess();
 
   const userId = String(
     user?._id || user?.id || "",
   );
+
+  const remote = Boolean(userId || guest);
 
   const sessionError = authError
     ? String(authError)
@@ -60,6 +65,7 @@ export default function useCustomerOrder(
     userId,
     token,
     sessionError,
+    guest?.token || "",
   ]);
 
   const activeScope = useRef(scope);
@@ -77,7 +83,9 @@ export default function useCustomerOrder(
   const refresh = useCallback(() => {
     const current = refreshRef.current;
 
-    if (current?.scope === activeScope.current) {
+    if (
+      current?.scope === activeScope.current
+    ) {
       return current.load(true);
     }
   }, []);
@@ -120,10 +128,14 @@ export default function useCustomerOrder(
           );
         }
 
-        const order = userId
-          ? await getOrderById(token, orderId, {
-              signal: controller.signal,
-            })
+        const order = remote
+          ? await getOrderById(
+              token,
+              orderId,
+              {
+                signal: controller.signal,
+              },
+            )
           : getLocalOrder(orderId, null);
 
         if (
@@ -133,14 +145,20 @@ export default function useCustomerOrder(
           return;
         }
 
-        if (order && userId) {
+        if (
+          order &&
+          userId &&
+          order.isGuestOrder !== true
+        ) {
           const owner =
             order.user &&
             typeof order.user === "object"
               ? order.user.id ?? order.user._id
               : order.user;
 
-          if (String(owner || "") !== userId) {
+          if (
+            String(owner || "") !== userId
+          ) {
             throw Object.assign(
               new Error(
                 "This order is not available to your account.",
@@ -157,7 +175,8 @@ export default function useCustomerOrder(
           refreshing: false,
           error: "",
           refreshError: "",
-          lastUpdated: new Date().toISOString(),
+          lastUpdated:
+            new Date().toISOString(),
         });
       } catch (error) {
         if (
@@ -234,7 +253,7 @@ export default function useCustomerOrder(
 
     let timer;
 
-    if (autoRefresh && userId && token) {
+    if (autoRefresh && remote) {
       timer = window.setInterval(
         refreshWhenVisible,
         30000,
@@ -279,6 +298,7 @@ export default function useCustomerOrder(
     sessionError,
     revision,
     autoRefresh,
+    remote,
   ]);
 
   const current =
@@ -291,8 +311,10 @@ export default function useCustomerOrder(
 
     loading:
       authLoading ||
-      (!sessionError &&
-        (!current || state.loading)),
+      (
+        !sessionError &&
+        (!current || state.loading)
+      ),
 
     refreshing: Boolean(
       current && state.refreshing,
@@ -311,7 +333,14 @@ export default function useCustomerOrder(
       ? state.lastUpdated
       : null,
 
-    isAccountOrder: Boolean(userId),
+    // Preserve the existing property name.
+    // Guest orders also come from the backend.
+    isAccountOrder: remote,
+
+    isGuestOrder:
+      current &&
+      state.order?.isGuestOrder === true,
+
     refresh,
   };
 }

@@ -1,7 +1,14 @@
-const API_URL = (
+import {
+  customerHeaders,
+  guestAccess,
+} from "../utils/guestCheckout.js";
+
+const API_URL = String(
   import.meta.env?.VITE_API_URL ||
-  "http://localhost:5000/api"
-).trim().replace(/\/+$/, "");
+    "http://localhost:5000/api",
+)
+  .trim()
+  .replace(/\/+$/, "");
 
 function failure(message, details = {}) {
   return Object.assign(
@@ -58,13 +65,32 @@ async function request(
     signal,
   } = {},
 ) {
+  const accountToken =
+    typeof token === "string"
+      ? token.trim()
+      : "";
+
+  const suppliedAccountToken =
+    token !== undefined &&
+    token !== null &&
+    token !== "";
+
+  const validAccountToken =
+    Boolean(accountToken) &&
+    !/\s/.test(accountToken);
+
   if (
-    typeof token !== "string" ||
-    !token.trim() ||
-    /\s/.test(token.trim())
+    (
+      suppliedAccountToken &&
+      !validAccountToken
+    ) ||
+    (
+      !validAccountToken &&
+      !guestAccess()
+    )
   ) {
     throw failure(
-      "Please sign in again.",
+      "Sign in or restore your private guest access code to view this order.",
       {
         status: 401,
         code: "AUTHENTICATION_REQUIRED",
@@ -120,8 +146,8 @@ async function request(
 
         headers: {
           Accept: "application/json",
-          Authorization:
-            `Bearer ${token.trim()}`,
+
+          ...customerHeaders(accountToken),
 
           ...(body === undefined
             ? {}
@@ -148,6 +174,7 @@ async function request(
           name: timedOut
             ? "TimeoutError"
             : "AbortError",
+
           saveResultUnknown: saving,
         },
       );
@@ -157,16 +184,20 @@ async function request(
       !response.ok ||
       data?.success !== true
     ) {
-      const fallback = {
-        401:
-          "Your session expired. Please sign in again.",
-        403:
-          "This account cannot access this order.",
-        404:
-          "Order not found for this account.",
-        409:
-          "The order changed or this action is unavailable. Reload order details.",
-      }[response.status] ||
+      const fallback =
+        {
+          401:
+            "Your access expired. Sign in or restore your private guest access code.",
+
+          403:
+            "You cannot access this order.",
+
+          404:
+            "Order not found with your current access.",
+
+          409:
+            "The order changed or this action is unavailable. Reload order details.",
+        }[response.status] ||
         "The order server could not confirm this request.";
 
       throw failure(
@@ -176,9 +207,11 @@ async function request(
           : fallback,
         {
           status: response.status,
+
           code:
             data?.code ||
             "ORDER_REQUEST_FAILED",
+
           data,
 
           saveResultUnknown:
@@ -212,6 +245,7 @@ async function request(
           : "Unable to load your order. Check your connection and retry.",
       {
         code: "ORDER_CONNECTION_FAILED",
+
         saveResultUnknown:
           saving && started,
 
@@ -265,20 +299,25 @@ export async function getOrders(
   token,
   options = {},
 ) {
-  const data = await request("/orders", {
-    ...options,
-    token,
-  });
+  const data = await request(
+    "/orders",
+    {
+      ...options,
+      token,
+    },
+  );
 
   if (
     !Array.isArray(data.orders) ||
     data.orders.some(
-      order => !validOrder(order),
+      (order) => !validOrder(order),
     )
   ) {
     throw failure(
       "Your order list could not be read. Please retry.",
-      { code: "INVALID_ORDER_RESPONSE" },
+      {
+        code: "INVALID_ORDER_RESPONSE",
+      },
     );
   }
 
@@ -314,7 +353,9 @@ export async function cancelOrder(
   ) {
     throw failure(
       "Enter a cancellation reason of 5–500 characters.",
-      { saveResultUnknown: false },
+      {
+        saveResultUnknown: false,
+      },
     );
   }
 
@@ -325,6 +366,7 @@ export async function cancelOrder(
         ...options,
         token,
         method: "PUT",
+
         body: {
           reason: reason.trim(),
         },
@@ -354,36 +396,42 @@ export async function requestReturn(
   ) {
     throw failure(
       "Check the request type, selected items and reason.",
-      { saveResultUnknown: false },
+      {
+        saveResultUnknown: false,
+      },
     );
   }
 
   const seen = new Set();
 
-  const items = returnData.items.map(row => {
-    if (
-      !row ||
-      !Number.isSafeInteger(row.index) ||
-      row.index < 0 ||
-      seen.has(row.index) ||
-      !Number.isSafeInteger(row.quantity) ||
-      row.quantity < 1
-    ) {
-      throw failure(
-        "Choose valid item quantities.",
-        { saveResultUnknown: false },
-      );
-    }
+  const items = returnData.items.map(
+    (row) => {
+      if (
+        !row ||
+        !Number.isSafeInteger(row.index) ||
+        row.index < 0 ||
+        seen.has(row.index) ||
+        !Number.isSafeInteger(row.quantity) ||
+        row.quantity < 1
+      ) {
+        throw failure(
+          "Choose valid item quantities.",
+          {
+            saveResultUnknown: false,
+          },
+        );
+      }
 
-    seen.add(row.index);
+      seen.add(row.index);
 
-    return {
-      index: row.index,
-      quantity: row.quantity,
-      size: row.size ?? null,
-      color: row.color ?? null,
-    };
-  });
+      return {
+        index: row.index,
+        quantity: row.quantity,
+        size: row.size ?? null,
+        color: row.color ?? null,
+      };
+    },
+  );
 
   return orderFrom(
     await request(

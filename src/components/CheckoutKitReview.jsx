@@ -1,8 +1,5 @@
 import { Link } from "react-router-dom";
-
-import {
-  money,
-} from "../utils/productPricing.js";
+import { money } from "../utils/productPricing.js";
 
 function days(range) {
   return range
@@ -23,29 +20,26 @@ export default function CheckoutKitReview({
     <section
       className="panel"
       aria-label="Fitness Kit prices and packages"
+      aria-busy={Boolean(loading)}
     >
       <h2>KIT PRICES & DELIVERY</h2>
 
       {loading && (
         <p role="status">
-          Checking current kit prices, stock and
-          delivery charges…
+          Checking current kit prices, stock and delivery charges…
         </p>
       )}
 
       {error && (
-        <p
-          role="alert"
-          className="field-error"
-        >
+        <p role="alert" className="field-error">
           {error}
         </p>
       )}
 
       {!quote && !loading && !error && (
         <p>
-          Sign in and enter your six-digit delivery
-          pincode to check kit prices and packages.
+          Enter your six-digit delivery pincode to check
+          kit prices and packages.
         </p>
       )}
 
@@ -58,32 +52,24 @@ export default function CheckoutKitReview({
               <ul>
                 {quote.items
                   .filter(
-                    (item) =>
-                      item.kit?.groupId ===
-                      kit.groupId,
+                    (item) => item.kit?.groupId === kit.groupId,
                   )
                   .map((item) => (
                     <li key={item.kit.slotKey}>
                       {item.name}
                       {" · "}
-
                       {[
                         item.selectedColor,
                         item.selectedSize,
                       ]
                         .filter(Boolean)
-                        .join(" / ") ||
-                        "Standard option"}
-
+                        .join(" / ") || "Standard option"}
                       {" · "}
                       Qty {item.quantity}
                       {" · "}
-
                       {money(
-                        item.priceAllocation
-                          .linePaidPaise / 100,
+                        item.priceAllocation.linePaidPaise / 100,
                       )}
-
                       {" "}
                       after allocated discounts
                     </li>
@@ -96,101 +82,79 @@ export default function CheckoutKitReview({
             <>
               <p>
                 <strong>
-                  {shipping.packageCount}
-                  {" "}
+                  {shipping.packageCount}{" "}
                   {shipping.packageCount === 1
                     ? "package"
                     : "packages"}
                 </strong>
-                . These are the package contents
-                and charges for your selected
-                pincode and payment method.
+                . These are the package contents and charges
+                for your selected pincode and payment method.
               </p>
 
-              {shipping.shipments.map(
-                (parcel) => (
-                  <article
-                    key={parcel.key}
-                    style={{
-                      borderTop:
-                        "1px solid #e5e7eb",
-                      paddingBlock: "14px",
-                    }}
-                  >
-                    <h3>{parcel.label}</h3>
+              {shipping.shipments.map((parcel) => (
+                <article
+                  key={parcel.key}
+                  style={{
+                    borderTop: "1px solid #e5e7eb",
+                    paddingBlock: "14px",
+                  }}
+                >
+                  <h3>{parcel.label}</h3>
 
-                    <p>
-                      {parcel.carrier}
-                      {" · "}
-                      {parcel.service}
-                    </p>
+                  <p>
+                    {parcel.carrier}
+                    {" · "}
+                    {parcel.service}
+                  </p>
 
-                    <ul>
-                      {parcel.contents.map(
-                        (item, index) => (
-                          <li
-                            key={`${item.itemIndex}:${index}`}
-                          >
-                            {item.name}
-                            {" · "}
-                            Qty {item.quantity}
-                            {" · "}
+                  <ul>
+                    {parcel.contents.map((item, index) => (
+                      <li key={`${item.itemIndex}:${index}`}>
+                        {item.name}
+                        {" · "}
+                        Qty {item.quantity}
+                        {" · "}
+                        {[
+                          item.selectedColor,
+                          item.selectedSize,
+                        ]
+                          .filter(Boolean)
+                          .join(" / ") || "Standard option"}
+                      </li>
+                    ))}
+                  </ul>
 
-                            {[
-                              item.selectedColor,
-                              item.selectedSize,
-                            ]
-                              .filter(Boolean)
-                              .join(" / ") ||
-                              "Standard option"}
-                          </li>
-                        ),
-                      )}
-                    </ul>
+                  <p>
+                    Preparation: {days(parcel.preparationDays)}.
+                    {" "}
+                    Courier transit: {days(parcel.transitDays)}.
+                    {" "}
+                    Total estimate: {days(parcel.estimatedDays)}.
+                  </p>
 
-                    <p>
-                      Preparation:{" "}
-                      {days(
-                        parcel.preparationDays,
-                      )}
-                      . Courier transit:{" "}
-                      {days(parcel.transitDays)}
-                      . Total estimate:{" "}
-                      {days(parcel.estimatedDays)}
-                      .
-                    </p>
-
-                    <p>
-                      Delivery charge:{" "}
-                      {money(parcel.shipping)}
-                      . Balance on delivery:{" "}
-
-                      <strong>
-                        {money(
-                          parcel.amountDueOnDelivery,
-                        )}
-                      </strong>
-                      .
-                    </p>
-                  </article>
-                ),
-              )}
+                  <p>
+                    Delivery charge: {money(parcel.shipping)}.
+                    {" "}
+                    Balance on delivery:{" "}
+                    <strong>
+                      {money(parcel.amountDueOnDelivery)}
+                    </strong>
+                    .
+                  </p>
+                </article>
+              ))}
 
               <p className="muted">
                 Review valid until{" "}
-                {new Date(
-                  shipping.validUntil,
-                ).toLocaleString("en-IN")}
-                . Stock is checked again on
-                payment confirmation.
+                {new Date(shipping.validUntil).toLocaleString("en-IN")}
+                . Stock is checked again on payment confirmation.
               </p>
             </>
           ) : (
             <>
               <p>
-                Payment is unavailable until
-                package contents and delivery
-                charges are confirmed.
+                Payment is unavailable until package contents
+                and delivery charges are confirmed.
               </p>
 
               <ul>
@@ -199,9 +163,7 @@ export default function CheckoutKitReview({
                   quote.fulfillment?.issues ||
                   []
                 ).map((issue) => (
-                  <li key={issue}>
-                    {issue}
-                  </li>
+                  <li key={issue}>{issue}</li>
                 ))}
               </ul>
             </>
@@ -210,18 +172,15 @@ export default function CheckoutKitReview({
       )}
 
       <p className="muted">
-        Packed-together delivery requires a
-        configured packing arrangement. Separate
-        packages have their own contents,
-        estimates and COD balances. Eligible
-        component refunds use their allocated
-        paid amount.
+        Packed-together delivery requires a configured packing
+        arrangement. Separate packages have their own contents,
+        estimates and COD balances. Eligible component refunds
+        use their allocated paid amount.
       </p>
 
       <p>
         <Link to="/help">
-          Cancellation, return and refund
-          information
+          Cancellation, return and refund information
         </Link>
       </p>
 

@@ -27,28 +27,81 @@ function paise(value) {
 
 function validShippingReview(quote) {
   const review = quote.shippingReview;
-  if (!Array.isArray(quote.items) || !quote.items.length || !review || review.ready !== true || !Number.isSafeInteger(review.shippingPaise) ||
-      review.shippingPaise < 0 || !Number.isSafeInteger(review.packageCount) ||
-      review.packageCount < 1 || !Array.isArray(review.shipments) ||
-      review.shipments.length !== review.packageCount ||
-      !Number.isFinite(new Date(review.validUntil).getTime()) ||
-      new Date(review.validUntil).getTime() <= Date.now() ||
-      review.shippingPaise !== paise(quote.pricing?.shipping)) return false;
-  const units = new Map(); const keys = new Set(); let fees = 0; let due = 0;
+
+  if (
+    !Array.isArray(quote.items) ||
+    !quote.items.length ||
+    !review ||
+    review.ready !== true ||
+    !Number.isSafeInteger(review.shippingPaise) ||
+    review.shippingPaise < 0 ||
+    !Number.isSafeInteger(review.packageCount) ||
+    review.packageCount < 1 ||
+    !Array.isArray(review.shipments) ||
+    review.shipments.length !== review.packageCount ||
+    !Number.isFinite(
+      new Date(review.validUntil).getTime(),
+    ) ||
+    new Date(review.validUntil).getTime() <=
+      Date.now() ||
+    review.shippingPaise !==
+      paise(quote.pricing?.shipping)
+  ) {
+    return false;
+  }
+
+  const units = new Map();
+  const keys = new Set();
+
+  let fees = 0;
+  let due = 0;
+
   for (const shipment of review.shipments) {
-    if (!shipment || typeof shipment.key !== "string" || keys.has(shipment.key) ||
-        typeof shipment.carrier !== "string" || !shipment.carrier.trim() ||
-        !Array.isArray(shipment.contents) || !shipment.contents.length ||
-        paise(shipment.shipping) == null || paise(shipment.amountDueOnDelivery) == null) return false;
-    keys.add(shipment.key); fees += paise(shipment.shipping); due += paise(shipment.amountDueOnDelivery);
+    if (
+      !shipment ||
+      typeof shipment.key !== "string" ||
+      keys.has(shipment.key) ||
+      typeof shipment.carrier !== "string" ||
+      !shipment.carrier.trim() ||
+      !Array.isArray(shipment.contents) ||
+      !shipment.contents.length ||
+      paise(shipment.shipping) == null ||
+      paise(shipment.amountDueOnDelivery) == null
+    ) {
+      return false;
+    }
+
+    keys.add(shipment.key);
+    fees += paise(shipment.shipping);
+    due += paise(shipment.amountDueOnDelivery);
+
     for (const row of shipment.contents) {
-      if (!Number.isSafeInteger(row.itemIndex) || row.itemIndex < 0 ||
-          !quote.items[row.itemIndex] || !Number.isSafeInteger(row.quantity) || row.quantity < 1) return false;
-      units.set(row.itemIndex, (units.get(row.itemIndex) || 0) + row.quantity);
+      if (
+        !Number.isSafeInteger(row.itemIndex) ||
+        row.itemIndex < 0 ||
+        !quote.items[row.itemIndex] ||
+        !Number.isSafeInteger(row.quantity) ||
+        row.quantity < 1
+      ) {
+        return false;
+      }
+
+      units.set(
+        row.itemIndex,
+        (units.get(row.itemIndex) || 0) +
+          row.quantity,
+      );
     }
   }
-  return fees === review.shippingPaise && due === paise(quote.payment?.amountDue) &&
-    quote.items.every((item, index) => units.get(index) === item.quantity);
+
+  return (
+    fees === review.shippingPaise &&
+    due === paise(quote.payment?.amountDue) &&
+    quote.items.every(
+      (item, index) =>
+        units.get(index) === item.quantity,
+    )
+  );
 }
 
 function verify(
@@ -58,10 +111,22 @@ function verify(
 ) {
   if (
     quote?.previewOnly !== true ||
-    quote.purchaseEnabled !== false ||
+    typeof quote.purchaseEnabled !== "boolean" ||
+    (
+      quote.purchaseEnabled &&
+      (
+        quote.shippingIsEstimate !== false ||
+        !/^[a-f0-9]{64}$/.test(
+          quote.reviewKey || "",
+        )
+      )
+    ) ||
     quote.inventoryReserved !== false ||
     typeof quote.shippingIsEstimate !== "boolean" ||
-    (quote.shippingIsEstimate === false && !validShippingReview(quote)) ||
+    (
+      quote.shippingIsEstimate === false &&
+      !validShippingReview(quote)
+    ) ||
     !Array.isArray(quote.items) ||
     !quote.items.length ||
     quote.items.length > 50 ||
@@ -88,7 +153,8 @@ function verify(
   ].map((key) => paise(pricing[key]));
 
   if (
-    totals[0] - totals[1] - totals[2] !== totals[3] ||
+    totals[0] - totals[1] - totals[2] !==
+      totals[3] ||
     totals[3] + totals[4] !== totals[5]
   ) {
     throw new Error(
@@ -96,8 +162,13 @@ function verify(
     );
   }
 
-  const now = paise(quote.payment.amountToPayNow);
-  const due = paise(quote.payment.amountDue);
+  const now = paise(
+    quote.payment.amountToPayNow,
+  );
+
+  const due = paise(
+    quote.payment.amountDue,
+  );
 
   const expectedNow =
     paymentMethod === "cod-partial"
@@ -123,7 +194,9 @@ function verify(
       typeof kit.groupId !== "string" ||
       groups.has(kit.groupId) ||
       typeof kit.name !== "string" ||
-      !/^[a-f0-9]{24}$/i.test(kit.template || "") ||
+      !/^[a-f0-9]{24}$/i.test(
+        kit.template || "",
+      ) ||
       !Number.isSafeInteger(kit.templateVersion)
     ) {
       throw new Error(
@@ -145,7 +218,9 @@ function verify(
 
     if (
       typeof item.name !== "string" ||
-      !/^[a-f0-9]{24}$/i.test(item.product || "") ||
+      !/^[a-f0-9]{24}$/i.test(
+        item.product || "",
+      ) ||
       !Number.isSafeInteger(item.quantity) ||
       item.quantity < 1 ||
       item.quantity > 99 ||
@@ -170,14 +245,22 @@ function verify(
           Number.isSafeInteger(value) &&
           value >= 0,
       ) ||
-      values[0] !== paise(item.price) * item.quantity ||
-      values[0] - values[1] - values[2] !== values[3] ||
-      !Number.isSafeInteger(allocation.unitBasePaise) ||
+      values[0] !==
+        paise(item.price) * item.quantity ||
+      values[0] - values[1] - values[2] !==
+        values[3] ||
+      !Number.isSafeInteger(
+        allocation.unitBasePaise,
+      ) ||
       allocation.unitBasePaise < 0 ||
-      !Number.isSafeInteger(allocation.extraPaiseUnits) ||
+      !Number.isSafeInteger(
+        allocation.extraPaiseUnits,
+      ) ||
       allocation.extraPaiseUnits < 0 ||
-      allocation.extraPaiseUnits >= item.quantity ||
-      allocation.unitBasePaise * item.quantity +
+      allocation.extraPaiseUnits >=
+        item.quantity ||
+      allocation.unitBasePaise *
+        item.quantity +
         allocation.extraPaiseUnits !==
         values[3]
     ) {
@@ -191,7 +274,9 @@ function verify(
     });
 
     if (item.kit) {
-      const group = groups.get(item.kit.groupId);
+      const group = groups.get(
+        item.kit.groupId,
+      );
 
       if (
         !group ||
@@ -239,7 +324,8 @@ function verify(
       !group.slots.size ||
       !group.sums.every(
         (value, index) =>
-          value === group.snapshot[fields[index]],
+          value ===
+          group.snapshot[fields[index]],
       )
     ) {
       throw new Error(
@@ -263,15 +349,6 @@ export async function getCheckoutQuote(
   { signal } = {},
 ) {
   if (
-    typeof token !== "string" ||
-    !token.trim()
-  ) {
-    throw new Error(
-      "Please sign in to review checkout prices.",
-    );
-  }
-
-  if (
     !Array.isArray(items) ||
     !items.length ||
     items.length > 50
@@ -282,12 +359,19 @@ export async function getCheckoutQuote(
   }
 
   if (
-    !["standard", "express"].includes(deliveryMethod) ||
-    !["razorpay", "cod-partial"].includes(paymentMethod) ||
+    !["standard", "express"].includes(
+      deliveryMethod,
+    ) ||
+    !["razorpay", "cod-partial"].includes(
+      paymentMethod,
+    ) ||
     typeof coupon !== "string" ||
     coupon.length > 50 ||
     typeof pincode !== "string" ||
-    (pincode !== "" && !/^[1-9]\d{5}$/.test(pincode))
+    (
+      pincode !== "" &&
+      !/^[1-9]\d{5}$/.test(pincode)
+    )
   ) {
     throw new Error(
       "Check the coupon, delivery and payment choices.",
@@ -350,7 +434,9 @@ export async function getCheckoutQuote(
 
   const abort = () => controller.abort();
 
-  if (signal?.aborted) abort();
+  if (signal?.aborted) {
+    abort();
+  }
 
   signal?.addEventListener(
     "abort",
@@ -374,7 +460,12 @@ export async function getCheckoutQuote(
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+
+          ...(token
+            ? {
+                Authorization: `Bearer ${token}`,
+              }
+            : {}),
         },
 
         body: JSON.stringify({
@@ -387,7 +478,9 @@ export async function getCheckoutQuote(
       },
     );
 
-    const data = await response.json().catch(() => null);
+    const data = await response.json().catch(
+      () => null,
+    );
 
     if (
       !response.ok ||
@@ -410,7 +503,9 @@ export async function getCheckoutQuote(
       deliveryMethod,
     );
   } catch (error) {
-    if (signal?.aborted) throw error;
+    if (signal?.aborted) {
+      throw error;
+    }
 
     if (timedOut) {
       throw new Error(
@@ -427,6 +522,10 @@ export async function getCheckoutQuote(
     throw error;
   } finally {
     clearTimeout(timer);
-    signal?.removeEventListener("abort", abort);
+
+    signal?.removeEventListener(
+      "abort",
+      abort,
+    );
   }
 }

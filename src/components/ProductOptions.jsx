@@ -1,4 +1,5 @@
 import "./ProductColorImages.css";
+import "./PurchaseFlow.css";
 
 import {
   useEffect,
@@ -137,6 +138,8 @@ function ProductOptionsContent({
   const mounted = useRef(false);
   const actionLock = useRef(false);
   const lastAdded = useRef("");
+  const sizeField = useRef(null);
+  const colorField = useRef(null);
 
   const [selection, setSelection] = useState(() => {
     const initial = firstOptions(product);
@@ -149,14 +152,22 @@ function ProductOptionsContent({
         ? product.selectedColor
         : initial.selectedColor;
 
+    const availableSizes = purchaseOptions(product?.sizes);
+
+    const initialSize = availableSizes.length > 1
+      ? availableSizes.includes(String(product?.selectedSize ?? ""))
+        ? String(product.selectedSize)
+        : null
+      : initial.selectedSize;
+
     return {
       size:
         getVariantStock(
           product,
-          initial.selectedSize,
+          initialSize,
           initialColor,
         ) > 0
-          ? initial.selectedSize
+          ? initialSize
           : null,
 
       color: initialColor,
@@ -398,6 +409,28 @@ function ProductOptionsContent({
 
     if (!state.canBuy) {
       setError(state.message);
+
+      const target = colors.length && !color
+        ? colorField.current
+        : sizes.length && !size
+          ? sizeField.current
+          : null;
+
+      if (target) {
+        const reduceMotion = window.matchMedia(
+          "(prefers-reduced-motion: reduce)",
+        ).matches;
+
+        target.scrollIntoView({
+          block: "center",
+          behavior: reduceMotion ? "auto" : "smooth",
+        });
+
+        target
+          .querySelector(".option-list button:not(:disabled)")
+          ?.focus({ preventScroll: true });
+      }
+
       return;
     }
 
@@ -543,7 +576,28 @@ function ProductOptionsContent({
             ? "Out of stock"
             : state.stock <= 0
               ? "Choose available options"
-              : "Add to bag";
+              : "Add to Cart";
+
+  const optionsIncomplete = Boolean(
+    (sizes.length && !size) ||
+    (colors.length && !color),
+  );
+
+  const selectedColorUnavailable = Boolean(
+    colors.length &&
+    color &&
+    colorStock(color) <= 0,
+  );
+
+  const purchaseDisabled =
+    busy ||
+    !ready ||
+    product?.isActive === false ||
+    information.deliveryUnavailable ||
+    !state.priceAvailable ||
+    totalStock <= 0 ||
+    selectedColorUnavailable ||
+    (!state.canBuy && !optionsIncomplete);
 
   const quantityLimit = Math.min(
     MAX_PURCHASE_QUANTITY,
@@ -597,11 +651,21 @@ function ProductOptionsContent({
       )}
 
       {colors.length > 0 && (
-        <fieldset disabled={busy}>
+        <fieldset
+          ref={colorField}
+          disabled={busy}
+          aria-describedby={!color ? `${errorId}-color` : undefined}
+        >
           <legend>
             SELECT {labels.color.toUpperCase()}
             {color && <span> {color}</span>}
           </legend>
+
+          {!color && (
+            <p id={`${errorId}-color`} className="field-error">
+              Choose a {labels.color.toLowerCase()} before buying.
+            </p>
+          )}
 
           <div className="option-list">
             {colors.map((option) => {
@@ -671,11 +735,21 @@ function ProductOptionsContent({
       )}
 
       {sizes.length > 0 && (
-        <fieldset disabled={busy}>
+        <fieldset
+          ref={sizeField}
+          disabled={busy}
+          aria-describedby={!size ? `${errorId}-size` : undefined}
+        >
           <legend>
             SELECT {labels.size.toUpperCase()}
             {size && <span> {size}</span>}
           </legend>
+
+          {!size && (
+            <p id={`${errorId}-size`} className="field-error">
+              Choose your {labels.size.toLowerCase()} before buying.
+            </p>
+          )}
 
           {showFitGuide && (
             <button
@@ -858,11 +932,7 @@ function ProductOptionsContent({
         <button
           type="button"
           className="button"
-          disabled={
-            busy ||
-            !state.canBuy ||
-            added
-          }
+          disabled={purchaseDisabled || added}
           aria-describedby={`${stockId} ${errorId}`}
           style={touchTarget}
           onClick={() => purchase("bag")}
@@ -873,7 +943,7 @@ function ProductOptionsContent({
         <button
           type="button"
           className="button secondary buy-now"
-          disabled={busy || !state.canBuy}
+          disabled={purchaseDisabled}
           aria-describedby={`${stockId} ${errorId}`}
           style={touchTarget}
           onClick={() =>
@@ -882,7 +952,7 @@ function ProductOptionsContent({
         >
           {busy
             ? "Please wait…"
-            : "Buy now"}
+            : "Buy Now"}
         </button>
       </div>
 

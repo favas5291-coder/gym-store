@@ -1,3 +1,4 @@
+import { guestAccess } from "./guestCheckout.js";
 import { getVariantStock } from "./cartUtils.js";
 import { purchaseOptions } from "./productPurchase.js";
 
@@ -23,6 +24,15 @@ function moneyValue(value) {
 }
 
 export function orderOwnedBy(order, userId) {
+  // UI check for orders returned by the order API.
+  // The backend enforces ownership on every read and action.
+  if (
+    order?.isGuestOrder === true &&
+    guestAccess()
+  ) {
+    return true;
+  }
+
   const user = order?.user;
 
   const id =
@@ -123,8 +133,9 @@ export function returnAvailability(
     order?.delivery?.deliveredAt ||
     [...events]
       .reverse()
-      .find(row => row?.status === "delivered")
-      ?.timestamp;
+      .find(
+        (row) => row?.status === "delivered",
+      )?.timestamp;
 
   const delivered = new Date(
     deliveredAt || "invalid",
@@ -154,7 +165,10 @@ export function itemReturnAvailability(
   item,
   now = Date.now(),
 ) {
-  const overall = returnAvailability(order, now);
+  const overall = returnAvailability(
+    order,
+    now,
+  );
 
   if (!overall.eligible) {
     return overall;
@@ -195,11 +209,15 @@ export function itemReturnAvailability(
     eligible: !message,
     message,
     deadline,
-    policyConfirmed: item?.returnsEligible === "yes",
+    policyConfirmed:
+      item?.returnsEligible === "yes",
   };
 }
 
-export function findReturnProduct(products, item) {
+export function findReturnProduct(
+  products,
+  item,
+) {
   const list = Array.isArray(products)
     ? products
     : [];
@@ -209,12 +227,12 @@ export function findReturnProduct(products, item) {
     item?.product,
     item?.id,
   ]
-    .filter(value => value != null)
+    .filter((value) => value != null)
     .map(String);
 
-  const exact = list.find(product =>
+  const exact = list.find((product) =>
     [product?.id, product?._id].some(
-      value =>
+      (value) =>
         value != null &&
         ids.includes(String(value)),
     ),
@@ -227,30 +245,37 @@ export function findReturnProduct(products, item) {
   // A reused slug must not substitute another product
   // for a missing original MongoDB product.
   if (
-    ids.some(id => /^[a-f0-9]{24}$/i.test(id))
+    ids.some(
+      (id) => /^[a-f0-9]{24}$/i.test(id),
+    )
   ) {
     return null;
   }
 
-  return list.find(product =>
-    product &&
-    (
+  return (
+    list.find((product) =>
+      product &&
       (
-        item?.legacyId != null &&
-        product.legacyId != null &&
-        String(item.legacyId) ===
-          String(product.legacyId)
-      ) ||
-      (
-        Boolean(item?.slug) &&
-        String(item.slug) === String(product.slug)
-      ) ||
-      (
-        product.legacyId != null &&
-        ids.includes(String(product.legacyId))
-      )
-    ),
-  ) || null;
+        (
+          item?.legacyId != null &&
+          product.legacyId != null &&
+          String(item.legacyId) ===
+            String(product.legacyId)
+        ) ||
+        (
+          Boolean(item?.slug) &&
+          String(item.slug) ===
+            String(product.slug)
+        ) ||
+        (
+          product.legacyId != null &&
+          ids.includes(
+            String(product.legacyId),
+          )
+        )
+      ),
+    ) || null
+  );
 }
 
 export function replacementOptions(product) {
@@ -287,7 +312,11 @@ export function replacementStock(
     return 0;
   }
 
-  return getVariantStock(product, size, color);
+  return getVariantStock(
+    product,
+    size,
+    color,
+  );
 }
 
 export function returnPayload(
@@ -299,11 +328,18 @@ export function returnPayload(
   ready = true,
   now = Date.now(),
 ) {
-  if (!["return", "exchange"].includes(type)) {
-    throw new Error("Choose return or exchange.");
+  if (
+    !["return", "exchange"].includes(type)
+  ) {
+    throw new Error(
+      "Choose return or exchange.",
+    );
   }
 
-  const overall = returnAvailability(order, now);
+  const overall = returnAvailability(
+    order,
+    now,
+  );
 
   if (!overall.eligible) {
     throw new Error(overall.message);
@@ -424,8 +460,14 @@ export function returnPayload(
       : null;
 
     if (
-      (sizes.length && !sizes.includes(size)) ||
-      (colors.length && !colors.includes(color))
+      (
+        sizes.length &&
+        !sizes.includes(size)
+      ) ||
+      (
+        colors.length &&
+        !colors.includes(color)
+      )
     ) {
       throw new Error(
         `${item.name}: choose available replacement options. A previous option may have changed.`,
@@ -501,12 +543,13 @@ export function returnReviewKey(order) {
     order?.returnRequest?.id,
     order?.returnRequest?.status,
     order?.delivery?.deliveredAt,
+
     (
       Array.isArray(order?.tracking?.events)
         ? order.tracking.events
         : []
     ).filter(
-      row => row?.status === "delivered",
+      (row) => row?.status === "delivered",
     ),
   ]);
 }
@@ -518,16 +561,18 @@ export function matchingReturn(
 ) {
   const request = order?.returnRequest;
 
-  const rows = value =>
+  const rows = (value) =>
     JSON.stringify(
       (Array.isArray(value) ? value : [])
-        .map(row => [
+        .map((row) => [
           row?.index,
           row?.quantity,
           row?.size ?? null,
           row?.color ?? null,
         ])
-        .sort((a, b) => a[0] - b[0]),
+        .sort(
+          (a, b) => a[0] - b[0],
+        ),
     );
 
   return Boolean(
@@ -541,7 +586,8 @@ export function matchingReturn(
     ].includes(request.status) &&
     request.type === payload?.type &&
     request.reason === payload?.reason &&
-    rows(request.items) === rows(payload?.items),
+    rows(request.items) ===
+      rows(payload?.items),
   );
 }
 
@@ -576,7 +622,7 @@ export function readReturnAttempt(key) {
       value.payload.reason.trim().length >= 5 &&
       value.payload.reason.length <= 1000 &&
       value.payload.items.every(
-        row =>
+        (row) =>
           row &&
           Number.isSafeInteger(row.index) &&
           row.index >= 0 &&

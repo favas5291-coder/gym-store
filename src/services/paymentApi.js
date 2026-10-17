@@ -1,5 +1,11 @@
-const API_URL = (
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+import {
+  customerHeaders,
+  guestAccess,
+} from "../utils/guestCheckout.js";
+
+const API_URL = String(
+  import.meta.env.VITE_API_URL ||
+    "http://localhost:5000/api",
 )
   .trim()
   .replace(/\/+$/, "");
@@ -9,11 +15,14 @@ const PAYMENT_METHODS = [
   "cod-partial",
 ];
 
-function paymentError(message, {
-  status,
-  code,
-  data,
-} = {}) {
+function paymentError(
+  message,
+  {
+    status,
+    code,
+    data,
+  } = {},
+) {
   const error = new Error(message);
 
   error.status = status;
@@ -30,35 +39,43 @@ async function request(
     method = "GET",
     body,
     verification = false,
-  } = {}
+  } = {},
 ) {
-  if (!token) {
+  if (!token && !guestAccess()) {
     throw paymentError(
-      "Please sign in before continuing with payment.",
-      { code: "AUTH_REQUIRED" }
+      "Your checkout access is missing. Return to checkout to prepare guest access, restore your private guest access code, or sign in.",
+      {
+        code: "AUTH_REQUIRED",
+      },
     );
   }
 
   const headers = {
     Accept: "application/json",
-    Authorization: `Bearer ${token}`,
+    ...customerHeaders(token),
   };
 
   if (body !== undefined) {
-    headers["Content-Type"] = "application/json";
+    headers["Content-Type"] =
+      "application/json";
   }
 
   let response;
 
   try {
-    response = await fetch(`${API_URL}${path}`, {
-      method,
-      headers,
-      cache: "no-store",
-      body: body !== undefined
-        ? JSON.stringify(body)
-        : undefined,
-    });
+    response = await fetch(
+      `${API_URL}${path}`,
+      {
+        method,
+        headers,
+        cache: "no-store",
+
+        body:
+          body !== undefined
+            ? JSON.stringify(body)
+            : undefined,
+      },
+    );
   } catch {
     throw paymentError(
       verification
@@ -66,10 +83,12 @@ async function request(
         : "Unable to connect to GymDrobe to start payment. Check your connection and try again.",
       {
         code: "PAYMENT_CONNECTION_FAILED",
+
         data: {
-          verificationUncertain: verification,
+          verificationUncertain:
+            verification,
         },
-      }
+      },
     );
   }
 
@@ -85,17 +104,20 @@ async function request(
       {
         status: response.status,
         code: "INVALID_PAYMENT_RESPONSE",
+
         data: {
-          verificationUncertain: verification,
+          verificationUncertain:
+            verification,
         },
-      }
+      },
     );
   }
 
   if (
     !data ||
     typeof data !== "object" ||
-    Array.isArray(data)
+    Array.isArray(data) ||
+    typeof data.success !== "boolean"
   ) {
     throw paymentError(
       verification
@@ -104,25 +126,35 @@ async function request(
       {
         status: response.status,
         code: "INVALID_PAYMENT_RESPONSE",
+
         data: {
-          verificationUncertain: verification,
+          verificationUncertain:
+            verification,
         },
-      }
+      },
     );
   }
 
-  if (!response.ok || data.success === false) {
+  if (
+    !response.ok ||
+    data.success === false
+  ) {
     throw paymentError(
-      typeof data.message === "string" && data.message.trim()
+      typeof data.message === "string" &&
+      data.message.trim()
         ? data.message
         : verification
           ? "Payment confirmation failed. Check My orders before attempting another payment."
           : "Payment could not be started. Please try again.",
       {
         status: response.status,
-        code: data.code || "PAYMENT_REQUEST_FAILED",
+
+        code:
+          data.code ||
+          "PAYMENT_REQUEST_FAILED",
+
         data,
-      }
+      },
     );
   }
 
@@ -135,49 +167,71 @@ function validateCheckoutData(checkoutData) {
     typeof checkoutData !== "object" ||
     Array.isArray(checkoutData)
   ) {
-    throw new Error("Checkout information is missing.");
-  }
-
-  if (
-    typeof checkoutData.checkoutToken !== "string" ||
-    !checkoutData.checkoutToken.trim()
-  ) {
     throw new Error(
-      "Checkout token is missing. Refresh checkout and try again."
+      "Checkout information is missing.",
     );
   }
 
-  if (!PAYMENT_METHODS.includes(checkoutData.paymentMethod)) {
-    throw new Error("Choose a valid GymDrobe payment method.");
+  if (
+    typeof checkoutData.checkoutToken !==
+      "string" ||
+    !checkoutData.checkoutToken.trim()
+  ) {
+    throw new Error(
+      "Checkout token is missing. Refresh checkout and try again.",
+    );
+  }
+
+  if (
+    !PAYMENT_METHODS.includes(
+      checkoutData.paymentMethod,
+    )
+  ) {
+    throw new Error(
+      "Choose a valid GymDrobe payment method.",
+    );
   }
 
   if (
     !Array.isArray(checkoutData.items) ||
     !checkoutData.items.length
   ) {
-    throw new Error("Your checkout has no products.");
+    throw new Error(
+      "Your checkout has no products.",
+    );
   }
 
   if (
     !checkoutData.shippingAddress ||
-    typeof checkoutData.shippingAddress !== "object" ||
-    Array.isArray(checkoutData.shippingAddress)
+    typeof checkoutData.shippingAddress !==
+      "object" ||
+    Array.isArray(
+      checkoutData.shippingAddress,
+    )
   ) {
-    throw new Error("Shipping address is missing.");
+    throw new Error(
+      "Shipping address is missing.",
+    );
   }
 }
 
 export async function createRazorpayPaymentOrder(
   token,
-  checkoutData
+  checkoutData,
 ) {
   validateCheckoutData(checkoutData);
 
-  return request("/payments/razorpay/order", {
-    token,
-    method: "POST",
-    body: { ...checkoutData },
-  });
+  return request(
+    "/payments/razorpay/order",
+    {
+      token,
+      method: "POST",
+
+      body: {
+        ...checkoutData,
+      },
+    },
+  );
 }
 
 export async function verifyRazorpayPayment(
@@ -187,7 +241,7 @@ export async function verifyRazorpayPayment(
     razorpay_order_id,
     razorpay_payment_id,
     razorpay_signature,
-  } = {}
+  } = {},
 ) {
   const details = {
     checkoutToken,
@@ -197,22 +251,40 @@ export async function verifyRazorpayPayment(
   };
 
   const labels = {
-    checkoutToken: "Checkout token",
-    razorpay_order_id: "Razorpay order ID",
-    razorpay_payment_id: "Razorpay payment ID",
-    razorpay_signature: "Razorpay payment signature",
+    checkoutToken:
+      "Checkout token",
+
+    razorpay_order_id:
+      "Razorpay order ID",
+
+    razorpay_payment_id:
+      "Razorpay payment ID",
+
+    razorpay_signature:
+      "Razorpay payment signature",
   };
 
-  for (const [key, value] of Object.entries(details)) {
-    if (typeof value !== "string" || !value.trim()) {
-      throw new Error(`${labels[key]} is missing.`);
+  for (
+    const [key, value] of
+    Object.entries(details)
+  ) {
+    if (
+      typeof value !== "string" ||
+      !value.trim()
+    ) {
+      throw new Error(
+        `${labels[key]} is missing.`,
+      );
     }
   }
 
-  return request("/payments/razorpay/verify", {
-    token,
-    method: "POST",
-    body: details,
-    verification: true,
-  });
+  return request(
+    "/payments/razorpay/verify",
+    {
+      token,
+      method: "POST",
+      body: details,
+      verification: true,
+    },
+  );
 }
