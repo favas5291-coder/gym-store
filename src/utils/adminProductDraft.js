@@ -1,4 +1,8 @@
 import {
+  normalizeProductVideo,
+} from "./productVideo.js";
+
+import {
   normalizeColorImages,
 } from "./productImages.js";
 
@@ -35,6 +39,7 @@ const EMPTY = {
   image: "",
   imagesText: "",
   colorImagesText: {},
+  videoUrl: "",
   tagsText: "",
   highlightsText: "",
   careInstructionsText: "",
@@ -91,7 +96,6 @@ function unique(values) {
     }
 
     seen.add(key);
-
     return [clean];
   });
 }
@@ -166,8 +170,14 @@ function validNumber(
 
 function sellingPrice(product) {
   return (
-    validNumber(product.price, 100000000) &&
-    validNumber(product.discount ?? 0, 100)
+    validNumber(
+      product.price,
+      100000000,
+    ) &&
+    validNumber(
+      product.discount ?? 0,
+      100,
+    )
   )
     ? money(getDiscountedPrice(product))
     : "Not recorded";
@@ -183,10 +193,13 @@ function draftFor(product) {
     };
   }
 
-  const draft = { ...EMPTY };
+  const draft = {
+    ...EMPTY,
+  };
 
   for (const key of [
     "meeshoProductLink",
+    "videoUrl",
     "productCode",
     "sku",
     "name",
@@ -211,18 +224,35 @@ function draftFor(product) {
     ...draft,
 
     id: idFor(product),
-    gender: product.gender || "Unisex",
-    price: String(product.price ?? ""),
-    discount: String(product.discount ?? 0),
-    stock: String(product.stock ?? 0),
 
-    variants: JSON.parse(
-      JSON.stringify(product.variants || {}),
+    gender:
+      product.gender || "Unisex",
+
+    price: String(
+      product.price ?? "",
     ),
 
-    variantSkus: list(product.variantSkus),
+    discount: String(
+      product.discount ?? 0,
+    ),
 
-    imagesText: list(product.images).join("\n"),
+    stock: String(
+      product.stock ?? 0,
+    ),
+
+    variants: JSON.parse(
+      JSON.stringify(
+        product.variants || {},
+      ),
+    ),
+
+    variantSkus: list(
+      product.variantSkus,
+    ),
+
+    imagesText: list(
+      product.images,
+    ).join("\n"),
 
     colorImagesText: Object.fromEntries(
       list(product.colorImages)
@@ -237,16 +267,25 @@ function draftFor(product) {
         ]),
     ),
 
-    tagsText: list(product.tags).join(", "),
+    tagsText: list(
+      product.tags,
+    ).join(", "),
 
-    highlightsText:
-      list(product.highlights).join("\n"),
+    highlightsText: list(
+      product.highlights,
+    ).join("\n"),
 
-    careInstructionsText:
-      list(product.careInstructions).join("\n"),
+    careInstructionsText: list(
+      product.careInstructions,
+    ).join("\n"),
 
-    sizesText: list(product.sizes).join(", "),
-    colorsText: list(product.colors).join(", "),
+    sizesText: list(
+      product.sizes,
+    ).join(", "),
+
+    colorsText: list(
+      product.colors,
+    ).join(", "),
 
     specificationsText: Object.entries(
       product.specifications || {},
@@ -257,14 +296,21 @@ function draftFor(product) {
       )
       .join("\n"),
 
-    isFeatured: Boolean(product.isFeatured),
-    isBestSeller: Boolean(product.isBestSeller),
-
-    isNew: Boolean(
-      product.isNew ?? product.isNewArrival,
+    isFeatured: Boolean(
+      product.isFeatured,
     ),
 
-    isActive: product.isActive !== false,
+    isBestSeller: Boolean(
+      product.isBestSeller,
+    ),
+
+    isNew: Boolean(
+      product.isNew ??
+      product.isNewArrival,
+    ),
+
+    isActive:
+      product.isActive !== false,
 
     deliveryAvailable:
       product.delivery?.available !== false,
@@ -274,7 +320,8 @@ function draftFor(product) {
     ),
 
     freeDeliveryAbove: String(
-      product.delivery?.freeDeliveryAbove ?? 500,
+      product.delivery?.freeDeliveryAbove ??
+      500,
     ),
 
     supplier: String(
@@ -330,15 +377,18 @@ function draftFor(product) {
       product.optionLabels?.color || "Colour",
 
     transitDaysMin: String(
-      product.delivery?.transitDaysMin ?? "",
+      product.delivery?.transitDaysMin ??
+      "",
     ),
 
     transitDaysMax: String(
-      product.delivery?.transitDaysMax ?? "",
+      product.delivery?.transitDaysMax ??
+      "",
     ),
 
     returnsEligible:
-      product.returnsEligible || "unconfirmed",
+      product.returnsEligible ||
+      "unconfirmed",
 
     returnConditions:
       product.returnConditions || "",
@@ -350,8 +400,13 @@ function draftFor(product) {
 }
 
 function optionRows(draft) {
-  const colors = commas(draft.colorsText);
-  const sizes = commas(draft.sizesText);
+  const colors = commas(
+    draft.colorsText,
+  );
+
+  const sizes = commas(
+    draft.sizesText,
+  );
 
   return (
     colors.length ? colors : [""]
@@ -365,12 +420,17 @@ function optionRows(draft) {
   );
 }
 
-function quantityFor(draft, color, size) {
+function quantityFor(
+  draft,
+  color,
+  size,
+) {
   if (!color && !size) {
     return draft.stock;
   }
 
-  const variants = draft.variants || {};
+  const variants =
+    draft.variants || {};
 
   if (color) {
     if (!own(variants, color)) {
@@ -386,7 +446,10 @@ function quantityFor(draft, color, size) {
       return group ?? 0;
     }
 
-    return own(group, size || "default")
+    return own(
+      group,
+      size || "default",
+    )
       ? group[size || "default"]
       : 0;
   }
@@ -431,24 +494,32 @@ function totalStock(draft) {
 }
 
 function buildVariants(draft) {
-  const result = Object.create(null);
+  const result =
+    Object.create(null);
 
-  for (
-    const { color, size } of optionRows(draft)
-  ) {
+  for (const {
+    color,
+    size,
+  } of optionRows(draft)) {
     if (!color && !size) {
       continue;
     }
 
     const quantity = Number(
-      quantityFor(draft, color, size),
+      quantityFor(
+        draft,
+        color,
+        size,
+      ),
     );
 
     if (color) {
-      result[color] ||= Object.create(null);
+      result[color] ||=
+        Object.create(null);
 
-      result[color][size || "default"] =
-        quantity;
+      result[color][
+        size || "default"
+      ] = quantity;
     } else {
       result[size] = quantity;
     }
@@ -459,21 +530,28 @@ function buildVariants(draft) {
 
 function inventoryKey(draft) {
   return JSON.stringify({
-    colors: commas(draft.colorsText),
-    sizes: commas(draft.sizesText),
+    colors: commas(
+      draft.colorsText,
+    ),
 
-    rows: optionRows(draft).map((row) => [
-      row.color,
-      row.size,
+    sizes: commas(
+      draft.sizesText,
+    ),
 
-      Number(
-        quantityFor(
-          draft,
-          row.color,
-          row.size,
+    rows: optionRows(draft).map(
+      (row) => [
+        row.color,
+        row.size,
+
+        Number(
+          quantityFor(
+            draft,
+            row.color,
+            row.size,
+          ),
         ),
-      ),
-    ]),
+      ],
+    ),
   });
 }
 
@@ -519,6 +597,14 @@ function colorPhotosFor(draft) {
 
 function validateBasicDraft(draft) {
   try {
+    normalizeProductVideo(
+      draft.videoUrl,
+    );
+  } catch (error) {
+    return error.message;
+  }
+
+  try {
     normalizeMeeshoLink(
       draft.meeshoProductLink,
     );
@@ -530,37 +616,57 @@ function validateBasicDraft(draft) {
     draft.name.trim().length < 2 ||
     draft.name.trim().length > 200
   ) {
-    return "Product name must contain 2–200 characters.";
+    return (
+      "Product name must contain 2–200 characters."
+    );
   }
 
   if (
     !draft.category.trim() ||
     draft.category.trim().length > 100
   ) {
-    return "Choose a category of no more than 100 characters.";
+    return (
+      "Choose a category of no more than 100 characters."
+    );
   }
 
   if (
     !draft.brand.trim() ||
     draft.brand.trim().length > 100
   ) {
-    return "Choose the actual brand, using no more than 100 characters.";
+    return (
+      "Choose the actual brand, using no more than 100 characters."
+    );
   }
 
   if (
     draft.subcategory.trim().length > 100
   ) {
-    return "Subcategory cannot exceed 100 characters.";
+    return (
+      "Subcategory cannot exceed 100 characters."
+    );
   }
 
   if (
-    !validNumber(draft.price, 100000000)
+    !validNumber(
+      draft.price,
+      100000000,
+    )
   ) {
-    return "Enter an original price from ₹0 to ₹10,00,00,000.";
+    return (
+      "Enter an original price from ₹0 to ₹10,00,00,000."
+    );
   }
 
-  if (!validNumber(draft.discount, 100)) {
-    return "Discount must be between 0 and 100%.";
+  if (
+    !validNumber(
+      draft.discount,
+      100,
+    )
+  ) {
+    return (
+      "Discount must be between 0 and 100%."
+    );
   }
 
   if (
@@ -569,17 +675,26 @@ function validateBasicDraft(draft) {
       100000000,
     )
   ) {
-    return "Enter a valid non-negative delivery threshold.";
+    return (
+      "Enter a valid non-negative delivery threshold."
+    );
   }
 
-  const sizes = commas(draft.sizesText);
-  const colors = commas(draft.colorsText);
+  const sizes = commas(
+    draft.sizesText,
+  );
+
+  const colors = commas(
+    draft.colorsText,
+  );
 
   if (
     sizes.length > 50 ||
     colors.length > 50
   ) {
-    return "Use no more than 50 sizes or 50 colours.";
+    return (
+      "Use no more than 50 sizes or 50 colours."
+    );
   }
 
   if (
@@ -594,7 +709,9 @@ function validateBasicDraft(draft) {
         value.length > 80,
     )
   ) {
-    return "Size and colour names cannot contain dots, start with $, use reserved names, or exceed their length limits.";
+    return (
+      "Size and colour names cannot contain dots, start with $, use reserved names, or exceed their length limits."
+    );
   }
 
   try {
@@ -616,20 +733,21 @@ function validateBasicDraft(draft) {
       )
     ) {
       const selection =
-        [
-          row.color,
-          row.size,
-        ]
+        [row.color, row.size]
           .filter(Boolean)
           .join(" / ") ||
         "this product";
 
-      return `Enter whole stock from 0 to 1,000,000 for ${selection}.`;
+      return (
+        `Enter whole stock from 0 to 1,000,000 for ${selection}.`
+      );
     }
   }
 
   if (totalStock(draft) > 1000000) {
-    return "Combined product stock cannot exceed 1,000,000.";
+    return (
+      "Combined product stock cannot exceed 1,000,000."
+    );
   }
 
   const specs = lines(
@@ -639,7 +757,9 @@ function validateBasicDraft(draft) {
   const names = new Set();
 
   if (specs.length > 100) {
-    return "Use no more than 100 specifications.";
+    return (
+      "Use no more than 100 specifications."
+    );
   }
 
   for (const line of specs) {
@@ -660,39 +780,54 @@ function validateBasicDraft(draft) {
       !value ||
       value.length > 1000
     ) {
-      return "Write each specification as Name: Value, with a unique valid name and a non-empty value.";
+      return (
+        "Write each specification as Name: Value, with a unique valid name and a non-empty value."
+      );
     }
 
-    if (names.has(key.toLowerCase())) {
-      return `The specification "${key}" is repeated. Use each name once.`;
+    if (
+      names.has(
+        key.toLowerCase(),
+      )
+    ) {
+      return (
+        `The specification "${key}" is repeated. Use each name once.`
+      );
     }
 
-    names.add(key.toLowerCase());
+    names.add(
+      key.toLowerCase(),
+    );
   }
 
-  for (
-    const [key, label, maximum, length] of [
-      [
-        "imagesText",
-        "Additional photos",
-        20,
-        2000,
-      ],
-      [
-        "highlightsText",
-        "Main benefits",
-        30,
-        500,
-      ],
-      [
-        "careInstructionsText",
-        "Care instructions",
-        30,
-        500,
-      ],
-    ]
-  ) {
-    const values = lines(draft[key]);
+  for (const [
+    key,
+    label,
+    maximum,
+    length,
+  ] of [
+    [
+      "imagesText",
+      "Additional photos",
+      20,
+      2000,
+    ],
+    [
+      "highlightsText",
+      "Main benefits",
+      30,
+      500,
+    ],
+    [
+      "careInstructionsText",
+      "Care instructions",
+      30,
+      500,
+    ],
+  ]) {
+    const values = lines(
+      draft[key],
+    );
 
     if (
       values.length > maximum ||
@@ -701,23 +836,29 @@ function validateBasicDraft(draft) {
           value.length > length,
       )
     ) {
-      return `${label}: use no more than ${maximum} entries, each up to ${length} characters.`;
+      return (
+        `${label}: use no more than ${maximum} entries, each up to ${length} characters.`
+      );
     }
   }
 
   if (
     commas(draft.tagsText).length > 50 ||
     commas(draft.tagsText).some(
-      (value) => value.length > 100,
+      (value) =>
+        value.length > 100,
     )
   ) {
-    return "Use up to 50 tags, each no longer than 100 characters.";
+    return (
+      "Use up to 50 tags, each no longer than 100 characters."
+    );
   }
 
   if (
     !validImage(draft.image) ||
     lines(draft.imagesText).some(
-      (value) => !validImage(value),
+      (value) =>
+        !validImage(value),
     )
   ) {
     return (
@@ -731,11 +872,21 @@ function validateBasicDraft(draft) {
 
 export const KIT_ROLES = {
   clothing: "Gym clothing",
+
   footwear: "Footwear",
-  supplements: "Supplements (optional)",
-  "training-accessories": "Training accessories",
-  "gym-bag": "Gym bag",
-  "bottle-or-shaker": "Bottle or shaker",
+
+  supplements:
+    "Supplements (optional)",
+
+  "training-accessories":
+    "Training accessories",
+
+  "gym-bag":
+    "Gym bag",
+
+  "bottle-or-shaker":
+    "Bottle or shaker",
+
   "workout-essentials":
     "Towels, socks and essentials",
 };
@@ -796,8 +947,12 @@ const changed = (
   !original ||
   keys.some(
     (key) =>
-      JSON.stringify(draft[key]) !==
-      JSON.stringify(original[key]),
+      JSON.stringify(
+        draft[key],
+      ) !==
+      JSON.stringify(
+        original[key],
+      ),
   );
 
 export function normalizeProductOptions(
@@ -821,19 +976,39 @@ export function normalizeProductOptions(
     fail();
   }
 
-  for (
-    const [field, expected] of [
-      ["kitRoles", Object.keys(KIT_ROLES)],
-      ["sizeOptionLabels", SIZE_LABELS],
-      ["colorOptionLabels", COLOR_LABELS],
-      ["stockSources", STOCK_SOURCES],
-      ["dispatchMethods", DISPATCH_METHODS],
+  for (const [
+    field,
+    expected,
+  ] of [
+    [
+      "kitRoles",
+      Object.keys(KIT_ROLES),
+    ],
+    [
+      "sizeOptionLabels",
+      SIZE_LABELS,
+    ],
+    [
+      "colorOptionLabels",
+      COLOR_LABELS,
+    ],
+    [
+      "stockSources",
+      STOCK_SOURCES,
+    ],
+    [
+      "dispatchMethods",
+      DISPATCH_METHODS,
+    ],
+    [
+      "returnEligibility",
       [
-        "returnEligibility",
-        ["unconfirmed", "yes", "no"],
+        "unconfirmed",
+        "yes",
+        "no",
       ],
-    ]
-  ) {
+    ],
+  ]) {
     const values = data[field];
 
     if (
@@ -841,7 +1016,8 @@ export function normalizeProductOptions(
       values.length !== expected.length ||
       new Set(values).size !== values.length ||
       expected.some(
-        (value) => !values.includes(value),
+        (value) =>
+          !values.includes(value),
       )
     ) {
       fail();
@@ -897,25 +1073,39 @@ export function normalizeProductOptions(
     },
   );
 
-  const subcategories = Object.create(null);
+  const subcategories =
+    Object.create(null);
 
-  for (
-    const [key, values] of
-    Object.entries(data.subcategories)
-  ) {
+  for (const [
+    key,
+    values,
+  ] of Object.entries(
+    data.subcategories,
+  )) {
     if (!Array.isArray(values)) {
       fail();
     }
 
-    subcategories[key] = unique(values);
+    subcategories[key] = unique(
+      values,
+    );
   }
 
   return {
     ...data,
-    categories: unique(data.categories),
-    brands: unique(data.brands),
+
+    categories: unique(
+      data.categories,
+    ),
+
+    brands: unique(
+      data.brands,
+    ),
+
     subcategories,
+
     suppliers,
+
     ready: true,
   };
 }
@@ -933,13 +1123,26 @@ export function rangeError(
   }
 
   if (
-    !validNumber(minimum, 365, true) ||
-    !validNumber(maximum, 365, true)
+    !validNumber(
+      minimum,
+      365,
+      true,
+    ) ||
+    !validNumber(
+      maximum,
+      365,
+      true,
+    )
   ) {
-    return `${label}: enter both limits as whole days from 0 to 365, or leave both blank.`;
+    return (
+      `${label}: enter both limits as whole days from 0 to 365, or leave both blank.`
+    );
   }
 
-  return Number(minimum) > Number(maximum)
+  return (
+    Number(minimum) >
+    Number(maximum)
+  )
     ? `${label}: the maximum must be at least the minimum.`
     : "";
 }
@@ -950,9 +1153,11 @@ export function publicationProblems(
 ) {
   const problems = [];
 
-  const selected = options?.suppliers?.find(
-    (row) => row.id === draft.supplier,
-  );
+  const selected =
+    options?.suppliers?.find(
+      (row) =>
+        row.id === draft.supplier,
+    );
 
   const supplierStock =
     draft.stockSource === "supplier";
@@ -1065,7 +1270,8 @@ export function validateDraft(
   original = null,
   options = null,
 ) {
-  const basic = validateBasicDraft(draft);
+  const basic =
+    validateBasicDraft(draft);
 
   if (basic) {
     return basic;
@@ -1078,9 +1284,13 @@ export function validateDraft(
       ["supplier"],
     ) &&
     draft.supplier &&
-    !/^[a-f0-9]{24}$/i.test(draft.supplier)
+    !/^[a-f0-9]{24}$/i.test(
+      draft.supplier,
+    )
   ) {
-    return "Choose a valid supplier.";
+    return (
+      "Choose a valid supplier."
+    );
   }
 
   if (
@@ -1091,7 +1301,9 @@ export function validateDraft(
     ) &&
     !blank(draft.purchaseCost)
   ) {
-    const cost = Number(draft.purchaseCost);
+    const cost = Number(
+      draft.purchaseCost,
+    );
 
     if (
       !validNumber(
@@ -1103,7 +1315,9 @@ export function validateDraft(
         Math.round(cost * 100),
       ) > 0.00001
     ) {
-      return "Purchase cost must be non-negative, with no more than two decimal places. Leave unknown costs blank.";
+      return (
+        "Purchase cost must be non-negative, with no more than two decimal places. Leave unknown costs blank."
+      );
     }
   }
 
@@ -1122,7 +1336,9 @@ export function validateDraft(
         draft.dispatchBy,
       )
     ) {
-      return "Choose valid stock and dispatch responsibilities.";
+      return (
+        "Choose valid stock and dispatch responsibilities."
+      );
     }
 
     const invalid = rangeError(
@@ -1161,38 +1377,57 @@ export function validateDraft(
     changed(
       draft,
       original,
-      ["sizeLabel", "colorLabel"],
+      [
+        "sizeLabel",
+        "colorLabel",
+      ],
     ) &&
     (
-      !SIZE_LABELS.includes(draft.sizeLabel) ||
-      !COLOR_LABELS.includes(draft.colorLabel)
+      !SIZE_LABELS.includes(
+        draft.sizeLabel,
+      ) ||
+      !COLOR_LABELS.includes(
+        draft.colorLabel,
+      )
     )
   ) {
-    return "Choose valid product option labels.";
+    return (
+      "Choose valid product option labels."
+    );
   }
 
   if (
     changed(
       draft,
       original,
-      ["kitEligible", "kitRoles"],
+      [
+        "kitEligible",
+        "kitRoles",
+      ],
     )
   ) {
     if (
       !Array.isArray(draft.kitRoles) ||
       draft.kitRoles.some(
         (role) =>
-          !Object.hasOwn(KIT_ROLES, role),
+          !Object.hasOwn(
+            KIT_ROLES,
+            role,
+          ),
       )
     ) {
-      return "Choose supported Fitness Kit categories.";
+      return (
+        "Choose supported Fitness Kit categories."
+      );
     }
 
     if (
       draft.kitEligible &&
       !draft.kitRoles.length
     ) {
-      return "Select at least one kit category, or turn off kit eligibility.";
+      return (
+        "Select at least one kit category, or turn off kit eligibility."
+      );
     }
   }
 
@@ -1213,9 +1448,13 @@ export function validateDraft(
         "unconfirmed",
         "yes",
         "no",
-      ].includes(draft.returnsEligible)
+      ].includes(
+        draft.returnsEligible,
+      )
     ) {
-      return "Choose a valid return eligibility.";
+      return (
+        "Choose a valid return eligibility."
+      );
     }
 
     if (
@@ -1224,15 +1463,22 @@ export function validateDraft(
         7,
         true,
       ) ||
-      Number(draft.returnWindowDays) < 1
+      Number(
+        draft.returnWindowDays,
+      ) < 1
     ) {
-      return "The current return flow supports a window of 1–7 days.";
+      return (
+        "The current return flow supports a window of 1–7 days."
+      );
     }
 
     if (
-      draft.returnConditions.length > 2000
+      draft.returnConditions.length >
+      2000
     ) {
-      return "Return conditions cannot exceed 2,000 characters.";
+      return (
+        "Return conditions cannot exceed 2,000 characters."
+      );
     }
 
     if (
@@ -1240,7 +1486,9 @@ export function validateDraft(
       !draft.returnPolicy.trim() &&
       !draft.returnConditions.trim()
     ) {
-      return "Record the actual return conditions before marking the product returnable.";
+      return (
+        "Record the actual return conditions before marking the product returnable."
+      );
     }
   }
 
@@ -1249,25 +1497,61 @@ export function validateDraft(
       draft.stockSource !== "supplier" ||
       !draft.supplier
     ) {
-      return "Select supplier-held stock before confirming it.";
+      return (
+        "Select supplier-held stock before confirming it."
+      );
     }
 
-    const supplier = options?.suppliers?.find(
-      (row) => row.id === draft.supplier,
-    );
+    const supplier =
+      options?.suppliers?.find(
+        (row) =>
+          row.id === draft.supplier,
+      );
 
     if (
       !options?.ready ||
       !supplier?.available
     ) {
-      return "Reload options and choose an available, verified supplier before confirming stock.";
+      return (
+        "Reload options and choose an available, verified supplier before confirming stock."
+      );
     }
   }
 
-  // Keep existing unlinked products working.
-  // Apply supply checks when publishing a draft
-  // or editing supply responsibilities.
+  // Link-only edits do not republish the product.
+  // Changes to stock, price or visibility still require
+  // the existing supply checks.
+  const linksOnly = Boolean(
+    original &&
+    [
+      "meeshoProductLink",
+      "videoUrl",
+    ].some(
+      (key) =>
+        draft[key] !== original[key],
+    ) &&
+    [
+      ...new Set([
+        ...Object.keys(original),
+        ...Object.keys(draft),
+      ]),
+    ].every(
+      (key) =>
+        [
+          "meeshoProductLink",
+          "videoUrl",
+        ].includes(key) ||
+        JSON.stringify(
+          draft[key],
+        ) ===
+        JSON.stringify(
+          original[key],
+        ),
+    ),
+  );
+
   if (
+    !linksOnly &&
     draft.isActive &&
     (
       !original ||
@@ -1280,13 +1564,16 @@ export function validateDraft(
       )
     )
   ) {
-    const problems = publicationProblems(
-      draft,
-      options,
-    );
+    const problems =
+      publicationProblems(
+        draft,
+        options,
+      );
 
     if (problems.length) {
-      return `Before publishing: ${problems[0]}`;
+      return (
+        `Before publishing: ${problems[0]}`
+      );
     }
   }
 
@@ -1329,8 +1616,18 @@ export function payloadFor(
     "image",
     "returnConditions",
   ]) {
-    put(key, draft[key].trim());
+    put(
+      key,
+      draft[key].trim(),
+    );
   }
+
+  put(
+    "videoUrl",
+    normalizeProductVideo(
+      draft.videoUrl,
+    ),
+  );
 
   put(
     "colorImages",
@@ -1341,34 +1638,51 @@ export function payloadFor(
     ],
   );
 
-  put("price", Number(draft.price));
-  put("discount", Number(draft.discount));
+  put(
+    "price",
+    Number(draft.price),
+  );
 
-  for (
-    const [key, source, values] of [
-      [
-        "images",
-        "imagesText",
-        unique(lines(draft.imagesText)),
-      ],
-      [
-        "tags",
-        "tagsText",
-        commas(draft.tagsText),
-      ],
-      [
-        "highlights",
-        "highlightsText",
-        lines(draft.highlightsText),
-      ],
-      [
-        "careInstructions",
-        "careInstructionsText",
-        lines(draft.careInstructionsText),
-      ],
-    ]
-  ) {
-    put(key, values, [source]);
+  put(
+    "discount",
+    Number(draft.discount),
+  );
+
+  for (const [
+    key,
+    source,
+    values,
+  ] of [
+    [
+      "images",
+      "imagesText",
+      unique(
+        lines(draft.imagesText),
+      ),
+    ],
+    [
+      "tags",
+      "tagsText",
+      commas(draft.tagsText),
+    ],
+    [
+      "highlights",
+      "highlightsText",
+      lines(draft.highlightsText),
+    ],
+    [
+      "careInstructions",
+      "careInstructionsText",
+      lines(
+        draft.careInstructionsText,
+      ),
+    ],
+  ]) {
+    put(
+      key,
+      values,
+      [source],
+    );
   }
 
   for (const key of [
@@ -1377,7 +1691,10 @@ export function payloadFor(
     "isNew",
     "isActive",
   ]) {
-    put(key, draft[key]);
+    put(
+      key,
+      draft[key],
+    );
   }
 
   put(
@@ -1387,7 +1704,9 @@ export function payloadFor(
 
   put(
     "purchaseCost",
-    nullableNumber(draft.purchaseCost),
+    nullableNumber(
+      draft.purchaseCost,
+    ),
   );
 
   put(
@@ -1404,7 +1723,9 @@ export function payloadFor(
 
   put(
     "returnWindowDays",
-    Number(draft.returnWindowDays),
+    Number(
+      draft.returnWindowDays,
+    ),
   );
 
   const nested = [
@@ -1419,22 +1740,29 @@ export function payloadFor(
         [
           "estimatedDays",
           "estimatedDays",
-          draft.estimatedDays.trim() || null,
+          draft.estimatedDays.trim() ||
+          null,
         ],
         [
           "freeDeliveryAbove",
           "freeDeliveryAbove",
-          Number(draft.freeDeliveryAbove),
+          Number(
+            draft.freeDeliveryAbove,
+          ),
         ],
         [
           "transitDaysMin",
           "transitDaysMin",
-          nullableNumber(draft.transitDaysMin),
+          nullableNumber(
+            draft.transitDaysMin,
+          ),
         ],
         [
           "transitDaysMax",
           "transitDaysMax",
-          nullableNumber(draft.transitDaysMax),
+          nullableNumber(
+            draft.transitDaysMax,
+          ),
         ],
       ],
     ],
@@ -1504,12 +1832,17 @@ export function payloadFor(
     ],
   ];
 
-  for (const [group, fields] of nested) {
+  for (const [
+    group,
+    fields,
+  ] of nested) {
     const values = {};
 
-    for (
-      const [key, source, value] of fields
-    ) {
+    for (const [
+      key,
+      source,
+      value,
+    ] of fields) {
       if (
         changed(
           draft,
@@ -1526,7 +1859,7 @@ export function payloadFor(
     }
   }
 
-  // Preserve typed specifications unless their text changed.
+  // Preserve typed specifications unless their text changes.
   if (
     changed(
       draft,
@@ -1539,36 +1872,54 @@ export function payloadFor(
         lines(
           draft.specificationsText,
         ).map((line) => {
-          const colon = line.indexOf(":");
+          const colon =
+            line.indexOf(":");
 
           return [
-            line.slice(0, colon).trim(),
-            line.slice(colon + 1).trim(),
+            line
+              .slice(0, colon)
+              .trim(),
+
+            line
+              .slice(colon + 1)
+              .trim(),
           ];
         }),
       );
   }
 
-  // Detail-only edits do not send an old stock matrix.
+  // Video/detail changes never resend stock quantities.
   if (
     !original ||
     inventoryKey(draft) !==
       inventoryKey(original)
   ) {
-    payload.sizes = commas(draft.sizesText);
-    payload.colors = commas(draft.colorsText);
-    payload.variants = buildVariants(draft);
+    payload.sizes = commas(
+      draft.sizesText,
+    );
+
+    payload.colors = commas(
+      draft.colorsText,
+    );
+
+    payload.variants =
+      buildVariants(draft);
 
     if (
       !payload.sizes.length &&
       !payload.colors.length
     ) {
-      payload.stock = Number(draft.stock);
+      payload.stock = Number(
+        draft.stock,
+      );
     }
   }
 
   if (draft.slug.trim()) {
-    put("slug", draft.slug.trim());
+    put(
+      "slug",
+      draft.slug.trim(),
+    );
   }
 
   // The backend records the confirmation timestamp.
@@ -1584,21 +1935,27 @@ export function conflictFor(
   original,
   latestProduct,
 ) {
-  const latest = draftFor(latestProduct);
+  const latest =
+    draftFor(latestProduct);
 
   const patch = payloadFor(
     draft,
     original,
   );
 
-  const before = payloadFor(original);
-  const now = payloadFor(latest);
+  const before =
+    payloadFor(original);
 
-  for (
-    const [key, value] of
-    Object.entries(patch)
-  ) {
-    if (key === "confirmSupplierStock") {
+  const now =
+    payloadFor(latest);
+
+  for (const [
+    key,
+    value,
+  ] of Object.entries(patch)) {
+    if (
+      key === "confirmSupplierStock"
+    ) {
       continue;
     }
 
@@ -1610,9 +1967,7 @@ export function conflictFor(
         "optionLabels",
       ].includes(key)
     ) {
-      for (
-        const child of Object.keys(value)
-      ) {
+      for (const child of Object.keys(value)) {
         if (
           JSON.stringify(
             before[key]?.[child],
@@ -1621,14 +1976,22 @@ export function conflictFor(
             now[key]?.[child],
           )
         ) {
-          return `The ${key} settings changed while you were editing. Reload the latest product before saving.`;
+          return (
+            `The ${key} settings changed while you were editing. Reload the latest product before saving.`
+          );
         }
       }
     } else if (
-      JSON.stringify(before[key]) !==
-      JSON.stringify(now[key])
+      JSON.stringify(
+        before[key],
+      ) !==
+      JSON.stringify(
+        now[key],
+      )
     ) {
-      return `The product's ${key} changed while you were editing. Reload the latest product before saving.`;
+      return (
+        `The product's ${key} changed while you were editing. Reload the latest product before saving.`
+      );
     }
   }
 
@@ -1639,11 +2002,14 @@ export function conflictFor(
         inventoryKey(latest) ||
       SUPPLY_FIELDS.some(
         (key) =>
-          original[key] !== latest[key],
+          original[key] !==
+          latest[key],
       )
     )
   ) {
-    return "Stock or supply details changed. Reload the latest product and check supplier quantities again.";
+    return (
+      "Stock or supply details changed. Reload the latest product and check supplier quantities again."
+    );
   }
 
   return "";

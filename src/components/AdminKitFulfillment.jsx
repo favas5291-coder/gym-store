@@ -11,6 +11,8 @@ import {
 
 import { money } from "../utils/productPricing.js";
 
+import { normalizeCourierUrl } from "../utils/courierTracking.js";
+
 import "./KitFulfillment.css";
 
 const STAGES = [
@@ -48,12 +50,24 @@ const progressDraft = (progress) => ({
 
       {
         ...row,
+        courierUrl: row.courierUrl || "",
+        trackingNotice: row.exception?.type || "none",
+        trackingMessage: row.exception?.message || "",
         estimatedDelivery: dateInput(row.estimatedDelivery),
         packingChecked: false,
         collectionConfirmed: false,
       },
     ]),
   ),
+});
+
+const parcelChanges = (row) => ({
+  carrier: row.carrier,
+  trackingNumber: row.trackingNumber,
+  estimatedDelivery: row.estimatedDelivery,
+  courierUrl: row.courierUrl,
+  trackingNotice: row.trackingNotice,
+  trackingMessage: row.trackingMessage,
 });
 
 function Field({ label, children }) {
@@ -148,6 +162,13 @@ export default function AdminKitFulfillment({
     abortRef.current = abort;
 
     try {
+      if (changes?.action === "parcel") {
+        changes = {
+          ...changes,
+          courierUrl: normalizeCourierUrl(changes.courierUrl),
+        };
+      }
+
       const updated =
         changes === "reload"
           ? await getAdminOrderById(
@@ -560,6 +581,62 @@ export default function AdminKitFulfillment({
                     </Field>
                   </div>
 
+                  <Field label="Courier tracking link (optional)">
+                    <input
+                      type="url"
+                      maxLength={2000}
+                      value={row.courierUrl}
+                      placeholder="https://courier-website.com/track/..."
+                      onChange={(event) =>
+                        changeParcel(parcel.key, {
+                          courierUrl: event.target.value,
+                        })
+                      }
+                    />
+                  </Field>
+
+                  <Field label="Customer delivery notice">
+                    <select
+                      value={row.trackingNotice}
+                      onChange={(event) =>
+                        changeParcel(parcel.key, {
+                          trackingNotice: event.target.value,
+                          trackingMessage:
+                            event.target.value === "none"
+                              ? ""
+                              : row.trackingMessage,
+                        })
+                      }
+                    >
+                      <option value="none">
+                        No active issue / resolved
+                      </option>
+
+                      <option value="delayed">
+                        Delivery delayed
+                      </option>
+
+                      <option value="delivery-attempt-failed">
+                        Delivery attempt unsuccessful
+                      </option>
+                    </select>
+                  </Field>
+
+                  {row.trackingNotice !== "none" && (
+                    <Field label="Update visible to the customer">
+                      <input
+                        maxLength={500}
+                        value={row.trackingMessage}
+                        placeholder="Explain the actual courier update and next step."
+                        onChange={(event) =>
+                          changeParcel(parcel.key, {
+                            trackingMessage: event.target.value,
+                          })
+                        }
+                      />
+                    </Field>
+                  )}
+
                   {parcel.status === "collecting" && (
                     <label className="gd-kit-progress-check">
                       <input
@@ -587,10 +664,7 @@ export default function AdminKitFulfillment({
                           action: "parcel",
                           key: parcel.key,
                           status: parcel.status,
-                          carrier: row.carrier,
-                          trackingNumber: row.trackingNumber,
-                          estimatedDelivery:
-                            row.estimatedDelivery,
+                          ...parcelChanges(row),
                         })
                       }
                     >
@@ -616,11 +690,7 @@ export default function AdminKitFulfillment({
                             action: "parcel",
                             key: parcel.key,
                             status: next,
-                            carrier: row.carrier,
-                            trackingNumber:
-                              row.trackingNumber,
-                            estimatedDelivery:
-                              row.estimatedDelivery,
+                            ...parcelChanges(row),
                             packingChecked:
                               row.packingChecked,
                           })

@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 import categories from "../data/categories.js";
 
 import { useCatalog } from "../context/CatalogContext.jsx";
@@ -88,11 +90,22 @@ export function categoryCards(products = []) {
       (product) => !available.includes(product),
     );
 
+    const galleries = [
+      ...available,
+      ...remaining,
+    ].map(categoryPhotos);
+
+    // Show different products before additional views.
     const images = [
-      ...new Set(
-        [...available, ...remaining]
-          .flatMap(categoryPhotos),
-      ),
+      ...new Set([
+        ...galleries
+          .map((photos) => photos[0])
+          .filter(Boolean),
+
+        ...galleries.flatMap((photos) =>
+          photos.slice(1),
+        ),
+      ]),
     ].slice(0, 12);
 
     const discount = Math.max(
@@ -132,7 +145,54 @@ export default function CategorySection() {
     error,
   } = useCatalog();
 
+  const [paused, setPaused] = useState(false);
+
+  const [reducedMotion, setReducedMotion] =
+    useState(
+      () =>
+        typeof window === "undefined" ||
+        Boolean(
+          window.matchMedia?.(
+            "(prefers-reduced-motion: reduce)",
+          ).matches,
+        ),
+    );
+
+  useEffect(() => {
+    const preference = window.matchMedia?.(
+      "(prefers-reduced-motion: reduce)",
+    );
+
+    if (!preference) {
+      return;
+    }
+
+    function update() {
+      setReducedMotion(preference.matches);
+    }
+
+    update();
+
+    preference.addEventListener?.(
+      "change",
+      update,
+    );
+
+    return () => {
+      preference.removeEventListener?.(
+        "change",
+        update,
+      );
+    };
+  }, []);
+
   const cards = categoryCards(products);
+
+  const canRotate = cards.some(
+    (category) => category.images.length > 1,
+  );
+
+  const autoRotate = !paused && !reducedMotion;
 
   if (
     !cards.length &&
@@ -148,10 +208,44 @@ export default function CategorySection() {
       id="categories"
       aria-labelledby="gm-category-title"
     >
-      <div className="gm-section-head">
+      <div
+        className="gm-section-head"
+        style={{
+          flexWrap: "wrap",
+          gap: "8px 16px",
+        }}
+      >
         <h2 id="gm-category-title">
           SHOP BY CATEGORY
         </h2>
+
+        {canRotate && (
+          <button
+            type="button"
+            className="text-link"
+            disabled={reducedMotion}
+            style={{
+              minHeight: 44,
+              flexShrink: 0,
+            }}
+            aria-label={
+              reducedMotion
+                ? "Category photos paused for reduced motion"
+                : paused
+                  ? "Resume category photos"
+                  : "Pause category photos"
+            }
+            onClick={() =>
+              setPaused((current) => !current)
+            }
+          >
+            {reducedMotion
+              ? "Photos paused"
+              : paused
+                ? "Resume photos"
+                : "Pause photos"}
+          </button>
+        )}
       </div>
 
       {!cards.length ? (
@@ -166,6 +260,7 @@ export default function CategorySection() {
             <CategoryCard
               key={category.name}
               {...category}
+              autoRotate={autoRotate}
             />
           ))}
         </div>

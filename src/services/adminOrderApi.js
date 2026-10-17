@@ -1,3 +1,5 @@
+import { normalizeCourierUrl } from "../utils/courierTracking.js";
+
 const API_URL = (
   import.meta.env.VITE_API_URL ||
   "http://localhost:5000/api"
@@ -49,9 +51,13 @@ function apiError(
     error.status = status;
   }
 
-  error.code = code || "ADMIN_ORDER_REQUEST_FAILED";
+  error.code =
+    code || "ADMIN_ORDER_REQUEST_FAILED";
+
   error.data = data ?? null;
-  error.saveResultUnknown = saveResultUnknown;
+
+  error.saveResultUnknown =
+    saveResultUnknown;
 
   return error;
 }
@@ -77,7 +83,9 @@ function text(
   minimum = 0,
 ) {
   if (typeof value !== "string") {
-    throw invalid(`${name} must be text.`);
+    throw invalid(
+      `${name} must be text.`,
+    );
   }
 
   const clean = value.trim();
@@ -96,19 +104,28 @@ function text(
 
 function identifier(value) {
   if (
-    !["string", "number"].includes(typeof value) ||
+    !["string", "number"].includes(
+      typeof value,
+    ) ||
     (
       typeof value === "number" &&
       !Number.isFinite(value)
     )
   ) {
-    throw invalid("A valid order ID is required.");
+    throw invalid(
+      "A valid order ID is required.",
+    );
   }
 
   const clean = String(value).trim();
 
-  if (!clean || clean.length > 150) {
-    throw invalid("A valid order ID is required.");
+  if (
+    !clean ||
+    clean.length > 150
+  ) {
+    throw invalid(
+      "A valid order ID is required.",
+    );
   }
 
   return encodeURIComponent(clean);
@@ -131,14 +148,29 @@ function requireToken(token) {
 
 function fallbackMessage(status) {
   const messages = {
-    400: "Check the order information and try again.",
-    401: "Your login session expired. Please sign in again.",
-    403: "Your account does not have permission to manage orders.",
-    404: "This order or admin service could not be found.",
-    409: "The order changed or this action is no longer allowed. Reload its details before retrying.",
-    413: "The request is too large. Shorten the information and try again.",
-    429: "Too many requests. Please wait before trying again.",
-    503: "The order service is temporarily unavailable.",
+    400:
+      "Check the order information and try again.",
+
+    401:
+      "Your login session expired. Please sign in again.",
+
+    403:
+      "Your account does not have permission to manage orders.",
+
+    404:
+      "This order or admin service could not be found.",
+
+    409:
+      "The order changed or this action is no longer allowed. Reload its details before retrying.",
+
+    413:
+      "The request is too large. Shorten the information and try again.",
+
+    429:
+      "Too many requests. Please wait before trying again.",
+
+    503:
+      "The order service is temporarily unavailable.",
   };
 
   return (
@@ -147,7 +179,9 @@ function fallbackMessage(status) {
   );
 }
 
-function cancelledError(saveResultUnknown = false) {
+function cancelledError(
+  saveResultUnknown = false,
+) {
   const error = new Error(
     saveResultUnknown
       ? "The request was cancelled. Reload the order to check whether the update was saved."
@@ -155,14 +189,19 @@ function cancelledError(saveResultUnknown = false) {
   );
 
   error.name = "AbortError";
-  error.code = "ADMIN_ORDER_REQUEST_CANCELLED";
-  error.saveResultUnknown = saveResultUnknown;
+
+  error.code =
+    "ADMIN_ORDER_REQUEST_CANCELLED";
+
+  error.saveResultUnknown =
+    saveResultUnknown;
 
   return error;
 }
 
 // Requests are never automatically retried.
-// An interrupted update may already have reached the backend.
+// An interrupted update may already have
+// reached the backend.
 async function request(
   path,
   {
@@ -175,20 +214,25 @@ async function request(
 ) {
   requireToken(token);
 
-  const saving = method !== "GET";
+  const saving =
+    method !== "GET";
 
   const headers = {
     Accept: "application/json",
-    Authorization: `Bearer ${token.trim()}`,
+
+    Authorization:
+      `Bearer ${token.trim()}`,
   };
 
   let serializedBody;
 
   if (body !== undefined) {
-    headers["Content-Type"] = "application/json";
+    headers["Content-Type"] =
+      "application/json";
 
     try {
-      serializedBody = JSON.stringify(body);
+      serializedBody =
+        JSON.stringify(body);
     } catch {
       throw invalid(
         "The order information could not be prepared.",
@@ -200,16 +244,22 @@ async function request(
     throw cancelledError();
   }
 
-  const controller = new AbortController();
+  const controller =
+    new AbortController();
 
   let timedOut = false;
   let started = false;
 
-  const cancel = () => controller.abort();
+  const cancel = () =>
+    controller.abort();
 
-  signal?.addEventListener("abort", cancel, {
-    once: true,
-  });
+  signal?.addEventListener(
+    "abort",
+    cancel,
+    {
+      once: true,
+    },
+  );
 
   const duration =
     Number.isFinite(timeoutMs) &&
@@ -242,24 +292,34 @@ async function request(
     try {
       data = await response.json();
     } catch (failure) {
-      if (controller.signal.aborted) {
+      if (
+        controller.signal.aborted
+      ) {
         throw failure;
       }
     }
 
-    if (controller.signal.aborted) {
-      throw cancelledError(saving);
+    if (
+      controller.signal.aborted
+    ) {
+      throw cancelledError(
+        saving,
+      );
     }
 
     if (!response.ok) {
       const unknown =
-        saving && response.status >= 500;
+        saving &&
+        response.status >= 500;
 
       const message =
-        typeof data?.message === "string" &&
+        typeof data?.message ===
+          "string" &&
         data.message.trim()
           ? data.message
-          : fallbackMessage(response.status);
+          : fallbackMessage(
+              response.status,
+            );
 
       throw apiError(
         unknown
@@ -270,13 +330,16 @@ async function request(
           status: response.status,
 
           code:
-            typeof data?.code === "string" &&
+            typeof data?.code ===
+              "string" &&
             data.code
               ? data.code
               : "ADMIN_ORDER_HTTP_ERROR",
 
           data,
-          saveResultUnknown: unknown,
+
+          saveResultUnknown:
+            unknown,
         },
       );
     }
@@ -290,13 +353,15 @@ async function request(
         data.success === false;
 
       const message =
-        typeof data?.message === "string" &&
+        typeof data?.message ===
+          "string" &&
         data.message.trim()
           ? data.message
           : "The server returned an unreadable order response.";
 
       throw apiError(
-        saving && !declaredFailure
+        saving &&
+        !declaredFailure
           ? `${message} Reload the order before retrying the update.`
           : message,
 
@@ -304,7 +369,8 @@ async function request(
           status: response.status,
 
           code:
-            typeof data?.code === "string" &&
+            typeof data?.code ===
+              "string" &&
             data.code
               ? data.code
               : "INVALID_ADMIN_ORDER_RESPONSE",
@@ -312,19 +378,24 @@ async function request(
           data,
 
           saveResultUnknown:
-            saving && !declaredFailure,
+            saving &&
+            !declaredFailure,
         },
       );
     }
 
     return data;
   } catch (failure) {
-    if (failure?.isAdminOrderApiError) {
+    if (
+      failure?.isAdminOrderApiError
+    ) {
       throw failure;
     }
 
     if (signal?.aborted) {
-      throw cancelledError(saving && started);
+      throw cancelledError(
+        saving && started,
+      );
     }
 
     if (timedOut) {
@@ -334,8 +405,11 @@ async function request(
           : "The order server took too long to respond. Please try again.",
 
         {
-          code: "ADMIN_ORDER_REQUEST_TIMEOUT",
-          saveResultUnknown: saving && started,
+          code:
+            "ADMIN_ORDER_REQUEST_TIMEOUT",
+
+          saveResultUnknown:
+            saving && started,
         },
       );
     }
@@ -346,20 +420,28 @@ async function request(
         : "Unable to connect to GymDrobe. Check your connection and try again.",
 
       {
-        code: "ADMIN_ORDER_NETWORK_ERROR",
-        saveResultUnknown: saving && started,
+        code:
+          "ADMIN_ORDER_NETWORK_ERROR",
+
+        saveResultUnknown:
+          saving && started,
       },
     );
   } finally {
     clearTimeout(timer);
-    signal?.removeEventListener("abort", cancel);
+
+    signal?.removeEventListener(
+      "abort",
+      cancel,
+    );
   }
 }
 
 function validOrder(order) {
   if (
     !object(order) ||
-    typeof order.status !== "string" ||
+    typeof order.status !==
+      "string" ||
     !order.status.trim()
   ) {
     return false;
@@ -371,7 +453,9 @@ function validOrder(order) {
     order._id;
 
   return (
-    ["string", "number"].includes(typeof id) &&
+    ["string", "number"].includes(
+      typeof id,
+    ) &&
     String(id).trim() !== "" &&
     (
       typeof id !== "number" ||
@@ -380,17 +464,26 @@ function validOrder(order) {
   );
 }
 
-function orderFrom(data, saving = false) {
-  if (!validOrder(data.order)) {
+function orderFrom(
+  data,
+  saving = false,
+) {
+  if (
+    !validOrder(data.order)
+  ) {
     throw apiError(
       saving
         ? "The saved order details were not returned. Reload the order before retrying."
         : "Order details could not be read. Please reload.",
 
       {
-        code: "INVALID_ADMIN_ORDER_RESPONSE",
+        code:
+          "INVALID_ADMIN_ORDER_RESPONSE",
+
         data,
-        saveResultUnknown: saving,
+
+        saveResultUnknown:
+          saving,
       },
     );
   }
@@ -408,7 +501,9 @@ export async function updateAdminKitFulfillment(
 
   if (
     !object(changes) ||
-    !Number.isSafeInteger(changes.revision) ||
+    !Number.isSafeInteger(
+      changes.revision,
+    ) ||
     changes.revision < 0 ||
     ![
       "initialize",
@@ -423,7 +518,9 @@ export async function updateAdminKitFulfillment(
   }
 
   const data = await request(
-    `/orders/admin/orders/${identifier(orderId)}/kit-fulfillment`,
+    `/orders/admin/orders/${
+      identifier(orderId)
+    }/kit-fulfillment`,
 
     {
       ...options,
@@ -433,21 +530,33 @@ export async function updateAdminKitFulfillment(
     },
   );
 
-  const order = orderFrom(data, true);
-  const progress = order.kitFulfillmentAdmin;
+  const order =
+    orderFrom(data, true);
+
+  const progress =
+    order.kitFulfillmentAdmin;
 
   if (
     !progress ||
-    !Number.isSafeInteger(progress.revision) ||
-    progress.revision <= changes.revision ||
-    !Array.isArray(progress.components) ||
-    !Array.isArray(progress.parcels)
+    !Number.isSafeInteger(
+      progress.revision,
+    ) ||
+    progress.revision <=
+      changes.revision ||
+    !Array.isArray(
+      progress.components,
+    ) ||
+    !Array.isArray(
+      progress.parcels,
+    )
   ) {
     throw apiError(
       "Saved kit progress could not be verified. Reload the order before another update.",
 
       {
-        code: "INVALID_KIT_FULFILLMENT_RESPONSE",
+        code:
+          "INVALID_KIT_FULFILLMENT_RESPONSE",
+
         saveResultUnknown: true,
       },
     );
@@ -460,14 +569,17 @@ function ordersFrom(data) {
   if (
     !Array.isArray(data.orders) ||
     data.orders.some(
-      (order) => !validOrder(order),
+      (order) =>
+        !validOrder(order),
     )
   ) {
     throw apiError(
       "The order list could not be read. Please retry.",
 
       {
-        code: "INVALID_ADMIN_ORDER_RESPONSE",
+        code:
+          "INVALID_ADMIN_ORDER_RESPONSE",
+
         data,
       },
     );
@@ -482,18 +594,24 @@ function positiveInteger(
   maximum,
 ) {
   if (
-    !["string", "number"].includes(typeof value) ||
+    !["string", "number"].includes(
+      typeof value,
+    ) ||
     !String(value).trim()
   ) {
     return fallback;
   }
 
-  const parsed = Number(value);
+  const parsed =
+    Number(value);
 
   return Number.isFinite(parsed)
     ? Math.min(
         maximum,
-        Math.max(1, Math.floor(parsed)),
+        Math.max(
+          1,
+          Math.floor(parsed),
+        ),
       )
     : fallback;
 }
@@ -507,10 +625,13 @@ function responseInteger(
     return fallback;
   }
 
-  const parsed = Number(value);
+  const parsed =
+    Number(value);
 
   if (
-    !["string", "number"].includes(typeof value) ||
+    !["string", "number"].includes(
+      typeof value,
+    ) ||
     !String(value).trim() ||
     !Number.isSafeInteger(parsed) ||
     parsed < minimum
@@ -519,7 +640,8 @@ function responseInteger(
       "The server returned invalid order pagination. Please retry.",
 
       {
-        code: "INVALID_ADMIN_ORDER_RESPONSE",
+        code:
+          "INVALID_ADMIN_ORDER_RESPONSE",
       },
     );
   }
@@ -528,7 +650,11 @@ function responseInteger(
 }
 
 function validDate(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(
+      value,
+    )
+  ) {
     return false;
   }
 
@@ -537,8 +663,12 @@ function validDate(value) {
   );
 
   return (
-    !Number.isNaN(parsed.getTime()) &&
-    parsed.toISOString().slice(0, 10) === value
+    !Number.isNaN(
+      parsed.getTime(),
+    ) &&
+    parsed
+      .toISOString()
+      .slice(0, 10) === value
   );
 }
 
@@ -564,39 +694,64 @@ export async function getAdminOrders(
   if (
     filter &&
     filter !== "all" &&
-    !ORDER_STATUSES.includes(filter)
+    !ORDER_STATUSES.includes(
+      filter,
+    )
   ) {
     throw invalid(
       "Choose a valid order status filter.",
     );
   }
 
-  const query = new URLSearchParams();
+  const query =
+    new URLSearchParams();
 
-  if (filter && filter !== "all") {
-    query.set("status", filter);
+  if (
+    filter &&
+    filter !== "all"
+  ) {
+    query.set(
+      "status",
+      filter,
+    );
   }
 
-  const term = text(search, "Search", 150);
+  const term = text(
+    search,
+    "Search",
+    150,
+  );
 
   if (term) {
-    query.set("search", term);
+    query.set(
+      "search",
+      term,
+    );
   }
 
-  const safePage = positiveInteger(
-    page,
-    1,
-    1000000,
+  const safePage =
+    positiveInteger(
+      page,
+      1,
+      1000000,
+    );
+
+  const safeLimit =
+    positiveInteger(
+      limit,
+      25,
+      100,
+    );
+
+  query.set(
+    "page",
+    String(safePage),
   );
 
-  const safeLimit = positiveInteger(
-    limit,
-    25,
-    100,
+  query.set(
+    "limit",
+    String(safeLimit),
   );
-
-  query.set("page", String(safePage));
-  query.set("limit", String(safeLimit));
 
   const data = await request(
     `/orders/admin/orders?${query}`,
@@ -608,7 +763,8 @@ export async function getAdminOrders(
     },
   );
 
-  const orders = ordersFrom(data);
+  const orders =
+    ordersFrom(data);
 
   if (
     data.total == null ||
@@ -618,7 +774,9 @@ export async function getAdminOrders(
       "Order totals were not returned. Check the backend response.",
 
       {
-        code: "INVALID_ADMIN_ORDER_RESPONSE",
+        code:
+          "INVALID_ADMIN_ORDER_RESPONSE",
+
         data,
       },
     );
@@ -632,7 +790,10 @@ export async function getAdminOrders(
       orders.length,
     ),
 
-    total: responseInteger(data.total, 0),
+    total: responseInteger(
+      data.total,
+      0,
+    ),
 
     page: responseInteger(
       data.page,
@@ -660,7 +821,9 @@ export async function getAdminOrderById(
   options = {},
 ) {
   const data = await request(
-    `/orders/admin/orders/${identifier(orderId)}`,
+    `/orders/admin/orders/${
+      identifier(orderId)
+    }`,
 
     {
       ...options,
@@ -679,7 +842,9 @@ export async function updateAdminOrderStatus(
   options = {},
 ) {
   if (!object(changes)) {
-    throw invalid("Order changes are required.");
+    throw invalid(
+      "Order changes are required.",
+    );
   }
 
   const status = text(
@@ -689,15 +854,84 @@ export async function updateAdminOrderStatus(
     1,
   ).toLowerCase();
 
-  if (!FULFILMENT_STATUSES.includes(status)) {
+  if (
+    !FULFILMENT_STATUSES.includes(
+      status,
+    )
+  ) {
     throw invalid(
       "Choose a valid fulfilment status.",
     );
   }
 
-  const body = { status };
+  const body = {
+    status,
+  };
 
-  if (changes.carrier !== undefined) {
+  if (
+    changes.packingConfirmed !==
+    undefined
+  ) {
+    if (
+      typeof changes.packingConfirmed !==
+      "boolean"
+    ) {
+      throw invalid(
+        "Confirm packing using the checkbox.",
+      );
+    }
+
+    body.packingConfirmed =
+      changes.packingConfirmed;
+  }
+
+  if (
+    changes.courierUrl !==
+    undefined
+  ) {
+    body.courierUrl =
+      normalizeCourierUrl(
+        changes.courierUrl,
+      );
+  }
+
+  if (
+    changes.trackingNotice !==
+    undefined
+  ) {
+    if (
+      ![
+        "none",
+        "delayed",
+        "delivery-attempt-failed",
+      ].includes(
+        changes.trackingNotice,
+      )
+    ) {
+      throw invalid(
+        "Choose a supported delivery notice.",
+      );
+    }
+
+    body.trackingNotice =
+      changes.trackingNotice;
+
+    body.trackingMessage = text(
+      changes.trackingMessage ||
+        "",
+      "Customer delivery update",
+      500,
+      changes.trackingNotice ===
+        "none"
+        ? 0
+        : 1,
+    );
+  }
+
+  if (
+    changes.carrier !==
+    undefined
+  ) {
     body.carrier = text(
       changes.carrier ?? "",
       "Courier name",
@@ -705,31 +939,46 @@ export async function updateAdminOrderStatus(
     );
   }
 
-  if (changes.trackingNumber !== undefined) {
+  if (
+    changes.trackingNumber !==
+    undefined
+  ) {
     body.trackingNumber = text(
-      changes.trackingNumber ?? "",
+      changes.trackingNumber ??
+        "",
       "Tracking number",
       150,
     );
   }
 
-  if (changes.estimatedDelivery !== undefined) {
+  if (
+    changes.estimatedDelivery !==
+    undefined
+  ) {
     const value = text(
-      changes.estimatedDelivery ?? "",
+      changes.estimatedDelivery ??
+        "",
       "Estimated delivery",
       10,
     );
 
-    if (value && !validDate(value)) {
+    if (
+      value &&
+      !validDate(value)
+    ) {
       throw invalid(
         "Enter a valid estimated delivery date in YYYY-MM-DD format.",
       );
     }
 
-    body.estimatedDelivery = value;
+    body.estimatedDelivery =
+      value;
   }
 
-  if (changes.codBalanceCollected !== undefined) {
+  if (
+    changes.codBalanceCollected !==
+    undefined
+  ) {
     if (
       typeof changes.codBalanceCollected !==
       "boolean"
@@ -753,7 +1002,9 @@ export async function updateAdminOrderStatus(
   }
 
   const data = await request(
-    `/orders/admin/orders/${identifier(orderId)}/status`,
+    `/orders/admin/orders/${
+      identifier(orderId)
+    }/status`,
 
     {
       ...options,
@@ -780,7 +1031,9 @@ export async function getAdminReturnRequests(
   if (
     filter &&
     filter !== "all" &&
-    !RETURN_STATUSES.includes(filter)
+    !RETURN_STATUSES.includes(
+      filter,
+    )
   ) {
     throw invalid(
       "Choose a valid return status filter.",
@@ -788,8 +1041,13 @@ export async function getAdminReturnRequests(
   }
 
   const query =
-    filter && filter !== "all"
-      ? `?status=${encodeURIComponent(filter)}`
+    filter &&
+    filter !== "all"
+      ? `?status=${
+          encodeURIComponent(
+            filter,
+          )
+        }`
       : "";
 
   const data = await request(
@@ -812,7 +1070,9 @@ export async function reviewReturnRequest(
   options = {},
 ) {
   if (!object(changes)) {
-    throw invalid("A return decision is required.");
+    throw invalid(
+      "A return decision is required.",
+    );
   }
 
   const decision = text(
@@ -822,8 +1082,15 @@ export async function reviewReturnRequest(
     1,
   ).toLowerCase();
 
-  if (!["approve", "reject"].includes(decision)) {
-    throw invalid("Choose approve or reject.");
+  if (
+    ![
+      "approve",
+      "reject",
+    ].includes(decision)
+  ) {
+    throw invalid(
+      "Choose approve or reject.",
+    );
   }
 
   const response = text(
@@ -833,7 +1100,9 @@ export async function reviewReturnRequest(
   );
 
   const data = await request(
-    `/orders/admin/returns/${identifier(orderId)}/review`,
+    `/orders/admin/returns/${
+      identifier(orderId)
+    }/review`,
 
     {
       ...options,
@@ -869,21 +1138,28 @@ export async function completeReturnRequest(
   );
 
   const data = await request(
-    `/orders/admin/returns/${identifier(orderId)}/complete`,
+    `/orders/admin/returns/${
+      identifier(orderId)
+    }/complete`,
 
     {
       ...options,
       token,
       method: "PUT",
-      body: { response },
+
+      body: {
+        response,
+      },
     },
   );
 
   return orderFrom(data, true);
 }
 
-// Records a refund already sent through an approved
-// payment process. This function does not transfer money.
+// Records a refund already sent through an
+// approved payment process.
+//
+// This function does not transfer money.
 export async function recordReturnRefund(
   token,
   orderId,
@@ -891,7 +1167,9 @@ export async function recordReturnRefund(
   options = {},
 ) {
   if (!object(changes)) {
-    throw invalid("Refund information is required.");
+    throw invalid(
+      "Refund information is required.",
+    );
   }
 
   const reference = text(
@@ -902,13 +1180,18 @@ export async function recordReturnRefund(
   );
 
   const data = await request(
-    `/orders/admin/returns/${identifier(orderId)}/refund`,
+    `/orders/admin/returns/${
+      identifier(orderId)
+    }/refund`,
 
     {
       ...options,
       token,
       method: "PUT",
-      body: { reference },
+
+      body: {
+        reference,
+      },
     },
   );
 

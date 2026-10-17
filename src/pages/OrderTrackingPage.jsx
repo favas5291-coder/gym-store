@@ -7,15 +7,15 @@ import useCustomerOrder from "../hooks/useCustomerOrder.js";
 
 import EmptyState from "../components/EmptyState.jsx";
 
+import KitFulfillmentTracking from "../components/KitFulfillmentTracking.jsx";
+
 import OrderPaymentDetails, {
   formatOrderDate,
   formatOrderStatus,
 } from "../components/OrderPaymentDetails.jsx";
 
 import {
-  TRACKING_STAGES,
-  TRACKING_MESSAGES,
-  trackingSummary,
+  trackingEvents,
   trackingText,
 } from "../utils/orderTracking.js";
 
@@ -110,32 +110,13 @@ export default function OrderTrackingPage() {
       order.id || order._id || orderId,
     )}`;
 
-  const {
-    status,
-    events,
-    deliveredAt,
-    currentIndex,
-    cancelled,
-    pending,
-    estimate,
-  } = trackingSummary(order);
+  const events = trackingEvents(order);
 
-  const paymentReceived =
-    ["paid", "partially-paid"].includes(
-      order.payment?.status,
-    ) ||
-    Number(order.payment?.amountPaid) > 0 ||
-    Boolean(order.payment?.verifiedAt);
+  const cancelled =
+    order.status === "cancelled" ||
+    order.cancellation?.status === "cancelled";
 
   const address = order.shippingAddress;
-
-  const carrier = trackingText(
-    order.tracking?.carrier,
-  );
-
-  const trackingNumber = trackingText(
-    order.tracking?.trackingNumber,
-  );
 
   const request = order.returnRequest || {};
 
@@ -159,14 +140,6 @@ export default function OrderTrackingPage() {
         <div>
           <h1>Track your order</h1>
           <p className="order-id">{displayId}</p>
-
-          <span
-            className={`status-pill ${
-              cancelled ? "cancelled" : ""
-            }`}
-          >
-            {formatOrderStatus(status)}
-          </span>
         </div>
 
         <button
@@ -183,7 +156,7 @@ export default function OrderTrackingPage() {
 
       <p className="notice">
         {isAccountOrder
-          ? "These details come from your GymDrobe account order."
+          ? "These details come from your GymDrobe account order. Tracking refreshes while this page is open."
           : "Local preview only. These details are stored on this device and are not live tracking or proof of a real order."}
 
         {lastUpdated && (
@@ -194,13 +167,6 @@ export default function OrderTrackingPage() {
           </>
         )}
       </p>
-
-      {order.metadata?.demo === true && (
-        <p className="notice">
-          Test order. The recorded payment used
-          Razorpay test mode.
-        </p>
-      )}
 
       {refreshError && (
         <p
@@ -213,176 +179,38 @@ export default function OrderTrackingPage() {
         </p>
       )}
 
-      {cancelled ? (
-        <section className="panel">
-          <h2>ORDER CANCELLED</h2>
+      <KitFulfillmentTracking order={order} />
 
-          <p>
-            This order is recorded as cancelled.
-            Check payment details below for its
-            refund status.
-          </p>
-
-          {trackingText(
-            order.cancellation?.reason,
-          ) && (
-            <p>{order.cancellation.reason}</p>
-          )}
-
-          <p>
-            Any previous shipment information below
-            is historical. Contact support if a
-            parcel still arrives.
-          </p>
-        </section>
-      ) : pending ? (
-        <section className="panel">
-          <h2>ORDER CONFIRMATION PENDING</h2>
-
-          <p>
-            {paymentReceived
-              ? "Payment has been recorded, but order confirmation is pending. Do not pay again."
-              : "Payment confirmation has not been recorded. If money was deducted, do not pay again; contact support with your order number."}
-          </p>
-
+      {order.status === "payment-pending" && (
+        <p>
           <Link
             className="text-link"
             to={detailsPath}
           >
             Check payment and available actions →
           </Link>
-        </section>
-      ) : currentIndex >= 0 ? (
-        <>
-          <ol
-            className="tracking-steps"
-            aria-label="Delivery progress"
-          >
-            {TRACKING_STAGES.map(
-              (stage, index) => (
-                <li
-                  key={stage}
-                  className={
-                    index <= currentIndex
-                      ? "done"
-                      : ""
-                  }
-                  aria-current={
-                    stage === status
-                      ? "step"
-                      : undefined
-                  }
-                >
-                  <span aria-hidden="true">
-                    {index < currentIndex
-                      ? "✓"
-                      : index + 1}
-                  </span>
-
-                  <strong>
-                    {formatOrderStatus(stage)}
-                  </strong>
-                </li>
-              ),
-            )}
-          </ol>
-
-          <section className="panel">
-            <h2>ORDER STATUS</h2>
-
-            <p>{TRACKING_MESSAGES[status]}</p>
-
-            {status === "delivered" && (
-              <p className="muted">
-                {deliveredAt
-                  ? `Recorded delivery: ${formatOrderDate(
-                      deliveredAt,
-                    )}.`
-                  : "The delivery date has not been recorded. Contact support to confirm it."}
-              </p>
-            )}
-          </section>
-        </>
-      ) : (
-        <p className="notice">
-          Delivery progress is not available for
-          this order status. Contact support for
-          an update.
         </p>
       )}
+
+      {cancelled &&
+        trackingText(order.cancellation?.reason) && (
+          <section className="panel">
+            <h2>CANCELLATION DETAILS</h2>
+
+            <p>{order.cancellation.reason}</p>
+
+            <p>
+              Previous shipment information is historical.
+              Contact support if a parcel still arrives.
+              Check payment details for refund progress.
+            </p>
+          </section>
+        )}
 
       <OrderPaymentDetails order={order} />
 
       <section className="panel">
-        <h2>
-          {cancelled
-            ? "PREVIOUS SHIPMENT INFORMATION"
-            : "SHIPMENT INFORMATION"}
-        </h2>
-
-        {pending ? (
-          <p>
-            Shipment information will appear after
-            order confirmation.
-          </p>
-        ) : (
-          <>
-            <p>
-              {carrier ? (
-                <>
-                  <strong>Carrier:</strong>{" "}
-                  {carrier}
-                </>
-              ) : cancelled ? (
-                "No carrier was recorded."
-              ) : (
-                "A carrier has not been recorded yet."
-              )}
-            </p>
-
-            {trackingNumber && (
-              <p
-                style={{
-                  overflowWrap: "anywhere",
-                }}
-              >
-                <strong>Tracking number:</strong>{" "}
-                {trackingNumber}
-              </p>
-            )}
-          </>
-        )}
-
-        {estimate && (
-          <>
-            <p>
-              <strong>Estimated delivery:</strong>{" "}
-              {estimate.label}
-            </p>
-
-            <p
-              className={
-                estimate.overdue
-                  ? "notice"
-                  : "muted"
-              }
-            >
-              {estimate.overdue
-                ? "The recorded estimated date has passed. Delivery is not yet recorded as completed. Contact support for an updated estimate."
-                : "This is an estimate, not a guaranteed delivery date."}
-            </p>
-          </>
-        )}
-
-        {!cancelled &&
-          !pending &&
-          status !== "delivered" &&
-          !estimate && (
-            <p className="muted">
-              A valid delivery estimate has not
-              been recorded yet.
-            </p>
-          )}
+        <h2>DELIVERY INFORMATION</h2>
 
         {trackingText(order.delivery?.label) && (
           <p>
@@ -392,9 +220,11 @@ export default function OrderTrackingPage() {
         )}
 
         <p className="muted">
-          Updates reflect information recorded for
-          your order. Refreshing this page does not
-          contact the courier directly.
+          Updates reflect information recorded for your
+          order. Refreshing this page checks GymDrobe’s
+          saved updates. For the courier’s latest
+          information, use Track with Courier when
+          available above.
         </p>
       </section>
 

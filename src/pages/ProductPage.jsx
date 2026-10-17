@@ -21,6 +21,7 @@ import {
 
 import RecentlyViewed from "../components/RecentlyViewed.jsx";
 import ProductOptions from "../components/ProductOptions.jsx";
+import ProductVideo from "../components/ProductVideo.jsx";
 import ProductReviews from "../components/ProductReviews.jsx";
 import ProductRow from "../components/ProductRow.jsx";
 import EmptyState from "../components/EmptyState.jsx";
@@ -524,6 +525,8 @@ function ProductDetail({
               ? "Select an image to view it larger."
               : "Product photography is currently unavailable."}
           </p>
+
+          <ProductVideo product={product} />
         </div>
 
         <div className="product-info">

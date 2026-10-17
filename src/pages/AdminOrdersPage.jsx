@@ -1,3 +1,4 @@
+import AdminKitFulfillment from "../components/AdminKitFulfillment.jsx";
 import PurchasedKitSummary from "../components/PurchasedKitSummary.jsx";
 import AdminItemSourcing from "../components/AdminItemSourcing.jsx";
 
@@ -30,38 +31,14 @@ const STATUS_FLOW = [
 ];
 
 const STATUS_OPTIONS = [
-  {
-    value: "all",
-    label: "All",
-  },
-  {
-    value: "payment-pending",
-    label: "Payment pending",
-  },
-  {
-    value: "confirmed",
-    label: "Confirmed",
-  },
-  {
-    value: "processing",
-    label: "Processing",
-  },
-  {
-    value: "shipped",
-    label: "Shipped",
-  },
-  {
-    value: "out-for-delivery",
-    label: "Out for delivery",
-  },
-  {
-    value: "delivered",
-    label: "Delivered",
-  },
-  {
-    value: "cancelled",
-    label: "Cancelled",
-  },
+  { value: "all", label: "All" },
+  { value: "payment-pending", label: "Payment pending" },
+  { value: "confirmed", label: "Confirmed" },
+  { value: "processing", label: "Processing" },
+  { value: "shipped", label: "Shipped" },
+  { value: "out-for-delivery", label: "Out for delivery" },
+  { value: "delivered", label: "Delivered" },
+  { value: "cancelled", label: "Cancelled" },
 ];
 
 function statusLabel(value) {
@@ -171,13 +148,24 @@ function createDraft(order) {
   return {
     status: order?.status || "confirmed",
     carrier: order?.tracking?.carrier || "",
-    trackingNumber: order?.tracking?.trackingNumber || "",
+    trackingNumber:
+      order?.tracking?.trackingNumber || "",
 
     estimatedDelivery: dateInputValue(
       order?.tracking?.estimatedDelivery,
     ),
 
     codBalanceCollected: false,
+    packingConfirmed: false,
+
+    courierUrl:
+      order?.tracking?.courierUrl || "",
+
+    trackingNotice:
+      order?.tracking?.exception?.type || "none",
+
+    trackingMessage:
+      order?.tracking?.exception?.message || "",
   };
 }
 
@@ -320,10 +308,7 @@ function AdminOrderCard({
     setLoadingDetails(true);
 
     try {
-      const fresh = await getAdminOrderById(
-        token,
-        id,
-      );
+      const fresh = await getAdminOrderById(token, id);
 
       if (
         !mounted.current ||
@@ -368,15 +353,17 @@ function AdminOrderCard({
 
   const current = detailedOrder || order;
 
-  const cancelled = current?.status === "cancelled";
-  const delivered = current?.status === "delivered";
+  const cancelled =
+    current?.status === "cancelled";
+
+  const delivered =
+    current?.status === "delivered";
 
   const paymentPending =
     current?.status === "payment-pending";
 
-  const currentIndex = STATUS_FLOW.indexOf(
-    current?.status,
-  );
+  const currentIndex =
+    STATUS_FLOW.indexOf(current?.status);
 
   const isPartialCod =
     current?.payment?.method === "cod-partial" ||
@@ -436,7 +423,6 @@ function AdminOrderCard({
       setError(
         "Choose the current status or the next fulfilment step.",
       );
-
       return;
     }
 
@@ -450,7 +436,17 @@ function AdminOrderCard({
       setError(
         "Enter the courier and tracking number before marking the order shipped.",
       );
+      return;
+    }
 
+    if (
+      draft.status === "shipped" &&
+      !current?.tracking?.packedAt &&
+      !draft.packingConfirmed
+    ) {
+      setError(
+        "Confirm the items are physically packed and checked before dispatch.",
+      );
       return;
     }
 
@@ -468,7 +464,6 @@ function AdminOrderCard({
       setError(
         "Reconcile the verified advance, amount paid and COD balance before marking this order delivered.",
       );
-
       return;
     }
 
@@ -482,7 +477,6 @@ function AdminOrderCard({
           amountDue,
         )} was collected from the customer before marking this order delivered.`,
       );
-
       return;
     }
 
@@ -499,6 +493,10 @@ function AdminOrderCard({
           carrier: draft.carrier,
           trackingNumber: draft.trackingNumber,
           estimatedDelivery: draft.estimatedDelivery,
+          packingConfirmed: draft.packingConfirmed,
+          courierUrl: draft.courierUrl,
+          trackingNotice: draft.trackingNotice,
+          trackingMessage: draft.trackingMessage,
 
           codBalanceCollected:
             draft.status === "delivered" &&
@@ -540,6 +538,13 @@ function AdminOrderCard({
           saveError.message ||
             "Unable to update this order. Reload its details before retrying.",
         );
+
+        if (
+          saveError.saveResultUnknown ||
+          [401, 403, 409].includes(saveError.status)
+        ) {
+          setDetailsReady(false);
+        }
       }
     } finally {
       saveLock.current = false;
@@ -580,14 +585,10 @@ function AdminOrderCard({
             }}
           >
             <strong>{id}</strong>
-
             <StatusBadge status={current?.status} />
           </div>
 
-          <p
-            className="muted"
-            style={{ margin: 0 }}
-          >
+          <p className="muted" style={{ margin: 0 }}>
             {formatDate(current?.createdAt)}
           </p>
         </div>
@@ -668,7 +669,8 @@ function AdminOrderCard({
                 Required advance{" "}
                 {advancePercentage > 0
                   ? `(${advancePercentage}%)`
-                  : ""}:{" "}
+                  : ""}
+                :{" "}
                 <strong>{money(advanceAmount)}</strong>
               </span>
 
@@ -684,8 +686,7 @@ function AdminOrderCard({
               <span className="muted">
                 Balance:{" "}
                 {statusLabel(
-                  current?.payment?.balanceStatus ||
-                    "pending",
+                  current?.payment?.balanceStatus || "pending",
                 )}
               </span>
             </div>
@@ -719,8 +720,7 @@ function AdminOrderCard({
 
           <div>
             <strong>
-              {current?.delivery?.label ||
-                "Standard delivery"}
+              {current?.delivery?.label || "Standard delivery"}
             </strong>
           </div>
 
@@ -876,9 +876,7 @@ function AdminOrderCard({
                             : ""}
                         </span>
 
-                        <strong>
-                          {money(advanceAmount)}
-                        </strong>
+                        <strong>{money(advanceAmount)}</strong>
                       </div>
 
                       <div
@@ -889,10 +887,7 @@ function AdminOrderCard({
                         }}
                       >
                         <span>Remaining COD</span>
-
-                        <strong>
-                          {money(amountDue)}
-                        </strong>
+                        <strong>{money(amountDue)}</strong>
                       </div>
 
                       <div
@@ -913,10 +908,7 @@ function AdminOrderCard({
                       </div>
 
                       {current?.payment?.advancePaidAt && (
-                        <p
-                          className="muted"
-                          style={{ margin: 0 }}
-                        >
+                        <p className="muted" style={{ margin: 0 }}>
                           Advance paid:{" "}
                           {formatDate(
                             current.payment.advancePaidAt,
@@ -925,10 +917,7 @@ function AdminOrderCard({
                       )}
 
                       {current?.payment?.balanceCollectedAt && (
-                        <p
-                          className="muted"
-                          style={{ margin: 0 }}
-                        >
+                        <p className="muted" style={{ margin: 0 }}>
                           COD balance collected:{" "}
                           {formatDate(
                             current.payment.balanceCollectedAt,
@@ -948,10 +937,7 @@ function AdminOrderCard({
                         }}
                       >
                         <span>Online amount paid</span>
-
-                        <strong>
-                          {money(amountPaid)}
-                        </strong>
+                        <strong>{money(amountPaid)}</strong>
                       </div>
 
                       <div
@@ -962,19 +948,13 @@ function AdminOrderCard({
                         }}
                       >
                         <span>Amount due</span>
-
-                        <strong>
-                          {money(amountDue)}
-                        </strong>
+                        <strong>{money(amountDue)}</strong>
                       </div>
                     </>
                   )}
 
                   {current?.payment?.razorpayPaymentId && (
-                    <p
-                      className="muted"
-                      style={{ margin: 0 }}
-                    >
+                    <p className="muted" style={{ margin: 0 }}>
                       Razorpay payment ID:{" "}
                       {current.payment.razorpayPaymentId}
                     </p>
@@ -1026,7 +1006,24 @@ function AdminOrderCard({
               <section>
                 <h3>4. Shipping and status update</h3>
 
-                {cancelled ? (
+                {current.kitSnapshots?.length ? (
+                  <AdminKitFulfillment
+                    key={`${
+                      id
+                    }:${
+                      current.kitFulfillmentAdmin?.revision ??
+                      "uninitialized"
+                    }`}
+                    order={current}
+                    token={token}
+                    onBusyChange={setSaving}
+                    onUpdated={(updated) => {
+                      setDetailedOrder(updated);
+                      setDraft(createDraft(updated));
+                      onUpdated(updated);
+                    }}
+                  />
+                ) : cancelled ? (
                   <p className="notice">
                     This order was cancelled and cannot move
                     through fulfilment.
@@ -1089,9 +1086,11 @@ function AdminOrderCard({
 
                       {!delivered &&
                         currentIndex >= 0 &&
-                        currentIndex < STATUS_FLOW.length - 1 && (
+                        currentIndex <
+                          STATUS_FLOW.length - 1 && (
                           <p className="muted">
                             Next step:{" "}
+
                             <strong>
                               {statusLabel(
                                 STATUS_FLOW[currentIndex + 1],
@@ -1162,12 +1161,139 @@ function AdminOrderCard({
                           onChange={(event) =>
                             setDraft((currentDraft) => ({
                               ...currentDraft,
-                              estimatedDelivery: event.target.value,
+                              estimatedDelivery:
+                                event.target.value,
                             }))
                           }
                         />
                       </div>
                     </div>
+
+                    <div className="field">
+                      <label htmlFor={`courier-link-${id}`}>
+                        Courier tracking link (optional)
+                      </label>
+
+                      <input
+                        id={`courier-link-${id}`}
+                        type="url"
+                        maxLength={2000}
+                        placeholder="https://courier-website.com/track/..."
+                        value={draft.courierUrl}
+                        disabled={saving}
+                        onChange={(event) =>
+                          setDraft((value) => ({
+                            ...value,
+                            courierUrl: event.target.value,
+                          }))
+                        }
+                      />
+
+                      <p className="muted">
+                        Paste the courier’s actual HTTPS tracking
+                        page. Customers can open it in a new tab.
+                      </p>
+                    </div>
+
+                    {current?.tracking?.packedAt ? (
+                      <p className="notice">
+                        Packed & ready was confirmed on{" "}
+                        {formatDate(
+                          current.tracking.packedAt,
+                        )}
+                        .
+                      </p>
+                    ) : (
+                      ["processing", "shipped"].includes(
+                        draft.status,
+                      ) &&
+                      currentIndex <= 1
+                    ) ? (
+                      <label className="check">
+                        <input
+                          type="checkbox"
+                          checked={draft.packingConfirmed}
+                          disabled={saving}
+                          onChange={(event) =>
+                            setDraft((value) => ({
+                              ...value,
+                              packingConfirmed:
+                                event.target.checked,
+                            }))
+                          }
+                        />
+
+                        I confirm the items are physically packed,
+                        checked and ready for pickup. Save to record
+                        “Packed & Ready”.
+                      </label>
+                    ) : (
+                      <p className="muted">
+                        Packing is confirmed separately from
+                        Processing. Older shipment records keep
+                        their original history.
+                      </p>
+                    )}
+
+                    <div className="field">
+                      <label htmlFor={`delivery-notice-${id}`}>
+                        Customer delivery notice
+                      </label>
+
+                      <select
+                        id={`delivery-notice-${id}`}
+                        value={draft.trackingNotice}
+                        disabled={saving || delivered}
+                        onChange={(event) =>
+                          setDraft((value) => ({
+                            ...value,
+                            trackingNotice:
+                              event.target.value,
+
+                            trackingMessage:
+                              event.target.value === "none"
+                                ? ""
+                                : value.trackingMessage,
+                          }))
+                        }
+                      >
+                        <option value="none">
+                          No active delivery issue / resolved
+                        </option>
+
+                        <option value="delayed">
+                          Delivery delayed
+                        </option>
+
+                        <option value="delivery-attempt-failed">
+                          Delivery attempt unsuccessful
+                        </option>
+                      </select>
+                    </div>
+
+                    {draft.trackingNotice !== "none" && (
+                      <div className="field">
+                        <label htmlFor={`delivery-message-${id}`}>
+                          Update visible to the customer
+                        </label>
+
+                        <input
+                          id={`delivery-message-${id}`}
+                          required
+                          maxLength={500}
+                          value={draft.trackingMessage}
+                          disabled={saving || delivered}
+                          placeholder="Explain the actual courier update and what happens next."
+                          onChange={(event) =>
+                            setDraft((value) => ({
+                              ...value,
+                              trackingMessage:
+                                event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                    )}
 
                     {deliveryNeedsCodConfirmation && (
                       <div
@@ -1230,7 +1356,6 @@ function AdminOrderCard({
                     {delivered && (
                       <div className="notice">
                         <strong>Delivered</strong>
-
                         <br />
 
                         Delivered on{" "}
@@ -1265,7 +1390,9 @@ function AdminOrderCard({
                         {saving
                           ? "Saving…"
                           : deliveryNeedsCodConfirmation
-                            ? `Record ${money(amountDue)} collected & mark delivered`
+                            ? `Record ${money(
+                                amountDue,
+                              )} collected & mark delivered`
                             : delivered
                               ? "Update tracking"
                               : "Update order"}
@@ -1289,7 +1416,11 @@ function AdminOrderCard({
                       .reverse()
                       .map((event, index) => (
                         <div
-                          key={`${event.status}-${event.timestamp}-${index}`}
+                          key={`${
+                            event.status
+                          }-${
+                            event.timestamp
+                          }-${index}`}
                           style={{
                             borderLeft: "3px solid #18181b",
                             paddingLeft: "14px",
@@ -1324,7 +1455,9 @@ function AdminOrderCard({
                     <p>
                       Status:{" "}
                       <strong>
-                        {statusLabel(current.refund.status)}
+                        {statusLabel(
+                          current.refund.status,
+                        )}
                       </strong>
                     </p>
 
@@ -1344,7 +1477,9 @@ function AdminOrderCard({
                     {current.refund.refundedAt && (
                       <p>
                         Recorded:{" "}
-                        {formatDate(current.refund.refundedAt)}
+                        {formatDate(
+                          current.refund.refundedAt,
+                        )}
                       </p>
                     )}
 
@@ -1398,9 +1533,11 @@ function AdminOrdersWorkspace({ user, token }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
   const [status, setStatus] = useState("all");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -1440,8 +1577,13 @@ function AdminOrdersWorkspace({ user, token }) {
             : [],
         );
 
-        setTotal(Number(result.total || 0));
-        setPages(Math.max(1, Number(result.pages || 1)));
+        setTotal(
+          Number(result.total || 0),
+        );
+
+        setPages(
+          Math.max(1, Number(result.pages || 1)),
+        );
 
         const lastPage = Math.max(
           1,
@@ -1450,7 +1592,10 @@ function AdminOrdersWorkspace({ user, token }) {
 
         const nextPage = Math.min(
           lastPage,
-          Math.max(1, Number(result.page || page)),
+          Math.max(
+            1,
+            Number(result.page || page),
+          ),
         );
 
         if (nextPage !== page) {
@@ -1518,7 +1663,6 @@ function AdminOrdersWorkspace({ user, token }) {
 
   function submitSearch(event) {
     event.preventDefault();
-
     setPage(1);
     setSearch(searchInput.trim());
   }
@@ -1551,7 +1695,10 @@ function AdminOrdersWorkspace({ user, token }) {
         Math.max(0, current - 1),
       );
 
-      const remaining = Math.max(0, total - 1);
+      const remaining = Math.max(
+        0,
+        total - 1,
+      );
 
       const lastPage = Math.max(
         1,
@@ -1563,12 +1710,16 @@ function AdminOrdersWorkspace({ user, token }) {
       if (page > lastPage) {
         setPage(lastPage);
       } else {
-        setRevision((current) => current + 1);
+        setRevision(
+          (current) => current + 1,
+        );
       }
     } else {
       setOrders((current) =>
         current.map((item) =>
-          orderIdOf(item) === id ? updated : item,
+          orderIdOf(item) === id
+            ? updated
+            : item,
         ),
       );
     }
@@ -1728,7 +1879,9 @@ function AdminOrdersWorkspace({ user, token }) {
             className="button secondary"
             disabled={loading}
             onClick={() =>
-              setRevision((current) => current + 1)
+              setRevision(
+                (current) => current + 1,
+              )
             }
           >
             Refresh orders
@@ -1743,7 +1896,9 @@ function AdminOrdersWorkspace({ user, token }) {
                   ? "button"
                   : "button secondary"
               }
-              aria-pressed={status === item.value}
+              aria-pressed={
+                status === item.value
+              }
               onClick={() =>
                 changeStatus(item.value)
               }
@@ -1768,7 +1923,9 @@ function AdminOrdersWorkspace({ user, token }) {
             className="button secondary"
             disabled={loading}
             onClick={() =>
-              setRevision((current) => current + 1)
+              setRevision(
+                (current) => current + 1,
+              )
             }
           >
             Retry loading orders
@@ -1828,7 +1985,9 @@ function AdminOrdersWorkspace({ user, token }) {
           <button
             type="button"
             className="button secondary"
-            disabled={page <= 1 || loading}
+            disabled={
+              page <= 1 || loading
+            }
             onClick={() =>
               setPage((current) =>
                 Math.max(1, current - 1),
@@ -1845,10 +2004,15 @@ function AdminOrdersWorkspace({ user, token }) {
           <button
             type="button"
             className="button secondary"
-            disabled={page >= pages || loading}
+            disabled={
+              page >= pages || loading
+            }
             onClick={() =>
               setPage((current) =>
-                Math.min(pages, current + 1),
+                Math.min(
+                  pages,
+                  current + 1,
+                ),
               )
             }
           >
@@ -1918,7 +2082,11 @@ export default function AdminOrdersPage() {
 
   return (
     <AdminOrdersWorkspace
-      key={`${user.id || user._id || "admin"}:${token}`}
+      key={`${
+        user.id ||
+        user._id ||
+        "admin"
+      }:${token}`}
       user={user}
       token={token}
     />

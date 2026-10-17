@@ -1,6 +1,10 @@
 import { useId } from "react";
 
 import {
+  ProductVideoField,
+} from "./ProductVideo.jsx";
+
+import {
   ProductImage,
 } from "./StorefrontShared.jsx";
 
@@ -28,7 +32,15 @@ export default function ProductColorImagesEditor({
 
   return (
     <div className="gd-color-editor">
-      <h4>Photos for each colour or option</h4>
+      <ProductVideoField
+        draft={draft}
+        setDraft={setDraft}
+        disabled={disabled}
+      />
+
+      <h4>
+        Photos for each colour or option
+      </h4>
 
       <p className="ap-help">
         First enter available colours in Options and stock.
