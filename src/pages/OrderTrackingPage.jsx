@@ -6,7 +6,7 @@ import {
 import useCustomerOrder from "../hooks/useCustomerOrder.js";
 
 import EmptyState from "../components/EmptyState.jsx";
-
+import GuestOrderAccess from "../components/GuestOrderAccess.jsx";
 import KitFulfillmentTracking from "../components/KitFulfillmentTracking.jsx";
 
 import OrderPaymentDetails, {
@@ -19,6 +19,14 @@ import {
   trackingText,
 } from "../utils/orderTracking.js";
 
+import "../utils/CheckoutPage.css";
+
+function activityStatus(status) {
+  return status === "packed"
+    ? "Packed & Ready"
+    : formatOrderStatus(status);
+}
+
 export default function OrderTrackingPage() {
   const { orderId } = useParams();
 
@@ -29,7 +37,8 @@ export default function OrderTrackingPage() {
     error,
     refreshError,
     lastUpdated,
-    isAccountOrder,
+    isAccountOrder: isRemoteOrder,
+    isGuestOrder,
     refresh,
   } = useCustomerOrder(orderId, {
     autoRefresh: true,
@@ -60,6 +69,8 @@ export default function OrderTrackingPage() {
           {error}
         </EmptyState>
 
+        <GuestOrderAccess />
+
         <div className="purchase-actions">
           <button
             className="button secondary"
@@ -72,9 +83,9 @@ export default function OrderTrackingPage() {
 
           <Link
             className="button secondary"
-            to="/login"
+            to="/orders"
           >
-            Sign in
+            Orders & guest access
           </Link>
 
           <Link
@@ -96,8 +107,12 @@ export default function OrderTrackingPage() {
           to="/orders"
           label="My orders"
         >
-          Check your order history for available orders.
+          Check your order history or restore the
+          private access code saved after guest
+          checkout.
         </EmptyState>
+
+        <GuestOrderAccess />
       </div>
     );
   }
@@ -139,7 +154,10 @@ export default function OrderTrackingPage() {
       <div className="page-heading">
         <div>
           <h1>Track your order</h1>
-          <p className="order-id">{displayId}</p>
+
+          <p className="order-id">
+            {displayId}
+          </p>
         </div>
 
         <button
@@ -155,8 +173,10 @@ export default function OrderTrackingPage() {
       </div>
 
       <p className="notice">
-        {isAccountOrder
-          ? "These details come from your GymDrobe account order. Tracking refreshes while this page is open."
+        {isRemoteOrder
+          ? isGuestOrder
+            ? "This guest order is loaded securely from GymDrobe. Tracking refreshes while this page is open. Keep your private access code to return on another device."
+            : "These details come from your GymDrobe order. Tracking refreshes while this page is open."
           : "Local preview only. These details are stored on this device and are not live tracking or proof of a real order."}
 
         {lastUpdated && (
@@ -167,6 +187,18 @@ export default function OrderTrackingPage() {
           </>
         )}
       </p>
+
+      {isRemoteOrder && isGuestOrder ? (
+        <details className="gd-guest-access">
+          <summary>
+            Private guest order access
+          </summary>
+
+          <GuestOrderAccess backup />
+        </details>
+      ) : !isRemoteOrder ? (
+        <GuestOrderAccess />
+      ) : null}
 
       {refreshError && (
         <p
@@ -197,12 +229,15 @@ export default function OrderTrackingPage() {
           <section className="panel">
             <h2>CANCELLATION DETAILS</h2>
 
-            <p>{order.cancellation.reason}</p>
+            <p>
+              {order.cancellation.reason}
+            </p>
 
             <p>
-              Previous shipment information is historical.
-              Contact support if a parcel still arrives.
-              Check payment details for refund progress.
+              Previous shipment information is
+              historical. Contact support if a
+              parcel still arrives. Check payment
+              details for refund progress.
             </p>
           </section>
         )}
@@ -220,11 +255,11 @@ export default function OrderTrackingPage() {
         )}
 
         <p className="muted">
-          Updates reflect information recorded for your
-          order. Refreshing this page checks GymDrobe’s
-          saved updates. For the courier’s latest
-          information, use Track with Courier when
-          available above.
+          Updates reflect information recorded for
+          your order. Refreshing this page checks
+          GymDrobe’s saved updates. For the courier’s
+          latest information, use Track with Courier
+          when available above.
         </p>
       </section>
 
@@ -268,13 +303,13 @@ export default function OrderTrackingPage() {
             >
               <strong>
                 {event.description ||
-                  formatOrderStatus(event.status)}
+                  activityStatus(event.status)}
               </strong>
 
               {event.status &&
                 event.description && (
                   <p className="muted">
-                    {formatOrderStatus(
+                    {activityStatus(
                       event.status,
                     )}
                   </p>
@@ -303,25 +338,19 @@ export default function OrderTrackingPage() {
 
             <p>
               <strong>
-                {trackingText(
-                  address.fullName,
-                ) ||
+                {trackingText(address.fullName) ||
                   trackingText(address.name) ||
                   "Customer"}
               </strong>
 
               <br />
 
-              {trackingText(
-                address.addressLine,
-              ) ||
+              {trackingText(address.addressLine) ||
                 trackingText(address.address)}
 
               <br />
 
-              {trackingText(
-                address.landmark,
-              ) && (
+              {trackingText(address.landmark) && (
                 <>
                   {address.landmark}
                   <br />

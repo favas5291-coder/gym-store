@@ -1,11 +1,16 @@
-import PurchasedKitSummary from "../components/PurchasedKitSummary.jsx";
 import { Link, useParams } from "react-router-dom";
 
 import useCustomerOrder from "../hooks/useCustomerOrder.js";
 
-import {
-  orderTotal,
-} from "../utils/customerData.js";
+import PurchasedKitSummary from "../components/PurchasedKitSummary.jsx";
+import EmptyState from "../components/EmptyState.jsx";
+import GuestOrderAccess from "../components/GuestOrderAccess.jsx";
+
+import OrderPaymentDetails, {
+  formatOrderDate,
+  formatOrderStatus,
+  getPaymentRows,
+} from "../components/OrderPaymentDetails.jsx";
 
 import { money } from "../utils/productPricing.js";
 
@@ -14,23 +19,62 @@ import {
   downloadText,
 } from "../utils/commerce.js";
 
-import EmptyState from "../components/EmptyState.jsx";
+import "../utils/CheckoutPage.css";
 
-import OrderPaymentDetails, {
-  formatOrderDate,
-  formatOrderStatus,
-  getPaymentRows,
-} from "../components/OrderPaymentDetails.jsx";
-
-function showMoney(value) {
-  if (value == null || value === "") {
-    return "Not recorded";
+function recordedAmount(value) {
+  if (
+    !["number", "string"].includes(typeof value) ||
+    !String(value).trim()
+  ) {
+    return null;
   }
 
-  const number = Number(value);
+  const amount = Number(value);
 
-  return Number.isFinite(number)
-    ? money(number)
+  return Number.isFinite(amount) && amount >= 0
+    ? amount
+    : null;
+}
+
+function showMoney(value) {
+  const amount = recordedAmount(value);
+
+  return amount == null
+    ? "Not recorded"
+    : money(amount);
+}
+
+function lineTotal(item) {
+  const price = recordedAmount(item.price);
+  const quantity = Number(item.quantity);
+
+  if (
+    price == null ||
+    !Number.isSafeInteger(quantity) ||
+    quantity < 1
+  ) {
+    return null;
+  }
+
+  const total = price * quantity;
+
+  return Number.isFinite(total)
+    ? Math.round((total + Number.EPSILON) * 100) / 100
+    : null;
+}
+
+function receiptStatus(status) {
+  return status === "packed"
+    ? "Packed & Ready"
+    : formatOrderStatus(status);
+}
+
+function allocatedTotal(item) {
+  const amount =
+    item.priceAllocation?.linePaidPaise;
+
+  return Number.isSafeInteger(amount) && amount >= 0
+    ? amount / 100
     : "Not recorded";
 }
 
@@ -41,7 +85,10 @@ export default function ReceiptPage() {
     order,
     loading,
     error,
-    isAccountOrder,
+    refreshError,
+    lastUpdated,
+    isAccountOrder: isRemoteOrder,
+    isGuestOrder,
     refresh,
     refreshing,
   } = useCustomerOrder(orderId);
@@ -49,7 +96,10 @@ export default function ReceiptPage() {
   if (loading) {
     return (
       <div className="page narrow receipt-page">
-        <div className="empty-state" role="status">
+        <div
+          className="empty-state"
+          role="status"
+        >
           <h3>Loading receipt…</h3>
           <p>Getting your order information.</p>
         </div>
@@ -68,6 +118,8 @@ export default function ReceiptPage() {
           {error}
         </EmptyState>
 
+        <GuestOrderAccess />
+
         <button
           type="button"
           className="button secondary"
@@ -82,14 +134,18 @@ export default function ReceiptPage() {
 
   if (!order) {
     return (
-      <EmptyState
-        title="Receipt not found"
-        to="/orders"
-        label="View orders"
-      >
-        This order is not available for your current
-        account or guest session.
-      </EmptyState>
+      <div className="page narrow receipt-page">
+        <EmptyState
+          title="Receipt not found"
+          to="/orders"
+          label="View orders"
+        >
+          Check your orders or restore the private
+          access code saved after guest checkout.
+        </EmptyState>
+
+        <GuestOrderAccess />
+      </div>
     );
   }
 
@@ -99,11 +155,39 @@ export default function ReceiptPage() {
   const address = order.shippingAddress || {};
   const pricing = order.pricing || {};
 
+  const total = recordedAmount(
+    pricing.finalTotal ??
+      pricing.total ??
+      order.total,
+  );
+
+  const items = Array.isArray(order.items)
+    ? order.items.filter(
+        (item) =>
+          item &&
+          typeof item === "object" &&
+          !Array.isArray(item),
+      )
+    : [];
+
   function downloadCsv() {
     const rows = [
+      [
+        "Summary",
+        isRemoteOrder
+          ? "GymDrobe order summary"
+          : "Local preview only; not a confirmed purchase",
+      ],
+
       ["Order", displayId],
       ["Date", order.createdAt || ""],
-      ["Status", formatOrderStatus(order.status)],
+      ["Status", receiptStatus(order.status)],
+      ["Last checked", lastUpdated || "Not recorded"],
+
+      ...(order.metadata?.demo === true
+        ? [["Mode", "Razorpay test mode"]]
+        : []),
+
       [],
 
       [
@@ -117,25 +201,23 @@ export default function ReceiptPage() {
         "Allocated item total INR",
       ],
 
-      ...(order.items || []).map((item) => [
+      ...items.map((item) => [
         item.name,
         item.selectedSize || "",
         item.selectedColor || "",
         item.quantity,
-        item.price,
 
-        Number(item.quantity || 0) *
-          Number(item.price || 0),
+        recordedAmount(item.price) ??
+          "Not recorded",
+
+        lineTotal(item) ?? "Not recorded",
 
         order.kitSnapshots?.find(
-          (kit) => kit.groupId === item.kit?.groupId,
+          (kit) =>
+            kit.groupId === item.kit?.groupId,
         )?.name || "",
 
-        Number.isSafeInteger(
-          item.priceAllocation?.linePaidPaise,
-        )
-          ? item.priceAllocation.linePaidPaise / 100
-          : "Not recorded",
+        allocatedTotal(item),
       ]),
 
       [],
@@ -160,7 +242,10 @@ export default function ReceiptPage() {
         pricing.shipping ?? "Not recorded",
       ],
 
-      ["Order total INR", orderTotal(order)],
+      [
+        "Order total INR",
+        total ?? "Not recorded",
+      ],
 
       [],
 
@@ -184,7 +269,9 @@ export default function ReceiptPage() {
       `${safeName}-receipt.csv`,
 
       rows
-        .map((row) => row.map(csvCell).join(","))
+        .map((row) =>
+          row.map(csvCell).join(","),
+        )
         .join("\r\n"),
 
       "text/csv;charset=utf-8",
@@ -205,6 +292,17 @@ export default function ReceiptPage() {
           <button
             className="button secondary"
             type="button"
+            onClick={refresh}
+            disabled={refreshing}
+          >
+            {refreshing
+              ? "Refreshing…"
+              : "Refresh receipt"}
+          </button>
+
+          <button
+            className="button secondary"
+            type="button"
             onClick={downloadCsv}
           >
             Download CSV
@@ -220,10 +318,36 @@ export default function ReceiptPage() {
         </div>
       </div>
 
+      {(isGuestOrder || !isRemoteOrder) && (
+        <div className="receipt-actions">
+          <div
+            style={{
+              width: "100%",
+              minWidth: 0,
+            }}
+          >
+            {isRemoteOrder ? (
+              <details className="gd-guest-access">
+                <summary>
+                  Private guest order access
+                </summary>
+
+                <GuestOrderAccess backup />
+              </details>
+            ) : (
+              <GuestOrderAccess />
+            )}
+          </div>
+        </div>
+      )}
+
       <article className="receipt-sheet">
         <div className="page-heading">
           <div>
-            <p className="eyebrow">GYMDROBE</p>
+            <p className="eyebrow">
+              GYMDROBE
+            </p>
+
             <h1>Order receipt</h1>
           </div>
 
@@ -234,24 +358,53 @@ export default function ReceiptPage() {
                 : ""
             }`}
           >
-            {formatOrderStatus(order.status)}
+            {receiptStatus(order.status)}
           </span>
         </div>
 
-        <p className="order-id">{displayId}</p>
+        <p className="order-id">
+          {displayId}
+        </p>
 
         <p>
           {formatOrderDate(order.createdAt)}
         </p>
 
         <p className="notice">
-          {isAccountOrder
-            ? "This summary is generated from your GymDrobe account order."
-            : "This guest order summary is stored on this device."}
+          {isRemoteOrder
+            ? isGuestOrder
+              ? "This summary is generated securely from your GymDrobe guest order."
+              : "This summary is generated from your GymDrobe order."
+            : "Local preview only. This summary is stored on this device and does not confirm a real order or payment."}
           {" "}
           It is not a tax invoice or independent
           proof of payment.
         </p>
+
+        {lastUpdated && (
+          <p className="muted">
+            Last checked:{" "}
+            {formatOrderDate(lastUpdated)}.
+          </p>
+        )}
+
+        {refreshError && (
+          <p
+            className="field-error"
+            role="alert"
+          >
+            {refreshError} Showing the last
+            successfully loaded receipt. Refresh
+            to check the latest payment and
+            refund updates.
+          </p>
+        )}
+
+        {order.metadata?.demo === true && (
+          <p className="notice">
+            Test order · Razorpay test mode.
+          </p>
+        )}
 
         <h2>DELIVER TO</h2>
 
@@ -308,46 +461,41 @@ export default function ReceiptPage() {
             </thead>
 
             <tbody>
-              {(order.items || []).map(
-                (item, index) => (
-                  <tr
-                    key={`${
-                      item.id ||
-                      item.productId ||
-                      item.slug ||
-                      "item"
-                    }-${index}`}
-                  >
-                    <td>
-                      {item.name}
+              {items.map((item, index) => (
+                <tr
+                  key={`${
+                    item.id ||
+                    item.productId ||
+                    item.slug ||
+                    "item"
+                  }-${index}`}
+                >
+                  <td>
+                    {item.name}
 
-                      <small>
-                        {[
-                          item.selectedColor,
+                    <small>
+                      {[
+                        item.selectedColor,
 
-                          item.selectedSize &&
-                            `Size ${item.selectedSize}`,
-                        ]
-                          .filter(Boolean)
-                          .join(" / ")}
-                      </small>
-                    </td>
+                        item.selectedSize &&
+                          `Size ${item.selectedSize}`,
+                      ]
+                        .filter(Boolean)
+                        .join(" / ")}
+                    </small>
+                  </td>
 
-                    <td>{item.quantity}</td>
+                  <td>{item.quantity}</td>
 
-                    <td>
-                      {showMoney(item.price)}
-                    </td>
+                  <td>
+                    {showMoney(item.price)}
+                  </td>
 
-                    <td>
-                      {money(
-                        Number(item.price || 0) *
-                          Number(item.quantity || 0),
-                      )}
-                    </td>
-                  </tr>
-                ),
-              )}
+                  <td>
+                    {showMoney(lineTotal(item))}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -355,6 +503,7 @@ export default function ReceiptPage() {
         <dl className="receipt-totals">
           <div>
             <dt>Subtotal</dt>
+
             <dd>
               {showMoney(pricing.subtotal)}
             </dd>
@@ -362,13 +511,17 @@ export default function ReceiptPage() {
 
           <div>
             <dt>Kit savings</dt>
+
             <dd>
-              {showMoney(pricing.kitDiscount ?? 0)}
+              {showMoney(
+                pricing.kitDiscount ?? 0,
+              )}
             </dd>
           </div>
 
           <div>
             <dt>Coupon savings</dt>
+
             <dd>
               {showMoney(pricing.couponDiscount)}
             </dd>
@@ -376,6 +529,7 @@ export default function ReceiptPage() {
 
           <div>
             <dt>Delivery</dt>
+
             <dd>
               {showMoney(pricing.shipping)}
             </dd>
@@ -388,7 +542,7 @@ export default function ReceiptPage() {
 
             <dd>
               <strong>
-                {money(orderTotal(order))}
+                {showMoney(total)}
               </strong>
             </dd>
           </div>
@@ -400,14 +554,13 @@ export default function ReceiptPage() {
 
         <p>
           Delivery:{" "}
+
           {order.delivery?.label ||
-            (
-              order.deliveryMethod === "express"
-                ? "Express delivery"
-                : order.deliveryMethod === "standard"
-                  ? "Standard delivery"
-                  : "Not recorded"
-            )}
+            (order.deliveryMethod === "express"
+              ? "Express delivery"
+              : order.deliveryMethod === "standard"
+                ? "Standard delivery"
+                : "Not recorded")}
         </p>
 
         {order.giftMessage && (

@@ -21,13 +21,9 @@ import {
   getOrder as getLocalOrder,
 } from "../utils/customerData.js";
 
-import {
-  optionLabels,
-} from "../utils/productInformation.js";
-
-import {
-  money,
-} from "../utils/productPricing.js";
+import { optionLabels } from "../utils/productInformation.js";
+import { money } from "../utils/productPricing.js";
+import { guestAccess } from "../utils/guestCheckout.js";
 
 import {
   orderOwnedBy,
@@ -51,6 +47,9 @@ import {
 } from "../services/orderApi.js";
 
 import EmptyState from "../components/EmptyState.jsx";
+import GuestOrderAccess from "../components/GuestOrderAccess.jsx";
+
+import "../utils/CheckoutPage.css";
 
 function defaultRow(item) {
   return {
@@ -84,11 +83,7 @@ function unitPrice(value) {
     : "Not recorded";
 }
 
-function ReturnForm({
-  orderId,
-  userId,
-  token,
-}) {
+function ReturnForm({ orderId, userId, token }) {
   const revision = useOrderUpdates();
 
   const catalog = useCatalog();
@@ -100,9 +95,7 @@ function ReturnForm({
 
   const key = returnAttemptKey(userId, orderId);
 
-  const pending = useRef(
-    readReturnAttempt(key),
-  );
+  const pending = useRef(readReturnAttempt(key));
 
   const [awaiting, setAwaiting] = useState(
     Boolean(pending.current),
@@ -117,8 +110,7 @@ function ReturnForm({
   const [reason, setReason] = useState("");
 
   const [error, setError] = useState("");
-  const [submitting, setSubmitting] =
-    useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const [now, setNow] = useState(Date.now);
 
@@ -156,7 +148,7 @@ function ReturnForm({
   }, [error]);
 
   const fetchOwnedOrder = useCallback(
-    async signal => {
+    async (signal) => {
       const next = await getOrderById(
         token,
         orderId,
@@ -166,7 +158,7 @@ function ReturnForm({
       if (!orderOwnedBy(next, userId)) {
         throw Object.assign(
           new Error(
-            "This order is not available for your account.",
+            "This order is not available through your current account or private guest access.",
           ),
           { status: 403 },
         );
@@ -177,7 +169,7 @@ function ReturnForm({
     [token, orderId, userId],
   );
 
-  const adoptOrder = useCallback(next => {
+  const adoptOrder = useCallback((next) => {
     if (
       latestOrder.current &&
       returnReviewKey(latestOrder.current) !==
@@ -191,7 +183,7 @@ function ReturnForm({
   }, []);
 
   const confirmSaved = useCallback(
-    next => {
+    (next) => {
       const attempt = pending.current;
 
       if (
@@ -300,7 +292,7 @@ function ReturnForm({
   }, [loadOrder, revision]);
 
   function changeRow(index, item, update) {
-    setChosen(current => ({
+    setChosen((current) => ({
       ...current,
 
       [index]: {
@@ -535,8 +527,10 @@ function ReturnForm({
           label="View orders"
         >
           {loadError ||
-            "This order is not available for your account."}
+            "This order is not available through your current account or private guest access."}
         </EmptyState>
+
+        <GuestOrderAccess />
 
         <button
           type="button"
@@ -549,9 +543,9 @@ function ReturnForm({
 
         <Link
           className="text-link"
-          to="/login"
+          to="/orders"
         >
-          Check sign-in
+          Orders & guest access
         </Link>
       </div>
     );
@@ -560,9 +554,7 @@ function ReturnForm({
   const availability =
     returnAvailability(order, now);
 
-  const catalogue = Array.isArray(
-    catalog.products,
-  )
+  const catalogue = Array.isArray(catalog.products)
     ? catalog.products
     : [];
 
@@ -585,7 +577,7 @@ function ReturnForm({
     : [];
 
   const selectable = items.some(
-    item =>
+    (item) =>
       itemReturnAvailability(
         order,
         item,
@@ -608,6 +600,14 @@ function ReturnForm({
           <p className="order-id">{displayId}</p>
         </div>
       </div>
+
+      {order.isGuestOrder === true && (
+        <p className="notice">
+          This guest order is loaded securely from
+          GymDrobe. You can request an eligible return
+          or exchange without creating an account.
+        </p>
+      )}
 
       {loadError && (
         <section className="panel">
@@ -635,7 +635,7 @@ function ReturnForm({
 
           <p>
             We have an attempt awaiting confirmation.
-            This page will verify it from your account
+            This page will verify it with GymDrobe
             before allowing another submission.
           </p>
 
@@ -702,8 +702,9 @@ function ReturnForm({
           <p className="muted">
             Submitting does not issue a refund. Any
             approved item refund uses purchased prices
-            and allocated coupon savings; shipping is
-            excluded from the current item calculation.
+            and allocated kit and coupon savings;
+            shipping is excluded from the current
+            item calculation.
           </p>
 
           <fieldset
@@ -716,10 +717,7 @@ function ReturnForm({
 
             {[
               ["return", "Return selected items"],
-              [
-                "exchange",
-                "Exchange available options",
-              ],
+              ["exchange", "Exchange available options"],
             ].map(([value, name]) => (
               <label
                 className="check"
@@ -757,9 +755,7 @@ function ReturnForm({
                 <button
                   type="button"
                   className="button secondary"
-                  disabled={
-                    blocked || catalog.loading
-                  }
+                  disabled={blocked || catalog.loading}
                   onClick={() =>
                     catalog.refreshProducts()
                   }
@@ -815,16 +811,12 @@ function ReturnForm({
               : 0;
 
             const selectedSize =
-              options.sizes.includes(
-                String(row.size),
-              )
+              options.sizes.includes(String(row.size))
                 ? row.size
                 : "";
 
             const selectedColor =
-              options.colors.includes(
-                String(row.color),
-              )
+              options.colors.includes(String(row.color))
                 ? row.color
                 : "";
 
@@ -834,7 +826,7 @@ function ReturnForm({
                   ? options.sizes
                   : [null]
               ).some(
-                size =>
+                (size) =>
                   replacementStock(
                     product,
                     size,
@@ -851,7 +843,7 @@ function ReturnForm({
                     : options.colors
                   : [null]
               ).some(
-                color =>
+                (color) =>
                   replacementStock(
                     product,
                     size,
@@ -872,10 +864,9 @@ function ReturnForm({
                     disabled={
                       blocked || !allowed.eligible
                     }
-                    onChange={event =>
+                    onChange={(event) =>
                       changeRow(index, item, {
-                        selected:
-                          event.target.checked,
+                        selected: event.target.checked,
                       })
                     }
                   />
@@ -885,19 +876,21 @@ function ReturnForm({
 
                 <p>
                   Purchased options:{" "}
+
                   {[
                     item.selectedColor,
                     item.selectedSize,
                   ]
                     .filter(
-                      value =>
+                      (value) =>
                         value != null &&
                         value !== "",
                     )
                     .join(" / ") ||
                     "Default variant"}
 
-                  {" "}· Quantity: {item.quantity}
+                  {" · "}
+                  Quantity: {item.quantity}
                 </p>
 
                 {item.sku && (
@@ -907,7 +900,7 @@ function ReturnForm({
                 )}
 
                 <p>
-                  Purchased unit price:{" "}
+                  Unit price before order savings:{" "}
                   {unitPrice(item.price)}
                 </p>
 
@@ -960,10 +953,9 @@ function ReturnForm({
                         inputMode="numeric"
                         required
                         value={row.quantity}
-                        onChange={event =>
+                        onChange={(event) =>
                           changeRow(index, item, {
-                            quantity:
-                              event.target.value,
+                            quantity: event.target.value,
                           })
                         }
                       />
@@ -985,10 +977,9 @@ function ReturnForm({
                               required
                               disabled={!ready}
                               value={selectedColor}
-                              onChange={event =>
+                              onChange={(event) =>
                                 changeRow(index, item, {
-                                  color:
-                                    event.target.value,
+                                  color: event.target.value,
                                 })
                               }
                             >
@@ -998,7 +989,7 @@ function ReturnForm({
                               </option>
 
                               {options.colors.map(
-                                color => (
+                                (color) => (
                                   <option
                                     key={color}
                                     value={color}
@@ -1034,10 +1025,9 @@ function ReturnForm({
                               required
                               disabled={!ready}
                               value={selectedSize}
-                              onChange={event =>
+                              onChange={(event) =>
                                 changeRow(index, item, {
-                                  size:
-                                    event.target.value,
+                                  size: event.target.value,
                                 })
                               }
                             >
@@ -1047,7 +1037,7 @@ function ReturnForm({
                               </option>
 
                               {options.sizes.map(
-                                size => (
+                                (size) => (
                                   <option
                                     key={size}
                                     value={size}
@@ -1074,10 +1064,10 @@ function ReturnForm({
                             ? `${stock} currently available for the selected replacement.`
                             : "Load current options before choosing a replacement."}
 
-                          {" "}Choose a different
-                          option. Request submission
-                          does not reserve replacement
-                          stock.
+                          {" "}
+                          Choose a different option.
+                          Request submission does not
+                          reserve replacement stock.
                         </p>
                       </>
                     )}
@@ -1100,15 +1090,14 @@ function ReturnForm({
               maxLength={1000}
               disabled={blocked}
               value={reason}
-              onChange={event => {
+              onChange={(event) => {
                 setReason(event.target.value);
                 setError("");
               }}
             />
 
             <small className="muted">
-              Describe the issue in 5–1,000
-              characters.
+              Describe the issue in 5–1,000 characters.
             </small>
           </div>
 
@@ -1118,10 +1107,7 @@ function ReturnForm({
               className="button"
               disabled={
                 blocked ||
-                (
-                  type === "exchange" &&
-                  !ready
-                )
+                (type === "exchange" && !ready)
               }
             >
               {submitting
@@ -1144,8 +1130,8 @@ function ReturnForm({
           className="text-link"
           to={`/help?order=${routeId}`}
         >
-          Need help with a damaged or incorrect
-          item? Contact GymDrobe support.
+          Need help with a damaged or incorrect item?
+          Contact GymDrobe support.
         </Link>
       </p>
     </div>
@@ -1153,6 +1139,8 @@ function ReturnForm({
 }
 
 export default function ReturnPage() {
+  useOrderUpdates();
+
   const { orderId = "" } = useParams();
 
   const {
@@ -1203,10 +1191,47 @@ export default function ReturnPage() {
     );
   }
 
-  if (!user || !token) {
-    const preview = !user
-      ? getLocalOrder(orderId, null)
-      : null;
+  const accountId = String(
+    user?.id || user?._id || "",
+  );
+
+  const guest = guestAccess();
+
+  if (
+    user?.isActive === false ||
+    (user && (!accountId || !token)) ||
+    (token && !accountId)
+  ) {
+    return (
+      <div className="page narrow panel">
+        <h1>Account unavailable</h1>
+
+        <p>
+          Sign in again to access account orders, or
+          contact GymDrobe support for help.
+        </p>
+
+        <div className="purchase-actions">
+          <Link
+            className="button"
+            to={login}
+          >
+            Check sign-in
+          </Link>
+
+          <Link
+            className="button secondary"
+            to="/help"
+          >
+            Contact support
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!accountId && !guest) {
+    const preview = getLocalOrder(orderId, null);
 
     return (
       <div className="page narrow panel">
@@ -1215,15 +1240,17 @@ export default function ReturnPage() {
         <p>
           {preview
             ? "This device contains a preview order. It cannot send a real return or exchange request to GymDrobe."
-            : "Sign in with the account that placed this order to submit a request."}
+            : "Restore the private access code saved after guest checkout, or sign in for an order placed with your account."}
         </p>
+
+        <GuestOrderAccess />
 
         <div className="purchase-actions">
           <Link
             className="button"
             to={login}
           >
-            Sign in
+            Sign in for account orders
           </Link>
 
           <Link
@@ -1237,36 +1264,14 @@ export default function ReturnPage() {
     );
   }
 
-  if (user.isActive === false) {
-    return (
-      <div className="page narrow panel">
-        <h1>Account unavailable</h1>
-
-        <p>
-          Contact GymDrobe support for help with your
-          order.
-        </p>
-
-        <Link
-          className="button"
-          to="/help"
-        >
-          Contact support
-        </Link>
-      </div>
-    );
-  }
-
-  const userId = String(
-    user.id || user._id || "",
-  );
+  const userId = accountId || "guest";
 
   return (
     <ReturnForm
-      key={`${userId}:${orderId}:${token}`}
+      key={`${userId}:${orderId}:${token || ""}:${guest?.token || ""}`}
       orderId={orderId}
       userId={userId}
-      token={token}
+      token={token || ""}
     />
   );
 }

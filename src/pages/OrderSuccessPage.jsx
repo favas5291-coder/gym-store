@@ -1,186 +1,183 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
-import useOrderUpdates from "../hooks/useOrderUpdates.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import useCustomerOrder from "../hooks/useCustomerOrder.js";
 
-import {
-  getOrder as getLocalOrder,
-  orderTotal,
-} from "../utils/customerData.js";
-
-import { getOrderById } from "../services/orderApi.js";
 import { money } from "../utils/productPricing.js";
+import { recordedAmount } from "../utils/customerOrderDetails.js";
 import { trackPurchase } from "../utils/analytics.js";
+import { orderIsComplete } from "../utils/checkoutPayment.js";
+import { deliveryEstimate } from "../utils/orderTracking.js";
 
+import OrderPaymentDetails, {
+  formatOrderStatus,
+} from "../components/OrderPaymentDetails.jsx";
+
+import GuestOrderAccess from "../components/GuestOrderAccess.jsx";
 import EmptyState from "../components/EmptyState.jsx";
+import { ProductImage } from "../components/StorefrontShared.jsx";
 
-function recordedAmount(value) {
-  if (value == null || value === "") {
-    return null;
-  }
+import "../utils/CheckoutPage.css";
 
-  const amount = Number(value);
-
-  return Number.isFinite(amount) && amount >= 0
-    ? amount
-    : null;
+function hasRefundUpdate(order) {
+  return (
+    [
+      "pending",
+      "requested",
+      "manual-required",
+      "refunded",
+      "processed",
+      "completed",
+    ].includes(order?.refund?.status) ||
+    [
+      "refunded",
+      "partially-refunded",
+    ].includes(order?.payment?.status)
+  );
 }
 
-function paymentLabel(method) {
-  switch (method) {
-    case "cod-partial":
-      return "Cash on delivery with 10% advance";
-    case "cod":
-      return "Cash on delivery";
-    case "razorpay":
-      return "Online payment through Razorpay";
-    default:
-      return "Payment method not recorded";
+function confirmationText(order, remote, confirmed) {
+  if (!remote) {
+    return {
+      heading: "Order preview",
+      message:
+        "These details are saved on this device. They are not proof of a real payment or a confirmed order.",
+    };
   }
-}
 
-function statusLabel(value) {
-  const labels = {
-    pending: "Pending",
-    "payment-pending": "Payment pending",
-    confirmed: "Confirmed",
-    processing: "Processing",
-    packed: "Packed",
-    shipped: "Shipped",
-    "out-for-delivery": "Out for delivery",
-    delivered: "Delivered",
-    cancelled: "Cancelled",
-    paid: "Paid",
-    "partially-paid": "Advance paid",
-    failed: "Failed",
-    refunded: "Refunded",
-    "partially-refunded": "Partially refunded",
-    "manual-required": "Requires review",
+  if (order.status === "cancelled") {
+    return {
+      heading: "Your order was cancelled",
+      message:
+        "This order will not be fulfilled. Check the payment section for any recorded refund progress.",
+    };
+  }
+
+  if (hasRefundUpdate(order)) {
+    return {
+      heading: "Refund update for your order",
+      message:
+        "Your payment and refund details are shown below. Open your order details for the latest return and delivery updates.",
+    };
+  }
+
+  if (order.status === "delivered") {
+    return {
+      heading: "Your order has been delivered",
+      message:
+        "Your delivery is recorded as completed. Your recorded payment details and order history are available below.",
+    };
+  }
+
+  if (confirmed) {
+    return {
+      heading: "Your order is confirmed!",
+      message:
+        order.payment?.status === "partially-paid"
+          ? "Your COD advance is received. Check the recorded remaining balance below and track each package for delivery updates."
+          : "Your payment is received. We’ll record delivery updates as your order moves forward.",
+    };
+  }
+
+  const method =
+    order.payment?.method ||
+    order.paymentMethod;
+
+  if (
+    method === "cod" &&
+    [
+      "confirmed",
+      "processing",
+      "packed",
+      "shipped",
+      "out-for-delivery",
+    ].includes(order.status)
+  ) {
+    return {
+      heading: "Your order is confirmed!",
+      message:
+        "This order uses cash on delivery. Check the recorded balance and delivery updates below.",
+    };
+  }
+
+  if (
+    ["paid", "partially-paid"].includes(
+      order.payment?.status,
+    )
+  ) {
+    return {
+      heading: "Payment received. Confirmation pending.",
+      message:
+        "Do not pay again. Refresh the order status or contact support if confirmation remains pending.",
+    };
+  }
+
+  if (order.payment?.status === "failed") {
+    return {
+      heading: "Your payment was not completed",
+      message:
+        "Check the latest order details before retrying payment. If money was deducted, contact support with your order number.",
+    };
+  }
+
+  return {
+    heading: "Payment confirmation pending",
+    message:
+      "Your order is not confirmed yet. If money was deducted, do not pay again. Refresh the status or contact support.",
   };
+}
 
-  return labels[value] || "Awaiting update";
+function packageEstimate(range) {
+  if (
+    !Number.isSafeInteger(range?.minimum) ||
+    !Number.isSafeInteger(range?.maximum) ||
+    range.minimum < 0 ||
+    range.maximum < range.minimum
+  ) {
+    return "Estimate awaiting confirmation.";
+  }
+
+  return `${range.minimum}–${range.maximum} days from the recorded preparation and transit estimates.`;
+}
+
+function showMoney(value) {
+  const amount = recordedAmount(value);
+
+  return amount == null
+    ? "Not recorded"
+    : money(amount);
 }
 
 export default function OrderSuccessPage() {
-  const revision = useOrderUpdates();
   const [params] = useSearchParams();
+  const { user } = useAuth();
 
-  const {
-    user,
-    token,
-    loading: authLoading,
-  } = useAuth();
+  const orderId = params.get("orderId") || "";
 
-  const orderId = params.get("orderId");
-  const userId = user?._id || user?.id || "";
+  const data = useCustomerOrder(orderId, {
+    autoRefresh: true,
+  });
 
-  const scope = JSON.stringify([
-    String(userId),
-    orderId || "",
-    Boolean(token),
-  ]);
+  const { order } = data;
 
-  const [loadedOrder, setLoadedOrder] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [attempt, setAttempt] = useState(0);
+  // This also includes guest orders loaded from the backend.
+  const remote = data.isAccountOrder;
 
-  const order =
-    loadedOrder?.scope === scope
-      ? loadedOrder.order
-      : null;
+  const confirmed = Boolean(
+    remote &&
+    !data.loading &&
+    !data.error &&
+    orderIsComplete(order) &&
+    !hasRefundUpdate(order),
+  );
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadOrder() {
-      setLoadedOrder(null);
-      setError("");
-      setLoading(true);
-
-      if (authLoading) return;
-
-      if (!orderId) {
-        setLoading(false);
-        return;
-      }
-
-      // An unresolved account session must not use guest data.
-      if (token && !userId) {
-        setError(
-          "Your account session could not be verified. Please sign in again to view this order.",
-        );
-        setLoading(false);
-        return;
-      }
-
-      if (userId && !token) {
-        setError(
-          "Your sign-in session has expired. Please sign in again.",
-        );
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const result = userId
-          ? await getOrderById(token, orderId)
-          : getLocalOrder(orderId, null);
-
-        if (!cancelled) {
-          setLoadedOrder({
-            scope,
-            order: result || null,
-          });
-        }
-      } catch (loadError) {
-        if (!cancelled) {
-          setError(
-            loadError.message ||
-              "Your order could not be loaded.",
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadOrder();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    orderId,
-    userId,
-    token,
-    authLoading,
-    revision,
-    attempt,
-    scope,
-  ]);
-
-  useEffect(() => {
-    // Account purchases use the order returned by the backend.
-    if (
-      authLoading ||
-      loading ||
-      error ||
-      !order ||
-      !userId ||
-      !token
-    ) {
+    if (!confirmed || !order) {
       return;
     }
 
-    function track() {
-      // The utility checks order/payment status, consent,
-      // and whether this purchase was already queued.
-      trackPurchase(order);
-    }
+    const track = () => trackPurchase(order);
 
     track();
 
@@ -195,334 +192,332 @@ export default function OrderSuccessPage() {
         track,
       );
     };
-  }, [
-    order,
-    userId,
-    token,
-    authLoading,
-    loading,
-    error,
-  ]);
+  }, [order, confirmed]);
 
-  function refreshOrder() {
-    setAttempt((current) => current + 1);
-  }
-
-  const loginPath = `/login?next=${encodeURIComponent(
-    `/order-success?orderId=${encodeURIComponent(orderId || "")}`,
-  )}`;
-
-  if (authLoading || loading) {
+  if (data.loading) {
     return (
-      <div className="success-page">
-        <div className="empty-state" role="status">
-          <h3>Loading your order…</h3>
-          <p>Checking your latest order details.</p>
-        </div>
+      <div
+        className="page narrow success-page"
+        role="status"
+      >
+        <h1>Checking your order…</h1>
+        <p>Loading the latest recorded confirmation.</p>
       </div>
     );
   }
 
-  if (error) {
+  if (data.error || !order) {
     return (
-      <div className="success-page">
+      <div className="page narrow success-page">
         <EmptyState
-          title="Order could not be loaded"
+          title={
+            data.error
+              ? "Order could not be loaded"
+              : "Order not found"
+          }
           to="/orders"
-          label="View my orders"
+          label="Orders & guest access"
         >
-          {error}
+          {data.error ||
+            "Open your orders or restore your private guest access code."}
         </EmptyState>
 
-        <div className="purchase-actions">
-          <button
-            type="button"
-            className="button secondary"
-            onClick={refreshOrder}
-          >
-            Retry
-          </button>
+        <button
+          type="button"
+          className="button secondary"
+          onClick={data.refresh}
+          disabled={data.refreshing}
+        >
+          {data.refreshing ? "Checking…" : "Retry"}
+        </button>
 
-          {(!userId || !token) && (
-            <Link
-              className="button secondary"
-              to={loginPath}
-            >
-              Sign in
-            </Link>
-          )}
-        </div>
+        {!user && <GuestOrderAccess />}
       </div>
     );
   }
 
-  if (!order) {
-    return (
-      <EmptyState
-        title="Order not found"
-        to="/orders"
-        label="View my orders"
-      >
-        Open your order history to see orders available
-        for this account or guest session.
-      </EmptyState>
-    );
-  }
+  const id =
+    order.orderNumber ||
+    order.id ||
+    order._id ||
+    orderId;
 
-  const payment = order.payment || {};
-  const refund = order.refund || {};
-  const method = payment.method || order.paymentMethod;
+  const route =
+    `/orders/${encodeURIComponent(id)}`;
 
-  const isCodAdvance = method === "cod-partial";
-  const isCancelled = order.status === "cancelled";
+  const address = order.shippingAddress || {};
 
-  const isConfirmed = [
-    "confirmed",
-    "processing",
-    "packed",
-    "shipped",
-    "out-for-delivery",
-    "delivered",
-  ].includes(order.status);
-
-  const amountPaid = recordedAmount(payment.amountPaid);
-  const amountDue = recordedAmount(payment.amountDue);
-  const advanceAmount = recordedAmount(payment.advanceAmount);
-  const refundAmount = recordedAmount(refund.amount);
-
-  const refundComplete =
-    refund.status === "refunded" ||
-    refund.status === "processed";
-
-  const refundPending =
-    refund.status === "pending" ||
-    refund.status === "requested";
-
-  const refundManual =
-    refund.status === "manual-required";
-
-  const displayId =
-    order.orderNumber || order.id || order._id || orderId;
-
-  const items = Array.isArray(order.items)
-    ? order.items
-    : [];
-
-  const totalItems = items.reduce(
-    (total, item) =>
-      total + (Number(item.quantity) || 0),
-    0,
+  const status = confirmationText(
+    order,
+    remote,
+    confirmed,
   );
 
-  const customerName =
-    order.customer?.name ||
-    order.shippingAddress?.fullName ||
-    order.shippingAddress?.name ||
-    user?.name ||
-    "Customer";
+  const estimate = deliveryEstimate(
+    order.tracking?.estimatedDelivery,
+  );
 
-  let heading = "Your order is awaiting confirmation.";
+  const shipments =
+    order.shippingSnapshot?.shipments || [];
 
-  let message =
-    "Check your order details for the latest payment and confirmation status.";
+  const showEstimate =
+    !["cancelled", "delivered"].includes(
+      order.status,
+    );
 
-  if (isCancelled) {
-    heading = "Your order was cancelled.";
-    message =
-      "This order will not be fulfilled. Any recorded refund details are shown below.";
-  } else if (isConfirmed) {
-    heading =
-      order.status === "delivered"
-        ? "Your order has been delivered."
-        : "Your order is confirmed.";
+  const addressLines = [
+    address.addressLine || address.address,
+    address.landmark,
+    [
+      address.city,
+      address.state,
+      address.pincode,
+    ]
+      .filter(Boolean)
+      .join(", "),
+  ].filter(Boolean);
 
-    if (
-      isCodAdvance &&
-      payment.status === "partially-paid"
-    ) {
-      message =
-        "Your COD advance has been received. The remaining balance is payable on delivery.";
-    } else if (payment.status === "paid") {
-      message =
-        "Your payment has been received. You can view the latest delivery updates in your order details.";
-    } else if (method === "cod") {
-      message =
-        "Your order has been accepted. Payment is due on delivery.";
-    } else {
-      message =
-        "View your order details for the latest payment and delivery updates.";
-    }
-  } else if (
-    payment.status === "paid" ||
-    payment.status === "partially-paid"
-  ) {
-    heading = "Payment received. Confirmation pending.";
-    message =
-      "Do not pay again. Check your order details or contact support if confirmation remains pending.";
-  } else if (payment.status === "failed") {
-    heading = "Your payment was not completed.";
-    message =
-      "Open your order details to check the payment status and available retry options.";
-  } else if (order.status === "payment-pending") {
-    heading = "Your order is awaiting payment.";
-    message =
-      "Your order is not confirmed yet. Open your order details to check the next step.";
-  }
+  const total =
+    order.pricing?.finalTotal ??
+    order.pricing?.total ??
+    order.total;
 
   return (
-    <div className="success-page">
-      {isConfirmed && (
-        <span
-          className="success-check"
-          aria-hidden="true"
-        >
-          ✓
-        </span>
-      )}
+    <div className="page narrow gd-checkout gd-order-confirmation">
+      <header className="panel">
+        {confirmed && (
+          <span
+            className="success-check"
+            aria-hidden="true"
+          >
+            ✓
+          </span>
+        )}
 
-      <p className="eyebrow">
-        {isConfirmed
-          ? "THANK YOU FOR CHOOSING GYMDROBE"
-          : "GYMDROBE ORDER UPDATE"}
-      </p>
-
-      <h1>{heading}</h1>
-      <p>{message}</p>
-
-      <div className="success-order">
-        <strong>{displayId}</strong>
-
-        <span>
-          {totalItems}{" "}
-          {totalItems === 1 ? "item" : "items"}
-          {" · "}
-          {money(orderTotal(order))}
-        </span>
-
-        <p>
-          {customerName}
-          <br />
-          {[
-            order.shippingAddress?.city,
-            order.shippingAddress?.pincode,
-          ]
-            .filter(Boolean)
-            .join(", ")}
+        <p className="eyebrow">
+          {confirmed
+            ? "THANK YOU FOR CHOOSING GYMDROBE"
+            : "GYMDROBE ORDER UPDATE"}
         </p>
-      </div>
 
-      <div className="success-order">
-        <strong>Payment details</strong>
-
-        <p>{paymentLabel(method)}</p>
+        <h1>{status.heading}</h1>
+        <p>{status.message}</p>
 
         <p>
-          Order status: {statusLabel(order.status)}
+          Order number: <strong>{id}</strong>
         </p>
 
         <p>
-          Payment status: {statusLabel(payment.status)}
-        </p>
-
-        {isCodAdvance && advanceAmount !== null && (
-          <p>COD advance: {money(advanceAmount)}</p>
-        )}
-
-        {amountPaid !== null && (
-          <p>
-            {payment.status === "refunded"
-              ? "Amount retained after refund"
-              : "Amount paid"}
-            : {money(amountPaid)}
-          </p>
-        )}
-
-        {!isCancelled && amountDue !== null && (
-          <p>
-            {isCodAdvance || method === "cod"
-              ? "Balance due on delivery"
-              : "Amount remaining"}
-            : {money(amountDue)}
-          </p>
-        )}
-
-        {isCancelled && (
-          <p className="muted">
-            No COD balance will be collected for this
-            cancelled order.
-          </p>
-        )}
-      </div>
-
-      {(refundComplete || refundPending || refundManual) && (
-        <div className="success-order">
+          Order status:{" "}
           <strong>
-            {refundComplete
-              ? "Refund completed"
-              : refundManual
-                ? "Refund requires review"
-                : "Refund in progress"}
+            {order.status === "packed"
+              ? "Packed"
+              : formatOrderStatus(order.status)}
           </strong>
+        </p>
 
-          {refundAmount !== null && (
-            <p>
-              Refund amount: {money(refundAmount)}
-            </p>
-          )}
+        <div className="purchase-actions">
+          <Link
+            className="button"
+            to={`${route}/track`}
+          >
+            Track Order
+          </Link>
 
-          <p className="muted">
-            {refundComplete
-              ? "The refund is recorded as completed. Bank processing may affect when it appears in your account."
-              : refundManual
-                ? "Contact GymDrobe support with your order number. Do not make another payment for this order."
-                : "Your refund request is being processed. Check your order details for updates."}
-          </p>
+          <Link
+            className="button secondary"
+            to={route}
+          >
+            View order details
+          </Link>
 
-          {refund.reference && (
-            <p>
-              Refund reference: {refund.reference}
-            </p>
+          {remote && (
+            <button
+              type="button"
+              className="button secondary"
+              onClick={data.refresh}
+              disabled={data.refreshing}
+            >
+              {data.refreshing
+                ? "Checking…"
+                : "Refresh order status"}
+            </button>
           )}
         </div>
-      )}
 
-      <p className="muted">
-        {userId
-          ? "This order is linked to your GymDrobe account."
-          : "These guest order details are stored on this device."}
-      </p>
+        {!remote && (
+          <p className="notice">
+            Local preview only. Restore guest access
+            or sign in to check the backend order.
+          </p>
+        )}
+
+        {order.metadata?.demo === true && (
+          <p className="notice">
+            Test order · Razorpay test mode was used.
+          </p>
+        )}
+
+        {data.refreshError && (
+          <p
+            className="field-error"
+            role="alert"
+          >
+            {data.refreshError}
+            {" "}
+            Showing the last successfully loaded details.
+          </p>
+        )}
+      </header>
+
+      <OrderPaymentDetails order={order} />
+
+      <section className="panel">
+        <h2>DELIVER TO</h2>
+
+        <strong>
+          {address.fullName ||
+            address.name ||
+            order.customer?.name ||
+            user?.name ||
+            "Customer"}
+        </strong>
+
+        {addressLines.map((line, index) => (
+          <p key={index}>{line}</p>
+        ))}
+
+        {address.phone && (
+          <p>Mobile: {address.phone}</p>
+        )}
+
+        {showEstimate && (
+          <>
+            {estimate ? (
+              <p>
+                Recorded estimated delivery:{" "}
+                <strong>{estimate.label}</strong>
+              </p>
+            ) : order.delivery?.estimatedTime ? (
+              <p>
+                Recorded estimate:{" "}
+                {order.delivery.estimatedTime}
+              </p>
+            ) : !shipments.length ? (
+              <p className="muted">
+                A delivery date has not been recorded
+                yet. Check tracking for updates.
+              </p>
+            ) : null}
+
+            {shipments.map((parcel) => (
+              <p key={parcel.key}>
+                <strong>
+                  {parcel.label || "Package"}
+                </strong>
+                : {packageEstimate(parcel.estimatedDays)}
+              </p>
+            ))}
+          </>
+        )}
+      </section>
+
+      <section className="panel">
+        <h2>YOUR ITEMS</h2>
+
+        {(order.items || []).map((item, index) => (
+          <article
+            className="gd-checkout-item"
+            key={`${
+              item.id ||
+              item.productId ||
+              item.product
+            }:${index}`}
+          >
+            <ProductImage
+              product={item}
+              className="gd-checkout-photo"
+            />
+
+            <div>
+              <h3>{item.name}</h3>
+
+              <p>
+                {[
+                  item.selectedColor,
+                  item.selectedSize,
+                ]
+                  .filter(Boolean)
+                  .join(" / ") || "Standard option"}
+
+                {" · "}
+                Qty {item.quantity}
+              </p>
+
+              <p>
+                Recorded unit price:{" "}
+                {showMoney(item.price)}
+              </p>
+            </div>
+          </article>
+        ))}
+
+        <p>
+          <strong>
+            Order total: {showMoney(total)}
+          </strong>
+        </p>
+      </section>
+
+      {order.isGuestOrder === true && (
+        <>
+          <GuestOrderAccess backup />
+
+          {!user && (
+            <section className="panel">
+              <h2>Make your next visit easier</h2>
+
+              <p>
+                Account creation is optional. Continue
+                with Google to create or sign in to
+                your GymDrobe account. Keep your guest
+                access code for this purchase.
+              </p>
+
+              <Link
+                className="button secondary"
+                to={`/login?next=${encodeURIComponent(
+                  route,
+                )}`}
+              >
+                Continue with Google (optional)
+              </Link>
+            </section>
+          )}
+        </>
+      )}
 
       <div className="purchase-actions">
         <Link
-          className="button"
-          to={`/orders/${encodeURIComponent(displayId)}`}
-        >
-          View order
-        </Link>
-
-        <Link
           className="button secondary"
           to="/orders"
         >
-          My orders
+          All orders
         </Link>
 
         <Link
           className="button secondary"
+          to="/help"
+        >
+          Get help
+        </Link>
+
+        <Link
+          className="button"
           to="/shop"
         >
           Continue shopping
         </Link>
-
-        {!isConfirmed && !isCancelled && (
-          <button
-            type="button"
-            className="button secondary"
-            onClick={refreshOrder}
-          >
-            Refresh order status
-          </button>
-        )}
       </div>
     </div>
   );

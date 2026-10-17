@@ -1,4 +1,18 @@
 import {
+  ensureGuestAccess,
+  guestAccess,
+} from "../utils/guestCheckout.js";
+
+import {
+  getCartItemKey,
+  getKitGroup,
+} from "../utils/cartUtils.js";
+
+import {
+  kitGroupSignature,
+} from "../utils/kitCart.js";
+
+import {
   useEffect,
   useRef,
   useState,
@@ -16,7 +30,6 @@ import { useCatalog } from "../context/CatalogContext.jsx";
 import { useShoppingTools } from "../context/ShoppingToolsContext.jsx";
 
 import { selectedBag } from "../utils/commerce.js";
-import { getCartItemKey } from "../utils/cartUtils.js";
 import { reviewCart } from "../utils/cartReview.js";
 import { buyingInformation } from "../utils/productInformation.js";
 
@@ -110,9 +123,7 @@ import EmptyState from "../components/EmptyState.jsx";
 import "../utils/CheckoutPage.css";
 
 const text = (value) =>
-  typeof value === "string"
-    ? value
-    : "";
+  typeof value === "string" ? value : "";
 
 export default function CheckoutPage() {
   const auth = useAuth();
@@ -188,35 +199,42 @@ function Checkout({ auth, mode }) {
   );
 
   const [draft] = useState(
+    () => readStorage(optionsKey, {}) || {},
+  );
+
+  const [addressDraft] = useState(
     () =>
-      readStorage(optionsKey, {}) || {},
+      readStorage(addressKey, null) ||
+      readStorage(
+        userKey("gymdrobe-checkout-address", null),
+        {},
+      ) ||
+      {},
   );
 
   const [address, setAddress] = useState(() =>
     checkoutAddress({
       ...EMPTY_ADDRESS,
 
-      ...normalizeAddress(
-        readStorage(addressKey, {}) || {},
-      ),
+      ...normalizeAddress(addressDraft),
 
       email:
         user?.email ||
-        readStorage(addressKey, {})?.email ||
+        addressDraft?.email ||
         "",
 
       fullName:
-        readStorage(addressKey, {})?.fullName ||
+        addressDraft?.fullName ||
         user?.name ||
         "",
 
       phone:
-        readStorage(addressKey, {})?.phone ||
+        addressDraft?.phone ||
         user?.phone ||
         "",
 
       pincode:
-        readStorage(addressKey, {})?.pincode ||
+        addressDraft?.pincode ||
         readStorage(
           store.shoppingKey(
             "gymdrobe-delivery-pincode",
@@ -232,103 +250,55 @@ function Checkout({ auth, mode }) {
   );
 
   const [method, setMethod] = useState(
-    (
-      savedAttempt?.payload?.deliveryMethod ||
-      draft.deliveryMethod
-    ) === "express"
+    savedAttempt?.payload?.deliveryMethod === "express"
       ? "express"
       : "standard",
   );
 
-  const [
-    paymentMethod,
-    setPaymentMethod,
-  ] = useState(
-    savedAttempt?.payload?.paymentMethod ===
-      "cod-partial"
+  const [paymentMethod, setPaymentMethod] = useState(
+    savedAttempt?.payload?.paymentMethod === "cod-partial"
       ? "cod-partial"
       : "razorpay",
   );
 
-  const [
-    giftMessage,
-    setGiftMessage,
-  ] = useState(
+  const [giftMessage, setGiftMessage] = useState(
     text(
       savedAttempt?.payload?.giftMessage ??
       draft.giftMessage,
     ).slice(0, 250),
   );
 
-  const [
-    orderNote,
-    setOrderNote,
-  ] = useState(
+  const [orderNote, setOrderNote] = useState(
     text(
       savedAttempt?.payload?.orderNote ??
       draft.orderNote,
     ).slice(0, 300),
   );
 
-  const [
-    saveAddress,
-    setSaveAddress,
-  ] = useState(Boolean(user));
+  const [saveAddress, setSaveAddress] = useState(
+    Boolean(user),
+  );
 
-  const [
-    addresses,
-    setAddresses,
-  ] = useState([]);
+  const [addresses, setAddresses] = useState([]);
 
-  const [
-    addressesLoading,
-    setAddressesLoading,
-  ] = useState(Boolean(user && token));
+  const [addressesLoading, setAddressesLoading] =
+    useState(Boolean(user && token));
 
-  const [
-    addressesError,
-    setAddressesError,
-  ] = useState("");
+  const [addressesError, setAddressesError] =
+    useState("");
 
-  const [
-    kitResult,
-    setKitResult,
-  ] = useState(null);
-
-  const [
-    quoteError,
-    setQuoteError,
-  ] = useState("");
-
-  const [
-    quoteLoading,
-    setQuoteLoading,
-  ] = useState(false);
-
-  const [
-    quoteRevision,
-    setQuoteRevision,
-  ] = useState(0);
+  const [kitResult, setKitResult] = useState(null);
+  const [quoteError, setQuoteError] = useState("");
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteRevision, setQuoteRevision] = useState(0);
 
   const quoteSubmit = useRef(null);
 
-  const [step, setStep] =
-    useState("address");
-
-  const [errors, setErrors] =
-    useState({});
-
-  const [error, setError] =
-    useState("");
-
-  const [busy, setBusy] =
-    useState(false);
-
-  const [refreshing, setRefreshing] =
-    useState(false);
-
-  const [pending, setPending] =
-    useState(savedAttempt);
+  const [errors, setErrors] = useState({});
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [pending, setPending] = useState(savedAttempt);
 
   const pendingRef = useRef(pending);
   const current = useRef(null);
@@ -370,9 +340,7 @@ function Checkout({ auth, mode }) {
     items,
     catalog.products,
     ready,
-    {
-      allowKitReview: true,
-    },
+    { allowKitReview: true },
   );
 
   const hasKits = containsKit(items);
@@ -386,11 +354,7 @@ function Checkout({ auth, mode }) {
   let quoteSignature = "";
 
   try {
-    if (
-      hasKits &&
-      !kitIssue &&
-      review.canCheckout
-    ) {
+    if (!kitIssue && review.canCheckout) {
       quoteSignature = kitQuoteSignature(
         review.pricingRows,
         store.coupon,
@@ -409,24 +373,21 @@ function Checkout({ auth, mode }) {
       : null;
 
   const pricing = hasKits
-    ? (
-        kitQuote?.shippingIsEstimate === false
-          ? kitQuote.pricing
-          : null
-      )
-    : review.totalsKnown && items.length
-      ? calculateOrderPricing({
-          cart: review.pricingRows,
-          coupon: store.coupon,
-          deliveryMethod: method,
-        })
-      : null;
+    ? kitQuote?.shippingIsEstimate === false
+      ? kitQuote.pricing
+      : null
+    : kitQuote?.deliveryReview?.ready
+      ? kitQuote.pricing
+      : review.totalsKnown && items.length
+        ? calculateOrderPricing({
+            cart: review.pricingRows,
+            coupon: store.coupon,
+            deliveryMethod: method,
+          })
+        : null;
 
   const amounts = pricing
-    ? paymentAmounts(
-        pricing,
-        paymentMethod,
-      )
+    ? paymentAmounts(pricing, paymentMethod)
     : null;
 
   const loginPath =
@@ -434,23 +395,24 @@ function Checkout({ auth, mode }) {
       `/checkout?mode=${mode}`,
     )}`;
 
-  const frozen =
-    busy || Boolean(pending);
+  const frozen = busy || Boolean(pending);
 
   const canPay =
     !kitIssue &&
     (
-      !hasKits ||
-      kitQuotePayable(kitQuote)
+      hasKits
+        ? kitQuotePayable(kitQuote)
+        : kitQuote?.deliveryReview?.ready === true &&
+          Date.parse(
+            kitQuote.deliveryReview.validUntil,
+          ) > Date.now()
     ) &&
     review.canCheckout &&
     review.rows.length <= 50 &&
     Number.isSafeInteger(amounts?.paise) &&
     amounts.paise >= 100 &&
     Number.isSafeInteger(
-      Math.round(
-        pricing?.finalTotal * 100,
-      ),
+      Math.round(pricing?.finalTotal * 100),
     );
 
   const displayedPricing =
@@ -460,7 +422,7 @@ function Checkout({ auth, mode }) {
     ? paymentAmounts(
         displayedPricing,
         pending?.payload?.paymentMethod ||
-          paymentMethod,
+        paymentMethod,
       )
     : null;
 
@@ -475,9 +437,7 @@ function Checkout({ auth, mode }) {
 
   useEffect(() => {
     if (
-      !hasKits ||
       !quoteSignature ||
-      !token ||
       pending ||
       !/^[1-9]\d{5}$/.test(
         String(address.pincode).trim(),
@@ -487,9 +447,7 @@ function Checkout({ auth, mode }) {
       return;
     }
 
-    const controller =
-      new AbortController();
-
+    const controller = new AbortController();
     let cancelled = false;
 
     setQuoteLoading(true);
@@ -509,9 +467,8 @@ function Checkout({ auth, mode }) {
           deliveryMethod: method,
           paymentMethod,
 
-          pincode: String(
-            address.pincode,
-          ).trim(),
+          pincode:
+            String(address.pincode).trim(),
         },
         {
           signal: controller.signal,
@@ -529,7 +486,7 @@ function Checkout({ auth, mode }) {
           if (!cancelled) {
             setQuoteError(
               failure.message ||
-              "Kit prices could not be checked.",
+              "Checkout prices could not be checked.",
             );
           }
         })
@@ -560,29 +517,24 @@ function Checkout({ auth, mode }) {
 
     const remaining =
       Date.parse(
-        kitQuote.shippingReview?.validUntil,
+        kitQuote.shippingReview?.validUntil ||
+        kitQuote.deliveryReview?.validUntil,
       ) - Date.now();
 
     if (!Number.isFinite(remaining)) {
       return;
     }
 
-    const timer = setTimeout(
-      () => {
-        setKitResult(null);
+    const timer = setTimeout(() => {
+      setKitResult(null);
 
-        setQuoteError(
-          "The kit review expired. Refresh prices and delivery before paying.",
-        );
-      },
-      Math.max(
-        0,
-        Math.min(
-          remaining,
-          2147483647,
-        ),
-      ),
-    );
+      setQuoteError(
+        "The price and delivery review expired. Refresh before paying.",
+      );
+    }, Math.max(
+      0,
+      Math.min(remaining, 2147483647),
+    ));
 
     return () => clearTimeout(timer);
   }, [
@@ -604,14 +556,11 @@ function Checkout({ auth, mode }) {
         checkoutAddress(address),
       );
 
-      writeStorage(
-        optionsKey,
-        {
-          deliveryMethod: method,
-          giftMessage,
-          orderNote,
-        },
-      );
+      writeStorage(optionsKey, {
+        deliveryMethod: method,
+        giftMessage,
+        orderNote,
+      });
     }, 300);
 
     return () => clearTimeout(timer);
@@ -644,9 +593,8 @@ function Checkout({ auth, mode }) {
         setAddresses(valid);
 
         const preferred =
-          valid.find(
-            (row) => row.isDefault,
-          ) || valid[0];
+          valid.find((row) => row.isDefault) ||
+          valid[0];
 
         if (
           preferred &&
@@ -678,7 +626,10 @@ function Checkout({ auth, mode }) {
     return () => {
       cancelled = true;
     };
-  }, [user, token]);
+  }, [
+    user,
+    token,
+  ]);
 
   useEffect(() => {
     function track() {
@@ -692,7 +643,6 @@ function Checkout({ auth, mode }) {
       trackOnce(
         `checkout:${analyticsVisitKey()}:${mode}`,
         "begin_checkout",
-
         commercePayload(
           review.pricingRows,
           pricing.totalAfterCoupon,
@@ -775,12 +725,11 @@ function Checkout({ auth, mode }) {
       return;
     }
 
-    const savedOrder =
-      validateConfirmedOrder(
-        order,
-        record,
-        user?.id || user?._id,
-      );
+    const savedOrder = validateConfirmedOrder(
+      order,
+      record,
+      user?.id || user?._id,
+    );
 
     finished.current = true;
 
@@ -792,14 +741,18 @@ function Checkout({ auth, mode }) {
     });
 
     writeStorage(
-      userKey(
-        "gymdrobe-last-order",
-        user,
-      ),
+      userKey("gymdrobe-last-order", user),
       savedOrder,
     );
 
-    // Save completion before cleaning the cart.
+    writeStorage(optionsKey, {
+      deliveryMethod: "standard",
+      giftMessage: "",
+      orderNote: "",
+    });
+
+    // Save completion before cleanup to prevent
+    // subtracting purchased quantities twice.
     const completionSaved = remember({
       ...record,
       phase: "complete",
@@ -852,29 +805,24 @@ function Checkout({ auth, mode }) {
             latest.store.latestCart(),
           )
         ) {
-          const cleaned =
-            subtractPurchasedItems(
-              latest.store.cart,
-              record.snapshot,
-            );
+          const cleaned = subtractPurchasedItems(
+            latest.store.cart,
+            record.snapshot,
+          );
 
           latest.store.setCart(cleaned);
 
           const purchasedKitIds = new Set(
             record.snapshot
-              .map(
-                (row) =>
-                  row.kitGroup?.id,
-              )
+              .map((row) => row.kitGroup?.id)
               .filter(Boolean),
           );
 
           if (
-            cleaned.some(
-              (row) =>
-                purchasedKitIds.has(
-                  row.kitGroup?.id,
-                ),
+            cleaned.some((row) =>
+              purchasedKitIds.has(
+                row.kitGroup?.id,
+              ),
             )
           ) {
             latest.store.notify(
@@ -906,6 +854,18 @@ function Checkout({ auth, mode }) {
 
     if (completionSaved) {
       writeSession(attemptKey, null);
+
+      writeSession(
+        store.shoppingKey(
+          `gymdrobe-checkout-attempt-${
+            record.payload?.source ||
+            record.mode ||
+            mode
+          }`,
+        ),
+        null,
+      );
+
       remember(null);
     } else {
       latest.store.notify(
@@ -915,6 +875,8 @@ function Checkout({ auth, mode }) {
     }
 
     if (
+      user &&
+      token &&
       record.saveAddress &&
       record.payload?.shippingAddress
     ) {
@@ -929,7 +891,9 @@ function Checkout({ auth, mode }) {
           checkoutAddress(candidate),
         );
 
-      if (!latest.addresses.some(same)) {
+      if (
+        !latest.addresses.some(same)
+      ) {
         // Optional saving must not delay confirmation.
         createAddress(
           token,
@@ -953,9 +917,12 @@ function Checkout({ auth, mode }) {
       "success",
     );
 
-    navigate("/orders", {
-      replace: true,
-    });
+    navigate(
+      `/order-success?orderId=${encodeURIComponent(
+        savedOrder.id,
+      )}`,
+      { replace: true },
+    );
   }
 
   function acceptOrder(order, record) {
@@ -982,8 +949,13 @@ function Checkout({ auth, mode }) {
       );
 
       if (
-        owner !==
-          String(user?.id || user?._id) ||
+        (
+          order.isGuestOrder === true
+            ? record.guest !== true
+            : owner !== String(
+                user?.id || user?._id,
+              )
+        ) ||
         (
           record.orderId &&
           record.orderId !== id
@@ -1012,7 +984,7 @@ function Checkout({ auth, mode }) {
   useEffect(() => {
     if (
       !pending?.orderId ||
-      !token ||
+      (!token && !guestAccess()) ||
       finished.current ||
       pending.phase === "closed"
     ) {
@@ -1025,8 +997,7 @@ function Checkout({ auth, mode }) {
     async function poll() {
       try {
         if (!locked.current) {
-          const record =
-            pendingRef.current;
+          const record = pendingRef.current;
 
           const order = await getOrderById(
             token,
@@ -1043,7 +1014,7 @@ function Checkout({ auth, mode }) {
           }
         }
       } catch {
-        // Retain the reference and recovery controls.
+        // Keep the saved reference and recovery controls.
       }
 
       if (
@@ -1078,7 +1049,6 @@ function Checkout({ auth, mode }) {
     }
 
     refreshLock.current = true;
-
     setRefreshing(true);
 
     try {
@@ -1104,8 +1074,9 @@ function Checkout({ auth, mode }) {
     latestPricing,
     quote = kitQuote,
   ) {
-    const coupon =
-      resolveCoupon(store.coupon);
+    const coupon = resolveCoupon(
+      store.coupon,
+    );
 
     return {
       source: mode,
@@ -1149,8 +1120,6 @@ function Checkout({ auth, mode }) {
     if (
       locked.current ||
       !mounted.current ||
-      !user ||
-      !token ||
       !record?.payload ||
       record.phase === "closed"
     ) {
@@ -1165,6 +1134,10 @@ function Checkout({ auth, mode }) {
     let active = record;
 
     try {
+      if (!token) {
+        await ensureGuestAccess();
+      }
+
       if (!checkOnly) {
         await loadRazorpay();
       }
@@ -1233,22 +1206,22 @@ function Checkout({ auth, mode }) {
 
           description:
             record.payload.paymentMethod ===
-              "cod-partial"
+            "cod-partial"
               ? "10% COD advance"
               : "Order payment",
 
           prefill: {
             name:
-              record.payload
-                .shippingAddress.fullName,
+              record.payload.shippingAddress
+                .fullName,
 
             email:
-              record.payload
-                .shippingAddress.email,
+              record.payload.shippingAddress
+                .email,
 
             contact:
-              record.payload
-                .shippingAddress.phone,
+              record.payload.shippingAddress
+                .phone,
           },
 
           notes: {
@@ -1369,7 +1342,9 @@ function Checkout({ auth, mode }) {
 
       if (safeRejection) {
         remember(null);
-      } else if (pendingRef.current) {
+      } else if (
+        pendingRef.current
+      ) {
         remember({
           ...pendingRef.current,
           phase: "check",
@@ -1380,7 +1355,8 @@ function Checkout({ auth, mode }) {
         failure.data?.order &&
         acceptOrder(
           failure.data.order,
-          pendingRef.current || active,
+          pendingRef.current ||
+          active,
         )
       ) {
         return;
@@ -1444,8 +1420,6 @@ function Checkout({ auth, mode }) {
     if (
       Object.keys(validation).length
     ) {
-      setStep("address");
-
       setError(
         "Correct the highlighted delivery details.",
       );
@@ -1461,14 +1435,7 @@ function Checkout({ auth, mode }) {
       return;
     }
 
-    if (
-      !(
-        step === "address" && hasKits
-          ? review.canCheckout &&
-            !kitIssue
-          : canPay
-      )
-    ) {
+    if (!canPay) {
       setError(
         kitIssue ||
         "Check the highlighted products, quantities, prices and delivery review before continuing.",
@@ -1501,52 +1468,16 @@ function Checkout({ auth, mode }) {
       latestCatalog,
 
       latestStore.catalogReady &&
-        Array.isArray(latestCatalog),
+      Array.isArray(latestCatalog),
 
       {
         allowKitReview: true,
       },
     );
 
-    if (
-      hasKits &&
-      step === "address"
-    ) {
-      if (
-        !fresh.canCheckout ||
-        kitSelectionIssue(
-          latestItems,
-          latestStore.latestCart(),
-          mode,
-        )
-      ) {
-        setError(
-          "Your kit selection or availability changed. Review your bag before continuing.",
-        );
-
-        return;
-      }
-
-      writeStorage(
-        addressKey,
-        clean,
-      );
-
-      reviewed.current = "";
-
-      setStep("review");
-
-      window.scrollTo({
-        top: 0,
-        behavior: "instant",
-      });
-
-      return;
-    }
-
     let latestQuote = null;
 
-    if (hasKits) {
+    {
       if (
         !fresh.canCheckout ||
         kitSelectionIssue(
@@ -1556,7 +1487,7 @@ function Checkout({ auth, mode }) {
         )
       ) {
         setError(
-          "Your kit selection or availability changed. Review your bag before paying.",
+          "Your selection or availability changed. Review your bag before paying.",
         );
 
         return;
@@ -1590,11 +1521,16 @@ function Checkout({ auth, mode }) {
       quoteSubmit.current = controller;
 
       try {
+        if (!token) {
+          await ensureGuestAccess();
+        }
+
         latestQuote =
           await getCheckoutQuote(
             token,
             {
-              items: fresh.pricingRows,
+              items:
+                fresh.pricingRows,
 
               coupon:
                 resolveCoupon(
@@ -1606,7 +1542,8 @@ function Checkout({ auth, mode }) {
               pincode: clean.pincode,
             },
             {
-              signal: controller.signal,
+              signal:
+                controller.signal,
             },
           );
 
@@ -1621,23 +1558,29 @@ function Checkout({ auth, mode }) {
           currentStore.latestCart();
 
         const currentItems =
-          mode === "selection"
-            ? selectedBag(
-                currentCart,
-                current.current.tools
-                  .checkoutKeys,
-              )
-            : currentCart;
+          mode === "buy-now"
+            ? currentStore.buyNowItem
+              ? [
+                  currentStore.buyNowItem,
+                ]
+              : []
+            : mode === "selection"
+              ? selectedBag(
+                  currentCart,
+                  current.current.tools
+                    .checkoutKeys,
+                )
+              : currentCart;
 
-        const currentReview = reviewCart(
-          currentItems,
-          catalog.getLatestProducts(),
-          currentStore.catalogReady,
-
-          {
-            allowKitReview: true,
-          },
-        );
+        const currentReview =
+          reviewCart(
+            currentItems,
+            catalog.getLatestProducts(),
+            currentStore.catalogReady,
+            {
+              allowKitReview: true,
+            },
+          );
 
         if (
           !currentReview.canCheckout ||
@@ -1661,12 +1604,25 @@ function Checkout({ auth, mode }) {
           return;
         }
 
-        if (
-          !kitQuotePayable(latestQuote) ||
-          !kitQuotePayable(kitQuote) ||
-          latestQuote.reviewKey !==
-            kitQuote.reviewKey
-        ) {
+        const changed = hasKits
+          ? !kitQuotePayable(
+              latestQuote,
+            ) ||
+            !kitQuotePayable(
+              kitQuote,
+            ) ||
+            latestQuote.reviewKey !==
+              kitQuote.reviewKey
+          : latestQuote.deliveryReview
+              ?.ready !== true ||
+            JSON.stringify(
+              latestQuote.pricing,
+            ) !==
+              JSON.stringify(
+                kitQuote?.pricing,
+              );
+
+        if (changed) {
           setKitResult({
             signature,
             quote: latestQuote,
@@ -1675,7 +1631,7 @@ function Checkout({ auth, mode }) {
           reviewed.current = "";
 
           setError(
-            "Kit prices, packages or delivery terms changed. Review the updated details, then press Pay again.",
+            "Prices, availability or delivery terms changed. Review the updated details, then press Pay again.",
           );
 
           return;
@@ -1684,7 +1640,7 @@ function Checkout({ auth, mode }) {
         if (mounted.current) {
           setError(
             failure.message ||
-            "Kit checkout could not be checked. No payment was started.",
+            "Checkout could not be checked. No payment was started.",
           );
         }
 
@@ -1699,13 +1655,8 @@ function Checkout({ auth, mode }) {
       }
     }
 
-    const latestPricing = hasKits
-      ? latestQuote.pricing
-      : calculateOrderPricing({
-          cart: fresh.pricingRows,
-          coupon: latestStore.coupon,
-          deliveryMethod: method,
-        });
+    const latestPricing =
+      latestQuote.pricing;
 
     const latestPayload = payloadFor(
       fresh.pricingRows,
@@ -1742,50 +1693,42 @@ function Checkout({ auth, mode }) {
         fresh.pricingRows,
       );
 
-    if (step === "address") {
-      writeStorage(
-        addressKey,
-        clean,
+    writeStorage(
+      addressKey,
+      clean,
+    );
+
+    const previousAttempt =
+      readSession(
+        attemptKey,
+        null,
       );
-
-      reviewed.current = signature;
-
-      setStep("review");
-
-      window.scrollTo({
-        top: 0,
-        behavior: "instant",
-      });
-
-      return;
-    }
-
-    if (!user || !token) {
-      setError(
-        "Sign in with Google before payment.",
-      );
-
-      return;
-    }
-
-    if (
-      !hasKits &&
-      reviewed.current !== signature
-    ) {
-      reviewed.current = signature;
-
-      setError(
-        "Your checkout details changed. Review the updated total, then press Pay again.",
-      );
-
-      return;
-    }
 
     const checkoutToken =
-      makeId("checkout");
+      previousAttempt?.signature ===
+      signature
+        ? previousAttempt.checkoutToken
+        : makeId("checkout");
+
+    if (
+      !writeSession(
+        attemptKey,
+        {
+          signature,
+          checkoutToken,
+        },
+      )
+    ) {
+      setError(
+        "Enable browser session storage before payment so interrupted payments can be recovered.",
+      );
+
+      return;
+    }
 
     const record = {
-      version: 2,
+      version: 3,
+      guest: !user,
       phase: "starting",
 
       payload: {
@@ -1795,28 +1738,33 @@ function Checkout({ auth, mode }) {
 
       pricing: latestPricing,
 
-      snapshot: fresh.pricingRows.map(
-        (row) => ({
-          id: row.id,
-          quantity: row.quantity,
-          price: row.price,
-          selectedSize:
-            row.selectedSize ?? null,
-          selectedColor:
-            row.selectedColor ?? null,
+      snapshot:
+        fresh.pricingRows.map(
+          (row) => ({
+            id: row.id,
+            quantity: row.quantity,
+            price: row.price,
 
-          ...(
-            row.kitGroup
-              ? {
-                  kitGroup:
-                    checkoutSelectionRows([
-                      row,
-                    ])[0].kitGroup,
-                }
-              : {}
-          ),
-        }),
-      ),
+            selectedSize:
+              row.selectedSize ??
+              null,
+
+            selectedColor:
+              row.selectedColor ??
+              null,
+
+            ...(
+              row.kitGroup
+                ? {
+                    kitGroup:
+                      checkoutSelectionRows(
+                        [row],
+                      )[0].kitGroup,
+                  }
+                : {}
+            ),
+          }),
+        ),
 
       saveAddress,
     };
@@ -1846,7 +1794,8 @@ function Checkout({ auth, mode }) {
           latestPricing.totalAfterCoupon,
         ),
 
-        payment_type: paymentMethod,
+        payment_type:
+          paymentMethod,
       },
     );
 
@@ -1857,6 +1806,165 @@ function Checkout({ auth, mode }) {
     );
   }
 
+  async function editItem(
+    row,
+    nextQuantity,
+  ) {
+    if (
+      frozen ||
+      locked.current
+    ) {
+      return;
+    }
+
+    if (
+      !Number.isSafeInteger(
+        nextQuantity,
+      ) ||
+      nextQuantity < 0 ||
+      nextQuantity >
+        Math.max(
+          0,
+          row.maxQuantity,
+        )
+    ) {
+      setError(
+        "Choose an available quantity for this selection.",
+      );
+
+      return;
+    }
+
+    const original =
+      items[row.index];
+
+    const group =
+      getKitGroup(original);
+
+    setError("");
+
+    try {
+      if (
+        mode === "buy-now"
+      ) {
+        if (
+          nextQuantity === 0
+        ) {
+          store.clearBuyNow();
+        } else {
+          store.buyNow(
+            row.product ||
+            original,
+
+            nextQuantity,
+            row.selectedSize,
+            row.selectedColor,
+          );
+        }
+      } else if (!group) {
+        if (
+          nextQuantity === 0
+        ) {
+          store.removeFromCart(
+            row.key,
+          );
+        } else {
+          store.updateQuantity(
+            row.key,
+            nextQuantity,
+          );
+        }
+      } else {
+        locked.current = true;
+        setBusy(true);
+
+        const cart =
+          store.latestCart();
+
+        const components =
+          cart.filter(
+            (item) =>
+              getKitGroup(item)
+                ?.id === group.id,
+          );
+
+        const selections =
+          components.map(
+            (item) => ({
+              slotKey:
+                item.kitGroup
+                  .slotKey,
+
+              included:
+                getCartItemKey(
+                  item,
+                ) !== row.key ||
+                nextQuantity > 0,
+
+              productId:
+                String(item.id),
+
+              selectedSize:
+                item.selectedSize ??
+                null,
+
+              selectedColor:
+                item.selectedColor ??
+                null,
+
+              quantity:
+                getCartItemKey(
+                  item,
+                ) === row.key
+                  ? Math.max(
+                      1,
+                      nextQuantity,
+                    )
+                  : item.quantity,
+            }),
+          );
+
+        if (
+          !selections.some(
+            (item) =>
+              item.included,
+          )
+        ) {
+          store.removeKitFromCart(
+            group.id,
+          );
+        } else {
+          await store.saveFitnessKit({
+            kitId: group.kitId,
+            version: group.version,
+            groupId: group.id,
+
+            expectedGroupSignature:
+              kitGroupSignature(
+                cart,
+                group.id,
+              ),
+
+            selections,
+          });
+        }
+      }
+
+      reviewed.current = "";
+    } catch (failure) {
+      setError(
+        failure.message ||
+        "Your selection could not be changed.",
+      );
+    } finally {
+      locked.current = false;
+
+      if (mounted.current) {
+        setBusy(false);
+      }
+    }
+  }
+
   function changeAddress(value) {
     if (frozen) {
       return;
@@ -1865,7 +1973,7 @@ function Checkout({ auth, mode }) {
     addressTouched.current = true;
 
     // Preserve spaces while typing.
-    // Normalize when submitting.
+    // Normalize on submission.
     setAddress(
       Object.fromEntries(
         Object.keys(
@@ -1881,7 +1989,24 @@ function Checkout({ auth, mode }) {
       ),
     );
 
-    setErrors({});
+    setErrors((previous) =>
+      Object.fromEntries(
+        Object.entries(
+          previous,
+        ).filter(
+          ([key]) =>
+            String(
+              value?.[key] ??
+              "",
+            ) ===
+            String(
+              address[key] ??
+              "",
+            ),
+        ),
+      ),
+    );
+
     setError("");
   }
 
@@ -1904,31 +2029,27 @@ function Checkout({ auth, mode }) {
     <div className="page narrow checkout-page gd-checkout">
       <nav
         className="checkout-steps"
-        aria-label="Checkout progress"
+        aria-label="Purchase progress"
       >
-        <Link to="/cart">
-          1. BAG
+        <Link
+          to={
+            mode === "buy-now"
+              ? "/shop"
+              : "/cart"
+          }
+        >
+          {mode === "buy-now"
+            ? "Choose product"
+            : "Your bag"}
         </Link>
 
-        <strong
-          aria-current={
-            step === "address"
-              ? "step"
-              : undefined
-          }
-        >
-          2. ADDRESS
+        <strong aria-current="step">
+          Delivery & payment
         </strong>
 
-        <strong
-          aria-current={
-            step === "review"
-              ? "step"
-              : undefined
-          }
-        >
-          3. REVIEW & PAY
-        </strong>
+        <span>
+          Order confirmed
+        </span>
       </nav>
 
       <div className="page-heading">
@@ -1936,14 +2057,11 @@ function Checkout({ auth, mode }) {
           <h1>
             {pending
               ? "Check your payment"
-              : step === "address"
-                ? "Delivery details"
-                : "Review & payment"}
+              : "Complete your order"}
           </h1>
 
           <p className="muted">
             {review.itemCount} items ·{" "}
-
             {mode === "buy-now"
               ? "Buy now"
               : mode === "selection"
@@ -1953,15 +2071,20 @@ function Checkout({ auth, mode }) {
         </div>
       </div>
 
-      {!user && (
+      {!user && !pending && (
         <p className="notice">
-          Enter delivery details, then{" "}
+          <strong>
+            Guest checkout
+          </strong>
+          {" · "}
+          No account required. Your private order
+          access will be saved on this browser.
+          {" "}
 
           <Link to={loginPath}>
-            continue with Google
+            Sign in with Google instead
           </Link>
-
-          {" "}before payment.
+          .
         </p>
       )}
 
@@ -1979,12 +2102,11 @@ function Checkout({ auth, mode }) {
             <>
               <p>
                 Order:{" "}
-
                 {pending.orderId ||
-                  "Waiting for the server reference"}
-
-                . Keep this page open while
-                payment is checked.
+                  "Waiting for the server reference"}.
+                {" "}
+                Keep this page open while payment
+                is checked.
               </p>
 
               <p>
@@ -2026,7 +2148,9 @@ function Checkout({ auth, mode }) {
                       type="button"
                       disabled={busy}
                       onClick={() =>
-                        pay(pendingRef.current)
+                        pay(
+                          pendingRef.current,
+                        )
                       }
                     >
                       Resume payment
@@ -2039,9 +2163,25 @@ function Checkout({ auth, mode }) {
                     type="button"
                     disabled={busy}
                     onClick={() => {
+                      const source =
+                        pendingRef.current
+                          ?.payload?.source ||
+                        mode;
+
+                      writeSession(
+                        store.shoppingKey(
+                          `gymdrobe-checkout-attempt-${source}`,
+                        ),
+                        null,
+                      );
+
+                      writeSession(
+                        attemptKey,
+                        null,
+                      );
+
                       remember(null);
                       reviewed.current = "";
-                      setStep("address");
                       setError("");
                     }}
                   >
@@ -2056,8 +2196,8 @@ function Checkout({ auth, mode }) {
 
       {pending?.testMode && (
         <p className="notice">
-          Test payment mode: this checkout
-          does not collect live payments.
+          Test payment mode: this checkout does
+          not collect live payments.
         </p>
       )}
 
@@ -2070,36 +2210,35 @@ function Checkout({ auth, mode }) {
         </p>
       )}
 
-      {!pending &&
-        !review.canCheckout && (
-          <section
-            className="notice"
-            role="status"
+      {!pending && !review.canCheckout && (
+        <section
+          className="notice"
+          role="status"
+        >
+          <p>
+            Checkout needs a current product and
+            stock check. Review highlighted items
+            below.
+          </p>
+
+          <button
+            className="button secondary"
+            type="button"
+            disabled={refreshing || busy}
+            onClick={refresh}
           >
-            <p>
-              Checkout needs a current product
-              and stock check. Review highlighted
-              items below.
-            </p>
+            {refreshing
+              ? "Checking products…"
+              : "Refresh products"}
+          </button>
 
-            <button
-              className="button secondary"
-              type="button"
-              disabled={refreshing || busy}
-              onClick={refresh}
-            >
-              {refreshing
-                ? "Checking products…"
-                : "Refresh products"}
-            </button>
+          {" "}
 
-            {" "}
-
-            <Link to="/cart">
-              Review bag
-            </Link>
-          </section>
-        )}
+          <Link to="/cart">
+            Review bag
+          </Link>
+        </section>
+      )}
 
       <div className="checkout-layout">
         <form
@@ -2109,339 +2248,380 @@ function Checkout({ auth, mode }) {
           onSubmit={submit}
           noValidate
         >
-          {step === "address" ? (
-            <>
-              <fieldset
-                className="panel gd-checkout-fields"
-                disabled={frozen}
+          <fieldset
+            className="panel gd-checkout-fields"
+            disabled={frozen}
+          >
+            <legend>
+              CONTACT & DELIVERY ADDRESS
+            </legend>
+
+            {addressesLoading && (
+              <p role="status">
+                Loading saved addresses…
+              </p>
+            )}
+
+            {addressesError && (
+              <p
+                className="field-error"
+                role="alert"
               >
-                <legend>
-                  CONTACT & DELIVERY ADDRESS
-                </legend>
+                {addressesError}
+              </p>
+            )}
 
-                {addressesLoading && (
-                  <p role="status">
-                    Loading saved addresses…
-                  </p>
-                )}
+            {addresses.length > 0 && (
+              <div className="saved-address-choices">
+                <h3>
+                  Use a saved address
+                </h3>
 
-                {addressesError && (
-                  <p
-                    className="field-error"
-                    role="alert"
-                  >
-                    {addressesError}
-                  </p>
-                )}
-
-                {addresses.length > 0 && (
-                  <div className="saved-address-choices">
-                    <h3>
-                      Use a saved address
-                    </h3>
-
-                    {addresses.map(
-                      (value, index) => (
-                        <button
-                          key={
-                            value.id ||
-                            value._id ||
-                            index
-                          }
-                          type="button"
-                          className="saved-address-choice"
-                          onClick={() =>
-                            changeAddress(
-                              normalizeAddress(
-                                value,
-                              ),
-                            )
-                          }
-                        >
-                          <strong>
-                            {value.fullName ||
-                              value.name}
-                          </strong>
-
-                          <span>
-                            {value.addressLine}
-
-                            {" · "}
-
-                            {value.city}{" "}
-                            {value.pincode}
-                          </span>
-                        </button>
-                      ),
-                    )}
-                  </div>
-                )}
-
-                <AddressForm
-                  value={address}
-                  errors={errors}
-                  onChange={changeAddress}
-                />
-
-                {user && (
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={saveAddress}
-                      onChange={(event) =>
-                        setSaveAddress(
-                          event.target.checked,
+                {addresses.map(
+                  (value, index) => (
+                    <button
+                      key={
+                        value.id ||
+                        value._id ||
+                        index
+                      }
+                      type="button"
+                      className="saved-address-choice"
+                      onClick={() =>
+                        changeAddress(
+                          normalizeAddress(
+                            value,
+                          ),
                         )
                       }
-                    />
-
-                    Save this address for next time
-                  </label>
-                )}
-              </fieldset>
-
-              <details className="panel">
-                <summary>
-                  Gift message & delivery instructions
-                  (optional)
-                </summary>
-
-                <div className="field">
-                  <label htmlFor="gift-message">
-                    Gift message
-                  </label>
-
-                  <textarea
-                    id="gift-message"
-                    maxLength={250}
-                    rows={3}
-                    value={giftMessage}
-                    disabled={frozen}
-                    onChange={(event) =>
-                      setGiftMessage(
-                        event.target.value,
-                      )
-                    }
-                  />
-                </div>
-
-                <div className="field">
-                  <label htmlFor="order-note">
-                    Delivery instructions
-                  </label>
-
-                  <textarea
-                    id="order-note"
-                    maxLength={300}
-                    rows={2}
-                    value={orderNote}
-                    disabled={frozen}
-                    onChange={(event) =>
-                      setOrderNote(
-                        event.target.value,
-                      )
-                    }
-                  />
-                </div>
-              </details>
-            </>
-          ) : (
-            <>
-              <section className="panel">
-                <div className="panel-heading">
-                  <h2>DELIVER TO</h2>
-
-                  <button
-                    className="text-link"
-                    type="button"
-                    disabled={frozen}
-                    onClick={() =>
-                      setStep("address")
-                    }
-                  >
-                    Edit details
-                  </button>
-                </div>
-
-                <strong>
-                  {address.fullName}
-                </strong>
-
-                <p>
-                  {address.addressLine}
-
-                  {address.landmark
-                    ? `, ${address.landmark}`
-                    : ""}
-
-                  <br />
-
-                  {address.city}, {address.state}
-
-                  {" – "}
-
-                  {address.pincode}
-                </p>
-
-                <p>
-                  {address.phone} · {address.email}
-                </p>
-              </section>
-
-              <fieldset
-                className="panel gd-checkout-fields"
-                disabled={frozen}
-              >
-                <legend>
-                  DELIVERY METHOD
-                </legend>
-
-                {[
-                  "standard",
-                  "express",
-                ].map((value) => (
-                  <label
-                    className="check"
-                    key={value}
-                  >
-                    <input
-                      type="radio"
-                      name="delivery"
-                      checked={method === value}
-                      onChange={() =>
-                        setMethod(value)
-                      }
-                    />
-
-                    <span>
+                    >
                       <strong>
-                        {value === "standard"
-                          ? "Standard delivery"
-                          : "Express delivery"}
+                        {value.fullName ||
+                          value.name}
                       </strong>
 
-                      {" · "}
+                      <span>
+                        {value.addressLine}
+                        {" · "}
+                        {value.city}{" "}
+                        {value.pincode}
+                      </span>
+                    </button>
+                  ),
+                )}
+              </div>
+            )}
 
-                      {hasKits
-                        ? (
-                            method === value &&
-                            pricing
-                              ? money(
-                                  pricing.shipping,
-                                )
-                              : "Checked for your pincode"
-                          )
-                        : pricing
-                          ? money(
-                              calculateOrderPricing({
-                                cart:
-                                  review.pricingRows,
+            <AddressForm
+              value={address}
+              errors={errors}
+              onChange={changeAddress}
+            />
 
-                                coupon:
-                                  store.coupon,
+            {user && (
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={saveAddress}
+                  onChange={(event) =>
+                    setSaveAddress(
+                      event.target.checked,
+                    )
+                  }
+                />
 
-                                deliveryMethod:
-                                  value,
-                              }).shipping,
-                            )
-                          : "Charge unavailable"}
-                    </span>
-                  </label>
-                ))}
+                Save this address for next time
+              </label>
+            )}
+          </fieldset>
 
-                <p className="muted">
-                  {hasKits
-                    ? "Kit charges depend on the measured packages, your pincode and payment method. Review the confirmed package breakdown below."
-                    : `Standard delivery is free from ${money(FREE_SHIPPING_LIMIT)} after coupons. Supplier preparation and courier transit are separate.`}
-                </p>
-              </fieldset>
+          <details className="panel">
+            <summary>
+              Gift message & delivery instructions
+              (optional)
+            </summary>
 
-              <fieldset
-                className="panel gd-checkout-fields"
-                disabled={frozen || !token}
+            <div className="field">
+              <label htmlFor="gift-message">
+                Gift message
+              </label>
+
+              <textarea
+                id="gift-message"
+                maxLength={250}
+                rows={3}
+                value={giftMessage}
+                disabled={frozen}
+                onChange={(event) =>
+                  setGiftMessage(
+                    event.target.value,
+                  )
+                }
+              />
+            </div>
+
+            <div className="field">
+              <label htmlFor="order-note">
+                Delivery instructions
+              </label>
+
+              <textarea
+                id="order-note"
+                maxLength={300}
+                rows={2}
+                value={orderNote}
+                disabled={frozen}
+                onChange={(event) =>
+                  setOrderNote(
+                    event.target.value,
+                  )
+                }
+              />
+            </div>
+          </details>
+
+          <fieldset
+            className="panel gd-checkout-fields"
+            disabled={frozen}
+          >
+            <legend>
+              DELIVERY METHOD
+            </legend>
+
+            {[
+              "standard",
+              "express",
+            ].map((value) => (
+              <label
+                className="check"
+                key={value}
               >
-                <legend>
-                  PAYMENT METHOD
-                </legend>
+                <input
+                  type="radio"
+                  name="delivery"
+                  checked={method === value}
+                  onChange={() =>
+                    setMethod(value)
+                  }
+                />
 
-                <label className="check">
-                  <input
-                    type="radio"
-                    name="payment"
-                    checked={
-                      paymentMethod === "razorpay"
-                    }
-                    onChange={() =>
-                      setPaymentMethod("razorpay")
-                    }
-                  />
+                <span>
+                  <strong>
+                    {value === "standard"
+                      ? "Standard delivery"
+                      : "Express delivery"}
+                  </strong>
 
-                  <span>
-                    <strong>
-                      Online payment
-                    </strong>
+                  {" · "}
 
-                    <br />
+                  {hasKits
+                    ? method === value &&
+                      pricing
+                      ? money(
+                          pricing.shipping,
+                        )
+                      : "Checked for your pincode"
+                    : pricing
+                      ? money(
+                          calculateOrderPricing({
+                            cart:
+                              review.pricingRows,
 
-                    Pay the complete order amount
-                    through Razorpay. Nothing remains
-                    due on delivery.
-                  </span>
-                </label>
+                            coupon:
+                              store.coupon,
 
-                <label className="check">
-                  <input
-                    type="radio"
-                    name="payment"
-                    checked={
-                      paymentMethod ===
-                      "cod-partial"
-                    }
-                    onChange={() =>
-                      setPaymentMethod(
-                        "cod-partial",
-                      )
-                    }
-                  />
+                            deliveryMethod:
+                              value,
+                          }).shipping,
+                        )
+                      : "Charge unavailable"}
+                </span>
+              </label>
+            ))}
 
-                  <span>
-                    <strong>
-                      COD with 10% advance
-                    </strong>
+            <p className="muted">
+              {hasKits
+                ? "Kit charges depend on the measured packages, your pincode and payment method. Review the confirmed package breakdown below."
+                : `Standard delivery is free from ${money(
+                    FREE_SHIPPING_LIMIT,
+                  )} after coupons. Supplier preparation and courier transit are separate.`}
+            </p>
+          </fieldset>
 
-                    <br />
+          <fieldset
+            className="panel gd-checkout-fields"
+            disabled={frozen}
+          >
+            <legend>
+              PAYMENT METHOD
+            </legend>
 
-                    The advance is 10% of products
-                    after coupons. Delivery charges
-                    stay in the remaining balance.
-                  </span>
-                </label>
+            <label className="check">
+              <input
+                type="radio"
+                name="payment"
+                checked={
+                  paymentMethod ===
+                  "razorpay"
+                }
+                onChange={() =>
+                  setPaymentMethod(
+                    "razorpay",
+                  )
+                }
+              />
 
-                <p className="muted">
-                  Review{" "}
+              <span>
+                <strong>
+                  Online payment
+                </strong>
 
-                  <Link to="/help">
-                    cancellation, return and refund
-                    information
-                  </Link>
+                <br />
 
-                  {" "}before paying. Contact support
-                  if eligibility or terms are unconfirmed.
+                Pay the complete order amount
+                through Razorpay. Nothing remains
+                due on delivery.
+              </span>
+            </label>
+
+            <label className="check">
+              <input
+                type="radio"
+                name="payment"
+                checked={
+                  paymentMethod ===
+                  "cod-partial"
+                }
+                onChange={() =>
+                  setPaymentMethod(
+                    "cod-partial",
+                  )
+                }
+              />
+
+              <span>
+                <strong>
+                  COD with 10% advance
+                </strong>
+
+                <br />
+
+                The advance is 10% of products
+                after coupons. Delivery charges
+                stay in the remaining balance.
+              </span>
+            </label>
+
+            <p className="muted">
+              Review{" "}
+
+              <Link to="/help">
+                cancellation, return and refund
+                information
+              </Link>
+
+              {" "}
+              before paying. Contact support if
+              eligibility or terms are unconfirmed.
+            </p>
+          </fieldset>
+
+          {(giftMessage.trim() ||
+            orderNote.trim()) && (
+            <section className="panel">
+              <h2>
+                ORDER NOTES
+              </h2>
+
+              <p>{giftMessage}</p>
+              <p>{orderNote}</p>
+            </section>
+          )}
+
+          {!hasKits && !pending && (
+            <section
+              className="panel"
+              aria-label="Delivery availability"
+            >
+              <h2>
+                DELIVERY & PRICE CHECK
+              </h2>
+
+              {quoteLoading ? (
+                <p role="status">
+                  Checking current prices, stock
+                  and delivery settings…
                 </p>
-              </fieldset>
+              ) : quoteError ? (
+                <p
+                  className="field-error"
+                  role="alert"
+                >
+                  {quoteError}
+                </p>
+              ) : kitQuote?.deliveryReview
+                  ?.ready ? (
+                <>
+                  <p>
+                    Prices checked for pincode{" "}
+                    <strong>
+                      {
+                        kitQuote.deliveryReview
+                          .pincode
+                      }
+                    </strong>
+                    .
+                  </p>
 
-              {(
-                giftMessage.trim() ||
-                orderNote.trim()
-              ) && (
-                <section className="panel">
-                  <h2>ORDER NOTES</h2>
+                  {kitQuote.deliveryReview
+                    .estimatedDays && (
+                    <p>
+                      Recorded preparation and
+                      delivery estimate:{" "}
+                      {
+                        kitQuote.deliveryReview
+                          .estimatedDays.minimum
+                      }
+                      –
+                      {
+                        kitQuote.deliveryReview
+                          .estimatedDays.maximum
+                      }
+                      {" "}
+                      days.
+                    </p>
+                  )}
 
-                  <p>{giftMessage}</p>
-                  <p>{orderNote}</p>
-                </section>
+                  <p className="muted">
+                    {
+                      kitQuote.deliveryReview
+                        .notice
+                    }
+                  </p>
+                </>
+              ) : (
+                <p>
+                  Enter your six-digit delivery
+                  pincode to check products and
+                  the final cost.
+                </p>
               )}
-            </>
+
+              <button
+                type="button"
+                className="text-link"
+                disabled={
+                  frozen || quoteLoading
+                }
+                onClick={() =>
+                  setQuoteRevision(
+                    (value) => value + 1,
+                  )
+                }
+              >
+                Refresh prices & delivery
+              </button>
+            </section>
           )}
 
           {hasKits && !pending && (
@@ -2451,7 +2631,6 @@ function Checkout({ auth, mode }) {
               error={quoteError}
               disabled={
                 frozen ||
-                !token ||
                 Boolean(kitIssue)
               }
               onRefresh={() =>
@@ -2463,13 +2642,52 @@ function Checkout({ auth, mode }) {
           )}
 
           <section className="panel">
-            <h2>YOUR PRODUCTS</h2>
+            <h2>
+              YOUR PRODUCTS
+            </h2>
 
             {review.rows.map((row) => {
               const information =
                 buyingInformation(
                   row.product || row,
                 );
+
+              const quotedItem =
+                kitQuote?.items?.find(
+                  (item) =>
+                    String(
+                      item.product,
+                    ) ===
+                      String(row.id) &&
+                    (
+                      item.selectedSize ??
+                      null
+                    ) ===
+                      (
+                        row.selectedSize ??
+                        null
+                      ) &&
+                    (
+                      item.selectedColor ??
+                      null
+                    ) ===
+                      (
+                        row.selectedColor ??
+                        null
+                      ) &&
+                    (
+                      item.kit?.groupId ||
+                      ""
+                    ) ===
+                      (
+                        row.kitGroup?.id ||
+                        ""
+                      ),
+                );
+
+              const linePrice =
+                quotedItem?.price ??
+                row.unitPrice;
 
               const variants = [
                 [
@@ -2519,11 +2737,20 @@ function Checkout({ auth, mode }) {
                         "Brand not recorded"}
                     </p>
 
-                    <p>{variants}</p>
+                    <p>
+                      {variants}
+                    </p>
+
+                    {Number.isFinite(
+                      linePrice,
+                    ) && (
+                      <p>
+                        {money(linePrice)} each
+                      </p>
+                    )}
 
                     <p>
                       Quantity:{" "}
-
                       {row.quantityValid
                         ? row.quantity
                         : "Needs correction"}
@@ -2531,13 +2758,100 @@ function Checkout({ auth, mode }) {
                       {" · "}
 
                       {row.lineSafe
-                        ? money(row.lineTotal)
+                        ? money(
+                            linePrice *
+                            row.quantity,
+                          )
                         : "Price unavailable"}
 
                       {hasKits
                         ? " before kit and coupon savings"
                         : ""}
                     </p>
+
+                    {!frozen && (
+                      <div className="gd-checkout-quantity">
+                        <label>
+                          Quantity for {row.name}
+
+                          <select
+                            value={
+                              row.quantityValid
+                                ? row.quantity
+                                : ""
+                            }
+                            onChange={(event) =>
+                              editItem(
+                                row,
+                                Number(
+                                  event.target
+                                    .value,
+                                ),
+                              )
+                            }
+                            disabled={
+                              busy ||
+                              row.maxQuantity < 1
+                            }
+                          >
+                            {!row.quantityValid && (
+                              <option value="">
+                                Choose quantity
+                              </option>
+                            )}
+
+                            {Array.from(
+                              {
+                                length:
+                                  Math.min(
+                                    99,
+                                    Math.max(
+                                      0,
+                                      row.maxQuantity,
+                                    ),
+                                  ),
+                              },
+                              (_, index) =>
+                                index + 1,
+                            ).map((value) => (
+                              <option
+                                key={value}
+                                value={value}
+                              >
+                                {value}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <button
+                          className="text-link"
+                          type="button"
+                          disabled={busy}
+                          onClick={() =>
+                            editItem(row, 0)
+                          }
+                        >
+                          Remove item
+                        </button>
+                      </div>
+                    )}
+
+                    {getKitGroup(
+                      items[row.index],
+                    ) && (
+                      <p>
+                        <strong>
+                          {
+                            items[row.index]
+                              .kitGroup.name
+                          }
+                        </strong>
+                        {" · "}
+                        Kit savings are checked
+                        again after edits.
+                      </p>
+                    )}
 
                     {row.message && (
                       <p
@@ -2576,16 +2890,22 @@ function Checkout({ auth, mode }) {
         </form>
 
         <aside className="checkout-summary">
-          {step === "address" &&
-            !frozen &&
-            pricing && (
+          {!frozen && pricing && (
+            <details className="panel gd-checkout-coupon">
+              <summary>
+                Have a coupon? (optional)
+              </summary>
+
               <CouponBox
                 subtotal={pricing.subtotal}
               />
-            )}
+            </details>
+          )}
 
           <section className="price-summary">
-            <h2>ORDER SUMMARY</h2>
+            <h2>
+              ORDER SUMMARY
+            </h2>
 
             {displayedPricing ? (
               <dl>
@@ -2601,24 +2921,33 @@ function Checkout({ auth, mode }) {
                   </dd>
                 </div>
 
-                {displayedPricing.kitDiscount > 0 && (
+                {displayedPricing.kitDiscount >
+                  0 && (
                   <div>
-                    <dt>Kit savings</dt>
+                    <dt>
+                      Kit savings
+                    </dt>
 
                     <dd>
-                      −{money(
-                        displayedPricing.kitDiscount,
+                      −
+                      {money(
+                        displayedPricing
+                          .kitDiscount,
                       )}
                     </dd>
                   </div>
                 )}
 
                 <div>
-                  <dt>Coupon savings</dt>
+                  <dt>
+                    Coupon savings
+                  </dt>
 
                   <dd>
-                    −{money(
-                      displayedPricing.couponDiscount,
+                    −
+                    {money(
+                      displayedPricing
+                        .couponDiscount,
                     )}
                   </dd>
                 </div>
@@ -2628,8 +2957,8 @@ function Checkout({ auth, mode }) {
                     {method === "express"
                       ? "Express"
                       : "Standard"}
-
-                    {" "}delivery
+                    {" "}
+                    delivery
                   </dt>
 
                   <dd>
@@ -2640,7 +2969,9 @@ function Checkout({ auth, mode }) {
                 </div>
 
                 <div className="total">
-                  <dt>Total amount</dt>
+                  <dt>
+                    Total amount
+                  </dt>
 
                   <dd>
                     {money(
@@ -2650,35 +2981,43 @@ function Checkout({ auth, mode }) {
                 </div>
 
                 <div>
-                  <dt>Pay now</dt>
+                  <dt>
+                    Pay now
+                  </dt>
 
                   <dd>
-                    {money(displayedAmounts.now)}
+                    {money(
+                      displayedAmounts.now,
+                    )}
                   </dd>
                 </div>
 
                 <div>
-                  <dt>Pay on delivery</dt>
+                  <dt>
+                    Pay on delivery
+                  </dt>
 
                   <dd>
-                    {money(displayedAmounts.due)}
+                    {money(
+                      displayedAmounts.due,
+                    )}
                   </dd>
                 </div>
 
                 {review.productSavings > 0 &&
                   !pending && (
-                    <div>
-                      <dt>
-                        Product savings included above
-                      </dt>
+                  <div>
+                    <dt>
+                      Product savings included above
+                    </dt>
 
-                      <dd>
-                        {money(
-                          review.productSavings,
-                        )}
-                      </dd>
-                    </div>
-                  )}
+                    <dd>
+                      {money(
+                        review.productSavings,
+                      )}
+                    </dd>
+                  </div>
+                )}
               </dl>
             ) : (
               <p role="status">
@@ -2688,55 +3027,32 @@ function Checkout({ auth, mode }) {
               </p>
             )}
 
-            {!pending &&
-              (
-                !user &&
-                step === "review"
-                  ? (
-                      <Link
-                        className="button full"
-                        to={loginPath}
-                      >
-                        Continue with Google
-                      </Link>
-                    )
-                  : (
-                      <button
-                        className="button full"
-                        type="submit"
-                        form="checkout-form"
-                        disabled={
-                          busy ||
-                          refreshing ||
-                          (
-                            step === "address" &&
-                            hasKits
-                              ? !review.canCheckout ||
-                                Boolean(kitIssue)
-                              : !canPay
-                          ) ||
-                          (
-                            step === "review" &&
-                            !token
-                          )
-                        }
-                      >
-                        {busy
-                          ? "Processing payment…"
-                          : step === "address"
-                            ? "Continue to delivery & payment"
-                            : `Pay ${money(
-                                amounts?.now,
-                              )} & place order`}
-                      </button>
-                    )
-              )}
+            {!pending && (
+              <button
+                className="button full gd-checkout-pay"
+                type="submit"
+                form="checkout-form"
+                disabled={
+                  busy ||
+                  refreshing ||
+                  !canPay
+                }
+              >
+                {busy
+                  ? "Checking & processing…"
+                  : pricing
+                    ? `Pay ${money(
+                        amounts?.now,
+                      )} & Place Order`
+                    : "Enter delivery pincode to check total"}
+              </button>
+            )}
 
             <p className="muted">
               Prices and stock are checked again
               on the server. After verified payment
-              and order confirmation, you will go
-              to My orders.
+              and order confirmation, you will see
+              your order number and tracking link.
             </p>
           </section>
         </aside>

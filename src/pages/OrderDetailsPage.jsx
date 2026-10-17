@@ -1,3 +1,6 @@
+import { guestAccess } from "../utils/guestCheckout.js";
+
+import KitFulfillmentTracking from "../components/KitFulfillmentTracking.jsx";
 import PurchasedKitSummary from "../components/PurchasedKitSummary.jsx";
 
 import {
@@ -17,6 +20,7 @@ import { useCatalog } from "../context/CatalogContext.jsx";
 import { useStore } from "../context/StoreContext.jsx";
 
 import useCustomerOrder from "../hooks/useCustomerOrder.js";
+import useOrderUpdates from "../hooks/useOrderUpdates.js";
 
 import {
   getOrderById,
@@ -62,6 +66,7 @@ import OrderPaymentDetails, {
 } from "../components/OrderPaymentDetails.jsx";
 
 import EmptyState from "../components/EmptyState.jsx";
+import GuestOrderAccess from "../components/GuestOrderAccess.jsx";
 import Modal from "../components/Modal.jsx";
 
 function showMoney(value) {
@@ -265,7 +270,7 @@ function OrderDetail({
       if (mounted.current) {
         setError(
           failure.message ||
-            "Unable to check this order.",
+          "Unable to check this order.",
         );
 
         if (
@@ -419,7 +424,7 @@ function OrderDetail({
           if (mounted.current) {
             setError(
               readFailure.message ||
-                "Unable to confirm cancellation. Check its status before retrying.",
+              "Unable to confirm cancellation. Check its status before retrying.",
             );
 
             if (
@@ -442,7 +447,7 @@ function OrderDetail({
 
         setError(
           failure.message ||
-            "Cancellation could not be completed.",
+          "Cancellation could not be completed.",
         );
 
         if (
@@ -489,7 +494,7 @@ function OrderDetail({
       products,
       cart,
       ready &&
-        shopping.catalogReady !== false,
+      shopping.catalogReady !== false,
     );
   }
 
@@ -585,9 +590,11 @@ function OrderDetail({
 
           <Link
             className="button secondary"
-            to="/login"
+            to={token ? "/login" : "/orders"}
           >
-            Check sign-in
+            {token
+              ? "Check sign-in"
+              : "Orders & guest access"}
           </Link>
 
           <Link
@@ -597,6 +604,8 @@ function OrderDetail({
             Contact support
           </Link>
         </div>
+
+        {!token && <GuestOrderAccess />}
       </div>
     );
   }
@@ -621,20 +630,29 @@ function OrderDetail({
           to="/orders"
           label="View my orders"
         >
-          This order is not available for your
-          current account or local preview.
+          This order is not available for your current
+          account or guest access. Restore your private
+          guest code or open your order history.
         </EmptyState>
+
+        {!token && <GuestOrderAccess />}
       </div>
     );
   }
 
-  const signedIn = Boolean(userId);
+  const hasOrderAccess = Boolean(
+    userId && data.isAccountOrder,
+  );
 
   const displayId =
-    order.orderNumber || order.id || orderId;
+    order.orderNumber ||
+    order.id ||
+    orderId;
 
   const routeId = encodeURIComponent(
-    order.id || order._id || orderId,
+    order.id ||
+    order._id ||
+    orderId,
   );
 
   const helpPath =
@@ -662,14 +680,17 @@ function OrderDetail({
   ].includes(request.status);
 
   const canCancel =
-    signedIn &&
+    hasOrderAccess &&
     cancellationAvailability(order).eligible;
 
   const canReturn =
-    signedIn &&
+    hasOrderAccess &&
     items.some(
       (item) =>
-        itemReturnAvailability(order, item).eligible,
+        itemReturnAvailability(
+          order,
+          item,
+        ).eligible,
     );
 
   const blocked =
@@ -706,10 +727,7 @@ function OrderDetail({
       <div className="page-heading">
         <div>
           <h1>Order details</h1>
-
-          <p className="order-id">
-            {displayId}
-          </p>
+          <p className="order-id">{displayId}</p>
 
           <p className="muted">
             {formatOrderDate(order.createdAt)}
@@ -723,15 +741,23 @@ function OrderDetail({
               : ""
           }`}
         >
-          {formatOrderStatus(order.status)}
+          {order.status === "packed"
+            ? "Packed"
+            : formatOrderStatus(order.status)}
         </span>
       </div>
 
       <p className="notice">
-        {signedIn
-          ? "This order is loaded from your GymDrobe account."
+        {hasOrderAccess
+          ? order.isGuestOrder === true
+            ? "This guest order is loaded securely from GymDrobe."
+            : "This order is loaded from your GymDrobe account."
           : "Local preview only. It cannot send a real cancellation, return or refund request to GymDrobe."}
       </p>
+
+      {!hasOrderAccess && !token && (
+        <GuestOrderAccess />
+      )}
 
       {order.metadata?.demo === true && (
         <p className="notice">
@@ -771,7 +797,8 @@ function OrderDetail({
             {busy
               ? "Checking…"
               : "Check cancellation status"}
-          </button>{" "}
+          </button>
+          {" "}
 
           <Link
             className="text-link"
@@ -808,6 +835,8 @@ function OrderDetail({
           : "Refresh order"}
       </button>
 
+      <KitFulfillmentTracking order={order} />
+
       <div className="checkout-layout">
         <div>
           {items.map((item, index) => {
@@ -828,7 +857,8 @@ function OrderDetail({
             );
 
             const id =
-              product?.id ?? product?._id;
+              product?.id ??
+              product?._id;
 
             const path =
               id != null
@@ -991,9 +1021,7 @@ function OrderDetail({
               <p>{address.email}</p>
             )}
 
-            <p>
-              Delivery: {deliveryLabel}
-            </p>
+            <p>Delivery: {deliveryLabel}</p>
           </section>
 
           {trackingText(order.giftMessage) && (
@@ -1007,7 +1035,8 @@ function OrderDetail({
             <p className="panel">
               <strong>
                 Delivery instructions:
-              </strong>{" "}
+              </strong>
+              {" "}
               {order.orderNote}
             </p>
           )}
@@ -1024,7 +1053,8 @@ function OrderDetail({
               type="button"
               className="button secondary"
               disabled={
-                blocked || catalog.loading
+                blocked ||
+                catalog.loading
               }
               onClick={() => {
                 setPreview(reorderPlan());
@@ -1126,7 +1156,8 @@ function OrderDetail({
                   <h2>
                     {request.type === "exchange"
                       ? "EXCHANGE"
-                      : "RETURN"}{" "}
+                      : "RETURN"}
+                    {" "}
                     REQUEST
                   </h2>
 
@@ -1145,7 +1176,7 @@ function OrderDetail({
               </div>
 
               <p className="notice">
-                {signedIn
+                {hasOrderAccess
                   ? returnRequestMessage(request)
                   : "This is a local preview request. It has not been submitted to GymDrobe."}
               </p>
@@ -1224,7 +1255,8 @@ function OrderDetail({
                 <p className="notice">
                   <strong>
                     GymDrobe response:
-                  </strong>{" "}
+                  </strong>
+                  {" "}
                   {request.response}
                 </p>
               )}
@@ -1234,12 +1266,10 @@ function OrderDetail({
                 ["Responded", request.respondedAt],
                 ["Approved", request.approvedAt],
                 ["Rejected", request.rejectedAt],
-
                 [
                   "Inspection completed",
                   request.inspectionCompletedAt,
                 ],
-
                 [
                   "Request completed",
                   request.completedAt,
@@ -1470,7 +1500,8 @@ function OrderDetail({
                     {purchasedOptions(
                       row.size,
                       row.color,
-                    )}{" "}
+                    )}
+                    {" "}
                     · Quantity to add:{" "}
                     {row.quantity}
                   </p>
@@ -1580,6 +1611,8 @@ function OrderDetail({
 export default function OrderDetailsPage() {
   const { orderId = "" } = useParams();
 
+  useOrderUpdates();
+
   const {
     user,
     token,
@@ -1622,14 +1655,22 @@ export default function OrderDetailsPage() {
     );
   }
 
-  const userId = String(
-    user?.id || user?._id || "",
+  const accountId = String(
+    user?.id ||
+    user?._id ||
+    "",
   );
+
+  const guest = guestAccess();
+
+  const userId =
+    accountId ||
+    (guest ? "guest" : "");
 
   if (
     user?.isActive === false ||
-    (user && (!userId || !token)) ||
-    (token && !userId)
+    (user && (!accountId || !token)) ||
+    (token && !accountId)
   ) {
     return (
       <div className="page narrow panel">
@@ -1664,7 +1705,7 @@ export default function OrderDetailsPage() {
 
   return (
     <OrderDetail
-      key={`${userId || "guest"}:${orderId}:${token || ""}`}
+      key={`${userId || "preview"}:${orderId}:${token || ""}:${guest?.token || ""}`}
       orderId={orderId}
       userId={userId}
       token={token}

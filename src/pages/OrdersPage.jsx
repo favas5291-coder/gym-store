@@ -1,10 +1,22 @@
 import { useState } from "react";
-
 import { Link } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext.jsx";
 
 import useCustomerOrders from "../hooks/useCustomerOrders.js";
+import useOrderUpdates from "../hooks/useOrderUpdates.js";
+
+import GuestOrderAccess from "../components/GuestOrderAccess.jsx";
+import AccountLayout from "../components/AccountLayout.jsx";
+
+import {
+  ProductImage,
+} from "../components/StorefrontShared.jsx";
+
+import {
+  formatOrderDate,
+  formatOrderStatus,
+} from "../components/OrderPaymentDetails.jsx";
 
 import {
   orderIdentifier,
@@ -14,18 +26,10 @@ import {
   filterCustomerOrders,
 } from "../utils/customerOrders.js";
 
+import { guestAccess } from "../utils/guestCheckout.js";
 import { money } from "../utils/productPricing.js";
 
-import {
-  ProductImage,
-} from "../components/StorefrontShared.jsx";
-
-import AccountLayout from "../components/AccountLayout.jsx";
-
-import {
-  formatOrderDate,
-  formatOrderStatus,
-} from "../components/OrderPaymentDetails.jsx";
+import "../utils/CheckoutPage.css";
 
 const PAGE_SIZE = 8;
 
@@ -59,6 +63,7 @@ function PaymentSummary({ order }) {
           ? "Recorded amount retained after refund"
           : "Recorded amount paid"}
         {": "}
+
         <strong>
           {showMoney(info.paid)}
         </strong>
@@ -70,6 +75,7 @@ function PaymentSummary({ order }) {
             ? "Balance due on delivery"
             : "Amount remaining"}
           {": "}
+
           <strong>
             {showMoney(info.due)}
           </strong>
@@ -78,8 +84,8 @@ function PaymentSummary({ order }) {
 
       {info.cancelled && info.cod && (
         <p className="muted">
-          No remaining COD balance will be
-          collected for this cancelled order.
+          No remaining COD balance will be collected
+          for this cancelled order.
         </p>
       )}
 
@@ -89,9 +95,8 @@ function PaymentSummary({ order }) {
             ? "Recorded refund"
             : "Requested refund"}
           {": "}
-          {formatOrderStatus(
-            info.refundStatus,
-          )}
+
+          {formatOrderStatus(info.refundStatus)}
           {" · "}
           {showMoney(info.refundAmount)}
         </p>
@@ -99,9 +104,9 @@ function PaymentSummary({ order }) {
 
       {info.needsReview && (
         <p className="notice">
-          The recorded payment needs checking.
-          Open order details or contact support
-          before paying again.
+          The recorded payment needs checking. Open
+          order details or contact support before
+          paying again.
         </p>
       )}
 
@@ -117,10 +122,7 @@ function PaymentSummary({ order }) {
 }
 
 function OrderList({ userId, token }) {
-  const data = useCustomerOrders(
-    userId,
-    token,
-  );
+  const data = useCustomerOrders(userId, token);
 
   const [filters, setFilters] = useState({
     query: "",
@@ -132,12 +134,20 @@ function OrderList({ userId, token }) {
 
   const [page, setPage] = useState(1);
 
-  const signedIn = Boolean(userId);
+  const guest = guestAccess();
+  const remote = Boolean(userId || guest);
   const orders = data.orders;
 
   const matches = filterCustomerOrders(
     orders,
-    filters,
+    {
+      ...filters,
+      status: "",
+    },
+  ).filter(
+    (order) =>
+      !filters.status ||
+      order.status === filters.status,
   );
 
   const pages = Math.max(
@@ -154,10 +164,10 @@ function OrderList({ userId, token }) {
 
   const filtering = Boolean(
     filters.query.trim() ||
-    filters.status ||
-    filters.payment ||
-    filters.days ||
-    filters.sort !== "newest",
+      filters.status ||
+      filters.payment ||
+      filters.days ||
+      filters.sort !== "newest",
   );
 
   function change(name, value) {
@@ -184,16 +194,29 @@ function OrderList({ userId, token }) {
   return (
     <AccountLayout
       title={
-        signedIn
+        remote
           ? "My orders"
-          : "Local order previews"
+          : "Orders & guest access"
       }
     >
+      {userId ? (
+        <details className="gd-guest-access">
+          <summary>Guest order access</summary>
+          <GuestOrderAccess />
+        </details>
+      ) : (
+        <GuestOrderAccess />
+      )}
+
       <div className="page-heading">
         <p className="muted">
-          {signedIn
-            ? "View recorded order progress, payments, returns and refunds from your GymDrobe account."
-            : "These previews are stored on this device. They are not proof of a real order, payment or request submitted to GymDrobe."}
+          {remote
+            ? userId
+              ? "View your account orders and any guest orders available through your private access code. Payment, delivery, return and refund updates come from GymDrobe."
+              : "View your guest orders using the private access saved in this browser. Payment, delivery, return and refund updates come from GymDrobe."
+            : orders.length
+              ? "These previews are stored on this device. They are not proof of a real order, payment or request submitted to GymDrobe."
+              : "Restore your private guest access code to view guest purchases. Signing in is optional for orders placed without an account."}
         </p>
 
         <button
@@ -210,13 +233,13 @@ function OrderList({ userId, token }) {
         </button>
       </div>
 
-      {!signedIn && (
+      {!userId && (
         <p>
           <Link
             className="button secondary"
             to="/login?next=%2Forders"
           >
-            Sign in to view account orders
+            Sign in to view account orders (optional)
           </Link>
         </p>
       )}
@@ -242,15 +265,14 @@ function OrderList({ userId, token }) {
               type="button"
               className="button"
               disabled={
-                data.loading ||
-                data.refreshing
+                data.loading || data.refreshing
               }
               onClick={data.refresh}
             >
               Try again
             </button>
 
-            {signedIn && (
+            {userId && (
               <Link
                 className="button secondary"
                 to="/login?next=%2Forders"
@@ -312,6 +334,7 @@ function OrderList({ userId, token }) {
           <div className="browse-controls">
             <label>
               Status{" "}
+
               <select
                 value={filters.status}
                 onChange={(event) =>
@@ -329,6 +352,7 @@ function OrderList({ userId, token }) {
                   "payment-pending",
                   "confirmed",
                   "processing",
+                  "packed",
                   "shipped",
                   "out-for-delivery",
                   "delivered",
@@ -338,7 +362,9 @@ function OrderList({ userId, token }) {
                     key={value}
                     value={value}
                   >
-                    {formatOrderStatus(value)}
+                    {value === "packed"
+                      ? "Packed"
+                      : formatOrderStatus(value)}
                   </option>
                 ))}
               </select>
@@ -346,6 +372,7 @@ function OrderList({ userId, token }) {
 
             <label>
               Payment{" "}
+
               <select
                 value={filters.payment}
                 onChange={(event) =>
@@ -389,6 +416,7 @@ function OrderList({ userId, token }) {
 
             <label>
               Placed in{" "}
+
               <select
                 value={filters.days}
                 onChange={(event) =>
@@ -418,6 +446,7 @@ function OrderList({ userId, token }) {
 
             <label>
               Sort{" "}
+
               <select
                 value={filters.sort}
                 onChange={(event) =>
@@ -453,9 +482,11 @@ function OrderList({ userId, token }) {
             aria-live="polite"
           >
             {matches.length} of {orders.length}{" "}
-            {signedIn
+
+            {remote
               ? "orders"
               : "local previews"}
+
             {data.refreshError
               ? " in the previously loaded list"
               : ""}
@@ -475,10 +506,7 @@ function OrderList({ userId, token }) {
                 !Array.isArray(item),
             );
 
-            const previewItems = items.slice(
-              0,
-              3,
-            );
+            const previewItems = items.slice(0, 3);
 
             const summary =
               orderPaymentSummary(order);
@@ -509,6 +537,11 @@ function OrderList({ userId, token }) {
                     </strong>
 
                     <small>{displayId}</small>
+
+                    {remote &&
+                      order.isGuestOrder === true && (
+                        <small>Guest order</small>
+                      )}
                   </div>
 
                   <span
@@ -523,9 +556,11 @@ function OrderList({ userId, token }) {
                   >
                     {summary.awaitingConfirmation
                       ? "Awaiting order confirmation"
-                      : formatOrderStatus(
-                          fulfilmentStatus(order),
-                        )}
+                      : order.status === "packed"
+                        ? "Packed"
+                        : formatOrderStatus(
+                            fulfilmentStatus(order),
+                          )}
                   </span>
                 </div>
 
@@ -567,7 +602,9 @@ function OrderList({ userId, token }) {
                     {request.type === "exchange"
                       ? "Exchange"
                       : "Return"}{" "}
+
                     request:{" "}
+
                     {formatOrderStatus(
                       request.status,
                     )}
@@ -635,17 +672,19 @@ function OrderList({ userId, token }) {
                 <h3>
                   {orders.length
                     ? "No matching orders"
-                    : signedIn
-                      ? "No account orders yet"
-                      : "No local previews on this device"}
+                    : remote
+                      ? userId
+                        ? "No orders found"
+                        : "No guest orders yet"
+                      : "No orders to display yet"}
                 </h3>
 
                 <p>
                   {orders.length
                     ? "Try another search, status, payment filter or date range."
-                    : signedIn
-                      ? "Orders placed with this account will appear here after the backend records them."
-                      : "Sign in to view orders saved to your GymDrobe account."}
+                    : remote
+                      ? "No orders are currently available through this account or private guest access. Restore another saved guest code if needed."
+                      : "Restore your private guest access code above, or optionally sign in to view account orders."}
                 </p>
 
                 <div className="purchase-actions">
@@ -675,6 +714,8 @@ function OrderList({ userId, token }) {
 }
 
 export default function OrdersPage() {
+  useOrderUpdates();
+
   const {
     user,
     token,
@@ -721,6 +762,8 @@ export default function OrdersPage() {
     user?.id || user?._id || "",
   );
 
+  const guest = guestAccess();
+
   if (
     user?.isActive === false ||
     (user && (!userId || !token)) ||
@@ -756,7 +799,7 @@ export default function OrdersPage() {
 
   return (
     <OrderList
-      key={`${userId || "guest"}:${token || ""}`}
+      key={`${userId || "guest"}:${token || ""}:${guest?.token || ""}`}
       userId={userId}
       token={token || ""}
     />
