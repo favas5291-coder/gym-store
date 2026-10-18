@@ -33,6 +33,7 @@ import StoreUtilityBar from "./components/StoreUtilityBar.jsx";
 import PageLoading from "./components/PageLoading.jsx";
 import AnalyticsController from "./components/AnalyticsController.jsx";
 import SEOController from "./components/SEOController.jsx";
+import FitnessGuide from "./components/FitnessGuide.jsx";
 
 import Home from "./pages/Home.jsx";
 
@@ -404,13 +405,19 @@ function Layout() {
               >
                 Shipping profiles
               </Link>
-              <Link className="text-link" to="/admin/package-plans">
+
+              <Link
+                className="text-link"
+                to="/admin/package-plans"
+              >
                 Package plans
               </Link>
             </nav>
           )}
         </>
       )}
+
+      <FitnessGuide />
 
       <main
         id="main-content"
