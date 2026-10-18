@@ -1,28 +1,223 @@
 .gd-guide-launch {
-  padding: 7px 20px;
-  text-align: right;
-  background: #fffaf6;
+  padding: 14px 20px;
+  background: #fff;
   border-bottom: 1px solid #f1e6df;
 }
 
-.gd-guide-launch > button {
-  min-height: 44px;
-  border: 0;
-  background: transparent;
+.gd-guide-launch-inner {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: center;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 22px 24px;
+  border: 1px solid #edcdb6;
+  border-radius: 18px;
+  background: linear-gradient(
+    115deg,
+    #fff3e7,
+    #fffaf6 58%,
+    #fff
+  );
+  color: #17202a;
+}
+
+.gd-guide-launch-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border: 1px solid #fed7aa;
+  border-radius: 18px;
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.gd-guide-launch-icon svg {
+  width: 44px;
+  height: 44px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.gd-guide-launch-copy {
+  min-width: 0;
+}
+
+.gd-guide-launch-eyebrow {
+  margin: 0 0 6px;
   color: #9a3412;
+  font-size: 11px;
+  line-height: 1.5;
+  letter-spacing: 1px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.gd-guide-launch-copy h2 {
+  margin: 0 0 8px;
+  color: #17202a;
+  font-size: clamp(20px, 2vw, 25px);
+  line-height: 1.3;
+  letter-spacing: -0.3px;
+  overflow-wrap: anywhere;
+}
+
+.gd-guide-launch-description {
+  max-width: 620px;
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.gd-guide-launch-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.gd-guide-launch-steps li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #7c2d12;
+  font-size: 12px;
+}
+
+.gd-guide-launch-steps span {
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: #ffedd5;
+  font-weight: 700;
+}
+
+.gd-guide-launch-actions {
+  min-width: 0;
+  text-align: center;
+}
+
+.gd-guide-launch-actions > button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  min-height: 48px;
+  padding: 13px 18px;
+  border: 1px solid #c2410c;
+  border-radius: 10px;
+  background: #c2410c;
+  color: #fff;
   font: inherit;
   font-size: 13px;
+  line-height: 1.4;
   font-weight: 700;
   cursor: pointer;
 }
 
-.gd-guide-launch > button span {
-  margin-right: 7px;
+.gd-guide-launch-actions > button:hover {
+  background: #9a3412;
+  border-color: #9a3412;
 }
 
-.gd-guide-launch p {
-  margin: 5px 0;
+.gd-guide-launch-actions > button span {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.gd-guide-launch-actions > p {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.gd-guide-launch-message {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #991b1b;
   font-size: 13px;
+  line-height: 1.5;
+}
+
+.gd-guide-launch.is-compact .gd-guide-launch-inner {
+  padding-block: 14px;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+}
+
+.gd-guide-launch.is-compact .gd-guide-launch-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+}
+
+.gd-guide-launch.is-compact .gd-guide-launch-icon svg {
+  width: 34px;
+  height: 34px;
+}
+
+.gd-guide-launch.is-compact .gd-guide-launch-copy h2 {
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+@media (max-width: 900px) {
+  .gd-guide-launch-inner,
+  .gd-guide-launch.is-compact .gd-guide-launch-inner {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 16px;
+  }
+
+  .gd-guide-launch-icon {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .gd-guide-launch {
+    padding: 12px 14px;
+  }
+
+  .gd-guide-launch-inner,
+  .gd-guide-launch.is-compact .gd-guide-launch-inner {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .gd-guide-launch-copy h2 {
+    font-size: 21px;
+  }
+
+  .gd-guide-launch-description {
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .gd-guide-launch-steps {
+    display: none;
+  }
+
+  .gd-guide-launch-actions > button {
+    width: 100%;
+  }
+
+  .gd-guide-launch.is-compact .gd-guide-launch-eyebrow,
+  .gd-guide-launch.is-compact .gd-guide-launch-actions > p {
+    display: none;
+  }
 }
 
 .modal.gd-fitness-guide {

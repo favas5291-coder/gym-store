@@ -10,35 +10,16 @@ import {
   useLocation,
 } from "react-router-dom";
 
-import {
-  useCatalog,
-} from "../context/CatalogContext.jsx";
-
-import {
-  useStore,
-} from "../context/StoreContext.jsx";
+import { useCatalog } from "../context/CatalogContext.jsx";
+import { useStore } from "../context/StoreContext.jsx";
 
 import Modal from "./Modal.jsx";
+import { ProductImage } from "./StorefrontShared.jsx";
 
-import {
-  ProductImage,
-} from "./StorefrontShared.jsx";
-
-import {
-  getVariantStock,
-} from "../utils/cartUtils.js";
-
-import {
-  selectedProductImage,
-} from "../utils/productImages.js";
-
-import {
-  optionLabels,
-} from "../utils/productInformation.js";
-
-import {
-  money,
-} from "../utils/productPricing.js";
+import { getVariantStock } from "../utils/cartUtils.js";
+import { selectedProductImage } from "../utils/productImages.js";
+import { optionLabels } from "../utils/productInformation.js";
+import { money } from "../utils/productPricing.js";
 
 import {
   productReference,
@@ -89,10 +70,7 @@ function RecommendationItem({
   answers,
   onLeave,
 }) {
-  const {
-    addToCart,
-    notify,
-  } = useStore();
+  const { addToCart, notify } = useStore();
 
   const {
     refreshProducts,
@@ -120,22 +98,18 @@ function RecommendationItem({
   }, []);
 
   const product = row.product;
-
   const sizes = purchaseOptions(product.sizes);
   const colors = purchaseOptions(product.colors);
   const labels = optionLabels(product);
 
-  const path =
-    `/product/${encodeURIComponent(
-      productReference(product),
-    )}`;
+  const path = `/product/${encodeURIComponent(
+    productReference(product),
+  )}`;
 
   async function add(event) {
     event.preventDefault();
 
-    if (lock.current) {
-      return;
-    }
+    if (lock.current) return;
 
     const selection = purchaseState(
       product,
@@ -170,7 +144,6 @@ function RecommendationItem({
           "Suggestions changed. Review the latest products before adding.",
           "info",
         );
-
         return;
       }
 
@@ -255,7 +228,6 @@ function RecommendationItem({
       ) < 1
     ) {
       setSize("");
-
       setError(
         `Choose an available ${labels.size.toLowerCase()} for this ${labels.color.toLowerCase()}.`,
       );
@@ -410,19 +382,13 @@ function RecommendationItem({
           )}
 
           {error && (
-            <p
-              className="gd-guide-error"
-              role="alert"
-            >
+            <p className="gd-guide-error" role="alert">
               {error}
             </p>
           )}
 
           {added && (
-            <p
-              className="gd-guide-added"
-              role="status"
-            >
+            <p className="gd-guide-added" role="status">
               Added to your bag. Your other items are
               still there.
             </p>
@@ -441,9 +407,7 @@ function RecommendationItem({
               className="button"
               type="submit"
               disabled={
-                busy ||
-                refreshing ||
-                !catalogReady
+                busy || refreshing || !catalogReady
               }
             >
               {busy ? "Checking…" : "Add to Cart"}
@@ -496,6 +460,9 @@ export default function FitnessGuide() {
 
   const allowed = assistantRoute(pathname);
 
+  const compactLauncher =
+    /^\/product\/[^/]+\/?$/.test(pathname);
+
   const categories = useMemo(
     () => availableGuideCategories(products),
     [products],
@@ -514,9 +481,7 @@ export default function FitnessGuide() {
   }, [pathname]);
 
   useEffect(() => {
-    if (!allowed) {
-      return;
-    }
+    if (!allowed) return;
 
     let last = performance.now();
     let lastInteraction = -Infinity;
@@ -550,12 +515,7 @@ export default function FitnessGuide() {
       }
     }, 250);
 
-    document.addEventListener(
-      "input",
-      interact,
-      true,
-    );
-
+    document.addEventListener("input", interact, true);
     document.addEventListener(
       "pointerdown",
       interact,
@@ -585,10 +545,7 @@ export default function FitnessGuide() {
       view === "results"
     ) {
       scroll.current?.scrollTo({ top: 0 });
-
-      heading.current?.focus({
-        preventScroll: true,
-      });
+      heading.current?.focus({ preventScroll: true });
     }
 
     if (view === "results") {
@@ -607,13 +564,14 @@ export default function FitnessGuide() {
       setLauncherMessage(
         "Close the other dialog first, then try again.",
       );
-
       return;
     }
 
     session.current.dismiss();
     setLauncherMessage("");
-    setView("intro");
+    setStep(0);
+    setError("");
+    setView("questions");
   }
 
   function next(event) {
@@ -636,19 +594,11 @@ export default function FitnessGuide() {
   function skip() {
     setAnswers((current) => ({
       ...current,
-
       ...(step === 0
-        ? {
-            categories: [],
-            kit: false,
-          }
+        ? { categories: [], kit: false }
         : step === 1
-          ? {
-              budget: "",
-            }
-          : {
-              goal: "",
-            }),
+          ? { budget: "" }
+          : { goal: "" }),
     }));
 
     setError("");
@@ -663,7 +613,6 @@ export default function FitnessGuide() {
   function toggleCategory(name) {
     setAnswers((current) => ({
       ...current,
-
       categories: current.categories.includes(name)
         ? current.categories.filter(
             (value) => value !== name,
@@ -678,25 +627,89 @@ export default function FitnessGuide() {
     setView("questions");
   }
 
-  if (!allowed) {
-    return null;
-  }
+  if (!allowed) return null;
 
   return (
     <>
-      <div className="gd-guide-launch">
-        <button type="button" onClick={open}>
-          <span aria-hidden="true">✦</span>
-          {" "}
-          Find My Gym Essentials
-        </button>
+      <section
+        className={`gd-guide-launch${
+          compactLauncher ? " is-compact" : ""
+        }`}
+        aria-label="Help choosing workout products"
+      >
+        <div className="gd-guide-launch-inner">
+          <div
+            className="gd-guide-launch-icon"
+            aria-hidden="true"
+          >
+            <svg viewBox="0 0 48 48" fill="none">
+              <path d="M12 17h24l3 23H9l3-23Z" />
+              <path d="M18 18v-5a6 6 0 0 1 12 0v5" />
+              <path d="m35 5 1.5 4.5L41 11l-4.5 1.5L35 17l-1.5-4.5L29 11l4.5-1.5L35 5Z" />
+              <path d="m19 28 4 4 7-8" />
+            </svg>
+          </div>
 
-        {launcherMessage && (
-          <p role="status">
-            {launcherMessage}
-          </p>
-        )}
-      </div>
+          <div className="gd-guide-launch-copy">
+            <p className="gd-guide-launch-eyebrow">
+              GymDrobe Product Finder
+            </p>
+
+            <h2>
+              {compactLauncher
+                ? "Need help choosing?"
+                : "Not sure what to buy for your workout?"}
+            </h2>
+
+            <p className="gd-guide-launch-description">
+              {compactLauncher
+                ? "Find product suggestions for your needs and budget."
+                : "Tell us what you need, your budget and your fitness goal. We’ll help you find products available in our store."}
+            </p>
+
+            {!compactLauncher && (
+              <ol
+                className="gd-guide-launch-steps"
+                aria-label="How it works"
+              >
+                <li>
+                  <span>1</span> Your needs
+                </li>
+                <li>
+                  <span>2</span> Your budget
+                </li>
+                <li>
+                  <span>3</span> Your goal
+                </li>
+              </ol>
+            )}
+          </div>
+
+          <div className="gd-guide-launch-actions">
+            <button
+              type="button"
+              onClick={open}
+              aria-haspopup="dialog"
+            >
+              Help Me Choose Products
+              <span aria-hidden="true">→</span>
+            </button>
+
+            <p>
+              3 optional questions · No sign-up needed
+            </p>
+          </div>
+
+          {launcherMessage && (
+            <p
+              className="gd-guide-launch-message"
+              role="status"
+            >
+              {launcherMessage}
+            </p>
+          )}
+        </div>
+      </section>
 
       {view !== "closed" && (
         <Modal
@@ -708,10 +721,7 @@ export default function FitnessGuide() {
           onClose={close}
           className="gd-fitness-guide"
         >
-          <div
-            className="gd-guide-body"
-            ref={scroll}
-          >
+          <div className="gd-guide-body" ref={scroll}>
             {view === "intro" && (
               <div className="gd-guide-intro">
                 <span
@@ -753,10 +763,7 @@ export default function FitnessGuide() {
             )}
 
             {view === "questions" && (
-              <form
-                onSubmit={next}
-                noValidate
-              >
+              <form onSubmit={next} noValidate>
                 <ol
                   className="gd-guide-progress"
                   aria-label="Your shopping preferences"
@@ -790,10 +797,7 @@ export default function FitnessGuide() {
                   skip any question.
                 </p>
 
-                <h3
-                  ref={heading}
-                  tabIndex={-1}
-                >
+                <h3 ref={heading} tabIndex={-1}>
                   {QUESTIONS[step]}
                 </h3>
 
@@ -834,19 +838,14 @@ export default function FitnessGuide() {
                               category.name,
                             )}
                             onChange={() =>
-                              toggleCategory(
-                                category.name,
-                              )
+                              toggleCategory(category.name)
                             }
                           />
 
                           <span>
                             {category.name}
-
                             <small>
-                              {category.count}
-                              {" "}
-                              available{" "}
+                              {category.count} available{" "}
                               {category.count === 1
                                 ? "product"
                                 : "products"}
@@ -870,7 +869,6 @@ export default function FitnessGuide() {
 
                           <span>
                             A complete gym kit
-
                             <small>
                               Start with a selection of
                               available essentials
@@ -919,15 +917,13 @@ export default function FitnessGuide() {
                           type="button"
                           key={value}
                           aria-pressed={
-                            answers.budget ===
-                            String(value)
+                            answers.budget === String(value)
                           }
                           onClick={() => {
                             setAnswers((current) => ({
                               ...current,
                               budget: String(value),
                             }));
-
                             setError("");
                           }}
                         >
@@ -943,7 +939,6 @@ export default function FitnessGuide() {
                             ...current,
                             budget: "",
                           }));
-
                           setError("");
                         }}
                       >
@@ -967,7 +962,6 @@ export default function FitnessGuide() {
                             ...current,
                             budget: event.target.value,
                           }));
-
                           setError("");
                         }}
                       />
@@ -989,28 +983,23 @@ export default function FitnessGuide() {
 
                 {step === 2 && (
                   <div className="gd-guide-choices">
-                    {FITNESS_GOALS.map(
-                      ([key, label]) => (
-                        <label key={key}>
-                          <input
-                            type="radio"
-                            name="fitness-goal"
-                            value={key}
-                            checked={
-                              answers.goal === key
-                            }
-                            onChange={() =>
-                              setAnswers((current) => ({
-                                ...current,
-                                goal: key,
-                              }))
-                            }
-                          />
-
-                          <span>{label}</span>
-                        </label>
-                      ),
-                    )}
+                    {FITNESS_GOALS.map(([key, label]) => (
+                      <label key={key}>
+                        <input
+                          type="radio"
+                          name="fitness-goal"
+                          value={key}
+                          checked={answers.goal === key}
+                          onChange={() =>
+                            setAnswers((current) => ({
+                              ...current,
+                              goal: key,
+                            }))
+                          }
+                        />
+                        <span>{label}</span>
+                      </label>
+                    ))}
                   </div>
                 )}
 
@@ -1062,10 +1051,7 @@ export default function FitnessGuide() {
 
             {view === "results" && (
               <>
-                <h3
-                  ref={heading}
-                  tabIndex={-1}
-                >
+                <h3 ref={heading} tabIndex={-1}>
                   Your GymDrobe suggestions
                 </h3>
 
@@ -1073,7 +1059,6 @@ export default function FitnessGuide() {
                   <dl>
                     <div>
                       <dt>Looking for</dt>
-
                       <dd>
                         {[
                           ...answers.categories,
@@ -1087,23 +1072,18 @@ export default function FitnessGuide() {
 
                     <div>
                       <dt>Maximum budget</dt>
-
                       <dd>
                         {budget.paise == null
                           ? "No fixed budget"
-                          : money(
-                              budget.paise / 100,
-                            )}
+                          : money(budget.paise / 100)}
                       </dd>
                     </div>
 
                     <div>
                       <dt>Fitness goal</dt>
-
                       <dd>
                         {FITNESS_GOALS.find(
-                          ([key]) =>
-                            key === answers.goal,
+                          ([key]) => key === answers.goal,
                         )?.[1] || "Not specified"}
                       </dd>
                     </div>
@@ -1177,8 +1157,7 @@ export default function FitnessGuide() {
                   <>
                     {refreshing && (
                       <p role="status">
-                        Refreshing prices and
-                        availability…
+                        Refreshing prices and availability…
                       </p>
                     )}
 
@@ -1198,7 +1177,6 @@ export default function FitnessGuide() {
                         <dl>
                           <div>
                             <dt>Suggested items</dt>
-
                             <dd>
                               {money(
                                 result.estimate
@@ -1211,7 +1189,6 @@ export default function FitnessGuide() {
                             <dt>
                               Estimated standard delivery
                             </dt>
-
                             <dd>
                               {money(
                                 result.estimate
@@ -1222,7 +1199,6 @@ export default function FitnessGuide() {
 
                           <div>
                             <dt>Estimated total</dt>
-
                             <dd>
                               <strong>
                                 {money(
@@ -1236,10 +1212,9 @@ export default function FitnessGuide() {
 
                         <p className="gd-guide-muted">
                           Final delivery charges are
-                          confirmed at checkout.
-                          Existing bag items and extra
-                          quantities are not included
-                          in this estimate.
+                          confirmed at checkout. Existing
+                          bag items and extra quantities
+                          are not included in this estimate.
                         </p>
                       </div>
                     ) : (
@@ -1259,9 +1234,7 @@ export default function FitnessGuide() {
                       {result.rows.map((row) => (
                         <RecommendationItem
                           key={String(
-                            productReference(
-                              row.product,
-                            ),
+                            productReference(row.product),
                           )}
                           row={row}
                           answers={answers}
@@ -1272,10 +1245,10 @@ export default function FitnessGuide() {
 
                     <p className="gd-guide-muted">
                       Delivery is estimated separately.
-                      Your final price, delivery
-                      eligibility and stock are checked
-                      again at checkout. No products are
-                      added automatically.
+                      Your final price, delivery eligibility
+                      and stock are checked again at
+                      checkout. No products are added
+                      automatically.
                     </p>
 
                     <div className="gd-guide-actions">
@@ -1302,8 +1275,8 @@ export default function FitnessGuide() {
                       <p className="gd-guide-muted">
                         Fitness Kit templates have their
                         own contents, prices and delivery
-                        arrangements. Review the total in
-                        the kit builder before buying.
+                        arrangements. Review the total
+                        in the kit builder before buying.
                       </p>
                     )}
                   </>
