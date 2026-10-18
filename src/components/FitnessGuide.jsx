@@ -5,10 +5,7 @@ import {
   useState,
 } from "react";
 
-import {
-  Link,
-  useLocation,
-} from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { useStore } from "../context/StoreContext.jsx";
@@ -228,6 +225,7 @@ function RecommendationItem({
       ) < 1
     ) {
       setSize("");
+
       setError(
         `Choose an available ${labels.size.toLowerCase()} for this ${labels.color.toLowerCase()}.`,
       );
@@ -434,6 +432,9 @@ export default function FitnessGuide() {
   const [view, setView] = useState("closed");
   const [step, setStep] = useState(0);
 
+  const [launcherReady, setLauncherReady] =
+    useState(false);
+
   const [answers, setAnswers] = useState({
     categories: [],
     kit: false,
@@ -449,6 +450,7 @@ export default function FitnessGuide() {
   const scroll = useRef(null);
   const viewRef = useRef(view);
   const session = useRef(null);
+  const browsingTime = useRef(0);
 
   viewRef.current = view;
 
@@ -460,7 +462,7 @@ export default function FitnessGuide() {
 
   const allowed = assistantRoute(pathname);
 
-  const compactLauncher =
+  const productRoute =
     /^\/product\/[^/]+\/?$/.test(pathname);
 
   const categories = useMemo(
@@ -481,7 +483,7 @@ export default function FitnessGuide() {
   }, [pathname]);
 
   useEffect(() => {
-    if (!allowed) return;
+    if (!allowed || launcherReady) return;
 
     let last = performance.now();
     let lastInteraction = -Infinity;
@@ -498,7 +500,6 @@ export default function FitnessGuide() {
 
       if (
         viewRef.current !== "closed" ||
-        session.current.seen() ||
         document.visibilityState !== "visible" ||
         editingForm() ||
         anotherDialog() ||
@@ -507,11 +508,17 @@ export default function FitnessGuide() {
         return;
       }
 
-      if (
-        session.current.advance(elapsed) &&
-        session.current.claim()
-      ) {
-        setView("intro");
+      browsingTime.current += Math.min(
+        1000,
+        Math.max(0, elapsed),
+      );
+
+      if (browsingTime.current >= 10000) {
+        setLauncherReady(true);
+
+        if (session.current.claim()) {
+          setView("intro");
+        }
       }
     }, 250);
 
@@ -537,7 +544,7 @@ export default function FitnessGuide() {
         true,
       );
     };
-  }, [allowed, pathname]);
+  }, [allowed, pathname, launcherReady]);
 
   useEffect(() => {
     if (
@@ -545,7 +552,10 @@ export default function FitnessGuide() {
       view === "results"
     ) {
       scroll.current?.scrollTo({ top: 0 });
-      heading.current?.focus({ preventScroll: true });
+
+      heading.current?.focus({
+        preventScroll: true,
+      });
     }
 
     if (view === "results") {
@@ -631,85 +641,26 @@ export default function FitnessGuide() {
 
   return (
     <>
-      <section
-        className={`gd-guide-launch${
-          compactLauncher ? " is-compact" : ""
-        }`}
-        aria-label="Help choosing workout products"
-      >
-        <div className="gd-guide-launch-inner">
-          <div
-            className="gd-guide-launch-icon"
-            aria-hidden="true"
+      {launcherReady && (
+        <div
+          className={`gd-guide-reopen${
+            productRoute ? " on-product" : ""
+          }`}
+        >
+          <button
+            type="button"
+            onClick={open}
+            aria-haspopup="dialog"
           >
-            <svg viewBox="0 0 48 48" fill="none">
-              <path d="M12 17h24l3 23H9l3-23Z" />
-              <path d="M18 18v-5a6 6 0 0 1 12 0v5" />
-              <path d="m35 5 1.5 4.5L41 11l-4.5 1.5L35 17l-1.5-4.5L29 11l4.5-1.5L35 5Z" />
-              <path d="m19 28 4 4 7-8" />
-            </svg>
-          </div>
-
-          <div className="gd-guide-launch-copy">
-            <p className="gd-guide-launch-eyebrow">
-              GymDrobe Product Finder
-            </p>
-
-            <h2>
-              {compactLauncher
-                ? "Need help choosing?"
-                : "Not sure what to buy for your workout?"}
-            </h2>
-
-            <p className="gd-guide-launch-description">
-              {compactLauncher
-                ? "Find product suggestions for your needs and budget."
-                : "Tell us what you need, your budget and your fitness goal. We’ll help you find products available in our store."}
-            </p>
-
-            {!compactLauncher && (
-              <ol
-                className="gd-guide-launch-steps"
-                aria-label="How it works"
-              >
-                <li>
-                  <span>1</span> Your needs
-                </li>
-                <li>
-                  <span>2</span> Your budget
-                </li>
-                <li>
-                  <span>3</span> Your goal
-                </li>
-              </ol>
-            )}
-          </div>
-
-          <div className="gd-guide-launch-actions">
-            <button
-              type="button"
-              onClick={open}
-              aria-haspopup="dialog"
-            >
-              Help Me Choose Products
-              <span aria-hidden="true">→</span>
-            </button>
-
-            <p>
-              3 optional questions · No sign-up needed
-            </p>
-          </div>
+            <span aria-hidden="true">✦</span>
+            Help Me Choose Products
+          </button>
 
           {launcherMessage && (
-            <p
-              className="gd-guide-launch-message"
-              role="status"
-            >
-              {launcherMessage}
-            </p>
+            <p role="status">{launcherMessage}</p>
           )}
         </div>
-      </section>
+      )}
 
       {view !== "closed" && (
         <Modal
@@ -719,7 +670,11 @@ export default function FitnessGuide() {
               : "Find My Gym Essentials"
           }
           onClose={close}
-          className="gd-fitness-guide"
+          className={`gd-fitness-guide${
+            view === "intro"
+              ? " gd-guide-welcome"
+              : ""
+          }`}
         >
           <div className="gd-guide-body" ref={scroll}>
             {view === "intro" && (
@@ -748,7 +703,7 @@ export default function FitnessGuide() {
                     type="button"
                     onClick={edit}
                   >
-                    Help Me Choose
+                    Help Me Choose Products
                   </button>
 
                   <button
