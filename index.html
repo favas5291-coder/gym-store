@@ -8,24 +8,81 @@
       content="width=device-width, initial-scale=1.0"
     />
 
-    <meta name="theme-color" content="#ffffff" />
+    <meta
+      name="theme-color"
+      content="#ffffff"
+    />
 
     <meta
       name="description"
       content="Discover training clothing, gym shoes and workout essentials at GymDrobe. Everything you need for every workout."
     />
 
-    <meta name="robots" content="index, follow" />
+    <meta
+      name="robots"
+      content="index, follow"
+    />
 
+    <meta
+      name="application-name"
+      content="GymDrobe"
+    />
 
-    <link rel="icon" type="image/png" href="./src/assets/logo.png" />
+    <meta
+      property="og:site_name"
+      content="GymDrobe"
+    />
 
-    <title>GymDrobe | Everything for Every Workout</title>
+    <title>
+      GymDrobe | Everything for Every Workout
+    </title>
+
+    <link
+      rel="icon"
+      type="image/png"
+      href="./src/assets/logo.png"
+    />
+
+    <script
+      id="gymdrobe-site-schema"
+      type="application/ld+json"
+    >
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://www.gymdrobe.com/#website",
+            "url": "https://www.gymdrobe.com/",
+            "name": "GymDrobe",
+            "alternateName": [
+              "Gym Drobe",
+              "gymdrobe.com"
+            ],
+            "publisher": {
+              "@id": "https://www.gymdrobe.com/#organization"
+            }
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://www.gymdrobe.com/#organization",
+            "url": "https://www.gymdrobe.com/",
+            "name": "GymDrobe",
+            "alternateName": "Gym Drobe",
+            "description": "GymDrobe brings products from different fitness brands and suppliers together in one shopping experience.",
+            "slogan": "Everything You Need for Every Workout."
+          }
+        ]
+      }
+    </script>
   </head>
 
   <body>
     <div id="app"></div>
 
-    <script type="module" src="/src/main.js"></script>
+    <script
+      type="module"
+      src="/src/main.js"
+    ></script>
   </body>
 </html>
