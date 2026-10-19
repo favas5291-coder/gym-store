@@ -2,10 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import vm from "node:vm";
-
-import {
-  transformWithOxc,
-} from "vite";
+import { transformWithOxc } from "vite";
 
 import * as images from "../src/utils/productImages.js";
 import * as cart from "../src/utils/cartUtils.js";
@@ -31,52 +28,27 @@ function fixture() {
     price: 500,
     stock: 12,
     discount: 0,
-
     image: "/default.jpg",
-
-    images: [
-      "/default.jpg",
-      "/default-back.jpg",
-    ],
-
+    images: ["/default.jpg", "/default-back.jpg"],
     sizes: ["M", "L"],
-
-    colors: [
-      "Black",
-      "Blue",
-      "White",
-    ],
+    colors: ["Black", "Blue", "White"],
 
     variants: {
-      Black: {
-        M: 3,
-        L: 3,
-      },
-
-      Blue: {
-        M: 0,
-        L: 3,
-      },
-
-      White: {
-        M: 3,
-        L: 0,
-      },
+      Black: { M: 3, L: 3 },
+      Blue: { M: 0, L: 3 },
+      White: { M: 3, L: 0 },
     },
 
     colorImages: [
       {
         color: "Black",
-
         images: [
           "/black.jpg",
           "/shared-size-chart.jpg",
         ],
       },
-
       {
         color: "Blue",
-
         images: [
           "/blue.jpg",
           "/shared-size-chart.jpg",
@@ -86,8 +58,6 @@ function fixture() {
   };
 }
 
-// Small component harness: no browser, database,
-// Razorpay or additional test dependencies required.
 const h = (type, props, ...children) => ({
   type,
   props: props || {},
@@ -96,10 +66,7 @@ const h = (type, props, ...children) => ({
 
 const nodes = (tree) =>
   tree && typeof tree === "object"
-    ? [
-        tree,
-        ...tree.children.flatMap(nodes),
-      ]
+    ? [tree, ...tree.children.flatMap(nodes)]
     : [];
 
 const text = (tree) =>
@@ -112,17 +79,18 @@ async function compiled(
   names,
   globals = {},
 ) {
-  const source = (
-    await fs.readFile(
-      new URL(
-        `../src/${file}`,
-        import.meta.url,
-      ),
-      "utf8",
-    )
-  )
+  const raw = await fs.readFile(
+    new URL(`../src/${file}`, import.meta.url),
+    "utf8",
+  );
+
+  // Normalize Windows CRLF, older CR and UTF-8 BOM
+  // before removing imports for the isolated test.
+  const source = raw
+    .replace(/^\uFEFF/, "")
+    .replace(/\r\n?/g, "\n")
     .replace(
-      /^import[\s\S]*?;\n/gm,
+      /^import[\s\S]*?;(?:\n|$)/gm,
       "",
     )
     .replace(
@@ -142,9 +110,7 @@ async function compiled(
     },
   );
 
-  const module = {
-    exports: {},
-  };
+  const module = { exports: {} };
 
   vm.runInNewContext(
     output.code +
@@ -196,7 +162,6 @@ function hooks() {
 
       return [
         states[index],
-
         (next) => {
           states[index] =
             typeof next === "function"
@@ -256,6 +221,8 @@ const common = {
   FitGuide: "FitGuide",
   ProductOptions: "ProductOptions",
   ProductReviews: "ProductReviews",
+  ProductVideo: "ProductVideo",
+  ProductVideoField: "ProductVideoField",
   RecentlyViewed: "RecentlyViewed",
   ProductRow: "ProductRow",
 
@@ -272,12 +239,9 @@ const common = {
 
   categoryPath: () => "/shop",
   resolveProductImage: (value) => value,
-
   readStorage: (key, fallback) => fallback,
   writeStorage: () => true,
-
   trackProductView() {},
-
   rankRelated: () => [],
 
   useProductReviews: () => ({
@@ -306,9 +270,7 @@ async function optionsHarness(
     watches: [],
     wishlist: [],
     cart: [],
-
     latestCart: () => [],
-
     shoppingKey: (key) => key,
 
     addToCart: async (...args) => {
@@ -317,14 +279,12 @@ async function optionsHarness(
     },
 
     buyNow: async () => true,
-
     toggleWishlist() {},
   };
 
   const module = await compiled(
     "components/ProductOptions.jsx",
     "ProductOptionsContent",
-
     {
       ...common,
       ...state,
@@ -338,10 +298,7 @@ async function optionsHarness(
       useCatalog: () => ({
         products: [product],
         catalogReady: true,
-
-        getLatestProducts: () => [
-          product,
-        ],
+        getLatestProducts: () => [product],
       }),
     },
   );
@@ -359,7 +316,6 @@ async function optionsHarness(
         });
 
       state.run();
-
       return tree;
     },
   };
@@ -403,10 +359,7 @@ test(
         fixture(),
         "White",
       ),
-      [
-        "/default.jpg",
-        "/default-back.jpg",
-      ],
+      ["/default.jpg", "/default-back.jpg"],
     );
 
     assert.equal(
@@ -430,12 +383,9 @@ test(
 
     const changed = {
       ...original,
-
       colorImagesText: {
         ...original.colorImagesText,
-
-        Blue:
-          "/blue-new.jpg\n/blue-side.jpg",
+        Blue: "/blue-new.jpg\n/blue-side.jpg",
       },
     };
 
@@ -450,19 +400,13 @@ test(
     );
 
     assert.equal(
-      Object.hasOwn(
-        patch,
-        "variants",
-      ),
+      Object.hasOwn(patch, "variants"),
       false,
     );
 
     assert.equal(
       Object.hasOwn(
-        payloadFor(
-          original,
-          original,
-        ),
+        payloadFor(original, original),
         "colorImages",
       ),
       false,
@@ -498,7 +442,6 @@ test(
       payloadFor(
         {
           ...changed,
-
           colorImagesText: {
             Blue: "javascript:alert(1)",
           },
@@ -510,7 +453,6 @@ test(
     assert.match(
       validateDraft({
         ...changed,
-
         colorImagesText: {
           Blue: "file:///a.jpg",
         },
@@ -528,7 +470,6 @@ test(
 
     const changed = {
       ...original,
-
       colorImagesText: {
         ...original.colorImagesText,
         Blue: "/edit.jpg",
@@ -567,15 +508,8 @@ test(
       "Black",
     );
 
-    assert.equal(
-      first.image,
-      "/black.jpg",
-    );
-
-    assert.deepEqual(
-      first.images,
-      second.images,
-    );
+    assert.equal(first.image, "/black.jpg");
+    assert.deepEqual(first.images, second.images);
 
     const blue = cart.normalizeCartItem(
       fixture(),
@@ -636,17 +570,13 @@ test(
       true,
     );
 
-    button(
-      tree,
-      "Colour Blue",
-    ).props.onClick();
-
+    button(tree, "Size M").props.onClick();
     tree = app.render();
 
-    assert.equal(
-      selected.at(-1),
-      "Blue",
-    );
+    button(tree, "Colour Blue").props.onClick();
+    tree = app.render();
+
+    assert.equal(selected.at(-1), "Blue");
 
     assert.match(
       text(tree),
@@ -660,10 +590,10 @@ test(
           row.props.className === "button",
       );
 
-    assert.equal(
-      add().props.disabled,
-      true,
-    );
+    await add().props.onClick();
+
+    assert.equal(app.bought.length, 0);
+    tree = app.render();
 
     assert.equal(
       button(
@@ -673,11 +603,7 @@ test(
       true,
     );
 
-    button(
-      tree,
-      "Size L",
-    ).props.onClick();
-
+    button(tree, "Size L").props.onClick();
     tree = app.render();
 
     assert.equal(
@@ -687,20 +613,9 @@ test(
 
     await add().props.onClick();
 
-    assert.equal(
-      app.bought.length,
-      1,
-    );
-
-    assert.equal(
-      app.bought[0][2],
-      "L",
-    );
-
-    assert.equal(
-      app.bought[0][3],
-      "Blue",
-    );
+    assert.equal(app.bought.length, 1);
+    assert.equal(app.bought[0][2], "L");
+    assert.equal(app.bought[0][3], "Blue");
   },
 );
 
@@ -710,22 +625,15 @@ test(
     const product = fixture();
 
     product.colors.push("Red");
+    product.variants.Red = { M: 0, L: 0 };
 
-    product.variants.Red = {
-      M: 0,
-      L: 0,
-    };
-
-    const app =
-      await optionsHarness(product);
-
+    const app = await optionsHarness(product);
     let tree = app.render();
 
-    button(
-      tree,
-      "Colour White",
-    ).props.onClick();
+    button(tree, "Size M").props.onClick();
+    tree = app.render();
 
+    button(tree, "Colour White").props.onClick();
     tree = app.render();
 
     assert.equal(
@@ -741,13 +649,9 @@ test(
       "Colour Red, out of stock",
     );
 
-    assert.equal(
-      red.props.disabled,
-      false,
-    );
+    assert.equal(red.props.disabled, false);
 
     red.props.onClick();
-
     tree = app.render();
 
     assert.equal(
@@ -778,7 +682,6 @@ test(
     const module = await compiled(
       "pages/ProductPage.jsx",
       "ProductDetail",
-
       {
         ...common,
         ...state,
@@ -803,7 +706,6 @@ test(
       });
 
       state.run();
-
       return tree;
     };
 
@@ -822,10 +724,7 @@ test(
 
     let tree = render();
 
-    assert.equal(
-      main(tree),
-      "/black.jpg",
-    );
+    assert.equal(main(tree), "/black.jpg");
 
     button(
       tree,
@@ -842,38 +741,17 @@ test(
     choose(tree, "Blue");
     tree = render();
 
-    assert.equal(
-      main(tree),
-      "/blue.jpg",
-    );
-
-    assert.ok(
-      button(
-        tree,
-        "View Blue photo 2",
-      ),
-    );
+    assert.equal(main(tree), "/blue.jpg");
+    assert.ok(button(tree, "View Blue photo 2"));
 
     choose(tree, "White");
     tree = render();
 
-    assert.equal(
-      main(tree),
-      "/default.jpg",
-    );
-
-    assert.ok(
-      button(
-        tree,
-        "View White photo 2",
-      ),
-    );
+    assert.equal(main(tree), "/default.jpg");
+    assert.ok(button(tree, "View White photo 2"));
 
     assert.equal(
-      button(
-        tree,
-        "View Blue photo 2",
-      ),
+      button(tree, "View Blue photo 2"),
       undefined,
     );
 
@@ -885,10 +763,7 @@ test(
     choose(tree, "Black");
     tree = render();
 
-    assert.equal(
-      main(tree),
-      "/black.jpg",
-    );
+    assert.equal(main(tree), "/black.jpg");
   },
 );
 
@@ -900,15 +775,12 @@ test(
     const module = await compiled(
       "components/ProductColorImagesEditor.jsx",
       "ProductColorImagesEditor",
-      {
-        ...common,
-      },
+      { ...common },
     );
 
     const render = () =>
       module.ProductColorImagesEditor({
         draft,
-
         setDraft: (fn) => {
           draft = fn(draft);
         },
@@ -923,21 +795,17 @@ test(
 
     assert.equal(
       nodes(tree).filter(
-        (row) =>
-          row.type === "textarea",
+        (row) => row.type === "textarea",
       ).length,
       3,
     );
 
     nodes(tree)
       .filter(
-        (row) =>
-          row.type === "textarea",
+        (row) => row.type === "textarea",
       )[1]
       .props.onChange({
-        target: {
-          value: "",
-        },
+        target: { value: "" },
       });
 
     tree = render();
@@ -970,19 +838,10 @@ test(
       /thumbnails[^}]*overflow-x: auto/s,
     );
 
-    assert.match(
-      css,
-      /min-height: 44px/,
-    );
+    assert.match(css, /min-height: 44px/);
+    assert.match(css, /max-width: 600px/);
 
-    assert.match(
-      css,
-      /max-width: 600px/,
-    );
-
-    const app =
-      await optionsHarness(fixture());
-
+    const app = await optionsHarness(fixture());
     const tree = app.render();
 
     assert.equal(
@@ -1004,15 +863,12 @@ test(
     const module = await compiled(
       "pages/ProductPage.jsx",
       "ProductDetail",
-
       {
         ...common,
         ...state,
 
         useSearchParams: () => [
-          new URLSearchParams(
-            "colour=Blue",
-          ),
+          new URLSearchParams("colour=Blue"),
           () => {},
         ],
 
@@ -1089,7 +945,6 @@ test(
     const module = await compiled(
       "components/ProductCard.jsx",
       "ProductCard",
-
       {
         ...common,
         ...state,
@@ -1125,7 +980,6 @@ test(
       });
 
       state.run();
-
       return tree;
     };
 
@@ -1137,48 +991,41 @@ test(
     );
 
     assert.ok(open);
-
     open.props.onClick();
 
     tree = render();
 
     const modal = nodes(tree).find(
-      (row) =>
-        row.type === "Modal",
+      (row) => row.type === "Modal",
     );
 
     assert.equal(
       nodes(modal).find(
-        (row) =>
-          row.type === "ProductImage",
+        (row) => row.type === "ProductImage",
       ).props.product.selectedColor,
       "Blue",
     );
 
     nodes(modal)
       .find(
-        (row) =>
-          row.type === "ProductOptions",
+        (row) => row.type === "ProductOptions",
       )
       .props.onColorChange("White");
 
     tree = render();
 
     const updated = nodes(tree).find(
-      (row) =>
-        row.type === "Modal",
+      (row) => row.type === "Modal",
     );
 
     assert.equal(
       nodes(updated).find(
-        (row) =>
-          row.type === "ProductImage",
+        (row) => row.type === "ProductImage",
       ).props.product.selectedColor,
       "White",
     );
 
     updated.props.onClose();
-
     tree = render();
 
     button(
@@ -1189,14 +1036,12 @@ test(
     tree = render();
 
     const reopened = nodes(tree).find(
-      (row) =>
-        row.type === "Modal",
+      (row) => row.type === "Modal",
     );
 
     assert.equal(
       nodes(reopened).find(
-        (row) =>
-          row.type === "ProductImage",
+        (row) => row.type === "ProductImage",
       ).props.product.selectedColor,
       "Blue",
     );

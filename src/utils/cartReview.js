@@ -1,11 +1,16 @@
-import { getCartItemKey } from "./cartUtils.js";
+import {
+  getCartItemKey,
+  getKitGroup,
+} from "./cartUtils.js";
 
 import {
   getDiscountedPrice,
   getOriginalPrice,
 } from "./productPricing.js";
 
-import { optionLabels } from "./productInformation.js";
+import {
+  optionLabels,
+} from "./productInformation.js";
 
 import {
   MAX_PURCHASE_QUANTITY,
@@ -31,11 +36,20 @@ function amount(value) {
     : null;
 }
 
-export function reviewCart(cart, products, ready) {
+export function reviewCart(
+  cart,
+  products,
+  ready,
+  { allowKitReview = false } = {},
+) {
   const input = Array.isArray(cart) ? cart : [];
 
   const rows = input.map((item, index) => {
-    const product = latestPurchaseProduct(products, item);
+    const product = latestPurchaseProduct(
+      products,
+      item,
+    );
+
     const key = getCartItemKey(item);
     const quantity = amount(item?.quantity);
 
@@ -43,18 +57,24 @@ export function reviewCart(cart, products, ready) {
       Number.isSafeInteger(quantity) &&
       quantity >= 1;
 
-    const currentPriceKnown = productPriceAvailable(product);
+    const currentPriceKnown =
+      productPriceAvailable(product);
+
     const cachedPrice = amount(item?.price);
 
-    const unitPrice = ready && product
-      ? currentPriceKnown
-        ? getDiscountedPrice(product)
-        : null
-      : cachedPrice;
+    const unitPrice =
+      ready && product
+        ? currentPriceKnown
+          ? getDiscountedPrice(product)
+          : null
+        : cachedPrice;
 
     const originalUnit =
       ready && product && currentPriceKnown
-        ? Math.max(unitPrice, getOriginalPrice(product))
+        ? Math.max(
+            unitPrice,
+            getOriginalPrice(product),
+          )
         : unitPrice;
 
     const lineTotal =
@@ -69,14 +89,22 @@ export function reviewCart(cart, products, ready) {
 
     const priceSafe =
       unitPrice != null &&
-      Number.isSafeInteger(Math.round(unitPrice * 100)) &&
-      Number.isSafeInteger(Math.round(originalUnit * 100));
+      Number.isSafeInteger(
+        Math.round(unitPrice * 100),
+      ) &&
+      Number.isSafeInteger(
+        Math.round(originalUnit * 100),
+      );
 
     const lineSafe =
       quantityValid &&
       priceSafe &&
-      Number.isSafeInteger(Math.round(lineTotal * 100)) &&
-      Number.isSafeInteger(Math.round(lineOriginal * 100));
+      Number.isSafeInteger(
+        Math.round(lineTotal * 100),
+      ) &&
+      Number.isSafeInteger(
+        Math.round(lineOriginal * 100),
+      );
 
     const state = purchaseState(
       product,
@@ -103,8 +131,9 @@ export function reviewCart(cart, products, ready) {
     const pool = JSON.stringify([
       String(
         productReference(product) ||
-        productReference(item),
+          productReference(item),
       ),
+
       variantInventory
         ? [
             item?.selectedSize ?? null,
@@ -128,6 +157,7 @@ export function reviewCart(cart, products, ready) {
       pool,
       state,
       base,
+
       labels: optionLabels(product || item),
 
       priceCurrent:
@@ -151,7 +181,10 @@ export function reviewCart(cart, products, ready) {
         (row.quantityValid ? row.quantity : 0),
     );
 
-    keys.set(row.key, (keys.get(row.key) || 0) + 1);
+    keys.set(
+      row.key,
+      (keys.get(row.key) || 0) + 1,
+    );
   }
 
   for (const row of rows) {
@@ -161,6 +194,7 @@ export function reviewCart(cart, products, ready) {
       total - (row.quantityValid ? row.quantity : 0);
 
     row.stock = row.state.stock;
+
     row.stockRemaining = Math.max(
       0,
       row.stock - otherQuantity,
@@ -176,17 +210,26 @@ export function reviewCart(cart, products, ready) {
 
     row.message = row.state.message;
 
-    if (!row.message && (!row.priceSafe || !row.lineSafe)) {
+    if (
+      !row.message &&
+      (!row.priceSafe || !row.lineSafe)
+    ) {
       row.message =
         "This item has an unsupported price or total. Review its quantity or contact support before checkout.";
     }
 
-    if (!row.message && keys.get(row.key) > 1) {
+    if (
+      !row.message &&
+      keys.get(row.key) > 1
+    ) {
       row.message =
         "Matching bag rows need to be combined. Refresh products and review your bag.";
     }
 
-    if (!row.message && !row.priceCurrent) {
+    if (
+      !row.message &&
+      !row.priceCurrent
+    ) {
       row.message =
         "The price changed. Refresh products and review the updated bag before checkout.";
     }
@@ -208,12 +251,22 @@ export function reviewCart(cart, products, ready) {
         "kitGroup",
       );
 
-    if (kitComponent) {
+    if (
+      kitComponent &&
+      !getKitGroup(row)
+    ) {
       row.message =
-        "Fitness Kit checkout is not enabled yet. Edit or remove the complete kit.";
+        "This kit grouping is invalid. Reopen the kit builder before checkout.";
+    } else if (
+      kitComponent &&
+      !allowKitReview
+    ) {
+      row.message =
+        "Continue to checkout to review the complete kit's current prices and delivery.";
     }
 
-    row.available = ready && !row.message;
+    row.available =
+      ready && !row.message;
 
     row.canAdjust =
       !kitComponent &&
@@ -225,31 +278,44 @@ export function reviewCart(cart, products, ready) {
       row.maxQuantity > 0;
 
     row.lineSavings = row.lineSafe
-      ? Math.max(0, row.lineOriginal - row.lineTotal)
+      ? Math.max(
+          0,
+          row.lineOriginal - row.lineTotal,
+        )
       : 0;
   }
 
   const itemCount = rows.reduce(
     (sum, row) =>
-      sum + (row.quantityValid ? row.quantity : 0),
+      sum + (
+        row.quantityValid
+          ? row.quantity
+          : 0
+      ),
     0,
   );
 
   const subtotal = rows.reduce(
-    (sum, row) => sum + (row.lineTotal ?? 0),
+    (sum, row) =>
+      sum + (row.lineTotal ?? 0),
     0,
   );
 
   const originalTotal = rows.reduce(
-    (sum, row) => sum + (row.lineOriginal ?? 0),
+    (sum, row) =>
+      sum + (row.lineOriginal ?? 0),
     0,
   );
 
   const totalsKnown =
     rows.every((row) => row.lineSafe) &&
     Number.isSafeInteger(itemCount) &&
-    Number.isSafeInteger(Math.round(subtotal * 100)) &&
-    Number.isSafeInteger(Math.round(originalTotal * 100));
+    Number.isSafeInteger(
+      Math.round(subtotal * 100),
+    ) &&
+    Number.isSafeInteger(
+      Math.round(originalTotal * 100),
+    );
 
   return {
     rows,
@@ -257,15 +323,22 @@ export function reviewCart(cart, products, ready) {
     totalsKnown,
 
     productSavings: totalsKnown
-      ? Math.max(0, originalTotal - subtotal)
+      ? Math.max(
+          0,
+          originalTotal - subtotal,
+        )
       : 0,
 
-    originalTotal: totalsKnown ? originalTotal : null,
+    originalTotal: totalsKnown
+      ? originalTotal
+      : null,
 
     pricingRows: totalsKnown
       ? rows.map((row) => ({
           ...row,
+
           price: row.unitPrice,
+
           originalPrice:
             row.unitPrice +
             row.lineSavings / row.quantity,
