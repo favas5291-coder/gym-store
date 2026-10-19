@@ -21,9 +21,17 @@ import {
   getOrder as getLocalOrder,
 } from "../utils/customerData.js";
 
-import { optionLabels } from "../utils/productInformation.js";
-import { money } from "../utils/productPricing.js";
-import { guestAccess } from "../utils/guestCheckout.js";
+import {
+  optionLabels,
+} from "../utils/productInformation.js";
+
+import {
+  money,
+} from "../utils/productPricing.js";
+
+import {
+  guestAccess,
+} from "../utils/guestCheckout.js";
 
 import {
   orderOwnedBy,
@@ -83,7 +91,11 @@ function unitPrice(value) {
     : "Not recorded";
 }
 
-function ReturnForm({ orderId, userId, token }) {
+function ReturnForm({
+  orderId,
+  userId,
+  token,
+}) {
   const revision = useOrderUpdates();
 
   const catalog = useCatalog();
@@ -93,26 +105,45 @@ function ReturnForm({ orderId, userId, token }) {
   const catalogRef = useRef(catalog);
   catalogRef.current = catalog;
 
-  const key = returnAttemptKey(userId, orderId);
+  const key = returnAttemptKey(
+    userId,
+    orderId,
+  );
 
-  const pending = useRef(readReturnAttempt(key));
+  const pending = useRef(
+    readReturnAttempt(key),
+  );
 
   const [awaiting, setAwaiting] = useState(
     Boolean(pending.current),
   );
 
-  const [order, setOrder] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
+  const [order, setOrder] =
+    useState(null);
 
-  const [type, setType] = useState("return");
-  const [chosen, setChosen] = useState({});
-  const [reason, setReason] = useState("");
+  const [loading, setLoading] =
+    useState(true);
 
-  const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [loadError, setLoadError] =
+    useState("");
 
-  const [now, setNow] = useState(Date.now);
+  const [type, setType] =
+    useState("return");
+
+  const [chosen, setChosen] =
+    useState({});
+
+  const [reason, setReason] =
+    useState("");
+
+  const [error, setError] =
+    useState("");
+
+  const [submitting, setSubmitting] =
+    useState(false);
+
+  const [now, setNow] =
+    useState(Date.now);
 
   const mounted = useRef(false);
   const lock = useRef(false);
@@ -172,8 +203,9 @@ function ReturnForm({ orderId, userId, token }) {
   const adoptOrder = useCallback((next) => {
     if (
       latestOrder.current &&
-      returnReviewKey(latestOrder.current) !==
-        returnReviewKey(next)
+      returnReviewKey(
+        latestOrder.current,
+      ) !== returnReviewKey(next)
     ) {
       setChosen({});
     }
@@ -217,11 +249,18 @@ function ReturnForm({ orderId, userId, token }) {
 
       return true;
     },
-    [key, adoptOrder, navigate, notify],
+    [
+      key,
+      adoptOrder,
+      navigate,
+      notify,
+    ],
   );
 
   const loadOrder = useCallback(async () => {
-    if (lock.current) return;
+    if (lock.current) {
+      return;
+    }
 
     readController.current?.abort();
 
@@ -262,7 +301,9 @@ function ReturnForm({ orderId, userId, token }) {
         failure.name !== "AbortError"
       ) {
         if (
-          [401, 403, 404].includes(failure.status)
+          [401, 403, 404].includes(
+            failure.status,
+          )
         ) {
           setOrder(null);
           latestOrder.current = null;
@@ -291,7 +332,11 @@ function ReturnForm({ orderId, userId, token }) {
     loadOrder();
   }, [loadOrder, revision]);
 
-  function changeRow(index, item, update) {
+  function changeRow(
+    index,
+    item,
+    update,
+  ) {
     setChosen((current) => ({
       ...current,
 
@@ -351,7 +396,9 @@ function ReturnForm({ orderId, userId, token }) {
         controller.signal,
       );
 
-      if (!mounted.current) return;
+      if (!mounted.current) {
+        return;
+      }
 
       if (
         returnReviewKey(fresh) !==
@@ -388,7 +435,12 @@ function ReturnForm({ orderId, userId, token }) {
         payload,
       };
 
-      if (!saveReturnAttempt(key, attempt)) {
+      if (
+        !saveReturnAttempt(
+          key,
+          attempt,
+        )
+      ) {
         throw new Error(
           "Request recovery could not be saved. Allow browser session storage and try again, or contact support.",
         );
@@ -406,10 +458,15 @@ function ReturnForm({ orderId, userId, token }) {
         { signal: controller.signal },
       );
 
-      if (!mounted.current) return;
+      if (!mounted.current) {
+        return;
+      }
 
       if (
-        !orderOwnedBy(updated, userId) ||
+        !orderOwnedBy(
+          updated,
+          userId,
+        ) ||
         !confirmSaved(updated)
       ) {
         throw Object.assign(
@@ -420,7 +477,9 @@ function ReturnForm({ orderId, userId, token }) {
         );
       }
     } catch (failure) {
-      if (!mounted.current) return;
+      if (!mounted.current) {
+        return;
+      }
 
       if (
         sent &&
@@ -437,11 +496,15 @@ function ReturnForm({ orderId, userId, token }) {
             controller.signal,
           );
 
-          if (!mounted.current) return;
+          if (!mounted.current) {
+            return;
+          }
 
           adoptOrder(fresh);
 
-          if (confirmSaved(fresh)) return;
+          if (confirmSaved(fresh)) {
+            return;
+          }
 
           setError(
             "The request could not be confirmed yet. Use Check request status or contact support. Submitting this form does not issue a refund or replacement shipment.",
@@ -476,7 +539,9 @@ function ReturnForm({ orderId, userId, token }) {
         );
 
         if (
-          [401, 403, 404].includes(failure.status)
+          [401, 403, 404].includes(
+            failure.status,
+          )
         ) {
           setOrder(null);
           latestOrder.current = null;
@@ -497,8 +562,11 @@ function ReturnForm({ orderId, userId, token }) {
     order?.id ||
     orderId;
 
-  const routeId = encodeURIComponent(displayId);
-  const detailsPath = `/orders/${routeId}`;
+  const routeId =
+    encodeURIComponent(displayId);
+
+  const detailsPath =
+    `/orders/${routeId}`;
 
   if (loading && !order) {
     return (
@@ -554,7 +622,9 @@ function ReturnForm({ orderId, userId, token }) {
   const availability =
     returnAvailability(order, now);
 
-  const catalogue = Array.isArray(catalog.products)
+  const catalogue = Array.isArray(
+    catalog.products,
+  )
     ? catalog.products
     : [];
 
@@ -572,7 +642,9 @@ function ReturnForm({ orderId, userId, token }) {
     awaiting ||
     Boolean(loadError);
 
-  const items = Array.isArray(order.items)
+  const items = Array.isArray(
+    order.items,
+  )
     ? order.items
     : [];
 
@@ -597,7 +669,10 @@ function ReturnForm({ orderId, userId, token }) {
       <div className="page-heading">
         <div>
           <h1>Return or exchange</h1>
-          <p className="order-id">{displayId}</p>
+
+          <p className="order-id">
+            {displayId}
+          </p>
         </div>
       </div>
 
@@ -631,7 +706,9 @@ function ReturnForm({ orderId, userId, token }) {
 
       {awaiting && (
         <section className="panel">
-          <h2>Check your submitted request</h2>
+          <h2>
+            Check your submitted request
+          </h2>
 
           <p>
             We have an attempt awaiting confirmation.
@@ -716,8 +793,14 @@ function ReturnForm({ orderId, userId, token }) {
             </legend>
 
             {[
-              ["return", "Return selected items"],
-              ["exchange", "Exchange available options"],
+              [
+                "return",
+                "Return selected items",
+              ],
+              [
+                "exchange",
+                "Exchange available options",
+              ],
             ].map(([value, name]) => (
               <label
                 className="check"
@@ -730,6 +813,7 @@ function ReturnForm({ orderId, userId, token }) {
                   checked={type === value}
                   onChange={() => {
                     setType(value);
+                    setChosen({});
                     setError("");
                   }}
                 />
@@ -755,7 +839,9 @@ function ReturnForm({ orderId, userId, token }) {
                 <button
                   type="button"
                   className="button secondary"
-                  disabled={blocked || catalog.loading}
+                  disabled={
+                    blocked || catalog.loading
+                  }
                   onClick={() =>
                     catalog.refreshProducts()
                   }
@@ -783,6 +869,7 @@ function ReturnForm({ orderId, userId, token }) {
                 order,
                 item,
                 now,
+                type,
               );
 
             const product = findReturnProduct(
@@ -791,19 +878,23 @@ function ReturnForm({ orderId, userId, token }) {
             );
 
             const row =
-              chosen[index] || defaultRow(item);
+              chosen[index] ||
+              defaultRow(item);
 
             const options =
               replacementOptions(product);
 
-            const labels = optionLabels(product);
+            const labels =
+              optionLabels(product);
 
             const stock = ready
               ? replacementStock(
                   product,
+
                   options.sizes.length
                     ? row.size || null
                     : null,
+
                   options.colors.length
                     ? row.color || null
                     : null,
@@ -811,12 +902,16 @@ function ReturnForm({ orderId, userId, token }) {
               : 0;
 
             const selectedSize =
-              options.sizes.includes(String(row.size))
+              options.sizes.includes(
+                String(row.size),
+              )
                 ? row.size
                 : "";
 
             const selectedColor =
-              options.colors.includes(String(row.color))
+              options.colors.includes(
+                String(row.color),
+              )
                 ? row.color
                 : "";
 
@@ -862,11 +957,13 @@ function ReturnForm({ orderId, userId, token }) {
                     type="checkbox"
                     checked={row.selected}
                     disabled={
-                      blocked || !allowed.eligible
+                      blocked ||
+                      !allowed.eligible
                     }
                     onChange={(event) =>
                       changeRow(index, item, {
-                        selected: event.target.checked,
+                        selected:
+                          event.target.checked,
                       })
                     }
                   />
@@ -935,11 +1032,15 @@ function ReturnForm({ orderId, userId, token }) {
                     className="option-field"
                     disabled={blocked}
                   >
-                    <legend>Selected item</legend>
+                    <legend>
+                      Selected item
+                    </legend>
 
                     <div className="field">
                       <label
-                        htmlFor={`return-qty-${index}`}
+                        htmlFor={
+                          `return-qty-${index}`
+                        }
                       >
                         Quantity
                       </label>
@@ -954,9 +1055,14 @@ function ReturnForm({ orderId, userId, token }) {
                         required
                         value={row.quantity}
                         onChange={(event) =>
-                          changeRow(index, item, {
-                            quantity: event.target.value,
-                          })
+                          changeRow(
+                            index,
+                            item,
+                            {
+                              quantity:
+                                event.target.value,
+                            },
+                          )
                         }
                       />
                     </div>
@@ -966,21 +1072,30 @@ function ReturnForm({ orderId, userId, token }) {
                         {options.colors.length > 0 && (
                           <div className="field">
                             <label
-                              htmlFor={`return-color-${index}`}
+                              htmlFor={
+                                `return-color-${index}`
+                              }
                             >
                               Replacement{" "}
                               {labels.color.toLowerCase()}
                             </label>
 
                             <select
-                              id={`return-color-${index}`}
+                              id={
+                                `return-color-${index}`
+                              }
                               required
                               disabled={!ready}
                               value={selectedColor}
                               onChange={(event) =>
-                                changeRow(index, item, {
-                                  color: event.target.value,
-                                })
+                                changeRow(
+                                  index,
+                                  item,
+                                  {
+                                    color:
+                                      event.target.value,
+                                  },
+                                )
                               }
                             >
                               <option value="">
@@ -995,7 +1110,9 @@ function ReturnForm({ orderId, userId, token }) {
                                     value={color}
                                     disabled={
                                       ready &&
-                                      !colorAvailable(color)
+                                      !colorAvailable(
+                                        color,
+                                      )
                                     }
                                   >
                                     {color}
@@ -1014,21 +1131,30 @@ function ReturnForm({ orderId, userId, token }) {
                         {options.sizes.length > 0 && (
                           <div className="field">
                             <label
-                              htmlFor={`return-size-${index}`}
+                              htmlFor={
+                                `return-size-${index}`
+                              }
                             >
                               Replacement{" "}
                               {labels.size.toLowerCase()}
                             </label>
 
                             <select
-                              id={`return-size-${index}`}
+                              id={
+                                `return-size-${index}`
+                              }
                               required
                               disabled={!ready}
                               value={selectedSize}
                               onChange={(event) =>
-                                changeRow(index, item, {
-                                  size: event.target.value,
-                                })
+                                changeRow(
+                                  index,
+                                  item,
+                                  {
+                                    size:
+                                      event.target.value,
+                                  },
+                                )
                               }
                             >
                               <option value="">
@@ -1043,7 +1169,9 @@ function ReturnForm({ orderId, userId, token }) {
                                     value={size}
                                     disabled={
                                       ready &&
-                                      !sizeAvailable(size)
+                                      !sizeAvailable(
+                                        size,
+                                      )
                                     }
                                   >
                                     {size}
@@ -1091,7 +1219,10 @@ function ReturnForm({ orderId, userId, token }) {
               disabled={blocked}
               value={reason}
               onChange={(event) => {
-                setReason(event.target.value);
+                setReason(
+                  event.target.value,
+                );
+
                 setError("");
               }}
             />
@@ -1107,7 +1238,10 @@ function ReturnForm({ orderId, userId, token }) {
               className="button"
               disabled={
                 blocked ||
-                (type === "exchange" && !ready)
+                (
+                  type === "exchange" &&
+                  !ready
+                )
               }
             >
               {submitting
@@ -1141,7 +1275,9 @@ function ReturnForm({ orderId, userId, token }) {
 export default function ReturnPage() {
   useOrderUpdates();
 
-  const { orderId = "" } = useParams();
+  const {
+    orderId = "",
+  } = useParams();
 
   const {
     user,
@@ -1154,7 +1290,9 @@ export default function ReturnPage() {
   const login =
     `/login?${new URLSearchParams({
       next:
-        `/orders/${encodeURIComponent(orderId)}/return`,
+        `/orders/${encodeURIComponent(
+          orderId,
+        )}/return`,
     })}`;
 
   if (loading) {
@@ -1171,7 +1309,9 @@ export default function ReturnPage() {
   if (authError) {
     return (
       <div className="page narrow panel">
-        <h1>Unable to check your account</h1>
+        <h1>
+          Unable to check your account
+        </h1>
 
         <p
           className="field-error"
@@ -1199,7 +1339,10 @@ export default function ReturnPage() {
 
   if (
     user?.isActive === false ||
-    (user && (!accountId || !token)) ||
+    (
+      user &&
+      (!accountId || !token)
+    ) ||
     (token && !accountId)
   ) {
     return (
@@ -1231,7 +1374,10 @@ export default function ReturnPage() {
   }
 
   if (!accountId && !guest) {
-    const preview = getLocalOrder(orderId, null);
+    const preview = getLocalOrder(
+      orderId,
+      null,
+    );
 
     return (
       <div className="page narrow panel">
@@ -1255,7 +1401,11 @@ export default function ReturnPage() {
 
           <Link
             className="button secondary"
-            to={`/help?order=${encodeURIComponent(orderId)}`}
+            to={
+              `/help?order=${encodeURIComponent(
+                orderId,
+              )}`
+            }
           >
             Contact support
           </Link>
@@ -1264,11 +1414,15 @@ export default function ReturnPage() {
     );
   }
 
-  const userId = accountId || "guest";
+  const userId =
+    accountId || "guest";
 
   return (
     <ReturnForm
-      key={`${userId}:${orderId}:${token || ""}:${guest?.token || ""}`}
+      key={
+        `${userId}:${orderId}:` +
+        `${token || ""}:${guest?.token || ""}`
+      }
       orderId={orderId}
       userId={userId}
       token={token || ""}

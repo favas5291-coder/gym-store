@@ -1,3 +1,7 @@
+import {
+  returnRequestTypes,
+} from "./returnPolicy.js";
+
 export function productText(value) {
   return typeof value === "string"
     ? value
@@ -13,11 +17,16 @@ function displayValue(value) {
   }
 
   if (typeof value === "number") {
-    return Number.isFinite(value) ? String(value) : "";
+    return Number.isFinite(value)
+      ? String(value)
+      : "";
   }
 
   if (Array.isArray(value)) {
-    return value.map(displayValue).filter(Boolean).join(", ");
+    return value
+      .map(displayValue)
+      .filter(Boolean)
+      .join(", ");
   }
 
   return productText(value);
@@ -34,8 +43,13 @@ export function productList(value) {
 }
 
 export function optionLabels(product) {
-  const size = productText(product?.optionLabels?.size);
-  const color = productText(product?.optionLabels?.color);
+  const size = productText(
+    product?.optionLabels?.size,
+  );
+
+  const color = productText(
+    product?.optionLabels?.color,
+  );
 
   return {
     size: [
@@ -62,7 +76,8 @@ export function optionLabels(product) {
 }
 
 export function buyingInformation(product = {}) {
-  const delivery = product.delivery || {};
+  const delivery =
+    product.delivery || {};
 
   function day(value) {
     if (
@@ -75,15 +90,22 @@ export function buyingInformation(product = {}) {
 
     const number = Number(value);
 
-    return Number.isSafeInteger(number) &&
+    return (
+      Number.isSafeInteger(number) &&
       number >= 0 &&
       number <= 365
+    )
       ? number
       : null;
   }
 
-  const minimum = day(delivery.transitDaysMin);
-  const maximum = day(delivery.transitDaysMax);
+  const minimum = day(
+    delivery.transitDaysMin,
+  );
+
+  const maximum = day(
+    delivery.transitDaysMax,
+  );
 
   const transit =
     minimum != null &&
@@ -96,43 +118,88 @@ export function buyingInformation(product = {}) {
         } ${maximum === 1 ? "day" : "days"} after dispatch`
       : "";
 
-  const policy = productText(product.returnPolicy);
-  const conditions = productText(product.returnConditions);
-  const window = day(product.returnWindowDays);
+  const policy = productText(
+    product.returnPolicy,
+  );
+
+  const conditions = productText(
+    product.returnConditions,
+  );
+
+  const window = day(
+    product.returnWindowDays,
+  );
+
+  const types = returnRequestTypes(
+    product,
+  );
 
   let returns;
 
   if (product.returnsEligible === "no") {
     returns =
-      "This product is listed as not eligible for routine returns. Contact support about damaged, incorrect or faulty items.";
+      "This product is listed as not eligible for routine returns or exchanges. Contact support about damaged, incorrect or faulty items.";
   } else if (
     product.returnsEligible === "yes" &&
+    types.length &&
     (policy || conditions)
   ) {
+    const requests =
+      types.length === 2
+        ? "Return and exchange requests"
+        : types[0] === "exchange"
+          ? "Exchange requests"
+          : "Return requests";
+
     returns =
-      window != null && window >= 1 && window <= 7
-        ? `Return requests are accepted within ${window} ${
+      window != null &&
+      window >= 1 &&
+      window <= 7
+        ? `${requests} are accepted within ${window} ${
             window === 1 ? "day" : "days"
+          }${
+            window === 3 ? " (72 hours)" : ""
           } of delivery, subject to the conditions below.`
-        : "Returns are listed as available. Confirm the request deadline and conditions with support before buying.";
+        : "Confirm the request deadline and conditions with support before buying.";
+
+    if (!types.includes("return")) {
+      returns +=
+        " Routine returns for a refund are not included in this product's policy.";
+    }
+
+    if (!types.includes("exchange")) {
+      returns +=
+        " Exchanges are not included in this product's policy.";
+    }
   } else {
     returns =
-      "Return eligibility has not been confirmed for this product. Check with support before buying.";
+      "Return and exchange options have not been confirmed for this product. Read the conditions below and check with support before buying.";
   }
 
   return {
-    deliveryUnavailable: delivery.available === false,
-    estimate: productText(delivery.estimatedDays),
+    deliveryUnavailable:
+      delivery.available === false,
+
+    estimate: productText(
+      delivery.estimatedDays,
+    ),
+
     transit,
     returns,
+
     returnDetails: [
-      ...new Set([policy, conditions].filter(Boolean)),
+      ...new Set(
+        [policy, conditions].filter(Boolean),
+      ),
     ],
   };
 }
 
-export function customerSpecifications(product = {}) {
-  const specific = product.specifications;
+export function customerSpecifications(
+  product = {},
+) {
+  const specific =
+    product.specifications;
 
   const entries =
     specific &&
@@ -149,14 +216,18 @@ export function customerSpecifications(product = {}) {
     ["Product type", product.subcategory],
     ["Material", product.material],
     ["For", product.gender],
+
     ...entries,
+
     ["Product code", product.productCode],
     ["Product SKU", product.sku],
     ["In the box", product.whatsIncluded],
+
     [
       `Available ${labels.size.toLowerCase()}`,
       product.sizes,
     ],
+
     [
       `Available ${labels.color.toLowerCase()}`,
       product.colors,
@@ -170,7 +241,10 @@ export function customerSpecifications(product = {}) {
     const text = displayValue(value);
 
     if (name && text) {
-      unique.set(name.toLowerCase(), [name, text]);
+      unique.set(
+        name.toLowerCase(),
+        [name, text],
+      );
     }
   }
 
@@ -182,7 +256,9 @@ export function customerSpecifications(product = {}) {
     ? /dimension|capacity|compartment|material/i
     : /bottle|shaker/i.test(category)
       ? /capacity|volume|material|clean|care/i
-      : /cloth|t-shirt|short|jogger|apparel/i.test(category)
+      : /cloth|t-shirt|short|jogger|apparel/i.test(
+          category,
+        )
         ? /fabric|material|fit|measurement/i
         : /dimension|material|intended use|specification/i;
 
@@ -193,7 +269,9 @@ export function customerSpecifications(product = {}) {
   );
 }
 
-export function supplierSizeChart(product = {}) {
+export function supplierSizeChart(
+  product = {},
+) {
   const chart = product.sizeChart;
 
   if (
@@ -204,7 +282,8 @@ export function supplierSizeChart(product = {}) {
     return null;
   }
 
-  const columns = chart.columns.map(productText);
+  const columns =
+    chart.columns.map(productText);
 
   if (
     !columns.length ||
@@ -220,8 +299,15 @@ export function supplierSizeChart(product = {}) {
         Array.isArray(row) &&
         row.length === columns.length,
     )
-    .map((row) => row.map(displayValue))
-    .filter((row) => row.every((value) => value !== ""));
+    .map(
+      (row) => row.map(displayValue),
+    )
+    .filter(
+      (row) =>
+        row.every(
+          (value) => value !== "",
+        ),
+    );
 
   if (!rows.length) {
     return null;
@@ -230,7 +316,9 @@ export function supplierSizeChart(product = {}) {
   return {
     columns,
     rows,
+
     caption:
-      productText(chart.caption) || "Supplier size chart",
+      productText(chart.caption) ||
+      "Supplier size chart",
   };
 }

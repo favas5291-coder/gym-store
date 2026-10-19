@@ -367,6 +367,7 @@ function ProductDetail({
       setDelivery(
         "Enter a valid 6-digit pincode.",
       );
+
       return;
     }
 
@@ -374,6 +375,7 @@ function ProductDetail({
       setDelivery(
         "This product is currently unavailable for delivery. Contact support for help.",
       );
+
       return;
     }
 
@@ -386,6 +388,7 @@ function ProductDetail({
       setDelivery(
         "Your pincode could not be saved because browser storage is unavailable. Delivery availability and dates still need confirmation.",
       );
+
       return;
     }
 
@@ -580,6 +583,7 @@ function ProductDetail({
             product={{
               ...product,
               selectedColor,
+
               returnPolicy:
                 information.returns,
 
@@ -594,7 +598,10 @@ function ProductDetail({
             }}
           />
 
-          <div className="delivery-box">
+          <div
+            className="delivery-box"
+            id="delivery-returns"
+          >
             <h2>DELIVERY & RETURNS</h2>
 
             {information.deliveryUnavailable ? (

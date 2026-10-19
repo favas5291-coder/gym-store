@@ -1,11 +1,26 @@
 import { Link } from "react-router-dom";
-import { KIT_ROLES } from "../utils/adminProductDraft.js";
+
+import {
+  FREE_SHIPPING_LIMIT,
+  STANDARD_SHIPPING,
+  EXPRESS_SHIPPING,
+} from "../utils/orderCalculations.js";
+
+import {
+  money,
+} from "../utils/productPricing.js";
+
+import {
+  KIT_ROLES,
+} from "../utils/adminProductDraft.js";
 
 function Field({ label, help, children }) {
   return (
     <label className="ap-field">
       <span>{label}</span>
+
       {children}
+
       {help && <small>{help}</small>}
     </label>
   );
@@ -30,36 +45,56 @@ const RETURN_NAMES = {
   no: "Not eligible",
 };
 
-export function SupplyFields({ draft, setDraft, options }) {
+export function SupplyFields({
+  draft,
+  setDraft,
+  options,
+}) {
   const selected = options.suppliers?.find(
     (row) => row.id === draft.supplier,
   );
 
-  const missingSupplier = draft.supplier && !selected;
+  const missingSupplier =
+    draft.supplier && !selected;
 
   function change(key, value) {
     setDraft((current) => ({
       ...current,
       [key]: value,
       confirmSupplierStock: false,
-      ...(["supplier", "stockSource"].includes(key)
-        ? { supplierStockConfirmedAt: "" }
-        : {}),
+
+      ...(
+        ["supplier", "stockSource"].includes(key)
+          ? { supplierStockConfirmedAt: "" }
+          : {}
+      ),
     }));
   }
 
-  const confirmationDate = new Date(draft.supplierStockConfirmedAt);
+  const confirmationDate = new Date(
+    draft.supplierStockConfirmedAt,
+  );
+
   const canConfirm =
-    selected?.available && draft.stockSource === "supplier";
+    selected?.available &&
+    draft.stockSource === "supplier";
 
   return (
-    <section className="ap-section" id="ap-supply">
+    <section
+      className="ap-section"
+      id="ap-supply"
+    >
       <h3>2. Supplier and fulfillment</h3>
 
       <p className="ap-help">
-        Record who supplies, holds and dispatches this product.
-        Brand and supplier are separate.{" "}
-        <Link to="/admin/suppliers">Manage suppliers</Link>.
+        Record who supplies, holds and dispatches
+        this product. Brand and supplier are
+        separate.{" "}
+
+        <Link to="/admin/suppliers">
+          Manage suppliers
+        </Link>
+        .
       </p>
 
       <fieldset
@@ -78,23 +113,39 @@ export function SupplyFields({ draft, setDraft, options }) {
             <select
               value={draft.supplier}
               onChange={(event) =>
-                change("supplier", event.target.value)
+                change(
+                  "supplier",
+                  event.target.value,
+                )
               }
             >
-              <option value="">No supplier linked</option>
+              <option value="">
+                No supplier linked
+              </option>
 
               {missingSupplier && (
                 <option value={draft.supplier}>
-                  Linked supplier unavailable · {draft.supplier}
+                  Linked supplier unavailable
+                  {" · "}
+                  {draft.supplier}
                 </option>
               )}
 
-              {(options.suppliers || []).map((row) => (
-                <option key={row.id} value={row.id}>
-                  {row.name} · {row.supplierCode || row.status}
-                  {!row.available ? " · unavailable" : ""}
-                </option>
-              ))}
+              {(options.suppliers || []).map(
+                (row) => (
+                  <option
+                    key={row.id}
+                    value={row.id}
+                  >
+                    {row.name}
+                    {" · "}
+                    {row.supplierCode || row.status}
+                    {!row.available
+                      ? " · unavailable"
+                      : ""}
+                  </option>
+                ),
+              )}
             </select>
           </Field>
 
@@ -113,7 +164,8 @@ export function SupplyFields({ draft, setDraft, options }) {
               onChange={(event) =>
                 setDraft((current) => ({
                   ...current,
-                  purchaseCost: event.target.value,
+                  purchaseCost:
+                    event.target.value,
                 }))
               }
             />
@@ -123,16 +175,23 @@ export function SupplyFields({ draft, setDraft, options }) {
             <select
               value={draft.stockSource}
               onChange={(event) =>
-                change("stockSource", event.target.value)
+                change(
+                  "stockSource",
+                  event.target.value,
+                )
               }
             >
-              {(options.stockSources || [draft.stockSource]).map(
-                (value) => (
-                  <option key={value} value={value}>
-                    {STOCK_NAMES[value] || value}
-                  </option>
-                ),
-              )}
+              {(
+                options.stockSources ||
+                [draft.stockSource]
+              ).map((value) => (
+                <option
+                  key={value}
+                  value={value}
+                >
+                  {STOCK_NAMES[value] || value}
+                </option>
+              ))}
             </select>
           </Field>
 
@@ -140,45 +199,60 @@ export function SupplyFields({ draft, setDraft, options }) {
             <select
               value={draft.dispatchBy}
               onChange={(event) =>
-                change("dispatchBy", event.target.value)
+                change(
+                  "dispatchBy",
+                  event.target.value,
+                )
               }
             >
-              {(options.dispatchMethods || [draft.dispatchBy]).map(
-                (value) => (
-                  <option key={value} value={value}>
-                    {DISPATCH_NAMES[value] || value}
-                  </option>
-                ),
-              )}
+              {(
+                options.dispatchMethods ||
+                [draft.dispatchBy]
+              ).map((value) => (
+                <option
+                  key={value}
+                  value={value}
+                >
+                  {DISPATCH_NAMES[value] || value}
+                </option>
+              ))}
             </select>
           </Field>
 
-          {["Min", "Max"].map((suffix, index) => (
-            <Field
-              key={suffix}
-              label={
-                (index ? "Maximum" : "Minimum") +
-                " preparation days"
-              }
-              help="Time needed before dispatch. Enter both limits, or leave both unknown."
-            >
-              <input
-                type="number"
-                min="0"
-                max="365"
-                step="1"
-                inputMode="numeric"
-                value={draft["preparationDays" + suffix]}
-                placeholder="Not recorded"
-                onChange={(event) =>
-                  change(
-                    "preparationDays" + suffix,
-                    event.target.value,
-                  )
+          {["Min", "Max"].map(
+            (suffix, index) => (
+              <Field
+                key={suffix}
+                label={
+                  (index
+                    ? "Maximum"
+                    : "Minimum") +
+                  " preparation days"
                 }
-              />
-            </Field>
-          ))}
+                help="Time needed before dispatch. Enter both limits, or leave both unknown."
+              >
+                <input
+                  type="number"
+                  min="0"
+                  max="365"
+                  step="1"
+                  inputMode="numeric"
+                  value={
+                    draft[
+                      "preparationDays" + suffix
+                    ]
+                  }
+                  placeholder="Not recorded"
+                  onChange={(event) =>
+                    change(
+                      "preparationDays" + suffix,
+                      event.target.value,
+                    )
+                  }
+                />
+              </Field>
+            ),
+          )}
         </div>
 
         {selected && !selected.available && (
@@ -190,15 +264,18 @@ export function SupplyFields({ draft, setDraft, options }) {
 
         {missingSupplier && (
           <p className="notice">
-            The saved supplier was not returned. Its link is
-            preserved; choose an available supplier before publishing.
+            The saved supplier was not returned.
+            Its link is preserved; choose an
+            available supplier before publishing.
           </p>
         )}
 
         <label className="ap-check">
           <input
             type="checkbox"
-            checked={draft.canSendToPackingLocation}
+            checked={
+              draft.canSendToPackingLocation
+            }
             onChange={(event) =>
               change(
                 "canSendToPackingLocation",
@@ -206,24 +283,33 @@ export function SupplyFields({ draft, setDraft, options }) {
               )
             }
           />
-          This supplier can send this product to our packing location
+
+          This supplier can send this product
+          to our packing location
         </label>
 
         <p className="ap-help">
-          This records a capability. Kit packing locations, readiness
-          and shipment tracking will be configured in the kit
-          management stage.
+          This records a capability. Kit packing
+          locations, readiness and shipment tracking
+          will be configured in the kit management
+          stage.
         </p>
 
         {draft.stockSource === "supplier" && (
           <>
             <p className="ap-help">
               Last recorded stock check:{" "}
+
               {draft.supplierStockConfirmedAt &&
-              !Number.isNaN(confirmationDate.getTime())
-                ? confirmationDate.toLocaleString("en-IN", {
-                    timeZone: "Asia/Kolkata",
-                  })
+              !Number.isNaN(
+                confirmationDate.getTime(),
+              )
+                ? confirmationDate.toLocaleString(
+                    "en-IN",
+                    {
+                      timeZone: "Asia/Kolkata",
+                    },
+                  )
                 : "Not recorded"}
               .
             </p>
@@ -231,23 +317,28 @@ export function SupplyFields({ draft, setDraft, options }) {
             <label className="ap-check">
               <input
                 type="checkbox"
-                checked={draft.confirmSupplierStock}
+                checked={
+                  draft.confirmSupplierStock
+                }
                 disabled={!canConfirm}
                 onChange={(event) =>
                   setDraft((current) => ({
                     ...current,
-                    confirmSupplierStock: event.target.checked,
+                    confirmSupplierStock:
+                      event.target.checked,
                   }))
                 }
               />
-              I checked these quantities with the supplier; record
-              a fresh stock confirmation when saving
+
+              I checked these quantities with the
+              supplier; record a fresh stock
+              confirmation when saving
             </label>
 
             {!canConfirm && (
               <p className="ap-help">
-                Choose an available, verified supplier to record
-                a stock confirmation.
+                Choose an available, verified supplier
+                to record a stock confirmation.
               </p>
             )}
           </>
@@ -256,32 +347,49 @@ export function SupplyFields({ draft, setDraft, options }) {
 
       {!options.ready && (
         <p className="notice">
-          Supplier settings are locked until the updated dropdown
-          options load. Existing values are preserved.
+          Supplier settings are locked until the
+          updated dropdown options load. Existing
+          values are preserved.
         </p>
       )}
     </section>
   );
 }
 
-export function KitFields({ draft, setDraft, options }) {
+export function KitFields({
+  draft,
+  setDraft,
+  options,
+}) {
   function toggle(role, checked) {
     setDraft((current) => ({
       ...current,
+
       kitRoles: checked
-        ? [...new Set([...current.kitRoles, role])]
-        : current.kitRoles.filter((value) => value !== role),
+        ? [
+            ...new Set([
+              ...current.kitRoles,
+              role,
+            ]),
+          ]
+        : current.kitRoles.filter(
+            (value) => value !== role,
+          ),
     }));
   }
 
   return (
-    <section className="ap-section" id="ap-kit">
+    <section
+      className="ap-section"
+      id="ap-kit"
+    >
       <h3>7. Fitness Kit eligibility</h3>
 
       <p className="ap-help">
-        Choose the kit categories this product can serve.
-        Eligibility makes it a candidate for configured templates;
-        it does not publish a kit.
+        Choose the kit categories this product
+        can serve. Eligibility makes it a candidate
+        for configured templates; it does not
+        publish a kit.
       </p>
 
       <fieldset
@@ -299,23 +407,38 @@ export function KitFields({ draft, setDraft, options }) {
             onChange={(event) =>
               setDraft((current) => ({
                 ...current,
-                kitEligible: event.target.checked,
+                kitEligible:
+                  event.target.checked,
               }))
             }
           />
-          Allow this product in Fitness Kit templates
+
+          Allow this product in Fitness Kit
+          templates
         </label>
 
         <div className="ap-grid">
-          {(options.kitRoles || draft.kitRoles).map((role) => (
-            <label className="ap-check" key={role}>
+          {(
+            options.kitRoles ||
+            draft.kitRoles
+          ).map((role) => (
+            <label
+              className="ap-check"
+              key={role}
+            >
               <input
                 type="checkbox"
-                checked={draft.kitRoles.includes(role)}
+                checked={
+                  draft.kitRoles.includes(role)
+                }
                 onChange={(event) =>
-                  toggle(role, event.target.checked)
+                  toggle(
+                    role,
+                    event.target.checked,
+                  )
                 }
               />
+
               {KIT_ROLES[role] || role}
             </label>
           ))}
@@ -323,32 +446,47 @@ export function KitFields({ draft, setDraft, options }) {
       </fieldset>
 
       <p className="ap-help">
-        Supplements will remain optional, with a “No supplements”
-        choice. Training level alone does not determine supplement
-        needs.
+        Supplements will remain optional, with a
+        “No supplements” choice. Training level
+        alone does not determine supplement needs.
       </p>
 
       <p className="notice">
-        Drafts and unavailable variants must be excluded when
-        configuring a purchasable kit. Kit templates, discounts and
-        the customer builder are still to be added.
+        Drafts and unavailable variants must be
+        excluded when configuring a purchasable kit.
+        Kit templates, discounts and the customer
+        builder are still to be added.
       </p>
     </section>
   );
 }
 
-export function VariantLabelFields({ draft, setDraft, options }) {
+export function VariantLabelFields({
+  draft,
+  setDraft,
+  options,
+}) {
   return (
     <fieldset
       className="ap-form-fields"
       disabled={!options.ready}
     >
-      <legend className="sr-only">Variant labels</legend>
+      <legend className="sr-only">
+        Variant labels
+      </legend>
 
       <div className="ap-grid">
         {[
-          ["sizeLabel", "First option label", "sizeOptionLabels"],
-          ["colorLabel", "Second option label", "colorOptionLabels"],
+          [
+            "sizeLabel",
+            "First option label",
+            "sizeOptionLabels",
+          ],
+          [
+            "colorLabel",
+            "Second option label",
+            "colorOptionLabels",
+          ],
         ].map(([key, label, values]) => (
           <Field
             key={key}
@@ -364,8 +502,13 @@ export function VariantLabelFields({ draft, setDraft, options }) {
                 }))
               }
             >
-              {(options[values] || [draft[key]]).map((value) => (
-                <option key={value}>{value}</option>
+              {(
+                options[values] ||
+                [draft[key]]
+              ).map((value) => (
+                <option key={value}>
+                  {value}
+                </option>
               ))}
             </select>
           </Field>
@@ -373,8 +516,9 @@ export function VariantLabelFields({ draft, setDraft, options }) {
       </div>
 
       <p className="ap-help">
-        Use the existing two option groups for pairs such as
-        Size/Colour or Pack size/Flavour. Enter supplier-confirmed
+        Use the existing two option groups for
+        pairs such as Size/Colour or Pack
+        size/Flavour. Enter supplier-confirmed
         values below.
       </p>
     </fieldset>
@@ -402,62 +546,175 @@ export function DeliveryPolicyFields({
         Delivery timing and return eligibility
       </legend>
 
-      <div className="ap-grid" style={{ marginTop: 20 }}>
-        {["Min", "Max"].map((suffix, index) => (
-          <Field
-            key={suffix}
-            label={
-              (index ? "Maximum" : "Minimum") +
-              " courier transit days"
-            }
-            help="Time after dispatch. Leave both limits blank if unknown."
-          >
-            <input
-              type="number"
-              min="0"
-              max="365"
-              step="1"
-              inputMode="numeric"
-              placeholder="Not recorded"
-              value={draft["transitDays" + suffix]}
-              onChange={(event) =>
-                change("transitDays" + suffix, event.target.value)
+      <div
+        className="ap-grid"
+        style={{ marginTop: 20 }}
+      >
+        {["Min", "Max"].map(
+          (suffix, index) => (
+            <Field
+              key={suffix}
+              label={
+                (index
+                  ? "Maximum"
+                  : "Minimum") +
+                " courier transit days"
               }
-            />
-          </Field>
-        ))}
+              help="Time after dispatch. Leave both limits blank if unknown."
+            >
+              <input
+                type="number"
+                min="0"
+                max="365"
+                step="1"
+                inputMode="numeric"
+                placeholder="Not recorded"
+                value={
+                  draft[
+                    "transitDays" + suffix
+                  ]
+                }
+                onChange={(event) =>
+                  change(
+                    "transitDays" + suffix,
+                    event.target.value,
+                  )
+                }
+              />
+            </Field>
+          ),
+        )}
+
+        <p className="ap-help">
+          Standard delivery is{" "}
+          {money(STANDARD_SHIPPING)}
+          {" "}below{" "}
+          {money(FREE_SHIPPING_LIMIT)}
+          {" "}after coupons, and free from
+          that amount. Express delivery is{" "}
+          {money(EXPRESS_SHIPPING)}
+          {" "}where offered. These are store-wide
+          checkout rules; product-level overrides
+          are not used. Fitness Kit delivery uses
+          its confirmed package quote.
+        </p>
 
         <Field label="Return eligibility">
           <select
             value={draft.returnsEligible}
             onChange={(event) =>
-              change("returnsEligible", event.target.value)
+              change(
+                "returnsEligible",
+                event.target.value,
+              )
             }
           >
             {(
-              options.returnEligibility || [draft.returnsEligible]
+              options.returnEligibility ||
+              [draft.returnsEligible]
             ).map((value) => (
-              <option key={value} value={value}>
+              <option
+                key={value}
+                value={value}
+              >
                 {RETURN_NAMES[value] || value}
               </option>
             ))}
           </select>
         </Field>
 
+        <fieldset className="ap-field">
+          <legend>
+            Supported customer requests
+          </legend>
+
+          <p className="ap-help">
+            Confirm the supplier terms, then select
+            returns, exchanges, or both. Select only
+            Exchange for exchange-only products.
+            Changing this setting applies to future
+            purchases; existing orders retain their
+            policy.
+          </p>
+
+          {[
+            [
+              "return",
+              "Return for refund review",
+            ],
+            [
+              "exchange",
+              "Exchange size or colour",
+            ],
+          ].map(([type, label]) => (
+            <label
+              className="ap-check"
+              key={type}
+            >
+              <input
+                type="checkbox"
+                checked={
+                  (
+                    draft.returnRequestTypes ||
+                    []
+                  ).includes(type)
+                }
+                onChange={(event) => {
+                  const enabled =
+                    event.target.checked;
+
+                  setDraft((current) => ({
+                    ...current,
+
+                    returnRequestTypes: enabled
+                      ? [
+                          ...new Set([
+                            ...(
+                              current.returnRequestTypes ||
+                              []
+                            ),
+                            type,
+                          ]),
+                        ]
+                      : (
+                          current.returnRequestTypes ||
+                          []
+                        ).filter(
+                          (value) =>
+                            value !== type,
+                        ),
+                  }));
+                }}
+              />
+
+              {label}
+            </label>
+          ))}
+        </fieldset>
+
         <Field
-          label="Return window after delivery (days)"
-          help="The existing return flow supports 1–7 days. Unconfirmed eligibility is not a return promise."
+          label="Request window after delivery (days)"
+          help="Use 7 days for eligible clothing and footwear when supported. Enter 3 days for a supplier-confirmed 72-hour window. Supplements and hygiene items need their own confirmed eligibility. Unconfirmed settings are not a promise."
         >
           <input
             type="number"
             required
-            min={options.returnWindow?.minimumDays || 1}
-            max={options.returnWindow?.maximumDays || 7}
+            min={
+              options.returnWindow
+                ?.minimumDays || 1
+            }
+            max={
+              options.returnWindow
+                ?.maximumDays || 7
+            }
             step="1"
             inputMode="numeric"
             value={draft.returnWindowDays}
             onChange={(event) =>
-              change("returnWindowDays", event.target.value)
+              change(
+                "returnWindowDays",
+                event.target.value,
+              )
             }
           />
         </Field>
@@ -471,7 +728,10 @@ export function DeliveryPolicyFields({
             maxLength={2000}
             value={draft.returnConditions}
             onChange={(event) =>
-              change("returnConditions", event.target.value)
+              change(
+                "returnConditions",
+                event.target.value,
+              )
             }
           />
         </Field>

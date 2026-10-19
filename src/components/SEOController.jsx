@@ -1,9 +1,21 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 
-import { useCatalog } from "../context/CatalogContext.jsx";
-import { getDiscountedPrice } from "../utils/productPricing.js";
-import { getTotalStock } from "../utils/cartUtils.js";
+import {
+  useCatalog,
+} from "../context/CatalogContext.jsx";
+
+import {
+  getDiscountedPrice,
+} from "../utils/productPricing.js";
+
+import {
+  getTotalStock,
+} from "../utils/cartUtils.js";
+
+import {
+  returnPolicyMarkup,
+} from "../utils/returnPolicy.js";
 
 const DEFAULT_DESCRIPTION =
   "Discover training clothing, gym shoes and workout essentials at GymDrobe. Everything you need for every workout.";
@@ -13,18 +25,25 @@ const PAGES = {
     title: "GymDrobe | Everything for Every Workout",
     description: DEFAULT_DESCRIPTION,
   },
+
   "/shop": {
-    title: "Shop Gym Clothing & Workout Essentials | GymDrobe",
+    title:
+      "Shop Gym Clothing & Workout Essentials | GymDrobe",
+
     description:
       "Explore gym clothing, shoes, bags and workout essentials at GymDrobe. Browse products, compare options and find gear for your next workout.",
   },
+
   "/offers": {
     title: "Offers & Coupons | GymDrobe",
+
     description:
       "Explore current GymDrobe offers on gym clothing and workout essentials.",
   },
+
   "/help": {
     title: "Shopping Help | GymDrobe",
+
     description:
       "Find help with shopping, delivery, payments and orders at GymDrobe.",
   },
@@ -39,14 +58,27 @@ function cleanText(value) {
     : "";
 }
 
-function setMeta(name, content, property = false) {
-  const attribute = property ? "property" : "name";
-  const selector = `meta[${attribute}="${name}"]`;
-  const existing = [...document.head.querySelectorAll(selector)];
+function setMeta(
+  name,
+  content,
+  property = false,
+) {
+  const attribute = property
+    ? "property"
+    : "name";
+
+  const selector =
+    `meta[${attribute}="${name}"]`;
+
+  const existing = [
+    ...document.head.querySelectorAll(selector),
+  ];
 
   let element = existing.shift();
 
-  existing.forEach((duplicate) => duplicate.remove());
+  existing.forEach((duplicate) =>
+    duplicate.remove(),
+  );
 
   if (!element) {
     element = document.createElement("meta");
@@ -57,12 +89,21 @@ function setMeta(name, content, property = false) {
   element.content = content;
 }
 
-function removeMeta(name, property = false) {
-  const attribute = property ? "property" : "name";
+function removeMeta(
+  name,
+  property = false,
+) {
+  const attribute = property
+    ? "property"
+    : "name";
 
   document.head
-    .querySelectorAll(`meta[${attribute}="${name}"]`)
-    .forEach((element) => element.remove());
+    .querySelectorAll(
+      `meta[${attribute}="${name}"]`,
+    )
+    .forEach((element) =>
+      element.remove(),
+    );
 }
 
 function getSiteOrigin() {
@@ -70,10 +111,17 @@ function getSiteOrigin() {
 
   try {
     const configured = new URL(
-      String(import.meta.env.VITE_SITE_URL || fallback).trim(),
+      String(
+        import.meta.env.VITE_SITE_URL ||
+          fallback,
+      ).trim(),
     );
 
-    if (["https:", "http:"].includes(configured.protocol)) {
+    if (
+      ["https:", "http:"].includes(
+        configured.protocol,
+      )
+    ) {
       return configured.origin;
     }
   } catch {
@@ -86,31 +134,46 @@ function getSiteOrigin() {
 function getImages(product, origin) {
   const sources = [
     product.image,
-    ...(Array.isArray(product.images) ? product.images : []),
+
+    ...(Array.isArray(product.images)
+      ? product.images
+      : []),
   ];
 
-  const images = sources.flatMap((source) => {
-    if (typeof source !== "string" || !source.trim()) {
-      return [];
-    }
+  const images = sources.flatMap(
+    (source) => {
+      if (
+        typeof source !== "string" ||
+        !source.trim()
+      ) {
+        return [];
+      }
 
-    try {
-      const url = new URL(source.trim(), origin);
+      try {
+        const url = new URL(
+          source.trim(),
+          origin,
+        );
 
-      return ["https:", "http:"].includes(url.protocol)
-        ? [url.href]
-        : [];
-    } catch {
-      return [];
-    }
-  });
+        return ["https:", "http:"].includes(
+          url.protocol,
+        )
+          ? [url.href]
+          : [];
+      } catch {
+        return [];
+      }
+    },
+  );
 
   return [...new Set(images)];
 }
 
 function updateCanonical(url) {
   const links = [
-    ...document.head.querySelectorAll('link[rel="canonical"]'),
+    ...document.head.querySelectorAll(
+      'link[rel="canonical"]',
+    ),
   ];
 
   if (!url) {
@@ -120,7 +183,9 @@ function updateCanonical(url) {
 
   let link = links.shift();
 
-  links.forEach((duplicate) => duplicate.remove());
+  links.forEach((duplicate) =>
+    duplicate.remove(),
+  );
 
   if (!link) {
     link = document.createElement("link");
@@ -133,37 +198,61 @@ function updateCanonical(url) {
 
 export default function SEOController() {
   const { pathname } = useLocation();
-  const { products, loading, loaded, error } = useCatalog();
+
+  const {
+    products,
+    loading,
+    loaded,
+    error,
+  } = useCatalog();
 
   useEffect(() => {
     const origin = getSiteOrigin();
-    const path = pathname.replace(/\/+$/, "") || "/";
-    const match = path.match(/^\/product\/([^/]+)$/);
+
+    const path =
+      pathname.replace(/\/+$/, "") || "/";
+
+    const match = path.match(
+      /^\/product\/([^/]+)$/,
+    );
 
     let identifier = "";
 
     try {
-      identifier = match ? decodeURIComponent(match[1]) : "";
+      identifier = match
+        ? decodeURIComponent(match[1])
+        : "";
     } catch {
       // Malformed identifiers cannot match a product.
     }
 
-    const catalog = Array.isArray(products) ? products : [];
+    const catalog = Array.isArray(products)
+      ? products
+      : [];
 
     const product = match
       ? catalog.find(
           (item) =>
             item &&
             identifier &&
-            [item.id, item._id, item.legacyId, item.slug].some(
+            [
+              item.id,
+              item._id,
+              item.legacyId,
+              item.slug,
+            ].some(
               (value) =>
-                value != null && String(value) === identifier,
+                value != null &&
+                String(value) === identifier,
             ),
         )
       : null;
 
     const page = PAGES[path];
-    const isPublicPage = Boolean(page || match);
+
+    const isPublicPage = Boolean(
+      page || match,
+    );
 
     const missingProduct = Boolean(
       match &&
@@ -173,31 +262,39 @@ export default function SEOController() {
         !product,
     );
 
-    const name = cleanText(product?.name) || "Product";
+    const name =
+      cleanText(product?.name) || "Product";
 
     const title = missingProduct
       ? "Product Not Found | GymDrobe"
       : product
         ? `${name} | GymDrobe`
         : page?.title ||
-          (match
-            ? "Product | GymDrobe"
-            : "Your Account & Shopping | GymDrobe");
+          (
+            match
+              ? "Product | GymDrobe"
+              : "Your Account & Shopping | GymDrobe"
+          );
 
     const fullDescription = product
       ? cleanText(product.description) ||
         `Explore ${name} at GymDrobe. View available options, pricing and stock.`
-      : page?.description || DEFAULT_DESCRIPTION;
+      : page?.description ||
+        DEFAULT_DESCRIPTION;
 
-    const summary = fullDescription.slice(0, 160);
+    const summary =
+      fullDescription.slice(0, 160);
 
     const canonicalPath = product
       ? `/product/${encodeURIComponent(
-          product.id ?? product._id ?? identifier,
+          product.id ??
+            product._id ??
+            identifier,
         )}`
       : path;
 
-    // Prefix with the trusted origin so paths cannot change the host.
+    // Prefix with the trusted origin so paths
+    // cannot change the host.
     const canonicalUrl = new URL(
       `${origin}${canonicalPath}`,
     ).href;
@@ -205,6 +302,7 @@ export default function SEOController() {
     document.title = title;
 
     setMeta("description", summary);
+
     setMeta(
       "robots",
       isPublicPage && !missingProduct
@@ -212,21 +310,51 @@ export default function SEOController() {
         : "noindex, follow",
     );
 
-    setMeta("og:type", product ? "product" : "website", true);
-    setMeta("og:site_name", "GymDrobe", true);
+    setMeta(
+      "og:type",
+      product ? "product" : "website",
+      true,
+    );
+
+    setMeta(
+      "og:site_name",
+      "GymDrobe",
+      true,
+    );
+
     setMeta("og:title", title, true);
-    setMeta("og:description", summary, true);
-    setMeta("og:url", canonicalUrl, true);
+
+    setMeta(
+      "og:description",
+      summary,
+      true,
+    );
+
+    setMeta(
+      "og:url",
+      canonicalUrl,
+      true,
+    );
 
     setMeta("twitter:card", "summary");
     setMeta("twitter:title", title);
-    setMeta("twitter:description", summary);
 
-    updateCanonical(
-      isPublicPage && !missingProduct ? canonicalUrl : null,
+    setMeta(
+      "twitter:description",
+      summary,
     );
 
-    document.getElementById("gymdrobe-product-schema")?.remove();
+    updateCanonical(
+      isPublicPage && !missingProduct
+        ? canonicalUrl
+        : null,
+    );
+
+    document
+      .getElementById(
+        "gymdrobe-product-schema",
+      )
+      ?.remove();
 
     removeMeta("og:image", true);
     removeMeta("og:image:alt", true);
@@ -237,14 +365,38 @@ export default function SEOController() {
       return;
     }
 
-    const images = getImages(product, origin);
+    const images = getImages(
+      product,
+      origin,
+    );
 
     if (images.length) {
-      setMeta("og:image", images[0], true);
-      setMeta("og:image:alt", name, true);
-      setMeta("twitter:image", images[0]);
-      setMeta("twitter:image:alt", name);
-      setMeta("twitter:card", "summary_large_image");
+      setMeta(
+        "og:image",
+        images[0],
+        true,
+      );
+
+      setMeta(
+        "og:image:alt",
+        name,
+        true,
+      );
+
+      setMeta(
+        "twitter:image",
+        images[0],
+      );
+
+      setMeta(
+        "twitter:image:alt",
+        name,
+      );
+
+      setMeta(
+        "twitter:card",
+        "summary_large_image",
+      );
     }
 
     const schema = {
@@ -274,7 +426,9 @@ export default function SEOController() {
     }
 
     const rawPrice = Number(product.price);
-    const price = getDiscountedPrice(product);
+
+    const price =
+      getDiscountedPrice(product);
 
     if (
       product.price != null &&
@@ -289,6 +443,7 @@ export default function SEOController() {
         url: canonicalUrl,
         priceCurrency: "INR",
         price,
+
         availability:
           getTotalStock(product) > 0
             ? "https://schema.org/InStock"
@@ -296,13 +451,36 @@ export default function SEOController() {
       };
     }
 
-    const script = document.createElement("script");
-    script.id = "gymdrobe-product-schema";
-    script.type = "application/ld+json";
-    script.textContent = JSON.stringify(schema);
+    const policy = returnPolicyMarkup(
+      product,
+      canonicalUrl,
+    );
+
+    if (schema.offers && policy) {
+      schema.offers.hasMerchantReturnPolicy =
+        policy;
+    }
+
+    const script =
+      document.createElement("script");
+
+    script.id =
+      "gymdrobe-product-schema";
+
+    script.type =
+      "application/ld+json";
+
+    script.textContent =
+      JSON.stringify(schema);
 
     document.head.appendChild(script);
-  }, [pathname, products, loading, loaded, error]);
+  }, [
+    pathname,
+    products,
+    loading,
+    loaded,
+    error,
+  ]);
 
   return null;
 }

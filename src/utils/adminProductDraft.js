@@ -19,6 +19,14 @@ import {
   isPublicImageUrl,
 } from "./imageUrl.js";
 
+import {
+  FREE_SHIPPING_LIMIT,
+} from "./orderCalculations.js";
+
+import {
+  validReturnRequestTypes,
+} from "./returnPolicy.js";
+
 const EMPTY = {
   id: "",
   productCode: "",
@@ -55,7 +63,10 @@ const EMPTY = {
   isActive: false,
   deliveryAvailable: true,
   estimatedDays: "",
-  freeDeliveryAbove: "500",
+
+  freeDeliveryAbove:
+    String(FREE_SHIPPING_LIMIT),
+
   supplier: "",
   purchaseCost: "",
   meeshoProductLink: "",
@@ -75,6 +86,7 @@ const EMPTY = {
   returnsEligible: "unconfirmed",
   returnConditions: "",
   returnWindowDays: "7",
+  returnRequestTypes: [],
 };
 
 function unique(values) {
@@ -96,6 +108,7 @@ function unique(values) {
     }
 
     seen.add(key);
+
     return [clean];
   });
 }
@@ -319,10 +332,8 @@ function draftFor(product) {
       product.delivery?.estimatedDays || "",
     ),
 
-    freeDeliveryAbove: String(
-      product.delivery?.freeDeliveryAbove ??
-      500,
-    ),
+    freeDeliveryAbove:
+      String(FREE_SHIPPING_LIMIT),
 
     supplier: String(
       product.supplier?.id ??
@@ -389,6 +400,11 @@ function draftFor(product) {
     returnsEligible:
       product.returnsEligible ||
       "unconfirmed",
+
+    returnRequestTypes:
+      Array.isArray(product.returnRequestTypes)
+        ? [...product.returnRequestTypes]
+        : [],
 
     returnConditions:
       product.returnConditions || "",
@@ -1438,6 +1454,7 @@ export function validateDraft(
       [
         "returnsEligible",
         "returnWindowDays",
+        "returnRequestTypes",
         "returnConditions",
         "returnPolicy",
       ],
@@ -1469,6 +1486,28 @@ export function validateDraft(
     ) {
       return (
         "The current return flow supports a window of 1–7 days."
+      );
+    }
+
+    if (
+      !Array.isArray(
+        draft.returnRequestTypes,
+      ) ||
+      (
+        draft.returnRequestTypes.length > 0 &&
+        !validReturnRequestTypes(
+          draft.returnRequestTypes,
+        )
+      ) ||
+      (
+        draft.returnsEligible === "yes" &&
+        !validReturnRequestTypes(
+          draft.returnRequestTypes,
+        )
+      )
+    ) {
+      return (
+        "Confirm whether this product supports returns, exchanges, or both. Check supplier terms first."
       );
     }
 
@@ -1719,6 +1758,11 @@ export function payloadFor(
   put(
     "returnsEligible",
     draft.returnsEligible,
+  );
+
+  put(
+    "returnRequestTypes",
+    [...draft.returnRequestTypes],
   );
 
   put(

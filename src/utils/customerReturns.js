@@ -1,6 +1,18 @@
-import { guestAccess } from "./guestCheckout.js";
-import { getVariantStock } from "./cartUtils.js";
-import { purchaseOptions } from "./productPurchase.js";
+import {
+  returnRequestTypes,
+} from "./returnPolicy.js";
+
+import {
+  guestAccess,
+} from "./guestCheckout.js";
+
+import {
+  getVariantStock,
+} from "./cartUtils.js";
+
+import {
+  purchaseOptions,
+} from "./productPurchase.js";
 
 function moneyValue(value) {
   if (
@@ -62,14 +74,19 @@ export function returnAvailability(
       "Returns and exchanges open after delivery.";
   } else if (
     !["not-requested", "rejected"].includes(
-      order.returnRequest?.status || "not-requested",
+      order.returnRequest?.status ||
+        "not-requested",
     )
   ) {
     message =
       "A request is already recorded. Open order details to see its progress.";
   } else if (
-    !["not-requested", "not-applicable"].includes(
-      order.refund?.status || "not-requested",
+    ![
+      "not-requested",
+      "not-applicable",
+    ].includes(
+      order.refund?.status ||
+        "not-requested",
     )
   ) {
     message =
@@ -91,8 +108,12 @@ export function returnAvailability(
       total === null ||
       total <= 0 ||
       paid !== total ||
-      moneyValue(order.payment.amountDue) !== 0 ||
-      moneyValue(order.payment.totalAmount) !== total
+      moneyValue(
+        order.payment.amountDue,
+      ) !== 0 ||
+      moneyValue(
+        order.payment.totalAmount,
+      ) !== total
     )
   ) {
     message =
@@ -106,7 +127,11 @@ export function returnAvailability(
   if (
     !message &&
     (
-      !["razorpay", "cod-partial", "cod"].includes(method) ||
+      ![
+        "razorpay",
+        "cod-partial",
+        "cod",
+      ].includes(method) ||
       (
         method !== "cod" &&
         (
@@ -134,7 +159,8 @@ export function returnAvailability(
     [...events]
       .reverse()
       .find(
-        (row) => row?.status === "delivered",
+        (row) =>
+          row?.status === "delivered",
       )?.timestamp;
 
   const delivered = new Date(
@@ -164,6 +190,7 @@ export function itemReturnAvailability(
   order,
   item,
   now = Date.now(),
+  type = "",
 ) {
   const overall = returnAvailability(
     order,
@@ -174,7 +201,8 @@ export function itemReturnAvailability(
     return overall;
   }
 
-  const days = item?.returnWindowDays ?? 7;
+  const days =
+    item?.returnWindowDays ?? 7;
 
   let message = "";
 
@@ -185,7 +213,9 @@ export function itemReturnAvailability(
   ) {
     message =
       "This item's purchased quantity needs support review.";
-  } else if (item.returnsEligible === "no") {
+  } else if (
+    item.returnsEligible === "no"
+  ) {
     message =
       "Routine returns are unavailable for this item. Contact support about damaged, incorrect or faulty items.";
   } else if (
@@ -195,6 +225,29 @@ export function itemReturnAvailability(
   ) {
     message =
       "This item's request window needs support review.";
+  }
+
+  const supported = returnRequestTypes(
+    item,
+    { historical: true },
+  );
+
+  if (
+    !message &&
+    (
+      !supported.length ||
+      (
+        type &&
+        !supported.includes(type)
+      )
+    )
+  ) {
+    message =
+      type === "return"
+        ? "This purchase supports exchanges only. Contact support about damaged, incorrect or faulty items."
+        : type === "exchange"
+          ? "Exchanges are not included in this purchase. Choose return or contact support."
+          : "The supported request type needs support review.";
   }
 
   const deadline =
@@ -209,6 +262,7 @@ export function itemReturnAvailability(
     eligible: !message,
     message,
     deadline,
+
     policyConfirmed:
       item?.returnsEligible === "yes",
   };
@@ -227,15 +281,21 @@ export function findReturnProduct(
     item?.product,
     item?.id,
   ]
-    .filter((value) => value != null)
+    .filter(
+      (value) => value != null,
+    )
     .map(String);
 
-  const exact = list.find((product) =>
-    [product?.id, product?._id].some(
-      (value) =>
-        value != null &&
-        ids.includes(String(value)),
-    ),
+  const exact = list.find(
+    (product) =>
+      [
+        product?.id,
+        product?._id,
+      ].some(
+        (value) =>
+          value != null &&
+          ids.includes(String(value)),
+      ),
   );
 
   if (exact) {
@@ -246,42 +306,49 @@ export function findReturnProduct(
   // for a missing original MongoDB product.
   if (
     ids.some(
-      (id) => /^[a-f0-9]{24}$/i.test(id),
+      (id) =>
+        /^[a-f0-9]{24}$/i.test(id),
     )
   ) {
     return null;
   }
 
   return (
-    list.find((product) =>
-      product &&
-      (
+    list.find(
+      (product) =>
+        product &&
         (
-          item?.legacyId != null &&
-          product.legacyId != null &&
-          String(item.legacyId) ===
-            String(product.legacyId)
-        ) ||
-        (
-          Boolean(item?.slug) &&
-          String(item.slug) ===
-            String(product.slug)
-        ) ||
-        (
-          product.legacyId != null &&
-          ids.includes(
-            String(product.legacyId),
+          (
+            item?.legacyId != null &&
+            product.legacyId != null &&
+            String(item.legacyId) ===
+              String(product.legacyId)
+          ) ||
+          (
+            Boolean(item?.slug) &&
+            String(item.slug) ===
+              String(product.slug)
+          ) ||
+          (
+            product.legacyId != null &&
+            ids.includes(
+              String(product.legacyId),
+            )
           )
-        )
-      ),
+        ),
     ) || null
   );
 }
 
 export function replacementOptions(product) {
   return {
-    sizes: purchaseOptions(product?.sizes),
-    colors: purchaseOptions(product?.colors),
+    sizes: purchaseOptions(
+      product?.sizes,
+    ),
+
+    colors: purchaseOptions(
+      product?.colors,
+    ),
   };
 }
 
@@ -342,7 +409,9 @@ export function returnPayload(
   );
 
   if (!overall.eligible) {
-    throw new Error(overall.message);
+    throw new Error(
+      overall.message,
+    );
   }
 
   const cleanReason =
@@ -365,7 +434,8 @@ export function returnPayload(
   const selected = Object.entries(
     chosen || {},
   ).filter(
-    ([, row]) => row?.selected === true,
+    ([, row]) =>
+      row?.selected === true,
   );
 
   if (
@@ -377,7 +447,10 @@ export function returnPayload(
     );
   }
 
-  if (type === "exchange" && !ready) {
+  if (
+    type === "exchange" &&
+    !ready
+  ) {
     throw new Error(
       "Load current replacement options before submitting an exchange.",
     );
@@ -385,143 +458,158 @@ export function returnPayload(
 
   const pools = new Map();
 
-  const items = selected.map(([key, row]) => {
-    const index = Number(key);
+  const items = selected.map(
+    ([key, row]) => {
+      const index = Number(key);
 
-    const quantity =
-      row.quantity === ""
-        ? NaN
-        : Number(row.quantity);
+      const quantity =
+        row.quantity === ""
+          ? NaN
+          : Number(row.quantity);
 
-    const item = order.items?.[index];
+      const item =
+        order.items?.[index];
 
-    if (
-      !Number.isSafeInteger(index) ||
-      index < 0 ||
-      String(index) !== key ||
-      !item ||
-      !["string", "number"].includes(
-        typeof row.quantity,
-      ) ||
-      !Number.isSafeInteger(quantity) ||
-      quantity < 1 ||
-      quantity > item.quantity
-    ) {
-      throw new Error(
-        "Choose valid whole-number item quantities.",
+      if (
+        !Number.isSafeInteger(index) ||
+        index < 0 ||
+        String(index) !== key ||
+        !item ||
+        ![
+          "string",
+          "number",
+        ].includes(
+          typeof row.quantity,
+        ) ||
+        !Number.isSafeInteger(quantity) ||
+        quantity < 1 ||
+        quantity > item.quantity
+      ) {
+        throw new Error(
+          "Choose valid whole-number item quantities.",
+        );
+      }
+
+      const allowed =
+        itemReturnAvailability(
+          order,
+          item,
+          now,
+          type,
+        );
+
+      if (!allowed.eligible) {
+        throw new Error(
+          `${item.name}: ${allowed.message}`,
+        );
+      }
+
+      if (type === "return") {
+        return {
+          index,
+          quantity,
+          size: null,
+          color: null,
+        };
+      }
+
+      const product = findReturnProduct(
+        products,
+        item,
       );
-    }
 
-    const allowed = itemReturnAvailability(
-      order,
-      item,
-      now,
-    );
+      if (
+        !product ||
+        product.isActive === false ||
+        product.delivery?.available === false
+      ) {
+        throw new Error(
+          `${item.name}: this product is unavailable for exchange.`,
+        );
+      }
 
-    if (!allowed.eligible) {
-      throw new Error(
-        `${item.name}: ${allowed.message}`,
-      );
-    }
+      const { sizes, colors } =
+        replacementOptions(product);
 
-    if (type === "return") {
+      const size = sizes.length
+        ? String(row.size ?? "") || null
+        : null;
+
+      const color = colors.length
+        ? String(row.color ?? "") || null
+        : null;
+
+      if (
+        (
+          sizes.length &&
+          !sizes.includes(size)
+        ) ||
+        (
+          colors.length &&
+          !colors.includes(color)
+        )
+      ) {
+        throw new Error(
+          `${item.name}: choose available replacement options. A previous option may have changed.`,
+        );
+      }
+
+      if (
+        size ===
+          (item.selectedSize ?? null) &&
+        color ===
+          (item.selectedColor ?? null)
+      ) {
+        throw new Error(
+          `${item.name}: choose a different replacement option.`,
+        );
+      }
+
+      const available =
+        replacementStock(
+          product,
+          size,
+          color,
+        );
+
+      const separate =
+        product.variants &&
+        typeof product.variants === "object" &&
+        Object.keys(
+          product.variants,
+        ).length > 0;
+
+      const pool = JSON.stringify([
+        String(
+          product._id ??
+          product.id ??
+          product.legacyId,
+        ),
+
+        separate ? size : null,
+        separate ? color : null,
+      ]);
+
+      const total =
+        (pools.get(pool) || 0) +
+        quantity;
+
+      if (total > available) {
+        throw new Error(
+          `${item.name}: only ${available} available across the selected items for this replacement.`,
+        );
+      }
+
+      pools.set(pool, total);
+
       return {
         index,
         quantity,
-        size: null,
-        color: null,
+        size,
+        color,
       };
-    }
-
-    const product = findReturnProduct(
-      products,
-      item,
-    );
-
-    if (
-      !product ||
-      product.isActive === false ||
-      product.delivery?.available === false
-    ) {
-      throw new Error(
-        `${item.name}: this product is unavailable for exchange.`,
-      );
-    }
-
-    const { sizes, colors } =
-      replacementOptions(product);
-
-    const size = sizes.length
-      ? String(row.size ?? "") || null
-      : null;
-
-    const color = colors.length
-      ? String(row.color ?? "") || null
-      : null;
-
-    if (
-      (
-        sizes.length &&
-        !sizes.includes(size)
-      ) ||
-      (
-        colors.length &&
-        !colors.includes(color)
-      )
-    ) {
-      throw new Error(
-        `${item.name}: choose available replacement options. A previous option may have changed.`,
-      );
-    }
-
-    if (
-      size === (item.selectedSize ?? null) &&
-      color === (item.selectedColor ?? null)
-    ) {
-      throw new Error(
-        `${item.name}: choose a different replacement option.`,
-      );
-    }
-
-    const available = replacementStock(
-      product,
-      size,
-      color,
-    );
-
-    const separate =
-      product.variants &&
-      typeof product.variants === "object" &&
-      Object.keys(product.variants).length > 0;
-
-    const pool = JSON.stringify([
-      String(
-        product._id ??
-        product.id ??
-        product.legacyId,
-      ),
-      separate ? size : null,
-      separate ? color : null,
-    ]);
-
-    const total =
-      (pools.get(pool) || 0) + quantity;
-
-    if (total > available) {
-      throw new Error(
-        `${item.name}: only ${available} available across the selected items for this replacement.`,
-      );
-    }
-
-    pools.set(pool, total);
-
-    return {
-      index,
-      quantity,
-      size,
-      color,
-    };
-  });
+    },
+  );
 
   return {
     type,
@@ -545,11 +633,14 @@ export function returnReviewKey(order) {
     order?.delivery?.deliveredAt,
 
     (
-      Array.isArray(order?.tracking?.events)
+      Array.isArray(
+        order?.tracking?.events,
+      )
         ? order.tracking.events
         : []
     ).filter(
-      (row) => row?.status === "delivered",
+      (row) =>
+        row?.status === "delivered",
     ),
   ]);
 }
@@ -559,11 +650,16 @@ export function matchingReturn(
   payload,
   previousId = "",
 ) {
-  const request = order?.returnRequest;
+  const request =
+    order?.returnRequest;
 
   const rows = (value) =>
     JSON.stringify(
-      (Array.isArray(value) ? value : [])
+      (
+        Array.isArray(value)
+          ? value
+          : []
+      )
         .map((row) => [
           row?.index,
           row?.quantity,
@@ -616,7 +712,9 @@ export function readReturnAttempt(key) {
         value.payload?.type,
       ) &&
       typeof value.payload.reason === "string" &&
-      Array.isArray(value.payload.items) &&
+      Array.isArray(
+        value.payload.items,
+      ) &&
       value.payload.items.length > 0 &&
       value.payload.items.length <= 50 &&
       value.payload.reason.trim().length >= 5 &&
@@ -637,7 +735,10 @@ export function readReturnAttempt(key) {
   }
 }
 
-export function saveReturnAttempt(key, value) {
+export function saveReturnAttempt(
+  key,
+  value,
+) {
   try {
     sessionStorage.setItem(
       key,
