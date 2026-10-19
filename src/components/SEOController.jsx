@@ -1,24 +1,15 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 
-import {
-  useCatalog,
-} from "../context/CatalogContext.jsx";
-
-import {
-  getDiscountedPrice,
-} from "../utils/productPricing.js";
-
-import {
-  getTotalStock,
-} from "../utils/cartUtils.js";
-
-import {
-  returnPolicyMarkup,
-} from "../utils/returnPolicy.js";
+import { useCatalog } from "../context/CatalogContext.jsx";
+import { getDiscountedPrice } from "../utils/productPricing.js";
+import { getTotalStock } from "../utils/cartUtils.js";
+import { returnPolicyMarkup } from "../utils/returnPolicy.js";
 
 const DEFAULT_DESCRIPTION =
   "Discover training clothing, gym shoes and workout essentials at GymDrobe. Everything you need for every workout.";
+
+const DEFAULT_SHARE_IMAGE = "/gymdrobe-share-v1.png";
 
 const PAGES = {
   "/": {
@@ -27,8 +18,7 @@ const PAGES = {
   },
 
   "/shop": {
-    title:
-      "Shop Gym Clothing & Workout Essentials | GymDrobe",
+    title: "Shop Gym Clothing & Workout Essentials | GymDrobe",
 
     description:
       "Explore gym clothing, shoes, bags and workout essentials at GymDrobe. Browse products, compare options and find gear for your next workout.",
@@ -58,17 +48,10 @@ function cleanText(value) {
     : "";
 }
 
-function setMeta(
-  name,
-  content,
-  property = false,
-) {
-  const attribute = property
-    ? "property"
-    : "name";
+function setMeta(name, content, property = false) {
+  const attribute = property ? "property" : "name";
 
-  const selector =
-    `meta[${attribute}="${name}"]`;
+  const selector = `meta[${attribute}="${name}"]`;
 
   const existing = [
     ...document.head.querySelectorAll(selector),
@@ -76,9 +59,7 @@ function setMeta(
 
   let element = existing.shift();
 
-  existing.forEach((duplicate) =>
-    duplicate.remove(),
-  );
+  existing.forEach((duplicate) => duplicate.remove());
 
   if (!element) {
     element = document.createElement("meta");
@@ -89,21 +70,12 @@ function setMeta(
   element.content = content;
 }
 
-function removeMeta(
-  name,
-  property = false,
-) {
-  const attribute = property
-    ? "property"
-    : "name";
+function removeMeta(name, property = false) {
+  const attribute = property ? "property" : "name";
 
   document.head
-    .querySelectorAll(
-      `meta[${attribute}="${name}"]`,
-    )
-    .forEach((element) =>
-      element.remove(),
-    );
+    .querySelectorAll(`meta[${attribute}="${name}"]`)
+    .forEach((element) => element.remove());
 }
 
 function getSiteOrigin() {
@@ -112,15 +84,12 @@ function getSiteOrigin() {
   try {
     const configured = new URL(
       String(
-        import.meta.env.VITE_SITE_URL ||
-          fallback,
+        import.meta.env.VITE_SITE_URL || fallback,
       ).trim(),
     );
 
     if (
-      ["https:", "http:"].includes(
-        configured.protocol,
-      )
+      ["https:", "http:"].includes(configured.protocol)
     ) {
       return configured.origin;
     }
@@ -140,31 +109,24 @@ function getImages(product, origin) {
       : []),
   ];
 
-  const images = sources.flatMap(
-    (source) => {
-      if (
-        typeof source !== "string" ||
-        !source.trim()
-      ) {
-        return [];
-      }
+  const images = sources.flatMap((source) => {
+    if (
+      typeof source !== "string" ||
+      !source.trim()
+    ) {
+      return [];
+    }
 
-      try {
-        const url = new URL(
-          source.trim(),
-          origin,
-        );
+    try {
+      const url = new URL(source.trim(), origin);
 
-        return ["https:", "http:"].includes(
-          url.protocol,
-        )
-          ? [url.href]
-          : [];
-      } catch {
-        return [];
-      }
-    },
-  );
+      return ["https:", "http:"].includes(url.protocol)
+        ? [url.href]
+        : [];
+    } catch {
+      return [];
+    }
+  });
 
   return [...new Set(images)];
 }
@@ -183,9 +145,7 @@ function updateCanonical(url) {
 
   let link = links.shift();
 
-  links.forEach((duplicate) =>
-    duplicate.remove(),
-  );
+  links.forEach((duplicate) => duplicate.remove());
 
   if (!link) {
     link = document.createElement("link");
@@ -250,9 +210,7 @@ export default function SEOController() {
 
     const page = PAGES[path];
 
-    const isPublicPage = Boolean(
-      page || match,
-    );
+    const isPublicPage = Boolean(page || match);
 
     const missingProduct = Boolean(
       match &&
@@ -270,31 +228,24 @@ export default function SEOController() {
       : product
         ? `${name} | GymDrobe`
         : page?.title ||
-          (
-            match
-              ? "Product | GymDrobe"
-              : "Your Account & Shopping | GymDrobe"
-          );
+          (match
+            ? "Product | GymDrobe"
+            : "Your Account & Shopping | GymDrobe");
 
     const fullDescription = product
       ? cleanText(product.description) ||
         `Explore ${name} at GymDrobe. View available options, pricing and stock.`
-      : page?.description ||
-        DEFAULT_DESCRIPTION;
+      : page?.description || DEFAULT_DESCRIPTION;
 
-    const summary =
-      fullDescription.slice(0, 160);
+    const summary = fullDescription.slice(0, 160);
 
     const canonicalPath = product
       ? `/product/${encodeURIComponent(
-          product.id ??
-            product._id ??
-            identifier,
+          product.id ?? product._id ?? identifier,
         )}`
       : path;
 
-    // Prefix with the trusted origin so paths
-    // cannot change the host.
+    // Keep canonical URLs on the configured website origin.
     const canonicalUrl = new URL(
       `${origin}${canonicalPath}`,
     ).href;
@@ -316,33 +267,14 @@ export default function SEOController() {
       true,
     );
 
-    setMeta(
-      "og:site_name",
-      "GymDrobe",
-      true,
-    );
-
+    setMeta("og:site_name", "GymDrobe", true);
     setMeta("og:title", title, true);
-
-    setMeta(
-      "og:description",
-      summary,
-      true,
-    );
-
-    setMeta(
-      "og:url",
-      canonicalUrl,
-      true,
-    );
+    setMeta("og:description", summary, true);
+    setMeta("og:url", canonicalUrl, true);
 
     setMeta("twitter:card", "summary");
     setMeta("twitter:title", title);
-
-    setMeta(
-      "twitter:description",
-      summary,
-    );
+    setMeta("twitter:description", summary);
 
     updateCanonical(
       isPublicPage && !missingProduct
@@ -351,52 +283,72 @@ export default function SEOController() {
     );
 
     document
-      .getElementById(
-        "gymdrobe-product-schema",
-      )
+      .getElementById("gymdrobe-product-schema")
       ?.remove();
 
+    // Clear previous image metadata before applying this page's image.
     removeMeta("og:image", true);
+    removeMeta("og:image:secure_url", true);
+    removeMeta("og:image:type", true);
+    removeMeta("og:image:width", true);
+    removeMeta("og:image:height", true);
     removeMeta("og:image:alt", true);
     removeMeta("twitter:image");
     removeMeta("twitter:image:alt");
 
-    if (!product) {
-      return;
-    }
+    const images = product
+      ? getImages(product, origin)
+      : [];
 
-    const images = getImages(
-      product,
-      origin,
+    const shareImage =
+      images[0] ||
+      new URL(DEFAULT_SHARE_IMAGE, origin).href;
+
+    const imageAlt = images.length
+      ? name
+      : "GymDrobe wordmark";
+
+    setMeta("og:image", shareImage, true);
+    setMeta("og:image:alt", imageAlt, true);
+
+    setMeta("twitter:image", shareImage);
+    setMeta("twitter:image:alt", imageAlt);
+
+    setMeta(
+      "twitter:card",
+      "summary_large_image",
     );
 
-    if (images.length) {
+    // These dimensions describe the existing GymDrobe wordmark.
+    // Product photos can have different dimensions.
+    if (!images.length) {
       setMeta(
-        "og:image",
-        images[0],
+        "og:image:secure_url",
+        shareImage,
         true,
       );
 
       setMeta(
-        "og:image:alt",
-        name,
+        "og:image:type",
+        "image/png",
         true,
       );
 
       setMeta(
-        "twitter:image",
-        images[0],
+        "og:image:width",
+        "1942",
+        true,
       );
 
       setMeta(
-        "twitter:image:alt",
-        name,
+        "og:image:height",
+        "809",
+        true,
       );
+    }
 
-      setMeta(
-        "twitter:card",
-        "summary_large_image",
-      );
+    if (!product) {
+      return;
     }
 
     const schema = {
@@ -427,8 +379,7 @@ export default function SEOController() {
 
     const rawPrice = Number(product.price);
 
-    const price =
-      getDiscountedPrice(product);
+    const price = getDiscountedPrice(product);
 
     if (
       product.price != null &&
@@ -461,17 +412,11 @@ export default function SEOController() {
         policy;
     }
 
-    const script =
-      document.createElement("script");
+    const script = document.createElement("script");
 
-    script.id =
-      "gymdrobe-product-schema";
-
-    script.type =
-      "application/ld+json";
-
-    script.textContent =
-      JSON.stringify(schema);
+    script.id = "gymdrobe-product-schema";
+    script.type = "application/ld+json";
+    script.textContent = JSON.stringify(schema);
 
     document.head.appendChild(script);
   }, [
