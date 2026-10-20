@@ -87,6 +87,7 @@ import {
 import {
   createRazorpayPaymentOrder,
   verifyRazorpayPayment,
+  checkRazorpayPayment,
 } from "../services/paymentApi.js";
 
 import {
@@ -149,8 +150,8 @@ export default function CheckoutPage() {
 
   const identity = String(
     auth.user?.id ||
-    auth.user?._id ||
-    "guest",
+      auth.user?._id ||
+      "guest",
   );
 
   return (
@@ -215,7 +216,6 @@ function Checkout({ auth, mode }) {
   const [address, setAddress] = useState(() =>
     checkoutAddress({
       ...EMPTY_ADDRESS,
-
       ...normalizeAddress(addressDraft),
 
       email:
@@ -242,10 +242,7 @@ function Checkout({ auth, mode }) {
           "",
         ),
 
-      ...(
-        savedAttempt?.payload?.shippingAddress ||
-        {}
-      ),
+      ...(savedAttempt?.payload?.shippingAddress || {}),
     }),
   );
 
@@ -264,14 +261,14 @@ function Checkout({ auth, mode }) {
   const [giftMessage, setGiftMessage] = useState(
     text(
       savedAttempt?.payload?.giftMessage ??
-      draft.giftMessage,
+        draft.giftMessage,
     ).slice(0, 250),
   );
 
   const [orderNote, setOrderNote] = useState(
     text(
       savedAttempt?.payload?.orderNote ??
-      draft.orderNote,
+        draft.orderNote,
     ).slice(0, 300),
   );
 
@@ -422,7 +419,7 @@ function Checkout({ auth, mode }) {
     ? paymentAmounts(
         displayedPricing,
         pending?.payload?.paymentMethod ||
-        paymentMethod,
+          paymentMethod,
       )
     : null;
 
@@ -486,7 +483,7 @@ function Checkout({ auth, mode }) {
           if (!cancelled) {
             setQuoteError(
               failure.message ||
-              "Checkout prices could not be checked.",
+                "Checkout prices could not be checked.",
             );
           }
         })
@@ -518,7 +515,7 @@ function Checkout({ auth, mode }) {
     const remaining =
       Date.parse(
         kitQuote.shippingReview?.validUntil ||
-        kitQuote.deliveryReview?.validUntil,
+          kitQuote.deliveryReview?.validUntil,
       ) - Date.now();
 
     if (!Number.isFinite(remaining)) {
@@ -613,7 +610,7 @@ function Checkout({ auth, mode }) {
         if (!cancelled) {
           setAddressesError(
             failure.message ||
-            "Saved addresses could not be loaded. Enter an address below.",
+              "Saved addresses could not be loaded. Enter an address below.",
           );
         }
       })
@@ -940,8 +937,8 @@ function Checkout({ auth, mode }) {
     ) {
       const owner = String(
         order.user?.id ||
-        order.user?._id ||
-        "",
+          order.user?._id ||
+          "",
       );
 
       const id = String(
@@ -993,21 +990,60 @@ function Checkout({ auth, mode }) {
 
     let cancelled = false;
     let timer;
+    let inFlight = false;
 
     async function poll() {
+      if (
+        inFlight ||
+        cancelled ||
+        finished.current
+      ) {
+        return;
+      }
+
+      if (document.visibilityState === "hidden") {
+        clearTimeout(timer);
+        timer = setTimeout(poll, 15000);
+        return;
+      }
+
+      inFlight = true;
+      clearTimeout(timer);
+
       try {
-        if (!locked.current) {
+        if (pendingRef.current?.orderId) {
           const record = pendingRef.current;
 
-          const order = await getOrderById(
+          let order = await getOrderById(
             token,
             record.orderId,
           );
 
+          // Recover the existing payment if the payment
+          // app returns without a browser callback.
+          if (
+            !cancelled &&
+            order.status === "payment-pending"
+          ) {
+            const result = await checkRazorpayPayment(
+              token,
+              record.orderId,
+            );
+
+            if (
+              result.state === "verified" ||
+              result.state === "review"
+            ) {
+              order = await getOrderById(
+                token,
+                record.orderId,
+              );
+            }
+          }
+
           if (
             !cancelled &&
             mounted.current &&
-            !locked.current &&
             pendingRef.current === record
           ) {
             acceptOrder(order, record);
@@ -1015,6 +1051,8 @@ function Checkout({ auth, mode }) {
         }
       } catch {
         // Keep the saved reference and recovery controls.
+      } finally {
+        inFlight = false;
       }
 
       if (
@@ -1030,9 +1068,35 @@ function Checkout({ auth, mode }) {
 
     poll();
 
+    const whenVisible = () => {
+      if (document.visibilityState === "visible") {
+        void poll();
+      }
+    };
+
+    window.addEventListener(
+      "focus",
+      whenVisible,
+    );
+
+    document.addEventListener(
+      "visibilitychange",
+      whenVisible,
+    );
+
     return () => {
       cancelled = true;
       clearTimeout(timer);
+
+      window.removeEventListener(
+        "focus",
+        whenVisible,
+      );
+
+      document.removeEventListener(
+        "visibilitychange",
+        whenVisible,
+      );
     };
   }, [
     pending?.orderId,
@@ -1057,7 +1121,7 @@ function Checkout({ auth, mode }) {
       if (mounted.current) {
         setError(
           failure.message ||
-          "Products could not be refreshed.",
+            "Products could not be refreshed.",
         );
       }
     } finally {
@@ -1148,6 +1212,32 @@ function Checkout({ auth, mode }) {
 
       if (firstRequest) {
         remember(record, true);
+      }
+
+      if (checkOnly && record.orderId) {
+        const result = await checkRazorpayPayment(
+          token,
+          record.orderId,
+        );
+
+        if (!mounted.current) {
+          return;
+        }
+
+        const order = await getOrderById(
+          token,
+          record.orderId,
+        );
+
+        if (!mounted.current) {
+          return;
+        }
+
+        if (!acceptOrder(order, record)) {
+          setError(result.message);
+        }
+
+        return;
       }
 
       const data =
@@ -1247,11 +1337,11 @@ function Checkout({ auth, mode }) {
           data.razorpayOrderId ||
         !/^pay_[A-Za-z0-9]+$/.test(
           response?.razorpay_payment_id ||
-          "",
+            "",
         ) ||
         !/^[a-f0-9]{64}$/i.test(
           response?.razorpay_signature ||
-          "",
+            "",
         )
       ) {
         throw new Error(
@@ -1356,7 +1446,7 @@ function Checkout({ auth, mode }) {
         acceptOrder(
           failure.data.order,
           pendingRef.current ||
-          active,
+            active,
         )
       ) {
         return;
@@ -1438,7 +1528,7 @@ function Checkout({ auth, mode }) {
     if (!canPay) {
       setError(
         kitIssue ||
-        "Check the highlighted products, quantities, prices and delivery review before continuing.",
+          "Check the highlighted products, quantities, prices and delivery review before continuing.",
       );
 
       return;
@@ -1468,7 +1558,7 @@ function Checkout({ auth, mode }) {
       latestCatalog,
 
       latestStore.catalogReady &&
-      Array.isArray(latestCatalog),
+        Array.isArray(latestCatalog),
 
       {
         allowKitReview: true,
@@ -1640,7 +1730,7 @@ function Checkout({ auth, mode }) {
         if (mounted.current) {
           setError(
             failure.message ||
-            "Checkout could not be checked. No payment was started.",
+              "Checkout could not be checked. No payment was started.",
           );
         }
 
@@ -1854,7 +1944,7 @@ function Checkout({ auth, mode }) {
         } else {
           store.buyNow(
             row.product ||
-            original,
+              original,
 
             nextQuantity,
             row.selectedSize,
@@ -1954,7 +2044,7 @@ function Checkout({ auth, mode }) {
     } catch (failure) {
       setError(
         failure.message ||
-        "Your selection could not be changed.",
+          "Your selection could not be changed.",
       );
     } finally {
       locked.current = false;
@@ -1983,7 +2073,7 @@ function Checkout({ auth, mode }) {
 
           String(
             value?.[key] ??
-            EMPTY_ADDRESS[key],
+              EMPTY_ADDRESS[key],
           ),
         ]),
       ),
@@ -1997,11 +2087,11 @@ function Checkout({ auth, mode }) {
           ([key]) =>
             String(
               value?.[key] ??
-              "",
+                "",
             ) ===
             String(
               address[key] ??
-              "",
+                "",
             ),
         ),
       ),
@@ -2760,7 +2850,7 @@ function Checkout({ auth, mode }) {
                       {row.lineSafe
                         ? money(
                             linePrice *
-                            row.quantity,
+                              row.quantity,
                           )
                         : "Price unavailable"}
 
@@ -3006,18 +3096,18 @@ function Checkout({ auth, mode }) {
 
                 {review.productSavings > 0 &&
                   !pending && (
-                  <div>
-                    <dt>
-                      Product savings included above
-                    </dt>
+                    <div>
+                      <dt>
+                        Product savings included above
+                      </dt>
 
-                    <dd>
-                      {money(
-                        review.productSavings,
-                      )}
-                    </dd>
-                  </div>
-                )}
+                      <dd>
+                        {money(
+                          review.productSavings,
+                        )}
+                      </dd>
+                    </div>
+                  )}
               </dl>
             ) : (
               <p role="status">

@@ -47,6 +47,8 @@ async function component(
       "utf8",
     )
   )
+    // Support Windows CRLF and Unix LF files.
+    .replace(/\r\n?/g, "\n")
     .replace(/^import[\s\S]*?;\n/gm, "")
     .replace(
       "export default function",
@@ -273,8 +275,8 @@ const Receipt = await component(
       isAccountOrder: true,
     }),
 
-    orderTotal: (order) =>
-      order.pricing.finalTotal,
+    orderTotal: (value) =>
+      value.pricing.finalTotal,
 
     csvCell: (value) =>
       String(value ?? ""),

@@ -11,7 +11,9 @@ const text = fs
     ),
     "utf8",
   )
-  .replace(/^import[^\n]+;\n/gm, "")
+  // Support Windows CRLF and Unix LF files.
+  .replace(/\r\n?/g, "\n")
+  .replace(/^import[\s\S]*?;\n/gm, "")
   .replace(
     "import.meta.env.VITE_API_URL",
     "undefined",
@@ -33,7 +35,8 @@ const context = {
   setTimeout,
   clearTimeout,
 
-  getKitGroup: (item) => item.kitGroup || null,
+  getKitGroup: (item) =>
+    item.kitGroup || null,
 
   fetch: async (url, options) => {
     sent = {
@@ -44,6 +47,7 @@ const context = {
     return {
       ok: true,
       status: 200,
+
       json: async () => ({
         success: true,
         quote: fixture(),
@@ -74,10 +78,12 @@ function fixture() {
         name: "Shirt",
         price: 100,
         quantity: 2,
+
         kit: {
           groupId: "kit-group-1",
           slotKey: "clothing",
         },
+
         priceAllocation: {
           quantity: 2,
           lineSubtotalPaise: 20000,
@@ -135,6 +141,7 @@ function fixture() {
           carrier: "Verified courier",
           shipping: 114,
           amountDueOnDelivery: 276,
+
           contents: [
             {
               itemIndex: 0,
@@ -153,7 +160,11 @@ test(
     const data = fixture();
 
     assert.equal(
-      api.verify(data, "cod-partial", "standard"),
+      api.verify(
+        data,
+        "cod-partial",
+        "standard",
+      ),
       data,
     );
   },
@@ -166,27 +177,47 @@ test(
       (data) => {
         data.shippingReview.packageCount = 2;
       },
+
       (data) => {
-        data.shippingReview.shipments[0].contents[0].quantity = 1;
+        data.shippingReview
+          .shipments[0]
+          .contents[0]
+          .quantity = 1;
       },
+
       (data) => {
-        data.shippingReview.shipments[0].contents[0].itemIndex = 4;
+        data.shippingReview
+          .shipments[0]
+          .contents[0]
+          .itemIndex = 4;
       },
+
       (data) => {
-        data.shippingReview.shipments[0].shipping = 0;
+        data.shippingReview
+          .shipments[0]
+          .shipping = 0;
       },
+
       (data) => {
-        data.shippingReview.shipments[0].amountDueOnDelivery = 275;
+        data.shippingReview
+          .shipments[0]
+          .amountDueOnDelivery = 275;
       },
+
       (data) => {
         data.payment.amountToPayNow = 20;
       },
+
       (data) => {
-        data.shippingReview.validUntil = "2000-01-01";
+        data.shippingReview.validUntil =
+          "2000-01-01";
       },
+
       (data) => {
         data.shippingReview.shipments.push(
-          structuredClone(data.shippingReview.shipments[0]),
+          structuredClone(
+            data.shippingReview.shipments[0],
+          ),
         );
       },
     ];
@@ -197,7 +228,11 @@ test(
       change(data);
 
       assert.throws(() =>
-        api.verify(data, "cod-partial", "standard"),
+        api.verify(
+          data,
+          "cod-partial",
+          "standard",
+        ),
       );
     }
   },
@@ -213,7 +248,11 @@ test(
     delete data.shippingReview;
 
     assert.equal(
-      api.verify(data, "cod-partial", "standard"),
+      api.verify(
+        data,
+        "cod-partial",
+        "standard",
+      ),
       data,
     );
   },
@@ -231,8 +270,10 @@ test(
             quantity: 2,
             selectedSize: "M",
             selectedColor: "Black",
+
             price: 1,
             meeshoProductLink: "private",
+
             kitGroup: {
               id: "kit-group-1",
               kitId: "507f1f77bcf86cd799439012",
@@ -241,12 +282,16 @@ test(
             },
           },
         ],
+
         paymentMethod: "cod-partial",
         pincode: "682001",
       },
     );
 
-    assert.equal(sent.body.pincode, "682001");
+    assert.equal(
+      sent.body.pincode,
+      "682001",
+    );
 
     assert.equal(
       sent.body.items[0].kitGroup.id,
@@ -254,7 +299,10 @@ test(
     );
 
     assert.equal(
-      Object.hasOwn(sent.body.items[0], "price"),
+      Object.hasOwn(
+        sent.body.items[0],
+        "price",
+      ),
       false,
     );
 
@@ -283,6 +331,7 @@ test(
               quantity: 1,
             },
           ],
+
           pincode: "123",
         },
       ),

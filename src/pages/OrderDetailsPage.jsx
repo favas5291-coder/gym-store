@@ -67,6 +67,7 @@ import OrderPaymentDetails, {
 
 import EmptyState from "../components/EmptyState.jsx";
 import GuestOrderAccess from "../components/GuestOrderAccess.jsx";
+import PaymentRecovery from "../components/PaymentRecovery.jsx";
 import Modal from "../components/Modal.jsx";
 
 function showMoney(value) {
@@ -270,7 +271,7 @@ function OrderDetail({
       if (mounted.current) {
         setError(
           failure.message ||
-          "Unable to check this order.",
+            "Unable to check this order.",
         );
 
         if (
@@ -424,7 +425,7 @@ function OrderDetail({
           if (mounted.current) {
             setError(
               readFailure.message ||
-              "Unable to confirm cancellation. Check its status before retrying.",
+                "Unable to confirm cancellation. Check its status before retrying.",
             );
 
             if (
@@ -447,7 +448,7 @@ function OrderDetail({
 
         setError(
           failure.message ||
-          "Cancellation could not be completed.",
+            "Cancellation could not be completed.",
         );
 
         if (
@@ -494,7 +495,7 @@ function OrderDetail({
       products,
       cart,
       ready &&
-      shopping.catalogReady !== false,
+        shopping.catalogReady !== false,
     );
   }
 
@@ -651,8 +652,8 @@ function OrderDetail({
 
   const routeId = encodeURIComponent(
     order.id ||
-    order._id ||
-    orderId,
+      order._id ||
+      orderId,
   );
 
   const helpPath =
@@ -1366,6 +1367,13 @@ function OrderDetail({
           </section>
 
           <OrderPaymentDetails order={order} />
+
+          <PaymentRecovery
+            key={`payment:${orderId}`}
+            order={order}
+            token={token}
+            onUpdated={data.refresh}
+          />
         </aside>
       </div>
 
@@ -1657,8 +1665,8 @@ export default function OrderDetailsPage() {
 
   const accountId = String(
     user?.id ||
-    user?._id ||
-    "",
+      user?._id ||
+      "",
   );
 
   const guest = guestAccess();

@@ -1,6 +1,8 @@
 import AdminKitFulfillment from "../components/AdminKitFulfillment.jsx";
 import PurchasedKitSummary from "../components/PurchasedKitSummary.jsx";
 import AdminItemSourcing from "../components/AdminItemSourcing.jsx";
+import PaymentRecovery from "../components/PaymentRecovery.jsx";
+import CustomerUpdateShare from "../components/CustomerUpdateShare.jsx";
 
 import {
   useEffect,
@@ -1005,6 +1007,34 @@ function AdminOrderCard({
 
               <section>
                 <h3>4. Shipping and status update</h3>
+
+                <CustomerUpdateShare
+                  key={`share:${id}`}
+                  order={current}
+                />
+
+                <PaymentRecovery
+                  key={`payment:${id}`}
+                  order={current}
+                  token={token}
+                  admin
+                  disabled={saving || !detailsReady}
+                  onBusyChange={setSaving}
+                  onUpdated={async () => {
+                    const fresh = await getAdminOrderById(
+                      token,
+                      id,
+                    );
+
+                    if (!mounted.current) {
+                      return;
+                    }
+
+                    setDetailedOrder(fresh);
+                    setDraft(createDraft(fresh));
+                    onUpdated(fresh);
+                  }}
+                />
 
                 {current.kitSnapshots?.length ? (
                   <AdminKitFulfillment

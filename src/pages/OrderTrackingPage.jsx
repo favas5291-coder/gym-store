@@ -6,8 +6,11 @@ import {
 import useCustomerOrder from "../hooks/useCustomerOrder.js";
 
 import EmptyState from "../components/EmptyState.jsx";
+import PaymentRecovery from "../components/PaymentRecovery.jsx";
 import GuestOrderAccess from "../components/GuestOrderAccess.jsx";
 import KitFulfillmentTracking from "../components/KitFulfillmentTracking.jsx";
+
+import { useAuth } from "../context/AuthContext.jsx";
 
 import OrderPaymentDetails, {
   formatOrderDate,
@@ -28,6 +31,7 @@ function activityStatus(status) {
 }
 
 export default function OrderTrackingPage() {
+  const { token } = useAuth();
   const { orderId } = useParams();
 
   const {
@@ -243,6 +247,13 @@ export default function OrderTrackingPage() {
         )}
 
       <OrderPaymentDetails order={order} />
+
+      <PaymentRecovery
+        key={`payment:${orderId}`}
+        order={order}
+        token={token}
+        onUpdated={refresh}
+      />
 
       <section className="panel">
         <h2>DELIVERY INFORMATION</h2>

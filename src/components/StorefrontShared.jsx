@@ -3,6 +3,10 @@ import { useState } from "react";
 import ProductArtwork from "./ProductArtwork.jsx";
 
 import {
+  responsiveProductImage,
+} from "../utils/responsiveProductImage.js";
+
+import {
   productImageSources,
 } from "../utils/productImages.js";
 
@@ -23,8 +27,8 @@ import {
 
 export { money };
 
-// Import local image URLs so Vite includes them in production.
-// The browser still loads the displayed images lazily.
+// Include local image URLs in production.
+// Images download only when the browser requests them.
 const bundledImages = import.meta.glob(
   "/src/assets/**/*.{jpg,jpeg,png,webp,avif,gif,svg,JPG,JPEG,PNG,WEBP,AVIF,GIF,SVG}",
   {
@@ -66,7 +70,7 @@ export const validProducts = (list) =>
       product.name,
   );
 
-// Resolve source assets, public paths and hosted image URLs.
+// Resolve local assets, public paths and hosted images.
 export function resolveProductImage(value) {
   if (typeof value !== "string") {
     return "";
@@ -123,7 +127,7 @@ export function resolveProductImage(value) {
     return bundledImages[pathname] || "";
   }
 
-  // Files in public are served without the public prefix.
+  // Public files are served without the public prefix.
   if (pathname.startsWith("/public/")) {
     return pathname.slice("/public".length);
   }
@@ -160,16 +164,29 @@ function ProductImageContent({
   eager,
   decorative,
   fetchPriority,
+  sizes,
 }) {
   const [index, setIndex] = useState(0);
 
+  const [
+    failedResponsive,
+    setFailedResponsive,
+  ] = useState("");
+
   const source = sources[index];
+
+  const srcSet =
+    failedResponsive === source
+      ? null
+      : responsiveProductImage(source);
 
   if (source) {
     return (
       <img
         key={source}
         src={source}
+        srcSet={srcSet || undefined}
+        sizes={sizes}
         className={className}
         alt={
           decorative
@@ -179,9 +196,17 @@ function ProductImageContent({
         loading={eager ? "eager" : "lazy"}
         decoding="async"
         fetchPriority={fetchPriority}
-        onError={() =>
-          setIndex((current) => current + 1)
-        }
+        onError={() => {
+          if (srcSet) {
+            // Retry the original photo if a resized
+            // version is unavailable.
+            setFailedResponsive(source);
+          } else {
+            setIndex(
+              (current) => current + 1,
+            );
+          }
+        }}
       />
     );
   }
@@ -213,6 +238,10 @@ export function ProductImage({
   eager = false,
   decorative = false,
   fetchPriority = "auto",
+
+  sizes = eager
+    ? "(max-width: 900px) 100vw, 60vw"
+    : "(max-width: 600px) 50vw, (max-width: 1100px) 33vw, 300px",
 }) {
   const sources = imageCandidates(product);
 
@@ -225,6 +254,7 @@ export function ProductImage({
       eager={eager}
       decorative={decorative}
       fetchPriority={fetchPriority}
+      sizes={sizes}
     />
   );
 }

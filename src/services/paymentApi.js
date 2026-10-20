@@ -39,6 +39,7 @@ async function request(
     method = "GET",
     body,
     verification = false,
+    signal,
   } = {},
 ) {
   if (!token && !guestAccess()) {
@@ -56,8 +57,7 @@ async function request(
   };
 
   if (body !== undefined) {
-    headers["Content-Type"] =
-      "application/json";
+    headers["Content-Type"] = "application/json";
   }
 
   let response;
@@ -69,6 +69,7 @@ async function request(
         method,
         headers,
         cache: "no-store",
+        signal,
 
         body:
           body !== undefined
@@ -85,8 +86,7 @@ async function request(
         code: "PAYMENT_CONNECTION_FAILED",
 
         data: {
-          verificationUncertain:
-            verification,
+          verificationUncertain: verification,
         },
       },
     );
@@ -106,8 +106,7 @@ async function request(
         code: "INVALID_PAYMENT_RESPONSE",
 
         data: {
-          verificationUncertain:
-            verification,
+          verificationUncertain: verification,
         },
       },
     );
@@ -128,17 +127,13 @@ async function request(
         code: "INVALID_PAYMENT_RESPONSE",
 
         data: {
-          verificationUncertain:
-            verification,
+          verificationUncertain: verification,
         },
       },
     );
   }
 
-  if (
-    !response.ok ||
-    data.success === false
-  ) {
+  if (!response.ok || data.success === false) {
     throw paymentError(
       typeof data.message === "string" &&
       data.message.trim()
@@ -173,8 +168,7 @@ function validateCheckoutData(checkoutData) {
   }
 
   if (
-    typeof checkoutData.checkoutToken !==
-      "string" ||
+    typeof checkoutData.checkoutToken !== "string" ||
     !checkoutData.checkoutToken.trim()
   ) {
     throw new Error(
@@ -203,11 +197,8 @@ function validateCheckoutData(checkoutData) {
 
   if (
     !checkoutData.shippingAddress ||
-    typeof checkoutData.shippingAddress !==
-      "object" ||
-    Array.isArray(
-      checkoutData.shippingAddress,
-    )
+    typeof checkoutData.shippingAddress !== "object" ||
+    Array.isArray(checkoutData.shippingAddress)
   ) {
     throw new Error(
       "Shipping address is missing.",
@@ -251,23 +242,13 @@ export async function verifyRazorpayPayment(
   };
 
   const labels = {
-    checkoutToken:
-      "Checkout token",
-
-    razorpay_order_id:
-      "Razorpay order ID",
-
-    razorpay_payment_id:
-      "Razorpay payment ID",
-
-    razorpay_signature:
-      "Razorpay payment signature",
+    checkoutToken: "Checkout token",
+    razorpay_order_id: "Razorpay order ID",
+    razorpay_payment_id: "Razorpay payment ID",
+    razorpay_signature: "Razorpay payment signature",
   };
 
-  for (
-    const [key, value] of
-    Object.entries(details)
-  ) {
+  for (const [key, value] of Object.entries(details)) {
     if (
       typeof value !== "string" ||
       !value.trim()
@@ -287,4 +268,108 @@ export async function verifyRazorpayPayment(
       verification: true,
     },
   );
+}
+
+export async function checkRazorpayPayment(
+  token,
+  orderId,
+  {
+    admin = false,
+    signal,
+  } = {},
+) {
+  if (
+    typeof orderId !== "string" ||
+    !orderId.trim() ||
+    orderId.length > 150 ||
+    /[\u0000-\u0020\u007f]/.test(orderId)
+  ) {
+    throw new Error(
+      "A valid order number is required.",
+    );
+  }
+
+  if (admin && !token) {
+    throw new Error(
+      "Please sign in as an admin.",
+    );
+  }
+
+  const controller = new AbortController();
+
+  const abort = () => controller.abort();
+
+  if (signal?.aborted) {
+    abort();
+  }
+
+  signal?.addEventListener(
+    "abort",
+    abort,
+    { once: true },
+  );
+
+  const timer = setTimeout(abort, 55000);
+
+  try {
+    const path = admin
+      ? `/payments/admin/orders/${encodeURIComponent(
+          orderId,
+        )}/check`
+      : "/payments/razorpay/check";
+
+    const data = await request(path, {
+      token,
+      method: "POST",
+
+      body: admin
+        ? {}
+        : { orderId },
+
+      verification: true,
+      signal: controller.signal,
+    });
+
+    const result = data.result;
+
+    if (
+      !result ||
+      ![
+        "verified",
+        "pending",
+        "authorized",
+        "review",
+      ].includes(result.state) ||
+      typeof result.message !== "string" ||
+      typeof result.orderNumber !== "string" ||
+      (
+        orderId.startsWith("GD-") &&
+        result.orderNumber !== orderId
+      ) ||
+      (
+        result.state === "verified" &&
+        result.paymentVerified !== true
+      )
+    ) {
+      throw paymentError(
+        "Payment check could not be read. Do not pay again; reload your order or contact support.",
+        {
+          code: "INVALID_PAYMENT_RESPONSE",
+
+          data: {
+            verificationUncertain: true,
+          },
+        },
+      );
+    }
+
+    return result;
+  } finally {
+    clearTimeout(timer);
+
+    signal?.removeEventListener(
+      "abort",
+      abort,
+    );
+  }
 }

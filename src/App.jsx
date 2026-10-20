@@ -33,31 +33,93 @@ import StoreUtilityBar from "./components/StoreUtilityBar.jsx";
 import PageLoading from "./components/PageLoading.jsx";
 import AnalyticsController from "./components/AnalyticsController.jsx";
 import SEOController from "./components/SEOController.jsx";
-import FitnessGuide from "./components/FitnessGuide.jsx";
+import DeferredFitnessGuide from "./components/DeferredFitnessGuide.jsx";
 
 import Home from "./pages/Home.jsx";
 
-const Shop = lazy(() => import("./pages/Shop.jsx"));
-const ProductPage = lazy(() => import("./pages/ProductPage.jsx"));
-const CartPage = lazy(() => import("./pages/CartPage.jsx"));
-const WishlistPage = lazy(() => import("./pages/WishlistPage.jsx"));
-const CheckoutPage = lazy(() => import("./pages/CheckoutPage.jsx"));
-const LoginPage = lazy(() => import("./pages/LoginPage.jsx"));
-const AccountPage = lazy(() => import("./pages/AccountPage.jsx"));
-const AddressesPage = lazy(() => import("./pages/AddressesPage.jsx"));
-const SecurityPage = lazy(() => import("./pages/SecurityPage.jsx"));
-const OrderSuccessPage = lazy(() => import("./pages/OrderSuccessPage.jsx"));
-const OrdersPage = lazy(() => import("./pages/OrdersPage.jsx"));
-const OrderDetailsPage = lazy(() => import("./pages/OrderDetailsPage.jsx"));
-const OrderTrackingPage = lazy(() => import("./pages/OrderTrackingPage.jsx"));
-const ReceiptPage = lazy(() => import("./pages/ReceiptPage.jsx"));
-const ReturnPage = lazy(() => import("./pages/ReturnPage.jsx"));
-const ComparePage = lazy(() => import("./pages/ComparePage.jsx"));
-const SavedPage = lazy(() => import("./pages/SavedPage.jsx"));
-const NotificationsPage = lazy(() => import("./pages/NotificationsPage.jsx"));
-const OffersPage = lazy(() => import("./pages/OffersPage.jsx"));
-const HelpPage = lazy(() => import("./pages/HelpPage.jsx"));
-const FitnessKitsPage = lazy(() => import("./pages/FitnessKitsPage.jsx"));
+const Shop = lazy(
+  () => import("./pages/Shop.jsx"),
+);
+
+const ProductPage = lazy(
+  () => import("./pages/ProductPage.jsx"),
+);
+
+const CartPage = lazy(
+  () => import("./pages/CartPage.jsx"),
+);
+
+const WishlistPage = lazy(
+  () => import("./pages/WishlistPage.jsx"),
+);
+
+const CheckoutPage = lazy(
+  () => import("./pages/CheckoutPage.jsx"),
+);
+
+const LoginPage = lazy(
+  () => import("./pages/LoginPage.jsx"),
+);
+
+const AccountPage = lazy(
+  () => import("./pages/AccountPage.jsx"),
+);
+
+const AddressesPage = lazy(
+  () => import("./pages/AddressesPage.jsx"),
+);
+
+const SecurityPage = lazy(
+  () => import("./pages/SecurityPage.jsx"),
+);
+
+const OrderSuccessPage = lazy(
+  () => import("./pages/OrderSuccessPage.jsx"),
+);
+
+const OrdersPage = lazy(
+  () => import("./pages/OrdersPage.jsx"),
+);
+
+const OrderDetailsPage = lazy(
+  () => import("./pages/OrderDetailsPage.jsx"),
+);
+
+const OrderTrackingPage = lazy(
+  () => import("./pages/OrderTrackingPage.jsx"),
+);
+
+const ReceiptPage = lazy(
+  () => import("./pages/ReceiptPage.jsx"),
+);
+
+const ReturnPage = lazy(
+  () => import("./pages/ReturnPage.jsx"),
+);
+
+const ComparePage = lazy(
+  () => import("./pages/ComparePage.jsx"),
+);
+
+const SavedPage = lazy(
+  () => import("./pages/SavedPage.jsx"),
+);
+
+const NotificationsPage = lazy(
+  () => import("./pages/NotificationsPage.jsx"),
+);
+
+const OffersPage = lazy(
+  () => import("./pages/OffersPage.jsx"),
+);
+
+const HelpPage = lazy(
+  () => import("./pages/HelpPage.jsx"),
+);
+
+const FitnessKitsPage = lazy(
+  () => import("./pages/FitnessKitsPage.jsx"),
+);
 
 const AdminDashboardPage = lazy(
   () => import("./pages/AdminDashboardPage.jsx"),
@@ -137,8 +199,13 @@ function AccountRequired({ children }) {
   const { user, loading, authError } = useAuth();
   const location = useLocation();
 
-  if (loading) return <PageLoading />;
-  if (authError) return <SessionError />;
+  if (loading) {
+    return <PageLoading />;
+  }
+
+  if (authError) {
+    return <SessionError />;
+  }
 
   if (!user) {
     return (
@@ -158,8 +225,13 @@ function AdminRequired({ children }) {
   const { user, loading, authError } = useAuth();
   const location = useLocation();
 
-  if (loading) return <PageLoading />;
-  if (authError) return <SessionError />;
+  if (loading) {
+    return <PageLoading />;
+  }
+
+  if (authError) {
+    return <SessionError />;
+  }
 
   if (!user) {
     return (
@@ -181,6 +253,7 @@ function AdminRequired({ children }) {
 
 function LegacyLoginRedirect() {
   const { search } = useLocation();
+
   const next = new URLSearchParams(search).get("next");
 
   return (
@@ -274,11 +347,18 @@ function CheckoutHeader() {
 }
 
 function Layout() {
-  const { cart, wishlist, toast, closeToast } = useStore();
+  const {
+    cart,
+    wishlist,
+    toast,
+    closeToast,
+  } = useStore();
+
   const { user } = useAuth();
   const location = useLocation();
 
-  const accountKey = user?.id || user?._id || "guest";
+  const accountKey =
+    user?.id || user?._id || "guest";
 
   const analyticsCartKey = JSON.stringify(
     cart.map((item) => [
@@ -292,7 +372,9 @@ function Layout() {
     const path =
       location.pathname.replace(/\/+$/, "") || "/";
 
-    if (path !== "/cart" || !cart.length) return;
+    if (path !== "/cart" || !cart.length) {
+      return;
+    }
 
     const track = () =>
       trackOnce(
@@ -319,7 +401,8 @@ function Layout() {
   const currentPath =
     location.pathname.replace(/\/+$/, "") || "/";
 
-  const isCheckout = currentPath === "/checkout";
+  const isCheckout =
+    currentPath === "/checkout";
 
   const isRecovery =
     currentPath === "/forgot-password" ||
@@ -360,7 +443,10 @@ function Layout() {
                 background: "#f3f4f6",
               }}
             >
-              <Link className="text-link" to="/admin">
+              <Link
+                className="text-link"
+                to="/admin"
+              >
                 Admin dashboard
               </Link>
 
@@ -417,7 +503,7 @@ function Layout() {
         </>
       )}
 
-      <FitnessGuide />
+      <DeferredFitnessGuide />
 
       <main
         id="main-content"
@@ -427,7 +513,10 @@ function Layout() {
         <ErrorBoundary key={location.pathname}>
           <Suspense fallback={<PageLoading />}>
             <Routes>
-              <Route path="/" element={<Home />} />
+              <Route
+                path="/"
+                element={<Home />}
+              />
 
               {[
                 ["/shop", Shop],
@@ -444,8 +533,14 @@ function Layout() {
                 ["/order-success", OrderSuccessPage],
                 ["/orders", OrdersPage],
                 ["/orders/:orderId", OrderDetailsPage],
-                ["/orders/:orderId/track", OrderTrackingPage],
-                ["/orders/:orderId/receipt", ReceiptPage],
+                [
+                  "/orders/:orderId/track",
+                  OrderTrackingPage,
+                ],
+                [
+                  "/orders/:orderId/receipt",
+                  ReceiptPage,
+                ],
               ].map(([path, Page]) => (
                 <Route
                   key={path}
@@ -456,17 +551,23 @@ function Layout() {
 
               <Route
                 path="/checkout"
-                element={<CheckoutPage key={accountKey} />}
+                element={
+                  <CheckoutPage key={accountKey} />
+                }
               />
 
               <Route
                 path="/help"
-                element={<HelpPage key={accountKey} />}
+                element={
+                  <HelpPage key={accountKey} />
+                }
               />
 
               <Route
                 path="/orders/:orderId/return"
-                element={<ReturnPage key={accountKey} />}
+                element={
+                  <ReturnPage key={accountKey} />
+                }
               />
 
               {[
@@ -499,14 +600,20 @@ function Layout() {
 
               {[
                 ["/admin", AdminDashboardPage],
-                ["/admin/customers", AdminCustomersPage],
+                [
+                  "/admin/customers",
+                  AdminCustomersPage,
+                ],
                 ["/admin/support", AdminSupportPage],
                 ["/admin/orders", AdminOrdersPage],
                 ["/admin/products", AdminProductsPage],
                 ["/admin/returns", AdminReturnsPage],
                 ["/admin/suppliers", AdminSuppliersPage],
                 ["/admin/kits", AdminKitsPage],
-                ["/admin/kits/preview", AdminKitPreviewPage],
+                [
+                  "/admin/kits/preview",
+                  AdminKitPreviewPage,
+                ],
                 [
                   "/admin/packing-locations",
                   AdminPackingLocationsPage,
@@ -515,7 +622,10 @@ function Layout() {
                   "/admin/shipping-profiles",
                   AdminShippingProfilesPage,
                 ],
-                ["/admin/package-plans", AdminPackagePlansPage],
+                [
+                  "/admin/package-plans",
+                  AdminPackagePlansPage,
+                ],
               ].map(([path, Page]) => (
                 <Route
                   key={path}
@@ -530,15 +640,21 @@ function Layout() {
 
               <Route
                 path="/admin/dashboard"
-                element={<Navigate to="/admin" replace />}
+                element={
+                  <Navigate
+                    to="/admin"
+                    replace
+                  />
+                }
               />
 
-              {import.meta.env.DEV && StoreConsolePage && (
-                <Route
-                  path="/dev/store"
-                  element={<StoreConsolePage />}
-                />
-              )}
+              {import.meta.env.DEV &&
+                StoreConsolePage && (
+                  <Route
+                    path="/dev/store"
+                    element={<StoreConsolePage />}
+                  />
+                )}
 
               <Route
                 path="*"
@@ -559,6 +675,7 @@ function Layout() {
       </main>
 
       {!isCheckout && <Footer />}
+
       {!isRecovery && <AnalyticsController />}
 
       <Toast
@@ -574,7 +691,9 @@ function StorefrontApplication() {
   const { user } = useAuth();
 
   return (
-    <StoreProvider key={user?.id || user?._id || "guest"}>
+    <StoreProvider
+      key={user?.id || user?._id || "guest"}
+    >
       <ShoppingToolsProvider>
         <Layout />
       </ShoppingToolsProvider>
