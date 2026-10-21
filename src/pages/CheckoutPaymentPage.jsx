@@ -1,72 +1,41 @@
-import {
-  ensureGuestAccess,
-  guestAccess,
-} from "../utils/guestCheckout.js";
-
+import { ensureGuestAccess, guestAccess } from "../utils/guestCheckout.js";
 import {
   pincodeForCheckout,
   savedPincode,
   savePincode,
   validPincode,
+  clearPincode,
 } from "../utils/deliveryPincode.js";
-
-import {
-  getCartItemKey,
-  getKitGroup,
-} from "../utils/cartUtils.js";
-
-import {
-  kitGroupSignature,
-} from "../utils/kitCart.js";
-
-import {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-
-import {
-  Link,
-  useNavigate,
-  useSearchParams,
-} from "react-router-dom";
-
+import { getCartItemKey, getKitGroup } from "../utils/cartUtils.js";
+import { kitGroupSignature } from "../utils/kitCart.js";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useStore } from "../context/StoreContext.jsx";
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { useShoppingTools } from "../context/ShoppingToolsContext.jsx";
-
 import { selectedBag } from "../utils/commerce.js";
 import { reviewCart } from "../utils/cartReview.js";
 import { buyingInformation } from "../utils/productInformation.js";
-
 import {
   calculateOrderPricing,
   resolveCoupon,
   FREE_SHIPPING_LIMIT,
 } from "../utils/orderCalculations.js";
-
 import { money } from "../utils/productPricing.js";
-
 import {
   EMPTY_ADDRESS,
   normalizeAddress,
   ownerKey,
   persistOrder,
 } from "../utils/customerData.js";
-
 import {
   makeId,
   readStorage,
   userKey,
   writeStorage,
 } from "../utils/storage.js";
-
-import {
-  readSession,
-  writeSession,
-} from "../utils/shopperStorage.js";
-
+import { readSession, writeSession } from "../utils/shopperStorage.js";
 import {
   checkoutAddress,
   checkoutAddressErrors,
@@ -77,7 +46,6 @@ import {
   orderIsComplete,
   subtractPurchasedItems,
 } from "../utils/checkoutPayment.js";
-
 import {
   analyticsVisitKey,
   commercePayload,
@@ -85,31 +53,18 @@ import {
   trackEvent,
   trackPurchase,
 } from "../utils/analytics.js";
-
-import {
-  getAddresses,
-  createAddress,
-} from "../services/addressApi.js";
-
+import { getAddresses, createAddress } from "../services/addressApi.js";
 import {
   createRazorpayPaymentOrder,
   verifyRazorpayPayment,
   checkRazorpayPayment,
 } from "../services/paymentApi.js";
-
-import {
-  getOrderById,
-} from "../services/orderApi.js";
-
+import { getOrderById } from "../services/orderApi.js";
 import {
   loadRazorpay,
   openRazorpayCheckout,
 } from "../utils/razorpay.js";
-
-import {
-  getCheckoutQuote,
-} from "../services/checkoutQuoteApi.js";
-
+import { getCheckoutQuote } from "../services/checkoutQuoteApi.js";
 import {
   containsKit,
   checkoutSelectionRows,
@@ -117,13 +72,8 @@ import {
   kitQuoteSignature,
   kitQuotePayable,
 } from "../utils/kitPaymentReview.js";
-
 import CheckoutKitReview from "../components/CheckoutKitReview.jsx";
-
-import {
-  ProductImage,
-} from "../components/StorefrontShared.jsx";
-
+import { ProductImage } from "../components/StorefrontShared.jsx";
 import AddressForm from "../components/AddressForm.jsx";
 import CouponBox from "../components/CouponBox.jsx";
 import EmptyState from "../components/EmptyState.jsx";
@@ -132,6 +82,175 @@ import "../utils/CheckoutPage.css";
 
 const text = (value) =>
   typeof value === "string" ? value : "";
+
+const checkoutAddressDrafts = new Map();
+const ADDRESS_DRAFT_VERSION = 1;
+
+function editableAddress(value) {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value)
+  ) {
+    return null;
+  }
+
+  const limits = {
+    fullName: 100,
+    email: 150,
+    phone: 16,
+    addressLine: 200,
+    landmark: 150,
+    city: 100,
+    state: 100,
+    pincode: 6,
+    label: 30,
+  };
+
+  const result = { ...EMPTY_ADDRESS };
+
+  for (const [key, maximum] of Object.entries(limits)) {
+    const field =
+      value[key] ??
+      (
+        key === "fullName"
+          ? value.name
+          : key === "addressLine"
+            ? value.address
+            : undefined
+      );
+
+    if (typeof field === "string") {
+      result[key] = field
+        .replace(/[\u0000-\u001f\u007f]/g, "")
+        .slice(0, maximum);
+    }
+  }
+
+  return result;
+}
+
+function readAddressDraft(key, legacyKeys = []) {
+  const candidates = [];
+  const cached = checkoutAddressDrafts.get(key);
+
+  if (cached) {
+    candidates.push(cached);
+  }
+
+  for (const name of ["localStorage", "sessionStorage"]) {
+    try {
+      const record = JSON.parse(
+        globalThis[name].getItem(`${key}:draft-v2`) || "null",
+      );
+
+      const address = editableAddress(record?.address);
+
+      if (
+        record?.version === ADDRESS_DRAFT_VERSION &&
+        Number.isSafeInteger(record.savedAt) &&
+        record.savedAt >= 0 &&
+        record.savedAt <= Date.now() + 300000 &&
+        address
+      ) {
+        candidates.push({
+          ...record,
+          address,
+        });
+      }
+    } catch {
+      // A blocked or malformed store must not hide the other copy.
+    }
+  }
+
+  if (candidates.length) {
+    const newest = candidates.sort(
+      (a, b) => b.savedAt - a.savedAt,
+    )[0];
+
+    checkoutAddressDrafts.set(key, newest);
+
+    return newest.address;
+  }
+
+  for (const sourceKey of new Set([key, ...legacyKeys])) {
+    for (const name of ["localStorage", "sessionStorage"]) {
+      try {
+        const value = JSON.parse(
+          globalThis[name].getItem(sourceKey) || "null",
+        );
+
+        const address = editableAddress(value);
+
+        if (
+          address &&
+          Object.entries(address).some(
+            ([field, content]) =>
+              field !== "label" && content.trim(),
+          )
+        ) {
+          return address;
+        }
+      } catch {
+        // Ignore invalid data without overwriting it with an empty form.
+      }
+    }
+  }
+
+  return { ...EMPTY_ADDRESS };
+}
+
+function writeAddressDraft(key, value, clear = false) {
+  const address =
+    editableAddress(value) || { ...EMPTY_ADDRESS };
+
+  const previous = checkoutAddressDrafts.get(key);
+
+  const record = {
+    version: ADDRESS_DRAFT_VERSION,
+    savedAt: Math.max(
+      Date.now(),
+      (previous?.savedAt || 0) + 1,
+    ),
+    address,
+  };
+
+  const saved = {
+    local: false,
+    session: false,
+  };
+
+  checkoutAddressDrafts.set(key, record);
+
+  for (const [name, field] of [
+    ["localStorage", "local"],
+    ["sessionStorage", "session"],
+  ]) {
+    try {
+      const target = globalThis[name];
+
+      target.setItem(
+        `${key}:draft-v2`,
+        JSON.stringify(record),
+      );
+
+      if (clear) {
+        target.removeItem(key);
+      } else {
+        target.setItem(
+          key,
+          JSON.stringify(address),
+        );
+      }
+
+      saved[field] = true;
+    } catch {
+      // The form remains usable when storage is unavailable.
+    }
+  }
+
+  return saved;
+}
 
 export default function CheckoutPage() {
   const auth = useAuth();
@@ -179,7 +298,12 @@ function Checkout({ auth, mode }) {
 
   const addressKey = userKey(
     "gymdrobe-checkout-address",
-    user,
+    user
+      ? {
+          ...user,
+          id: user.id || user._id,
+        }
+      : null,
   );
 
   const pendingKey = store.shoppingKey(
@@ -204,14 +328,18 @@ function Checkout({ auth, mode }) {
     () => readStorage(optionsKey, {}) || {},
   );
 
-  const [addressDraft] = useState(
-    () =>
-      readStorage(addressKey, null) ||
-      readStorage(
-        userKey("gymdrobe-checkout-address", null),
-        {},
-      ) ||
-      {},
+  const [addressDraft] = useState(() =>
+    readAddressDraft(
+      addressKey,
+      user && (user.id || user.email)
+        ? [
+            userKey(
+              "gymdrobe-checkout-address",
+              user,
+            ),
+          ]
+        : [],
+    ),
   );
 
   const [address, setAddress] = useState(() =>
@@ -292,6 +420,7 @@ function Checkout({ auth, mode }) {
 
   const [errors, setErrors] = useState({});
   const [error, setError] = useState("");
+  const [addressNotice, setAddressNotice] = useState("");
 
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -457,14 +586,11 @@ function Checkout({ auth, mode }) {
         token,
         {
           items: review.pricingRows,
-
           coupon:
             resolveCoupon(store.coupon)?.code ||
             "",
-
           deliveryMethod: method,
           paymentMethod,
-
           pincode:
             String(address.pincode).trim(),
         },
@@ -549,11 +675,6 @@ function Checkout({ auth, mode }) {
         return;
       }
 
-      writeStorage(
-        addressKey,
-        checkoutAddress(address),
-      );
-
       writeStorage(optionsKey, {
         deliveryMethod: method,
         giftMessage,
@@ -563,11 +684,9 @@ function Checkout({ auth, mode }) {
 
     return () => clearTimeout(timer);
   }, [
-    address,
     method,
     giftMessage,
     orderNote,
-    addressKey,
     optionsKey,
   ]);
 
@@ -674,10 +793,7 @@ function Checkout({ auth, mode }) {
     pricing?.totalAfterCoupon,
   ]);
 
-  function remember(
-    record,
-    required = false,
-  ) {
+  function remember(record, required = false) {
     const source =
       record?.payload?.source ||
       record?.mode ||
@@ -791,9 +907,7 @@ function Checkout({ auth, mode }) {
         ) {
           latest.store.clearBuyNow();
         }
-      } else if (
-        latest.store.catalogReady
-      ) {
+      } else if (latest.store.catalogReady) {
         const quantities = (rows) =>
           JSON.stringify(
             rows
@@ -896,9 +1010,7 @@ function Checkout({ auth, mode }) {
           checkoutAddress(candidate),
         );
 
-      if (
-        !latest.addresses.some(same)
-      ) {
+      if (!latest.addresses.some(same)) {
         // Optional saving must not delay confirmation.
         createAddress(
           token,
@@ -913,10 +1025,8 @@ function Checkout({ auth, mode }) {
     }
 
     latest.store.notify(
-      savedOrder.payment.method ===
-        "cod-partial" &&
-      savedOrder.payment.status ===
-        "partially-paid"
+      savedOrder.payment.method === "cod-partial" &&
+      savedOrder.payment.status === "partially-paid"
         ? "Advance received. Your order is confirmed."
         : "Payment completed. Your order is confirmed.",
       "success",
@@ -1440,9 +1550,7 @@ function Checkout({ auth, mode }) {
 
       if (safeRejection) {
         remember(null);
-      } else if (
-        pendingRef.current
-      ) {
+      } else if (pendingRef.current) {
         remember({
           ...pendingRef.current,
           phase: "check",
@@ -1453,8 +1561,7 @@ function Checkout({ auth, mode }) {
         failure.data?.order &&
         acceptOrder(
           failure.data.order,
-          pendingRef.current ||
-            active,
+          pendingRef.current || active,
         )
       ) {
         return;
@@ -1515,9 +1622,7 @@ function Checkout({ auth, mode }) {
     setErrors(validation);
     setError("");
 
-    if (
-      Object.keys(validation).length
-    ) {
+    if (Object.keys(validation).length) {
       setError(
         "Correct the highlighted delivery details.",
       );
@@ -1600,9 +1705,7 @@ function Checkout({ auth, mode }) {
           clean.pincode,
         );
 
-      if (
-        signature !== quoteSignature
-      ) {
+      if (signature !== quoteSignature) {
         setError(
           "Your bag changed. Refresh prices and delivery before paying.",
         );
@@ -1627,8 +1730,7 @@ function Checkout({ auth, mode }) {
           await getCheckoutQuote(
             token,
             {
-              items:
-                fresh.pricingRows,
+              items: fresh.pricingRows,
 
               coupon:
                 resolveCoupon(
@@ -1658,9 +1760,7 @@ function Checkout({ auth, mode }) {
         const currentItems =
           mode === "buy-now"
             ? currentStore.buyNowItem
-              ? [
-                  currentStore.buyNowItem,
-                ]
+              ? [currentStore.buyNowItem]
               : []
             : mode === "selection"
               ? selectedBag(
@@ -1703,12 +1803,8 @@ function Checkout({ auth, mode }) {
         }
 
         const changed = hasKits
-          ? !kitQuotePayable(
-              latestQuote,
-            ) ||
-            !kitQuotePayable(
-              kitQuote,
-            ) ||
+          ? !kitQuotePayable(latestQuote) ||
+            !kitQuotePayable(kitQuote) ||
             latestQuote.reviewKey !==
               kitQuote.reviewKey
           : latestQuote.deliveryReview
@@ -1791,7 +1887,7 @@ function Checkout({ auth, mode }) {
         fresh.pricingRows,
       );
 
-    writeStorage(
+    writeAddressDraft(
       addressKey,
       clean,
     );
@@ -1803,8 +1899,7 @@ function Checkout({ auth, mode }) {
       );
 
     const checkoutToken =
-      previousAttempt?.signature ===
-      signature
+      previousAttempt?.signature === signature
         ? previousAttempt.checkoutToken
         : makeId("checkout");
 
@@ -1844,12 +1939,10 @@ function Checkout({ auth, mode }) {
             price: row.price,
 
             selectedSize:
-              row.selectedSize ??
-              null,
+              row.selectedSize ?? null,
 
             selectedColor:
-              row.selectedColor ??
-              null,
+              row.selectedColor ?? null,
 
             ...(
               row.kitGroup
@@ -1892,8 +1985,7 @@ function Checkout({ auth, mode }) {
           latestPricing.totalAfterCoupon,
         ),
 
-        payment_type:
-          paymentMethod,
+        payment_type: paymentMethod,
       },
     );
 
@@ -1904,10 +1996,7 @@ function Checkout({ auth, mode }) {
     );
   }
 
-  async function editItem(
-    row,
-    nextQuantity,
-  ) {
+  async function editItem(row, nextQuantity) {
     if (
       frozen ||
       locked.current
@@ -1916,15 +2005,10 @@ function Checkout({ auth, mode }) {
     }
 
     if (
-      !Number.isSafeInteger(
-        nextQuantity,
-      ) ||
+      !Number.isSafeInteger(nextQuantity) ||
       nextQuantity < 0 ||
       nextQuantity >
-        Math.max(
-          0,
-          row.maxQuantity,
-        )
+        Math.max(0, row.maxQuantity)
     ) {
       setError(
         "Choose an available quantity for this selection.",
@@ -1942,30 +2026,20 @@ function Checkout({ auth, mode }) {
     setError("");
 
     try {
-      if (
-        mode === "buy-now"
-      ) {
-        if (
-          nextQuantity === 0
-        ) {
+      if (mode === "buy-now") {
+        if (nextQuantity === 0) {
           store.clearBuyNow();
         } else {
           store.buyNow(
-            row.product ||
-              original,
-
+            row.product || original,
             nextQuantity,
             row.selectedSize,
             row.selectedColor,
           );
         }
       } else if (!group) {
-        if (
-          nextQuantity === 0
-        ) {
-          store.removeFromCart(
-            row.key,
-          );
+        if (nextQuantity === 0) {
+          store.removeFromCart(row.key);
         } else {
           store.updateQuantity(
             row.key,
@@ -1982,55 +2056,40 @@ function Checkout({ auth, mode }) {
         const components =
           cart.filter(
             (item) =>
-              getKitGroup(item)
-                ?.id === group.id,
+              getKitGroup(item)?.id ===
+              group.id,
           );
 
         const selections =
-          components.map(
-            (item) => ({
-              slotKey:
-                item.kitGroup
-                  .slotKey,
+          components.map((item) => ({
+            slotKey:
+              item.kitGroup.slotKey,
 
-              included:
-                getCartItemKey(
-                  item,
-                ) !== row.key ||
-                nextQuantity > 0,
+            included:
+              getCartItemKey(item) !== row.key ||
+              nextQuantity > 0,
 
-              productId:
-                String(item.id),
+            productId:
+              String(item.id),
 
-              selectedSize:
-                item.selectedSize ??
-                null,
+            selectedSize:
+              item.selectedSize ?? null,
 
-              selectedColor:
-                item.selectedColor ??
-                null,
+            selectedColor:
+              item.selectedColor ?? null,
 
-              quantity:
-                getCartItemKey(
-                  item,
-                ) === row.key
-                  ? Math.max(
-                      1,
-                      nextQuantity,
-                    )
-                  : item.quantity,
-            }),
-          );
+            quantity:
+              getCartItemKey(item) === row.key
+                ? Math.max(1, nextQuantity)
+                : item.quantity,
+          }));
 
         if (
           !selections.some(
-            (item) =>
-              item.included,
+            (item) => item.included,
           )
         ) {
-          store.removeKitFromCart(
-            group.id,
-          );
+          store.removeKitFromCart(group.id);
         } else {
           await store.saveFitnessKit({
             kitId: group.kitId,
@@ -2070,6 +2129,23 @@ function Checkout({ auth, mode }) {
 
     addressTouched.current = true;
 
+    const next =
+      editableAddress(value) ||
+      { ...EMPTY_ADDRESS };
+
+    const stored = writeAddressDraft(
+      addressKey,
+      next,
+    );
+
+    setAddressNotice(
+      stored.local
+        ? ""
+        : stored.session
+          ? "Delivery details are saved in this tab. Browser storage prevented saving them for a later visit."
+          : "Browser storage is unavailable. Your details stay on this page, but may be lost after refreshing or leaving checkout.",
+    );
+
     const pinKey = store.shoppingKey(
       "gymdrobe-delivery-pincode",
     );
@@ -2078,45 +2154,64 @@ function Checkout({ auth, mode }) {
       validPincode(value?.pincode) &&
       savedPincode(pinKey) !== value.pincode
     ) {
-      savePincode(pinKey, value.pincode);
+      savePincode(
+        pinKey,
+        value.pincode,
+      );
     }
 
-    // Preserve spaces while typing.
-    // Normalize on submission.
-    setAddress(
-      Object.fromEntries(
-        Object.keys(
-          EMPTY_ADDRESS,
-        ).map((key) => [
-          key,
-
-          String(
-            value?.[key] ??
-              EMPTY_ADDRESS[key],
-          ),
-        ]),
-      ),
-    );
+    // Save immediately before navigation or refresh
+    // can cancel a debounce.
+    // Preserve spaces while typing; normalize on submission.
+    setAddress(next);
 
     setErrors((previous) =>
       Object.fromEntries(
-        Object.entries(
-          previous,
-        ).filter(
+        Object.entries(previous).filter(
           ([key]) =>
-            String(
-              value?.[key] ??
-                "",
-            ) ===
-            String(
-              address[key] ??
-                "",
-            ),
+            String(value?.[key] ?? "") ===
+            String(address[key] ?? ""),
         ),
       ),
     );
 
     setError("");
+  }
+
+  function clearGuestAddress() {
+    if (
+      user ||
+      frozen ||
+      locked.current
+    ) {
+      return;
+    }
+
+    addressTouched.current = true;
+
+    const blank = { ...EMPTY_ADDRESS };
+
+    const stored = writeAddressDraft(
+      addressKey,
+      blank,
+      true,
+    );
+
+    clearPincode(
+      store.shoppingKey(
+        "gymdrobe-delivery-pincode",
+      ),
+    );
+
+    setAddress(blank);
+    setErrors({});
+    setError("");
+
+    setAddressNotice(
+      stored.local
+        ? "Saved delivery details cleared."
+        : "This form was cleared, but browser storage prevented permanently clearing older details. They may return in another tab or after a later visit.",
+    );
   }
 
   if (
@@ -2398,9 +2493,7 @@ function Checkout({ auth, mode }) {
                       className="saved-address-choice"
                       onClick={() =>
                         changeAddress(
-                          normalizeAddress(
-                            value,
-                          ),
+                          normalizeAddress(value),
                         )
                       }
                     >
@@ -2426,6 +2519,29 @@ function Checkout({ auth, mode }) {
               errors={errors}
               onChange={changeAddress}
             />
+
+            {!user && (
+              <div>
+                <p
+                  className="muted"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {addressNotice ||
+                    "Delivery details are saved in this browser as you type. You can edit or clear them below."}
+                </p>
+
+                <button
+                  type="button"
+                  className="text-link"
+                  disabled={frozen}
+                  onClick={clearGuestAddress}
+                  style={{ minHeight: 44 }}
+                >
+                  Clear saved delivery details
+                </button>
+              </div>
+            )}
 
             {user && (
               <label className="check">
@@ -2497,56 +2613,47 @@ function Checkout({ auth, mode }) {
               DELIVERY METHOD
             </legend>
 
-            {[
-              "standard",
-              "express",
-            ].map((value) => (
-              <label
-                className="check"
-                key={value}
-              >
-                <input
-                  type="radio"
-                  name="delivery"
-                  checked={method === value}
-                  onChange={() =>
-                    setMethod(value)
-                  }
-                />
+            {["standard", "express"].map(
+              (value) => (
+                <label
+                  className="check"
+                  key={value}
+                >
+                  <input
+                    type="radio"
+                    name="delivery"
+                    checked={method === value}
+                    onChange={() =>
+                      setMethod(value)
+                    }
+                  />
 
-                <span>
-                  <strong>
-                    {value === "standard"
-                      ? "Standard delivery"
-                      : "Express delivery"}
-                  </strong>
+                  <span>
+                    <strong>
+                      {value === "standard"
+                        ? "Standard delivery"
+                        : "Express delivery"}
+                    </strong>
 
-                  {" · "}
+                    {" · "}
 
-                  {hasKits
-                    ? method === value &&
-                      pricing
-                      ? money(
-                          pricing.shipping,
-                        )
-                      : "Checked for your pincode"
-                    : pricing
-                      ? money(
-                          calculateOrderPricing({
-                            cart:
-                              review.pricingRows,
-
-                            coupon:
-                              store.coupon,
-
-                            deliveryMethod:
-                              value,
-                          }).shipping,
-                        )
-                      : "Charge unavailable"}
-                </span>
-              </label>
-            ))}
+                    {hasKits
+                      ? method === value && pricing
+                        ? money(pricing.shipping)
+                        : "Checked for your pincode"
+                      : pricing
+                        ? money(
+                            calculateOrderPricing({
+                              cart: review.pricingRows,
+                              coupon: store.coupon,
+                              deliveryMethod: value,
+                            }).shipping,
+                          )
+                        : "Charge unavailable"}
+                  </span>
+                </label>
+              ),
+            )}
 
             <p className="muted">
               {hasKits
@@ -2570,13 +2677,10 @@ function Checkout({ auth, mode }) {
                 type="radio"
                 name="payment"
                 checked={
-                  paymentMethod ===
-                  "razorpay"
+                  paymentMethod === "razorpay"
                 }
                 onChange={() =>
-                  setPaymentMethod(
-                    "razorpay",
-                  )
+                  setPaymentMethod("razorpay")
                 }
               />
 
@@ -2598,13 +2702,10 @@ function Checkout({ auth, mode }) {
                 type="radio"
                 name="payment"
                 checked={
-                  paymentMethod ===
-                  "cod-partial"
+                  paymentMethod === "cod-partial"
                 }
                 onChange={() =>
-                  setPaymentMethod(
-                    "cod-partial",
-                  )
+                  setPaymentMethod("cod-partial")
                 }
               />
 
@@ -2668,16 +2769,12 @@ function Checkout({ auth, mode }) {
                 >
                   {quoteError}
                 </p>
-              ) : kitQuote?.deliveryReview
-                  ?.ready ? (
+              ) : kitQuote?.deliveryReview?.ready ? (
                 <>
                   <p>
                     Prices checked for pincode{" "}
                     <strong>
-                      {
-                        kitQuote.deliveryReview
-                          .pincode
-                      }
+                      {kitQuote.deliveryReview.pincode}
                     </strong>
                     .
                   </p>
@@ -2702,10 +2799,7 @@ function Checkout({ auth, mode }) {
                   )}
 
                   <p className="muted">
-                    {
-                      kitQuote.deliveryReview
-                        .notice
-                    }
+                    {kitQuote.deliveryReview.notice}
                   </p>
                 </>
               ) : (
@@ -2764,34 +2858,14 @@ function Checkout({ auth, mode }) {
               const quotedItem =
                 kitQuote?.items?.find(
                   (item) =>
-                    String(
-                      item.product,
-                    ) ===
+                    String(item.product) ===
                       String(row.id) &&
-                    (
-                      item.selectedSize ??
-                      null
-                    ) ===
-                      (
-                        row.selectedSize ??
-                        null
-                      ) &&
-                    (
-                      item.selectedColor ??
-                      null
-                    ) ===
-                      (
-                        row.selectedColor ??
-                        null
-                      ) &&
-                    (
-                      item.kit?.groupId ||
-                      ""
-                    ) ===
-                      (
-                        row.kitGroup?.id ||
-                        ""
-                      ),
+                    (item.selectedSize ?? null) ===
+                      (row.selectedSize ?? null) &&
+                    (item.selectedColor ?? null) ===
+                      (row.selectedColor ?? null) &&
+                    (item.kit?.groupId || "") ===
+                      (row.kitGroup?.id || ""),
                 );
 
               const linePrice =
@@ -2827,9 +2901,7 @@ function Checkout({ auth, mode }) {
                   <ProductImage
                     product={{
                       ...(row.product || row),
-
-                      selectedColor:
-                        row.selectedColor,
+                      selectedColor: row.selectedColor,
                     }}
                     className="gd-checkout-photo"
                   />
@@ -2850,9 +2922,7 @@ function Checkout({ auth, mode }) {
                       {variants}
                     </p>
 
-                    {Number.isFinite(
-                      linePrice,
-                    ) && (
+                    {Number.isFinite(linePrice) && (
                       <p>
                         {money(linePrice)} each
                       </p>
@@ -2893,8 +2963,7 @@ function Checkout({ auth, mode }) {
                               editItem(
                                 row,
                                 Number(
-                                  event.target
-                                    .value,
+                                  event.target.value,
                                 ),
                               )
                             }
@@ -2911,17 +2980,15 @@ function Checkout({ auth, mode }) {
 
                             {Array.from(
                               {
-                                length:
-                                  Math.min(
-                                    99,
-                                    Math.max(
-                                      0,
-                                      row.maxQuantity,
-                                    ),
+                                length: Math.min(
+                                  99,
+                                  Math.max(
+                                    0,
+                                    row.maxQuantity,
                                   ),
+                                ),
                               },
-                              (_, index) =>
-                                index + 1,
+                              (_, index) => index + 1,
                             ).map((value) => (
                               <option
                                 key={value}
@@ -3040,8 +3107,7 @@ function Checkout({ auth, mode }) {
                     <dd>
                       −
                       {money(
-                        displayedPricing
-                          .kitDiscount,
+                        displayedPricing.kitDiscount,
                       )}
                     </dd>
                   </div>
@@ -3055,8 +3121,7 @@ function Checkout({ auth, mode }) {
                   <dd>
                     −
                     {money(
-                      displayedPricing
-                        .couponDiscount,
+                      displayedPricing.couponDiscount,
                     )}
                   </dd>
                 </div>
