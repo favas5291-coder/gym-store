@@ -4,6 +4,13 @@ import {
 } from "../utils/guestCheckout.js";
 
 import {
+  pincodeForCheckout,
+  savedPincode,
+  savePincode,
+  validPincode,
+} from "../utils/deliveryPincode.js";
+
+import {
   getCartItemKey,
   getKitGroup,
 } from "../utils/cartUtils.js";
@@ -130,28 +137,22 @@ export default function CheckoutPage() {
   const auth = useAuth();
   const [params] = useSearchParams();
 
-  const mode = [
-    "buy-now",
-    "selection",
-  ].includes(params.get("mode"))
+  const mode = ["buy-now", "selection"].includes(
+    params.get("mode"),
+  )
     ? params.get("mode")
     : "cart";
 
   if (auth.loading) {
     return (
-      <div
-        className="page narrow"
-        role="status"
-      >
+      <div className="page narrow" role="status">
         Checking your account…
       </div>
     );
   }
 
   const identity = String(
-    auth.user?.id ||
-      auth.user?._id ||
-      "guest",
+    auth.user?.id || auth.user?._id || "guest",
   );
 
   return (
@@ -233,14 +234,12 @@ function Checkout({ auth, mode }) {
         user?.phone ||
         "",
 
-      pincode:
-        addressDraft?.pincode ||
-        readStorage(
-          store.shoppingKey(
-            "gymdrobe-delivery-pincode",
-          ),
-          "",
+      pincode: pincodeForCheckout(
+        store.shoppingKey(
+          "gymdrobe-delivery-pincode",
         ),
+        addressDraft?.pincode,
+      ),
 
       ...(savedAttempt?.payload?.shippingAddress || {}),
     }),
@@ -293,6 +292,7 @@ function Checkout({ auth, mode }) {
 
   const [errors, setErrors] = useState({});
   const [error, setError] = useState("");
+
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [pending, setPending] = useState(savedAttempt);
@@ -314,6 +314,7 @@ function Checkout({ auth, mode }) {
   const finished = useRef(false);
   const addressTouched = useRef(false);
   const reviewed = useRef("");
+
   const formRef = useRef(null);
 
   const items =
@@ -600,9 +601,16 @@ function Checkout({ auth, mode }) {
           !current.current.address.addressLine
         ) {
           setAddress(
-            checkoutAddress(
-              normalizeAddress(preferred),
-            ),
+            checkoutAddress({
+              ...normalizeAddress(preferred),
+
+              pincode: pincodeForCheckout(
+                store.shoppingKey(
+                  "gymdrobe-delivery-pincode",
+                ),
+                preferred.pincode,
+              ),
+            }),
           );
         }
       })
@@ -2061,6 +2069,17 @@ function Checkout({ auth, mode }) {
     }
 
     addressTouched.current = true;
+
+    const pinKey = store.shoppingKey(
+      "gymdrobe-delivery-pincode",
+    );
+
+    if (
+      validPincode(value?.pincode) &&
+      savedPincode(pinKey) !== value.pincode
+    ) {
+      savePincode(pinKey, value.pincode);
+    }
 
     // Preserve spaces while typing.
     // Normalize on submission.

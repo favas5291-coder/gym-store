@@ -21,6 +21,7 @@ import {
 
 import RecentlyViewed from "../components/RecentlyViewed.jsx";
 import ProductOptions from "../components/ProductOptions.jsx";
+import DeliveryPincode from "../components/DeliveryPincode.jsx";
 import ProductVideo from "../components/ProductVideo.jsx";
 import ProductReviews from "../components/ProductReviews.jsx";
 import ProductRow from "../components/ProductRow.jsx";
@@ -274,21 +275,6 @@ function ProductDetail({
     });
   }
 
-  const [pincode, setPincode] =
-    useState(() => {
-      const saved = readStorage(
-        deliveryKey,
-        "",
-      );
-
-      return typeof saved === "string"
-        ? saved
-        : "";
-    });
-
-  const [delivery, setDelivery] =
-    useState("");
-
   const isCompared = (
     Array.isArray(compared)
       ? compared
@@ -359,43 +345,6 @@ function ProductDetail({
         item.delivery?.available !== false,
     )
     .slice(0, 5);
-
-  function checkDelivery(event) {
-    event.preventDefault();
-
-    if (!/^[1-9]\d{5}$/.test(pincode)) {
-      setDelivery(
-        "Enter a valid 6-digit pincode.",
-      );
-
-      return;
-    }
-
-    if (information.deliveryUnavailable) {
-      setDelivery(
-        "This product is currently unavailable for delivery. Contact support for help.",
-      );
-
-      return;
-    }
-
-    const saved = writeStorage(
-      deliveryKey,
-      pincode,
-    );
-
-    if (!saved) {
-      setDelivery(
-        "Your pincode could not be saved because browser storage is unavailable. Delivery availability and dates still need confirmation.",
-      );
-
-      return;
-    }
-
-    setDelivery(
-      "Pincode saved for checkout. This does not confirm delivery service or a delivery date for your location.",
-    );
-  }
 
   async function share() {
     try {
@@ -604,100 +553,10 @@ function ProductDetail({
           >
             <h2>DELIVERY & RETURNS</h2>
 
-            {information.deliveryUnavailable ? (
-              <p role="status">
-                This product is currently unavailable
-                for delivery.
-              </p>
-            ) : (
-              <>
-                <p className="muted">
-                  Save your pincode for checkout.
-                  Service availability for this
-                  location has not been checked yet.
-                </p>
-
-                <form
-                  onSubmit={checkDelivery}
-                  noValidate
-                >
-                  <label
-                    className="sr-only"
-                    htmlFor="delivery-pincode"
-                  >
-                    Delivery pincode
-                  </label>
-
-                  <input
-                    id="delivery-pincode"
-                    placeholder="Enter 6-digit pincode"
-                    value={pincode}
-                    maxLength={6}
-                    inputMode="numeric"
-                    autoComplete="postal-code"
-                    aria-describedby="delivery-pincode-result"
-                    onChange={(event) => {
-                      setPincode(
-                        event.target.value.replace(
-                          /\D/g,
-                          "",
-                        ),
-                      );
-
-                      setDelivery("");
-                    }}
-                  />
-
-                  <button
-                    className="text-link"
-                    type="submit"
-                  >
-                    Save pincode
-                  </button>
-                </form>
-
-                <p
-                  id="delivery-pincode-result"
-                  role="status"
-                >
-                  {delivery}
-                </p>
-
-                {information.estimate && (
-                  <p>
-                    <strong>
-                      Listed delivery estimate:
-                    </strong>{" "}
-
-                    {information.estimate}.{" "}
-
-                    Your location and preparation
-                    time may affect delivery.
-                  </p>
-                )}
-
-                {information.transit && (
-                  <p>
-                    <strong>
-                      Courier transit:
-                    </strong>{" "}
-
-                    {information.transit}.{" "}
-
-                    Preparation before dispatch
-                    is additional.
-                  </p>
-                )}
-
-                {!information.estimate &&
-                  !information.transit && (
-                    <p>
-                      Delivery timing is not listed.
-                      Contact support before buying.
-                    </p>
-                  )}
-              </>
-            )}
+            <DeliveryPincode
+              product={product}
+              storageKey={deliveryKey}
+            />
 
             <p>
               <strong>

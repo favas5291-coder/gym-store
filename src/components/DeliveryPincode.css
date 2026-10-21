@@ -1,0 +1,34 @@
+.gd-storefront .delivery-pincode form {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.gd-storefront .delivery-pincode input {
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+}
+
+.gd-storefront .delivery-pincode button {
+  flex: 0 0 112px;
+  width: 112px;
+  height: 44px;
+  padding: 8px;
+}
+
+.gd-storefront .delivery-pincode .delivery-pincode-feedback {
+  height: 6em;
+  overflow-y: auto;
+  line-height: 1.5;
+  margin: 8px 0;
+}
+
+.gd-storefront .delivery-pincode input[aria-invalid="true"] {
+  border-color: #b42318;
+}
+
+.gd-storefront .delivery-pincode-timing {
+  min-height: 6em;
+}

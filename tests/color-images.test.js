@@ -220,6 +220,7 @@ const common = {
   VirtualTryOnButton: "VirtualTryOnButton",
   FitGuide: "FitGuide",
   ProductOptions: "ProductOptions",
+  DeliveryPincode: "DeliveryPincode",
   ProductReviews: "ProductReviews",
   ProductVideo: "ProductVideo",
   ProductVideoField: "ProductVideoField",
