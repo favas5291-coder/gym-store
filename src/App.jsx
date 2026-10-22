@@ -1,4 +1,8 @@
-import { lazy, Suspense, useEffect } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+} from "react";
 
 import {
   BrowserRouter,
@@ -154,33 +158,49 @@ const AdminKitsPage = lazy(
 );
 
 const AdminPackingLocationsPage = lazy(
-  () => import("./pages/AdminPackingLocationsPage.jsx"),
+  () =>
+    import("./pages/AdminPackingLocationsPage.jsx"),
 );
 
 const AdminShippingProfilesPage = lazy(
-  () => import("./pages/AdminShippingProfilesPage.jsx"),
+  () =>
+    import("./pages/AdminShippingProfilesPage.jsx"),
 );
 
 const AdminPackagePlansPage = lazy(
-  () => import("./pages/AdminPackagePlansPage.jsx"),
+  () =>
+    import("./pages/AdminPackagePlansPage.jsx"),
 );
 
 const AdminKitPreviewPage = lazy(
   () => import("./pages/AdminKitPreviewPage.jsx"),
 );
 
+const AdminShippingSettingsPage = lazy(
+  () =>
+    import("./pages/AdminShippingSettingsPage.jsx"),
+);
+
 const StoreConsolePage = import.meta.env.DEV
-  ? lazy(() => import("./pages/StoreConsolePage.jsx"))
+  ? lazy(
+      () => import("./pages/StoreConsolePage.jsx"),
+    )
   : null;
 
 function SessionError() {
-  const { authError, retrySession } = useAuth();
+  const {
+    authError,
+    retrySession,
+  } = useAuth();
 
   return (
     <div className="page narrow">
       <h1>Unable to verify your account</h1>
 
-      <p className="error-box" role="alert">
+      <p
+        className="error-box"
+        role="alert"
+      >
         {authError}
       </p>
 
@@ -196,7 +216,12 @@ function SessionError() {
 }
 
 function AccountRequired({ children }) {
-  const { user, loading, authError } = useAuth();
+  const {
+    user,
+    loading,
+    authError,
+  } = useAuth();
+
   const location = useLocation();
 
   if (loading) {
@@ -222,7 +247,12 @@ function AccountRequired({ children }) {
 }
 
 function AdminRequired({ children }) {
-  const { user, loading, authError } = useAuth();
+  const {
+    user,
+    loading,
+    authError,
+  } = useAuth();
+
   const location = useLocation();
 
   if (loading) {
@@ -245,7 +275,12 @@ function AdminRequired({ children }) {
   }
 
   if (user.role !== "admin") {
-    return <Navigate to="/" replace />;
+    return (
+      <Navigate
+        to="/"
+        replace
+      />
+    );
   }
 
   return children;
@@ -254,13 +289,16 @@ function AdminRequired({ children }) {
 function LegacyLoginRedirect() {
   const { search } = useLocation();
 
-  const next = new URLSearchParams(search).get("next");
+  const next =
+    new URLSearchParams(search).get("next");
 
   return (
     <Navigate
       to={
         next
-          ? `/login?next=${encodeURIComponent(next)}`
+          ? `/login?next=${encodeURIComponent(
+              next,
+            )}`
           : "/login"
       }
       replace
@@ -287,7 +325,8 @@ function CheckoutHeader() {
       aria-label="GymDrobe checkout"
       style={{
         background: "#fff",
-        borderBottom: "1px solid #e5e7eb",
+        borderBottom:
+          "1px solid #e5e7eb",
       }}
     >
       <div
@@ -317,7 +356,11 @@ function CheckoutHeader() {
           }}
         >
           GYM
-          <span style={{ color: "#c2410c" }}>
+          <span
+            style={{
+              color: "#c2410c",
+            }}
+          >
             DROBE
           </span>
         </Link>
@@ -330,7 +373,8 @@ function CheckoutHeader() {
             justifyContent: "center",
             minHeight: "44px",
             padding: "0 14px",
-            border: "1px solid #d1d5db",
+            border:
+              "1px solid #d1d5db",
             borderRadius: "6px",
             color: "#111827",
             textDecoration: "none",
@@ -338,7 +382,10 @@ function CheckoutHeader() {
             fontWeight: 600,
           }}
         >
-          <span aria-hidden="true">←&nbsp;</span>
+          <span aria-hidden="true">
+            ←&nbsp;
+          </span>
+
           Back to bag
         </Link>
       </div>
@@ -355,10 +402,13 @@ function Layout() {
   } = useStore();
 
   const { user } = useAuth();
+
   const location = useLocation();
 
   const accountKey =
-    user?.id || user?._id || "guest";
+    user?.id ||
+    user?._id ||
+    "guest";
 
   const analyticsCartKey = JSON.stringify(
     cart.map((item) => [
@@ -370,9 +420,15 @@ function Layout() {
 
   useEffect(() => {
     const path =
-      location.pathname.replace(/\/+$/, "") || "/";
+      location.pathname.replace(
+        /\/+$/,
+        "",
+      ) || "/";
 
-    if (path !== "/cart" || !cart.length) {
+    if (
+      path !== "/cart" ||
+      !cart.length
+    ) {
       return;
     }
 
@@ -396,10 +452,16 @@ function Layout() {
         track,
       );
     };
-  }, [location.pathname, analyticsCartKey]);
+  }, [
+    location.pathname,
+    analyticsCartKey,
+  ]);
 
   const currentPath =
-    location.pathname.replace(/\/+$/, "") || "/";
+    location.pathname.replace(
+      /\/+$/,
+      "",
+    ) || "/";
 
   const isCheckout =
     currentPath === "/checkout";
@@ -410,7 +472,10 @@ function Layout() {
 
   return (
     <>
-      <a className="skip-link" href="#main-content">
+      <a
+        className="skip-link"
+        href="#main-content"
+      >
         Skip to content
       </a>
 
@@ -424,10 +489,13 @@ function Layout() {
           <Navbar
             cartCount={cart.reduce(
               (total, item) =>
-                total + Number(item.quantity || 0),
+                total +
+                Number(item.quantity || 0),
               0,
             )}
-            wishlistCount={wishlist.length}
+            wishlistCount={
+              wishlist.length
+            }
           />
 
           <StoreUtilityBar />
@@ -494,6 +562,13 @@ function Layout() {
 
               <Link
                 className="text-link"
+                to="/admin/shipping-settings"
+              >
+                Free shipping offer
+              </Link>
+
+              <Link
+                className="text-link"
                 to="/admin/package-plans"
               >
                 Package plans
@@ -510,8 +585,12 @@ function Layout() {
         className="gd-storefront"
         tabIndex={-1}
       >
-        <ErrorBoundary key={location.pathname}>
-          <Suspense fallback={<PageLoading />}>
+        <ErrorBoundary
+          key={location.pathname}
+        >
+          <Suspense
+            fallback={<PageLoading />}
+          >
             <Routes>
               <Route
                 path="/"
@@ -520,19 +599,58 @@ function Layout() {
 
               {[
                 ["/shop", Shop],
-                ["/product/:id", ProductPage],
-                ["/kits", FitnessKitsPage],
-                ["/kits/:kitId", FitnessKitsPage],
-                ["/cart", CartPage],
-                ["/wishlist", WishlistPage],
-                ["/login", LoginPage],
-                ["/compare", ComparePage],
-                ["/saved", SavedPage],
-                ["/notifications", NotificationsPage],
-                ["/offers", OffersPage],
-                ["/order-success", OrderSuccessPage],
-                ["/orders", OrdersPage],
-                ["/orders/:orderId", OrderDetailsPage],
+                [
+                  "/product/:id",
+                  ProductPage,
+                ],
+                [
+                  "/kits",
+                  FitnessKitsPage,
+                ],
+                [
+                  "/kits/:kitId",
+                  FitnessKitsPage,
+                ],
+                [
+                  "/cart",
+                  CartPage,
+                ],
+                [
+                  "/wishlist",
+                  WishlistPage,
+                ],
+                [
+                  "/login",
+                  LoginPage,
+                ],
+                [
+                  "/compare",
+                  ComparePage,
+                ],
+                [
+                  "/saved",
+                  SavedPage,
+                ],
+                [
+                  "/notifications",
+                  NotificationsPage,
+                ],
+                [
+                  "/offers",
+                  OffersPage,
+                ],
+                [
+                  "/order-success",
+                  OrderSuccessPage,
+                ],
+                [
+                  "/orders",
+                  OrdersPage,
+                ],
+                [
+                  "/orders/:orderId",
+                  OrderDetailsPage,
+                ],
                 [
                   "/orders/:orderId/track",
                   OrderTrackingPage,
@@ -552,21 +670,27 @@ function Layout() {
               <Route
                 path="/checkout"
                 element={
-                  <CheckoutPage key={accountKey} />
+                  <CheckoutPage
+                    key={accountKey}
+                  />
                 }
               />
 
               <Route
                 path="/help"
                 element={
-                  <HelpPage key={accountKey} />
+                  <HelpPage
+                    key={accountKey}
+                  />
                 }
               />
 
               <Route
                 path="/orders/:orderId/return"
                 element={
-                  <ReturnPage key={accountKey} />
+                  <ReturnPage
+                    key={accountKey}
+                  />
                 }
               />
 
@@ -578,38 +702,72 @@ function Layout() {
                 <Route
                   key={path}
                   path={path}
-                  element={<LegacyLoginRedirect />}
+                  element={
+                    <LegacyLoginRedirect />
+                  }
                 />
               ))}
 
               {[
-                ["/account", AccountPage],
-                ["/account/security", SecurityPage],
-                ["/addresses", AddressesPage],
+                [
+                  "/account",
+                  AccountPage,
+                ],
+                [
+                  "/account/security",
+                  SecurityPage,
+                ],
+                [
+                  "/addresses",
+                  AddressesPage,
+                ],
               ].map(([path, Page]) => (
                 <Route
                   key={path}
                   path={path}
                   element={
                     <AccountRequired>
-                      <Page key={accountKey} />
+                      <Page
+                        key={accountKey}
+                      />
                     </AccountRequired>
                   }
                 />
               ))}
 
               {[
-                ["/admin", AdminDashboardPage],
+                [
+                  "/admin",
+                  AdminDashboardPage,
+                ],
                 [
                   "/admin/customers",
                   AdminCustomersPage,
                 ],
-                ["/admin/support", AdminSupportPage],
-                ["/admin/orders", AdminOrdersPage],
-                ["/admin/products", AdminProductsPage],
-                ["/admin/returns", AdminReturnsPage],
-                ["/admin/suppliers", AdminSuppliersPage],
-                ["/admin/kits", AdminKitsPage],
+                [
+                  "/admin/support",
+                  AdminSupportPage,
+                ],
+                [
+                  "/admin/orders",
+                  AdminOrdersPage,
+                ],
+                [
+                  "/admin/products",
+                  AdminProductsPage,
+                ],
+                [
+                  "/admin/returns",
+                  AdminReturnsPage,
+                ],
+                [
+                  "/admin/suppliers",
+                  AdminSuppliersPage,
+                ],
+                [
+                  "/admin/kits",
+                  AdminKitsPage,
+                ],
                 [
                   "/admin/kits/preview",
                   AdminKitPreviewPage,
@@ -623,6 +781,10 @@ function Layout() {
                   AdminShippingProfilesPage,
                 ],
                 [
+                  "/admin/shipping-settings",
+                  AdminShippingSettingsPage,
+                ],
+                [
                   "/admin/package-plans",
                   AdminPackagePlansPage,
                 ],
@@ -632,7 +794,9 @@ function Layout() {
                   path={path}
                   element={
                     <AdminRequired>
-                      <Page key={accountKey} />
+                      <Page
+                        key={accountKey}
+                      />
                     </AdminRequired>
                   }
                 />
@@ -652,7 +816,9 @@ function Layout() {
                 StoreConsolePage && (
                   <Route
                     path="/dev/store"
-                    element={<StoreConsolePage />}
+                    element={
+                      <StoreConsolePage />
+                    }
                   />
                 )}
 
@@ -665,7 +831,8 @@ function Layout() {
                     label="Back to home"
                   >
                     The link may have changed.
-                    Explore GymDrobe from the homepage.
+                    Explore GymDrobe from the
+                    homepage.
                   </EmptyState>
                 }
               />
@@ -676,7 +843,9 @@ function Layout() {
 
       {!isCheckout && <Footer />}
 
-      {!isRecovery && <AnalyticsController />}
+      {!isRecovery && (
+        <AnalyticsController />
+      )}
 
       <Toast
         message={toast?.message}
@@ -692,7 +861,11 @@ function StorefrontApplication() {
 
   return (
     <StoreProvider
-      key={user?.id || user?._id || "guest"}
+      key={
+        user?.id ||
+        user?._id ||
+        "guest"
+      }
     >
       <ShoppingToolsProvider>
         <Layout />

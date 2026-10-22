@@ -13,23 +13,21 @@ import {
   useCatalog,
 } from "../context/CatalogContext.jsx";
 
-import categories from "../data/categories.js";
-
 import {
+  SHOP_DEPARTMENTS,
+  catalogOptions,
+  catalogProducts,
   filterProducts,
+  matchesCategory,
+  matchesSubcategory,
+  normalizeCatalogText,
+  productDepartment,
 } from "../utils/catalog.js";
 
 import ProductCard from "./ProductCard.jsx";
 import Modal from "./Modal.jsx";
 
-
-// ======================================================
-// CONFIG
-// ======================================================
-
-const PAGE_SIZE =
-  12;
-
+const PAGE_SIZE = 12;
 
 const MULTI_VALUE_FILTERS = [
   "category",
@@ -39,191 +37,71 @@ const MULTI_VALUE_FILTERS = [
   "gender",
 ];
 
+const COLLECTIONS = {
+  featured: "Trending",
+  bestsellers: "Bestsellers",
+  new: "New arrivals",
+};
 
-// ======================================================
-// HELPERS
-// ======================================================
-
-function splitValues(
-  value
-) {
-  return String(
-    value ||
-      ""
-  )
+const splitValues = (value) =>
+  String(value || "")
     .split(",")
-    .map(
-      (
-        item
-      ) =>
-        item.trim()
-    )
-    .filter(
-      Boolean
-    );
-}
+    .map((item) => item.trim())
+    .filter(Boolean);
 
+const same = (a, b) =>
+  normalizeCatalogText(a) === normalizeCatalogText(b);
 
-function titleCase(
-  value
-) {
-  return String(
-    value ||
-      ""
-  )
-    .replace(
-      /[-_]+/g,
-      " "
-    )
-    .replace(
-      /\b\w/g,
-      (
-        letter
-      ) =>
-        letter.toUpperCase()
-    );
-}
-
-
-function chipLabel(
-  key,
-  value
-) {
-  if (
-    key ===
-    "search"
-  ) {
+function chipLabel(key, value) {
+  if (key === "search") {
     return `Search: “${value}”`;
   }
 
-
-  if (
-    key ===
-    "category"
-  ) {
-    return value;
-  }
-
-
-  if (
-    key ===
-    "subcategory"
-  ) {
-    return value;
-  }
-
-
-  if (
-    key ===
-    "brand"
-  ) {
-    return value;
-  }
-
-
-  if (
-    key ===
-    "gender"
-  ) {
-    return value;
-  }
-
-
-  if (
-    key ===
-    "size"
-  ) {
-    return `Size ${value}`;
-  }
-
-
-  if (
-    key ===
-    "color"
-  ) {
-    return value;
-  }
-
-
-  if (
-    key ===
-    "minPrice"
-  ) {
-    return `From ₹${value}`;
-  }
-
-
-  if (
-    key ===
-    "maxPrice"
-  ) {
-    return `Up to ₹${value}`;
-  }
-
-
-  if (
-    key ===
-    "availability"
-  ) {
-    return value ===
-      "in-stock"
-      ? "In stock"
-      : titleCase(
-          value
-        );
-  }
-
-
-  if (
-    key ===
-    "rating"
-  ) {
-    return `${value}★ & above`;
-  }
-
-
-  if (
-    key ===
-    "discount"
-  ) {
-    return `${value}%+ off`;
-  }
-
-
-  if (
-    key ===
-    "collection"
-  ) {
-    const labels = {
-      featured:
-        "Trending",
-      bestsellers:
-        "Bestsellers",
-      new:
-        "New arrivals",
-    };
-
-
+  if (key === "department") {
     return (
-      labels[
-        value
-      ] ||
-      titleCase(
-        value
-      )
+      SHOP_DEPARTMENTS.find(
+        (item) => item.id === value,
+      )?.title || value
     );
   }
 
+  if (key === "minPrice") {
+    return `From ₹${value}`;
+  }
 
-  return `${titleCase(
-    key
-  )}: ${value}`;
+  if (key === "maxPrice") {
+    return `Up to ₹${value}`;
+  }
+
+  if (key === "size") {
+    return `Size ${value}`;
+  }
+
+  if (key === "rating") {
+    return `${value}★ & above`;
+  }
+
+  if (key === "discount") {
+    return `${value}%+ off`;
+  }
+
+  if (key === "availability") {
+    return value === "in-stock"
+      ? "In stock"
+      : "Out of stock";
+  }
+
+  if (key === "collection") {
+    return Object.prototype.hasOwnProperty.call(
+      COLLECTIONS,
+      value,
+    )
+      ? COLLECTIONS[value]
+      : value;
+  }
+
+  return value;
 }
-
-
-// ======================================================
-// FILTERS
-// ======================================================
 
 function Filters({
   params,
@@ -231,456 +109,210 @@ function Filters({
   reset,
   products,
 }) {
-  const minParam =
-    params.get(
-      "minPrice"
-    ) ||
-    "";
+  const minParam = params.get("minPrice") || "";
+  const maxParam = params.get("maxPrice") || "";
 
+  const [min, setMin] = useState(minParam);
+  const [max, setMax] = useState(maxParam);
+  const [error, setError] = useState("");
 
-  const maxParam =
-    params.get(
-      "maxPrice"
-    ) ||
-    "";
+  useEffect(() => {
+    setMin(minParam);
+    setMax(maxParam);
+  }, [minParam, maxParam]);
 
+  const department = params.get("department");
 
-  const [
-    min,
-    setMin,
-  ] =
-    useState(
-      minParam
-    );
-
-
-  const [
-    max,
-    setMax,
-  ] =
-    useState(
-      maxParam
-    );
-
-
-  const [
-    error,
-    setError,
-  ] =
-    useState(
-      ""
-    );
-
-
-  // ====================================================
-  // SYNC PRICE FIELDS
-  // ====================================================
-
-  useEffect(
-    () => {
-      setMin(
-        minParam
-      );
-
-
-      setMax(
-        maxParam
-      );
-    },
-
-    [
-      minParam,
-      maxParam,
-    ]
+  const selectedCategories = splitValues(
+    params.get("category"),
   );
 
+  const departmentProducts = products.filter(
+    (product) =>
+      !department ||
+      productDepartment(product) === department,
+  );
 
-  // ====================================================
-  // CATEGORY SCOPE
-  // ====================================================
+  const categoryOptions = catalogOptions(
+    departmentProducts,
+    "category",
+    selectedCategories,
+  );
 
-  const selectedCategories =
-    splitValues(
-      params.get(
-        "category"
-      )
+  const scoped = departmentProducts.filter(
+    (product) =>
+      !selectedCategories.length ||
+      selectedCategories.some((category) =>
+        matchesCategory(product, category),
+      ),
+  );
+
+  const selectedType =
+    params.get("subcategory") || "";
+
+  const subcategories = catalogOptions(
+    scoped,
+    "subcategory",
+    selectedType ? [selectedType] : [],
+  );
+
+  function toggle(key, value) {
+    const current = splitValues(params.get(key));
+
+    const selected = current.some((item) =>
+      same(item, value),
     );
-
-
-  const scoped =
-    products.filter(
-      (
-        product
-      ) =>
-        selectedCategories.length ===
-          0 ||
-        selectedCategories.includes(
-          product.category
-        )
-    );
-
-
-  // ====================================================
-  // MULTI VALUE TOGGLE
-  // ====================================================
-
-  function toggle(
-    key,
-    value
-  ) {
-    const list =
-      splitValues(
-        params.get(
-          key
-        )
-      );
-
 
     change({
-      [key]:
-        list.includes(
-          value
-        )
-          ? list
-              .filter(
-                (
-                  item
-                ) =>
-                  item !==
-                  value
-              )
-              .join(
-                ","
-              )
-
-          : [
-              ...list,
-              value,
-            ].join(
-              ","
-            ),
+      [key]: (
+        selected
+          ? current.filter(
+              (item) => !same(item, value),
+            )
+          : [...current, value]
+      ).join(","),
     });
   }
 
-
-  // ====================================================
-  // APPLY PRICE
-  // ====================================================
-
-  function applyPrice(
-    event
-  ) {
+  function applyPrice(event) {
     event.preventDefault();
 
-
-    const minNumber =
-      min ===
-      ""
-        ? null
-        : Number(
-            min
-          );
-
-
-    const maxNumber =
-      max ===
-      ""
-        ? null
-        : Number(
-            max
-          );
-
+    const low = min === "" ? null : Number(min);
+    const high = max === "" ? null : Number(max);
 
     if (
-      (
-        minNumber !==
-          null &&
-        (
-          !Number.isFinite(
-            minNumber
-          ) ||
-          minNumber <
-            0
-        )
-      ) ||
-      (
-        maxNumber !==
-          null &&
-        (
-          !Number.isFinite(
-            maxNumber
-          ) ||
-          maxNumber <
-            0
-        )
-      )
+      (low != null &&
+        (!Number.isFinite(low) || low < 0)) ||
+      (high != null &&
+        (!Number.isFinite(high) || high < 0))
     ) {
-      setError(
-        "Enter valid prices."
-      );
-
-
+      setError("Enter valid prices.");
       return;
     }
 
-
     if (
-      minNumber !==
-        null &&
-      maxNumber !==
-        null &&
-      minNumber >
-        maxNumber
+      low != null &&
+      high != null &&
+      low > high
     ) {
-      setError(
-        "Minimum must be below maximum."
-      );
-
-
+      setError("Minimum must be below maximum.");
       return;
     }
 
-
-    setError(
-      ""
-    );
-
+    setError("");
 
     change({
-      minPrice:
-        min,
-
-      maxPrice:
-        max,
+      minPrice: min,
+      maxPrice: max,
     });
   }
-
-
-  // ====================================================
-  // PAGE
-  // ====================================================
 
   return (
     <div className="filter-content">
-      {/* ===============================================
-          HEADING
-      =============================================== */}
-
       <div className="filter-heading">
-        <strong>
-          FILTERS
-        </strong>
-
+        <strong>FILTERS</strong>
 
         <button
           type="button"
           className="text-link"
-          onClick={
-            reset
-          }
+          onClick={reset}
         >
           Clear all
         </button>
       </div>
 
+      {categoryOptions.length > 0 && (
+        <fieldset>
+          <legend>CATEGORIES</legend>
 
-      {/* ===============================================
-          CATEGORIES
-      =============================================== */}
-
-      <fieldset>
-        <legend>
-          CATEGORIES
-        </legend>
-
-
-        {categories.map(
-          (
-            cat
-          ) => {
+          {categoryOptions.map((category) => {
             const selected =
-              selectedCategories.includes(
-                cat.name
+              selectedCategories.some((value) =>
+                same(value, category),
               );
 
-
             const count =
-              products.filter(
-                (
-                  product
-                ) =>
-                  product.category ===
-                  cat.name
+              departmentProducts.filter((product) =>
+                matchesCategory(product, category),
               ).length;
-
 
             return (
               <label
                 className="check"
-                key={
-                  cat.name
-                }
+                key={category}
               >
                 <input
                   type="checkbox"
-                  checked={
-                    selected
-                  }
+                  checked={selected}
                   onChange={() => {
+                    const next = selected
+                      ? selectedCategories.filter(
+                          (value) =>
+                            !same(value, category),
+                        )
+                      : [
+                          ...selectedCategories,
+                          category,
+                        ];
+
                     change({
-                      category:
-                        selected
-                          ? selectedCategories
-                              .filter(
-                                (
-                                  name
-                                ) =>
-                                  name !==
-                                  cat.name
-                              )
-                              .join(
-                                ","
-                              )
-
-                          : [
-                              ...selectedCategories,
-                              cat.name,
-                            ].join(
-                              ","
-                            ),
-
-                      subcategory:
-                        "",
-
-                      size:
-                        "",
-
-                      color:
-                        "",
+                      category: next.join(","),
+                      subcategory: "",
+                      size: "",
+                      color: "",
                     });
                   }}
                 />
 
-
-                <span>
-                  {cat.name}
-                </span>
-
-
-                <small>
-                  ({count})
-                </small>
+                <span>{category}</span>
+                <small>({count})</small>
               </label>
             );
-          }
-        )}
-      </fieldset>
+          })}
+        </fieldset>
+      )}
 
-
-      {/* ===============================================
-          PRODUCT TYPE
-      =============================================== */}
-
-      {[
-        ...new Set(
-          scoped
-            .map(
-              (
-                product
-              ) =>
-                product.subcategory
-            )
-            .filter(
-              Boolean
-            )
-        ),
-      ].length >
-        0 && (
+      {subcategories.length > 0 && (
         <fieldset>
-          <legend>
-            PRODUCT TYPE
-          </legend>
+          <legend>PRODUCT TYPE</legend>
 
-
-          {[
-            ...new Set(
-              scoped
-                .map(
-                  (
-                    product
-                  ) =>
-                    product.subcategory
-                )
-                .filter(
-                  Boolean
-                )
-            ),
-          ].map(
-            (
-              value
-            ) => (
-              <label
-                className="check"
-                key={
-                  value
+          {subcategories.map((value) => (
+            <label
+              className="check"
+              key={value}
+            >
+              <input
+                type="radio"
+                name="subcategory"
+                checked={same(selectedType, value)}
+                onChange={() =>
+                  change({
+                    subcategory: value,
+                  })
                 }
-              >
-                <input
-                  type="radio"
-                  name="subcategory"
-                  checked={
-                    params.get(
-                      "subcategory"
-                    ) ===
-                    value
-                  }
-                  onChange={() =>
-                    change({
-                      subcategory:
-                        params.get(
-                          "subcategory"
-                        ) ===
-                        value
-                          ? ""
-                          : value,
-                    })
-                  }
-                />
+              />
 
+              <span>{value}</span>
 
-                <span>
-                  {value}
-                </span>
+              <small>
+                (
+                {
+                  scoped.filter((product) =>
+                    matchesSubcategory(product, value),
+                  ).length
+                }
+                )
+              </small>
+            </label>
+          ))}
 
-
-                <small>
-                  (
-                  {
-                    scoped.filter(
-                      (
-                        product
-                      ) =>
-                        product.subcategory ===
-                        value
-                    ).length
-                  }
-                  )
-                </small>
-              </label>
-            )
-          )}
-
-
-          {params.get(
-            "subcategory"
-          ) && (
+          {selectedType && (
             <button
               type="button"
               className="text-link"
               onClick={() =>
                 change({
-                  subcategory:
-                    "",
+                  subcategory: "",
                 })
               }
             >
@@ -690,162 +322,72 @@ function Filters({
         </fieldset>
       )}
 
-
-      {/* ===============================================
-          PRICE
-      =============================================== */}
-
       <fieldset>
-        <legend>
-          PRICE
-        </legend>
-
-
-        {/* QUICK PRICE FILTERS */}
+        <legend>PRICE</legend>
 
         <div className="filter-quick-options">
-          <button
-            type="button"
-            className="text-link"
-            onClick={() => {
-              setMin(
-                ""
-              );
+          {[
+            ["Under ₹500", "", "499"],
+            ["₹500–₹999", "500", "999"],
+            ["₹1,000+", "1000", ""],
+          ].map(([label, low, high]) => (
+            <button
+              type="button"
+              className="text-link"
+              key={label}
+              onClick={() => {
+                setMin(low);
+                setMax(high);
+                setError("");
 
-              setMax(
-                "499"
-              );
-
-              setError(
-                ""
-              );
-
-              change({
-                minPrice:
-                  "",
-
-                maxPrice:
-                  "499",
-              });
-            }}
-          >
-            Under ₹500
-          </button>
-
-
-          <button
-            type="button"
-            className="text-link"
-            onClick={() => {
-              setMin(
-                "500"
-              );
-
-              setMax(
-                "999"
-              );
-
-              setError(
-                ""
-              );
-
-              change({
-                minPrice:
-                  "500",
-
-                maxPrice:
-                  "999",
-              });
-            }}
-          >
-            ₹500–₹999
-          </button>
-
-
-          <button
-            type="button"
-            className="text-link"
-            onClick={() => {
-              setMin(
-                "1000"
-              );
-
-              setMax(
-                ""
-              );
-
-              setError(
-                ""
-              );
-
-              change({
-                minPrice:
-                  "1000",
-
-                maxPrice:
-                  "",
-              });
-            }}
-          >
-            ₹1,000+
-          </button>
+                change({
+                  minPrice: low,
+                  maxPrice: high,
+                });
+              }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
-
         <form
-          onSubmit={
-            applyPrice
-          }
+          className="price-filter"
+          onSubmit={applyPrice}
         >
           <div className="price-inputs">
             <label>
               Min ₹
 
-
               <input
-                aria-label="Minimum price"
                 type="number"
                 min="0"
-                inputMode="numeric"
-                value={
-                  min
-                }
-                onChange={(
-                  event
-                ) =>
-                  setMin(
-                    event.target
-                      .value
-                  )
+                step="0.01"
+                inputMode="decimal"
+                aria-label="Minimum price"
+                value={min}
+                onChange={(event) =>
+                  setMin(event.target.value)
                 }
               />
             </label>
-
 
             <label>
               Max ₹
 
-
               <input
-                aria-label="Maximum price"
                 type="number"
                 min="0"
-                inputMode="numeric"
-                value={
-                  max
-                }
-                onChange={(
-                  event
-                ) =>
-                  setMax(
-                    event.target
-                      .value
-                  )
+                step="0.01"
+                inputMode="decimal"
+                aria-label="Maximum price"
+                value={max}
+                onChange={(event) =>
+                  setMax(event.target.value)
                 }
               />
             </label>
           </div>
-
 
           {error && (
             <p
@@ -856,7 +398,6 @@ function Filters({
             </p>
           )}
 
-
           <button
             type="submit"
             className="button secondary compact full"
@@ -866,727 +407,340 @@ function Filters({
         </form>
       </fieldset>
 
-
-      {/* ===============================================
-          DYNAMIC FILTERS
-      =============================================== */}
-
       {[
-        [
-          "brand",
-          "BRAND",
-          "brand",
-        ],
+        ["brand", "BRAND", "brand"],
+        ["gender", "FOR", "gender"],
+        ["size", "SIZE", "sizes"],
+        ["color", "COLOUR", "colors"],
+      ].map(([key, label, field]) => {
+        const selected = splitValues(
+          params.get(key),
+        );
 
-        [
-          "gender",
-          "FOR",
-          "gender",
-        ],
+        const options = catalogOptions(
+          scoped,
+          field,
+          selected,
+        );
 
-        [
-          "size",
-          "SIZE",
-          "sizes",
-        ],
+        if (!options.length) return null;
 
-        [
-          "color",
-          "COLOUR",
-          "colors",
-        ],
-      ].map(
-        (
-          [
-            key,
-            label,
-            field,
-          ]
-        ) => {
-          const options = [
-            ...new Set(
-              scoped
-                .flatMap(
+        return (
+          <fieldset key={key}>
+            <legend>{label}</legend>
+
+            {options.map((value) => {
+              const count = scoped.filter(
+                (product) =>
                   (
-                    product
-                  ) => {
-                    const value =
-                      product[
-                        field
-                      ];
+                    Array.isArray(product[field])
+                      ? product[field]
+                      : [product[field]]
+                  ).some((item) =>
+                    same(item, value),
+                  ),
+              ).length;
 
+              return (
+                <label
+                  className="check"
+                  key={value}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected.some((item) =>
+                      same(item, value),
+                    )}
+                    onChange={() =>
+                      toggle(key, value)
+                    }
+                  />
 
-                    return Array.isArray(
-                      value
-                    )
-                      ? value.map(
-                          String
-                        )
-                      : [
-                          value,
-                        ];
-                  }
-                )
-                .filter(
-                  Boolean
-                )
-            ),
-          ];
-
-
-          if (
-            !options.length
-          ) {
-            return null;
-          }
-
-
-          return (
-            <fieldset
-              key={
-                key
-              }
-            >
-              <legend>
-                {label}
-              </legend>
-
-
-              {options.map(
-                (
-                  value
-                ) => {
-                  const selected =
-                    splitValues(
-                      params.get(
-                        key
-                      )
-                    ).includes(
-                      value
-                    );
-
-
-                  const count =
-                    scoped.filter(
-                      (
-                        product
-                      ) => {
-                        const fieldValue =
-                          product[
-                            field
-                          ];
-
-
-                        return Array.isArray(
-                          fieldValue
-                        )
-                          ? fieldValue
-                              .map(
-                                String
-                              )
-                              .includes(
-                                value
-                              )
-
-                          : String(
-                              fieldValue
-                            ) ===
-                            value;
-                      }
-                    ).length;
-
-
-                  return (
-                    <label
-                      className="check"
-                      key={
-                        value
-                      }
-                    >
-                      <input
-                        type="checkbox"
-                        checked={
-                          selected
-                        }
-                        onChange={() =>
-                          toggle(
-                            key,
-                            value
-                          )
-                        }
-                      />
-
-
-                      <span>
-                        {value}
-                      </span>
-
-
-                      <small>
-                        ({count})
-                      </small>
-                    </label>
-                  );
-                }
-              )}
-            </fieldset>
-          );
-        }
-      )}
-
-
-      {/* ===============================================
-          AVAILABILITY
-      =============================================== */}
+                  <span>{value}</span>
+                  <small>({count})</small>
+                </label>
+              );
+            })}
+          </fieldset>
+        );
+      })}
 
       <fieldset>
-        <legend>
-          AVAILABILITY
-        </legend>
-
+        <legend>AVAILABILITY</legend>
 
         <label className="check">
           <input
             type="checkbox"
             checked={
-              params.get(
-                "availability"
-              ) ===
+              params.get("availability") ===
               "in-stock"
             }
             onChange={() =>
               change({
                 availability:
-                  params.get(
-                    "availability"
-                  )
+                  params.get("availability") ===
+                  "in-stock"
                     ? ""
                     : "in-stock",
               })
             }
           />
 
-
-          <span>
-            In stock only
-          </span>
+          <span>In stock only</span>
         </label>
       </fieldset>
 
-
-      {/* ===============================================
-          RATING
-      =============================================== */}
-
       <fieldset>
-        <legend>
-          CUSTOMER RATING
-        </legend>
+        <legend>CUSTOMER RATING</legend>
 
-
-        {[
-          4,
-          3,
-        ].map(
-          (
-            number
-          ) => (
-            <label
-              className="check"
-              key={
-                number
+        {[4, 3].map((rating) => (
+          <label
+            className="check"
+            key={rating}
+          >
+            <input
+              type="radio"
+              name="rating"
+              checked={
+                params.get("rating") ===
+                String(rating)
               }
-            >
-              <input
-                type="radio"
-                name="minimum-rating"
-                checked={
-                  params.get(
-                    "rating"
-                  ) ===
-                  String(
-                    number
-                  )
-                }
-                onChange={() =>
-                  change({
-                    rating:
-                      params.get(
-                        "rating"
-                      ) ===
-                      String(
-                        number
-                      )
-                        ? ""
-                        : String(
-                            number
-                          ),
-                  })
-                }
-              />
+              onChange={() =>
+                change({
+                  rating: String(rating),
+                })
+              }
+            />
 
+            <span>{rating} ★ & above</span>
+          </label>
+        ))}
 
-              <span>
-                {number} ★ & above
-              </span>
-            </label>
-          )
+        {params.get("rating") && (
+          <button
+            type="button"
+            className="text-link"
+            onClick={() =>
+              change({
+                rating: "",
+              })
+            }
+          >
+            Clear rating
+          </button>
         )}
       </fieldset>
 
-
-      {/* ===============================================
-          DISCOUNT
-      =============================================== */}
-
       <fieldset>
-        <legend>
-          DISCOUNT
-        </legend>
-
+        <legend>DISCOUNT</legend>
 
         <label className="check">
           <input
             type="checkbox"
-            checked={
-              Boolean(
-                params.get(
-                  "discount"
-                )
-              )
-            }
+            checked={Boolean(
+              params.get("discount"),
+            )}
             onChange={() =>
               change({
-                discount:
-                  params.get(
-                    "discount"
-                  )
-                    ? ""
-                    : "10",
+                discount: params.get("discount")
+                  ? ""
+                  : "10",
               })
             }
           />
 
-
-          <span>
-            10% and above
-          </span>
+          <span>10% and above</span>
         </label>
       </fieldset>
     </div>
   );
 }
 
-
-// ======================================================
-// PRODUCT SECTION
-// ======================================================
-
 export default function ProductSection() {
   const {
-    products,
+    products: catalogue,
     loading,
-    error:
-      loadError,
+    error: loadError,
     refreshProducts,
-  } =
-    useCatalog();
+  } = useCatalog();
 
-
-  const [
-    params,
-    setParams,
-  ] =
+  const [params, setParams] =
     useSearchParams();
 
+  const [drawer, setDrawer] =
+    useState(false);
 
-  const [
-    drawer,
-    setDrawer,
-  ] =
-    useState(
-      false
-    );
+  const products = useMemo(
+    () => catalogProducts(catalogue),
+    [catalogue],
+  );
 
+  const result = useMemo(
+    () => filterProducts(products, params),
+    [products, params],
+  );
 
-  // ====================================================
-  // FILTERED PRODUCTS
-  // ====================================================
+  const pages = Math.max(
+    1,
+    Math.ceil(result.length / PAGE_SIZE),
+  );
 
-  const result =
-    filterProducts(
-      products,
-      params
-    );
-
-
-  // ====================================================
-  // PAGINATION
-  // ====================================================
-
-  const pages =
+  const page = Math.min(
+    pages,
     Math.max(
       1,
+      Number.parseInt(
+        params.get("page") || "1",
+        10,
+      ) || 1,
+    ),
+  );
 
-      Math.ceil(
-        result.length /
-          PAGE_SIZE
-      )
-    );
+  const startIndex = result.length
+    ? (page - 1) * PAGE_SIZE + 1
+    : 0;
 
-
-  const page =
-    Math.min(
-      pages,
-
-      Math.max(
-        1,
-
-        Number.parseInt(
-          params.get(
-            "page"
-          ) ||
-            "1",
-          10
-        ) ||
-          1
-      )
-    );
-
-
-  const startIndex =
-    result.length
-      ? (
-          page -
-          1
-        ) *
-          PAGE_SIZE +
-        1
-      : 0;
-
-
-  const endIndex =
-    Math.min(
-      page *
-        PAGE_SIZE,
-
-      result.length
-    );
-
-
-  // ====================================================
-  // QUERY VALUES
-  // ====================================================
+  const endIndex = Math.min(
+    page * PAGE_SIZE,
+    result.length,
+  );
 
   const searchQuery =
-    params.get(
-      "search"
-    ) ||
-    "";
+    params.get("search") || "";
 
+  const department =
+    params.get("department") || "";
 
   const categoryQuery =
-    params.get(
-      "category"
-    ) ||
-    "";
-
+    params.get("category") || "";
 
   const collection =
-    params.get(
-      "collection"
-    ) ||
-    "";
+    params.get("collection") || "";
 
-
-  // ====================================================
-  // CHANGE URL FILTERS
-  // ====================================================
-
-  function change(
-    values
-  ) {
-    const next =
-      new URLSearchParams(
-        params
-      );
-
-
-    next.delete(
-      "page"
+  const chips = [...params.entries()]
+    .flatMap(([key, value]) =>
+      MULTI_VALUE_FILTERS.includes(key)
+        ? splitValues(value).map((item) => [
+            key,
+            item,
+          ])
+        : [[key, value]],
+    )
+    .filter(
+      ([key, value]) =>
+        value &&
+        !["page", "sort"].includes(key),
     );
 
+  const activeFilterCount = chips.filter(
+    ([key]) =>
+      ![
+        "search",
+        "collection",
+        "department",
+      ].includes(key),
+  ).length;
 
-    for (
-      const [
-        key,
-        value,
-      ] of
-      Object.entries(
-        values
-      )
-    ) {
-      if (
-        value
-      ) {
-        next.set(
-          key,
-          value
-        );
+  function change(values) {
+    const next = new URLSearchParams(params);
 
+    next.delete("page");
+
+    for (const [key, value] of Object.entries(values)) {
+      if (value !== "" && value != null) {
+        next.set(key, String(value));
       } else {
-        next.delete(
-          key
-        );
+        next.delete(key);
       }
     }
 
+    setParams(next);
 
-    setParams(
-      next
-    );
-
-
-    if (
-      values.page
-    ) {
+    if (values.page) {
       document
-        .getElementById(
-          "shop-results"
-        )
+        .getElementById("shop-results")
         ?.scrollIntoView({
-          block:
-            "start",
-
-          behavior:
-            "smooth",
+          block: "start",
+          behavior: "smooth",
         });
     }
   }
 
-
-  // ====================================================
-  // RESET FILTERS
-  //
-  // Keeps current search query.
-  // ====================================================
-
   function reset() {
-    if (
-      searchQuery
-    ) {
-      setParams({
-        search:
-          searchQuery,
-      });
+    const next = new URLSearchParams();
 
-    } else {
-      setParams({});
+    if (searchQuery) {
+      next.set("search", searchQuery);
     }
+
+    if (department) {
+      next.set("department", department);
+    }
+
+    setParams(next);
   }
 
-
-  // ====================================================
-  // RESET EVERYTHING
-  // ====================================================
-
-  function browseAll() {
-    setParams({});
-  }
-
-
-  // ====================================================
-  // FILTER CHIPS
-  // ====================================================
-
-  const chips =
-    useMemo(
-      () =>
-        [
-          ...params.entries(),
-        ]
-          .flatMap(
-            (
-              [
-                key,
-                value,
-              ]
-            ) => {
-              if (
-                MULTI_VALUE_FILTERS.includes(
-                  key
-                )
-              ) {
-                return splitValues(
-                  value
-                ).map(
-                  (
-                    item
-                  ) => [
-                    key,
-                    item,
-                  ]
-                );
-              }
-
-
-              return [
-                [
-                  key,
-                  value,
-                ],
-              ];
-            }
-          )
-          .filter(
-            (
-              [
-                key,
-              ]
-            ) =>
-              ![
-                "page",
-                "sort",
-              ].includes(
-                key
-              )
-          ),
-
-      [
-        params,
-      ]
-    );
-
-
-  const activeFilterCount =
-    chips.filter(
-      (
-        [
-          key,
-        ]
-      ) =>
-        ![
-          "search",
-          "collection",
-        ].includes(
-          key
-        )
-    ).length;
-
-
-  // ====================================================
-  // REMOVE CHIP
-  // ====================================================
-
-  function removeChip(
-    key,
-    value
-  ) {
-    if (
-      MULTI_VALUE_FILTERS.includes(
-        key
-      )
-    ) {
-      const nextValue =
-        splitValues(
-          params.get(
-            key
-          )
-        )
-          .filter(
-            (
-              item
-            ) =>
-              item !==
-              value
-          )
-          .join(
-            ","
-          );
-
-
+  function removeChip(key, value) {
+    if (MULTI_VALUE_FILTERS.includes(key)) {
       change({
-        [key]:
-          nextValue,
+        [key]: splitValues(params.get(key))
+          .filter((item) => item !== value)
+          .join(","),
 
-        ...(
-          key ===
-          "category"
-            ? {
-                subcategory:
-                  "",
-
-                size:
-                  "",
-
-                color:
-                  "",
-              }
-            : {}
-        ),
+        ...(key === "category"
+          ? {
+              subcategory: "",
+              size: "",
+              color: "",
+            }
+          : {}),
       });
-
-
-      return;
+    } else {
+      change({
+        [key]: "",
+      });
     }
-
-
-    change({
-      [key]:
-        "",
-    });
   }
 
+  function collectionPath(value) {
+    const next = new URLSearchParams();
 
-  // ====================================================
-  // PAGE TITLE
-  // ====================================================
+    if (department) {
+      next.set("department", department);
+    }
+
+    if (categoryQuery) {
+      next.set("category", categoryQuery);
+    }
+
+    next.set("collection", value);
+
+    return `/shop?${next}`;
+  }
 
   let title =
-    "All workout essentials";
+    SHOP_DEPARTMENTS.find(
+      (item) => item.id === department,
+    )?.title || "All workout essentials";
 
-
-  if (
-    searchQuery
-  ) {
-    title =
-      `Results for “${searchQuery}”`;
-
+  if (searchQuery) {
+    title = `Results for “${searchQuery}”`;
+  } else if (categoryQuery) {
+    title = categoryQuery.replaceAll(
+      ",",
+      " & ",
+    );
   } else if (
-    categoryQuery
+    collection &&
+    Object.prototype.hasOwnProperty.call(
+      COLLECTIONS,
+      collection,
+    )
   ) {
-    title =
-      categoryQuery.replaceAll(
-        ",",
-        " & "
-      );
-
-  } else if (
-    collection ===
-    "featured"
-  ) {
-    title =
-      "Trending now";
-
-  } else if (
-    collection ===
-    "bestsellers"
-  ) {
-    title =
-      "Bestsellers";
-
-  } else if (
-    collection ===
-    "new"
-  ) {
-    title =
-      "New arrivals";
+    title = department
+      ? `${title} · ${COLLECTIONS[collection]}`
+      : COLLECTIONS[collection];
   }
-
-
-  // ====================================================
-  // FILTER PROPS
-  // ====================================================
 
   const filters = {
     params,
@@ -1595,69 +749,45 @@ export default function ProductSection() {
     products,
   };
 
-
-  // ====================================================
-  // PAGE
-  // ====================================================
+  const errorMessage =
+    typeof loadError === "string"
+      ? loadError
+      : typeof loadError?.message === "string"
+        ? loadError.message
+        : "Please try loading the products again.";
 
   return (
     <div className="shop-page">
-      {/* ===============================================
-          BREADCRUMB
-      =============================================== */}
-
       <nav
         className="breadcrumb"
         aria-label="Breadcrumb"
       >
-        <Link to="/">
-          Home
-        </Link>
-
-
-        <span>
-          /
-        </span>
-
-
-        <span>
-          Shop
-        </span>
+        <Link to="/">Home</Link>
+        <span>/</span>
+        <span>Shop</span>
       </nav>
-
-
-      {/* ===============================================
-          TITLE
-      =============================================== */}
 
       <div className="shop-title">
         <div>
-          <h1>
-            {title}
-          </h1>
+          <h1>{title}</h1>
 
-
-          {!loading &&
-            !loadError && (
-            <p className="muted">
-              {result.length ===
-              0
+          {!loading && !loadError && (
+            <p
+              className="muted"
+              role="status"
+            >
+              {result.length === 0
                 ? "No matching products"
-
-                : result.length <=
-                    PAGE_SIZE
+                : result.length <= PAGE_SIZE
                   ? `${result.length} ${
-                      result.length ===
-                      1
+                      result.length === 1
                         ? "product"
                         : "products"
                     }`
-
                   : `Showing ${startIndex}–${endIndex} of ${result.length} products`}
             </p>
           )}
         </div>
-
 
         {searchQuery && (
           <button
@@ -1665,8 +795,7 @@ export default function ProductSection() {
             className="text-link"
             onClick={() =>
               change({
-                search:
-                  "",
+                search: "",
               })
             }
           >
@@ -1675,126 +804,69 @@ export default function ProductSection() {
         )}
       </div>
 
-
-      {/* ===============================================
-          SEARCH RESULT MESSAGE
-      =============================================== */}
-
       {searchQuery &&
         !loading &&
         !loadError &&
-        result.length >
-          0 && (
-        <div className="notice">
-          <strong>
-            {result.length}{" "}
-            {result.length ===
-            1
-              ? "match"
-              : "matches"}{" "}
-            found
-          </strong>
+        result.length > 0 && (
+          <div className="notice">
+            <strong>
+              {result.length}{" "}
+              {result.length === 1
+                ? "match"
+                : "matches"}{" "}
+              found
+            </strong>
 
-          {" for "}
-
-          <span>
-            “{searchQuery}”
-          </span>
-        </div>
-      )}
-
-
-      {/* ===============================================
-          TOOLBAR
-      =============================================== */}
+            {" for “"}
+            {searchQuery}
+            {"”"}
+          </div>
+        )}
 
       <div className="shop-toolbar">
-        {/* MOBILE FILTER */}
-
         <button
           type="button"
           className="button secondary mobile-filter"
-          onClick={() =>
-            setDrawer(
-              true
-            )
-          }
+          onClick={() => setDrawer(true)}
         >
           Filters
-
-          {activeFilterCount >
-            0
+          {activeFilterCount > 0
             ? ` (${activeFilterCount})`
             : ""}
         </button>
-
-
-        {/* COLLECTION SHORTCUTS */}
 
         <div
           className="collection-links"
           aria-label="Popular collections"
         >
-          <Link
-            to="/shop?collection=featured"
-            aria-current={
-              collection ===
-              "featured"
-                ? "page"
-                : undefined
-            }
-          >
-            Trending
-          </Link>
-
-
-          <Link
-            to="/shop?collection=bestsellers"
-            aria-current={
-              collection ===
-              "bestsellers"
-                ? "page"
-                : undefined
-            }
-          >
-            Bestsellers
-          </Link>
-
-
-          <Link
-            to="/shop?collection=new"
-            aria-current={
-              collection ===
-              "new"
-                ? "page"
-                : undefined
-            }
-          >
-            New arrivals
-          </Link>
+          {Object.entries(COLLECTIONS).map(
+            ([value, label]) => (
+              <Link
+                key={value}
+                to={collectionPath(value)}
+                aria-current={
+                  collection === value
+                    ? "page"
+                    : undefined
+                }
+              >
+                {label}
+              </Link>
+            ),
+          )}
         </div>
-
-
-        {/* SORT */}
 
         <label className="sort-label">
           Sort by:{" "}
 
-
           <select
             value={
-              params.get(
-                "sort"
-              ) ||
+              params.get("sort") ||
               "recommended"
             }
-            onChange={(
-              event
-            ) =>
+            onChange={(event) =>
               change({
-                sort:
-                  event.target
-                    .value,
+                sort: event.target.value,
               })
             }
           >
@@ -1802,31 +874,25 @@ export default function ProductSection() {
               Recommended
             </option>
 
-
             <option value="bestseller">
               Bestsellers
             </option>
-
 
             <option value="rating">
               Customer rating
             </option>
 
-
             <option value="discount">
               Best discount
             </option>
-
 
             <option value="price-low">
               Price: Low to high
             </option>
 
-
             <option value="price-high">
               Price: High to low
             </option>
-
 
             <option value="newest">
               New arrivals
@@ -1835,82 +901,48 @@ export default function ProductSection() {
         </label>
       </div>
 
-
-      {/* ===============================================
-          SHOP
-      =============================================== */}
-
       <div className="shop-layout">
-        {/* DESKTOP FILTERS */}
-
         <aside
           className="desktop-filters"
           aria-label="Product filters"
         >
-          <Filters
-            {...filters}
-          />
+          <Filters {...filters} />
         </aside>
-
-
-        {/* RESULTS */}
 
         <div
           className="shop-results"
           id="shop-results"
+          aria-busy={loading}
         >
-          {/* ===========================================
-              FILTER CHIPS
-          ============================================ */}
-
-          {chips.length >
-            0 && (
+          {chips.length > 0 && (
             <div className="active-filter-area">
               <div className="filter-chips">
-                {chips.map(
-                  (
-                    [
+                {chips.map(([key, value]) => (
+                  <button
+                    type="button"
+                    key={`${key}-${value}`}
+                    onClick={() =>
+                      removeChip(key, value)
+                    }
+                    aria-label={`Remove ${key} filter: ${chipLabel(
                       key,
                       value,
-                    ]
-                  ) => (
-                    <button
-                      type="button"
-                      key={`${key}-${value}`}
-                      onClick={() =>
-                        removeChip(
-                          key,
-                          value
-                        )
-                      }
-                      aria-label={`Remove ${chipLabel(
-                        key,
-                        value
-                      )}`}
-                    >
-                      {chipLabel(
-                        key,
-                        value
-                      )}
+                    )}`}
+                  >
+                    {chipLabel(key, value)}
 
-
-                      <span aria-hidden="true">
-                        ×
-                      </span>
-                    </button>
-                  )
-                )}
+                    <span aria-hidden="true">
+                      ×
+                    </span>
+                  </button>
+                ))}
               </div>
 
-
-              {activeFilterCount >
-                1 && (
+              {activeFilterCount > 1 && (
                 <button
                   type="button"
                   className="text-link"
-                  onClick={
-                    reset
-                  }
+                  onClick={reset}
                 >
                   Clear filters
                 </button>
@@ -1918,17 +950,9 @@ export default function ProductSection() {
             </div>
           )}
 
-
-          {/* ===========================================
-              LOADING
-          ============================================ */}
-
           {loading && (
             <div className="empty-state">
-              <h2>
-                Loading products...
-              </h2>
-
+              <h2>Loading products...</h2>
 
               <p>
                 Getting the latest GymDrobe products.
@@ -1936,302 +960,169 @@ export default function ProductSection() {
             </div>
           )}
 
+          {!loading && loadError && (
+            <div
+              className="empty-state"
+              role="alert"
+            >
+              <h2>Unable to load products</h2>
 
-          {/* ===========================================
-              ERROR
-          ============================================ */}
-
-          {!loading &&
-            loadError && (
-            <div className="empty-state">
-              <h2>
-                Unable to load products
-              </h2>
-
-
-              <p>
-                {loadError}
-              </p>
-
+              <p>{errorMessage}</p>
 
               <button
                 type="button"
                 className="button"
-                onClick={
-                  refreshProducts
-                }
+                onClick={() => refreshProducts()}
               >
                 Try again
               </button>
             </div>
           )}
 
-
-          {/* ===========================================
-              PRODUCT GRID
-          ============================================ */}
-
           {!loading &&
             !loadError &&
-            result.length >
-              0 && (
-            <>
-              <div className="shop-results-head">
-                <span className="muted">
-                  {startIndex}–
-                  {endIndex} of{" "}
-                  {result.length}
-                </span>
-              </div>
+            result.length > 0 && (
+              <>
+                <div className="shop-results-head">
+                  <span className="muted">
+                    {startIndex}–{endIndex} of{" "}
+                    {result.length}
+                  </span>
+                </div>
 
-
-              <div className="product-grid">
-                {result
-                  .slice(
-                    (
-                      page -
-                      1
-                    ) *
-                      PAGE_SIZE,
-
-                    page *
-                      PAGE_SIZE
-                  )
-                  .map(
-                    (
-                      product
-                    ) => (
+                <div className="product-grid">
+                  {result
+                    .slice(
+                      (page - 1) * PAGE_SIZE,
+                      page * PAGE_SIZE,
+                    )
+                    .map((product) => (
                       <ProductCard
                         key={
                           product.id ||
                           product._id
                         }
-                        product={
-                          product
-                        }
+                        product={product}
                       />
-                    )
-                  )}
-              </div>
+                    ))}
+                </div>
 
-
-              {/* =======================================
-                  PAGINATION
-              ======================================== */}
-
-              {pages >
-                1 && (
-                <nav
-                  className="pagination"
-                  aria-label="Product pages"
-                >
-                  <button
-                    type="button"
-                    disabled={
-                      page ===
-                      1
-                    }
-                    onClick={() =>
-                      change({
-                        page:
-                          String(
-                            page -
-                              1
-                          ),
-                      })
-                    }
+                {pages > 1 && (
+                  <nav
+                    className="pagination"
+                    aria-label="Product pages"
                   >
-                    Previous
-                  </button>
+                    <button
+                      type="button"
+                      disabled={page === 1}
+                      onClick={() =>
+                        change({
+                          page: String(page - 1),
+                        })
+                      }
+                    >
+                      Previous
+                    </button>
 
+                    <span>
+                      Page{" "}
+                      <strong>{page}</strong>{" "}
+                      of{" "}
+                      <strong>{pages}</strong>
+                    </span>
 
-                  <span>
-                    Page{" "}
-                    <strong>
-                      {page}
-                    </strong>{" "}
-                    of{" "}
-                    <strong>
-                      {pages}
-                    </strong>
-                  </span>
-
-
-                  <button
-                    type="button"
-                    disabled={
-                      page ===
-                      pages
-                    }
-                    onClick={() =>
-                      change({
-                        page:
-                          String(
-                            page +
-                              1
-                          ),
-                      })
-                    }
-                  >
-                    Next
-                  </button>
-                </nav>
-              )}
-            </>
-          )}
-
-
-          {/* ===========================================
-              EMPTY STATE
-          ============================================ */}
+                    <button
+                      type="button"
+                      disabled={page === pages}
+                      onClick={() =>
+                        change({
+                          page: String(page + 1),
+                        })
+                      }
+                    >
+                      Next
+                    </button>
+                  </nav>
+                )}
+              </>
+            )}
 
           {!loading &&
             !loadError &&
-            result.length ===
-              0 && (
-            <div className="empty-state">
-              <h2>
-                {products.length ===
-                0
-                  ? "No products are available yet"
+            result.length === 0 && (
+              <div className="empty-state">
+                <h2>
+                  {products.length === 0
+                    ? "No products are available yet"
+                    : searchQuery
+                      ? `No results for “${searchQuery}”`
+                      : "No products match your filters"}
+                </h2>
 
-                  : searchQuery
-                    ? `No results for “${searchQuery}”`
+                <p>
+                  {products.length === 0
+                    ? "Products added to GymDrobe will appear here."
+                    : "Try another category or remove some filters to explore the collection."}
+                </p>
 
-                    : "No products match your filters"}
-              </h2>
+                {products.length > 0 && (
+                  <div className="empty-actions">
+                    {activeFilterCount > 0 && (
+                      <button
+                        type="button"
+                        className="button"
+                        onClick={reset}
+                      >
+                        Clear filters
+                      </button>
+                    )}
 
-
-              <p>
-                {products.length ===
-                0
-                  ? "Products added to GymDrobe will appear here."
-
-                  : searchQuery
-                    ? "Try a different product name, brand or category, or remove some filters."
-
-                    : "Remove a filter or explore the complete GymDrobe collection."}
-              </p>
-
-
-              {products.length >
-                0 && (
-                <div className="empty-actions">
-                  {chips.length >
-                    0 && (
                     <button
                       type="button"
-                      className="button"
-                      onClick={
-                        reset
+                      className="button secondary"
+                      onClick={() =>
+                        setParams({})
                       }
                     >
-                      Clear filters
+                      Browse all products
                     </button>
-                  )}
-
-
-                  <button
-                    type="button"
-                    className="button secondary"
-                    onClick={
-                      browseAll
-                    }
-                  >
-                    Browse all products
-                  </button>
-                </div>
-              )}
-
-
-              {searchQuery && (
-                <p>
-                  Try popular sections:{" "}
-
-                  <Link
-                    className="text-link"
-                    to="/shop?collection=bestsellers"
-                  >
-                    Bestsellers
-                  </Link>
-
-                  {" · "}
-
-                  <Link
-                    className="text-link"
-                    to="/shop?collection=featured"
-                  >
-                    Trending
-                  </Link>
-
-                  {" · "}
-
-                  <Link
-                    className="text-link"
-                    to="/shop?collection=new"
-                  >
-                    New arrivals
-                  </Link>
-                </p>
-              )}
-            </div>
-          )}
+                  </div>
+                )}
+              </div>
+            )}
         </div>
       </div>
-
-
-      {/* ===============================================
-          MOBILE FILTER MODAL
-      =============================================== */}
 
       {drawer && (
         <Modal
           title={
-            activeFilterCount >
-            0
+            activeFilterCount > 0
               ? `Filters (${activeFilterCount})`
               : "Filter products"
           }
           className="filter-modal"
-          onClose={() =>
-            setDrawer(
-              false
-            )
-          }
+          onClose={() => setDrawer(false)}
         >
-          <Filters
-            {...filters}
-          />
-
+          <Filters {...filters} />
 
           <div className="mobile-filter-actions">
-            {activeFilterCount >
-              0 && (
+            {activeFilterCount > 0 && (
               <button
                 type="button"
                 className="button secondary full"
-                onClick={
-                  reset
-                }
+                onClick={reset}
               >
                 Clear filters
               </button>
             )}
 
-
             <button
               type="button"
               className="button full"
-              onClick={() =>
-                setDrawer(
-                  false
-                )
-              }
+              onClick={() => setDrawer(false)}
             >
-              Show{" "}
-              {result.length}{" "}
-              {result.length ===
-              1
+              Show {result.length}{" "}
+              {result.length === 1
                 ? "product"
                 : "products"}
             </button>

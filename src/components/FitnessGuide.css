@@ -10,11 +10,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  width: 44px;
+  height: 44px;
   min-height: 44px;
-  padding: 11px 15px;
+  padding: 0;
+  box-sizing: border-box;
   border: 1px solid #c2410c;
-  border-radius: 24px;
+  border-radius: 50%;
   color: #9a3412;
   background: #fffaf6;
   box-shadow: 0 4px 18px #17202a14;

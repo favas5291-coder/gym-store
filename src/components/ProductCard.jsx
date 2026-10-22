@@ -188,22 +188,6 @@ export default function ProductCard({
             OUT OF STOCK
           </span>
         )}
-
-        <div className="gm-card-action">
-          {available ? (
-            <button
-              type="button"
-              aria-label={`Quick add ${item.name}`}
-              onClick={openQuick}
-            >
-              QUICK ADD
-            </button>
-          ) : (
-            <Link to={path}>
-              VIEW PRODUCT
-            </Link>
-          )}
-        </div>
       </div>
 
       <div className="gm-product-copy">
@@ -273,6 +257,7 @@ export default function ProductCard({
             <button
               type="button"
               className="button full"
+              aria-label={`Quick add ${item.name}`}
               onClick={openQuick}
             >
               Quick add

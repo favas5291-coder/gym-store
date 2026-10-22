@@ -12,7 +12,14 @@ import {
   useNavigate,
 } from "react-router-dom";
 
-import { matchesSearch } from "../utils/catalog.js";
+import {
+  SHOP_DEPARTMENTS,
+  catalogOptions,
+  catalogProducts,
+  matchesSearch,
+  productDepartment,
+} from "../utils/catalog.js";
+
 import { asset } from "../data/assets.js";
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -21,245 +28,102 @@ import "./GymDrobeStorefront.css";
 
 const logoImage = asset("new logo.png");
 
-const RECENT_SEARCH_KEY = "gymdrobe-recent-searches";
+const RECENT_SEARCH_KEY =
+  "gymdrobe-recent-searches";
+
 const MAX_RECENT_SEARCHES = 6;
 
-const navigationGroups = [
-  {
-    id: "workout",
-    label: "WORKOUT",
-    accent: "#f97316",
-    columns: [
-      {
-        title: "Workout Clothing",
-        links: [
-          {
-            label: "All Workout Clothes",
-            category: "Workout Clothes",
-          },
-          {
-            label: "T-Shirts",
-            category: "Workout Clothes",
-            subcategory: "T-Shirts",
-          },
-        ],
-      },
-      {
-        title: "Workout Essentials",
-        links: [
-          {
-            label: "Training Socks",
-            category: "Socks",
-          },
-          {
-            label: "Gym Towels",
-            category: "Gym Towels",
-          },
-        ],
-      },
-      {
-        title: "Shop By",
-        links: [
-          {
-            label: "Bestsellers",
-            query: "bestseller",
-          },
-          {
-            label: "New Arrivals",
-            query: "new",
-          },
-          {
-            label: "Top Rated",
-            query: "top rated",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "shoes",
-    label: "SHOES",
-    accent: "#2563eb",
-    columns: [
-      {
-        title: "Gym Shoes",
-        links: [
-          {
-            label: "All Gym Shoes",
-            category: "Gym Shoes",
-          },
-          {
-            label: "Training Shoes",
-            category: "Gym Shoes",
-            subcategory: "Training Shoes",
-          },
-        ],
-      },
-      {
-        title: "Shop By Activity",
-        links: [
-          {
-            label: "Training",
-            query: "training shoes",
-          },
-          {
-            label: "Running",
-            query: "running shoes",
-          },
-          {
-            label: "Sports",
-            query: "sports shoes",
-          },
-        ],
-      },
-      {
-        title: "Popular",
-        links: [
-          {
-            label: "Top Rated Shoes",
-            query: "top rated shoes",
-          },
-          {
-            label: "GymDrobe Shoes",
-            query: "gymdrobe shoes",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "accessories",
-    label: "ACCESSORIES",
-    accent: "#9333ea",
-    columns: [
-      {
-        title: "Gym Accessories",
-        links: [
-          {
-            label: "Gym Towels",
-            category: "Gym Towels",
-          },
-          {
-            label: "Training Socks",
-            category: "Socks",
-          },
-          {
-            label: "Headphones",
-            category: "Headphones",
-          },
-        ],
-      },
-      {
-        title: "Workout Gear",
-        links: [
-          {
-            label: "Workout Towels",
-            category: "Gym Towels",
-            subcategory: "Workout Towels",
-          },
-          {
-            label: "Sports Socks",
-            category: "Socks",
-            subcategory: "Sports Socks",
-          },
-        ],
-      },
-      {
-        title: "Discover",
-        links: [
-          {
-            label: "Trending Gear",
-            query: "trending",
-          },
-          {
-            label: "Popular Accessories",
-            query: "popular",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "hydration",
-    label: "HYDRATION",
-    accent: "#0891b2",
-    columns: [
-      {
-        title: "Water Bottles",
-        links: [
-          {
-            label: "All Water Bottles",
-            category: "Water Bottles",
-          },
-          {
-            label: "Sports Bottles",
-            category: "Water Bottles",
-            subcategory: "Sports Bottles",
-          },
-        ],
-      },
-      {
-        title: "Shaker Bottles",
-        links: [
-          {
-            label: "All Shakers",
-            category: "Shaker Bottles",
-          },
-          {
-            label: "Protein Shakers",
-            category: "Shaker Bottles",
-            subcategory: "Protein Shakers",
-          },
-        ],
-      },
-      {
-        title: "Popular Searches",
-        links: [
-          {
-            label: "Gym Bottles",
-            query: "gym bottle",
-          },
-          {
-            label: "Protein Shakers",
-            query: "protein shaker",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "supplements",
-    label: "SUPPLEMENTS",
-    accent: "#16a34a",
-    columns: [
-      {
-        title: "Protein",
-        links: [
-          {
-            label: "Shop Protein",
-            category: "Protein",
-          },
-        ],
-      },
-      {
-        title: "Fitness Nutrition",
-        links: [
-          {
-            label: "Protein Products",
-            query: "protein",
-          },
-          {
-            label: "Workout Nutrition",
-            query: "workout nutrition",
-          },
-        ],
-      },
-    ],
-  },
-];
+function buildNavigationGroups(products) {
+  const catalogue = catalogProducts(products);
+
+  return SHOP_DEPARTMENTS.map((department) => {
+    const scoped = catalogue.filter(
+      (product) =>
+        productDepartment(product) === department.id,
+    );
+
+    const scope = {
+      department: department.id,
+    };
+
+    return {
+      ...department,
+
+      columns: [
+        {
+          title: "Explore the collection",
+
+          links: [
+            {
+              label: `All ${department.title.toLowerCase()}`,
+              ...scope,
+            },
+
+            ...catalogOptions(scoped, "category")
+              .slice(0, 12)
+              .map((category) => ({
+                label: category,
+                category,
+                ...scope,
+              })),
+          ],
+        },
+
+        {
+          title: "Shop by",
+
+          links: [
+            {
+              label: "Trending",
+              collection: "featured",
+              ...scope,
+            },
+            {
+              label: "Bestsellers",
+              collection: "bestsellers",
+              ...scope,
+            },
+            {
+              label: "New arrivals",
+              collection: "new",
+              ...scope,
+            },
+            {
+              label: "Top rated",
+              rating: "4",
+              sort: "rating",
+              ...scope,
+            },
+          ],
+        },
+
+        {
+          title: "Shop by brand",
+
+          links: [
+            {
+              label: "All brands",
+              ...scope,
+            },
+
+            ...catalogOptions(scoped, "brand")
+              .slice(0, 8)
+              .map((brand) => ({
+                label: brand,
+                brand,
+                ...scope,
+              })),
+          ],
+        },
+      ],
+    };
+  });
+}
 
 function normalizeText(value) {
-  return String(value ?? "").toLowerCase().trim();
+  return String(value ?? "")
+    .toLowerCase()
+    .trim();
 }
 
 function safeCount(value) {
@@ -306,37 +170,26 @@ function getRecentSearches() {
 function shopPath(link) {
   const params = new URLSearchParams();
 
-  if (link.category) {
-    params.set("category", link.category);
-
-    if (link.subcategory) {
-      params.set("subcategory", link.subcategory);
-    }
-  } else if (link.query) {
-    const query = link.query.toLowerCase();
-
-    if (query === "bestseller") {
-      params.set("collection", "bestsellers");
-    } else if (query === "new") {
-      params.set("collection", "new");
-    } else if (
-      query === "trending" ||
-      query === "popular"
+  for (const key of [
+    "department",
+    "category",
+    "subcategory",
+    "brand",
+    "collection",
+    "sort",
+    "rating",
+    "search",
+  ]) {
+    if (
+      typeof link[key] === "string" &&
+      link[key].trim()
     ) {
-      params.set("collection", "featured");
-    } else if (query.startsWith("top rated")) {
-      params.set("sort", "rating");
-
-      if (query.includes("shoes")) {
-        params.set("category", "Gym Shoes");
-      }
-    } else {
-      params.set("search", link.query);
+      params.set(key, link[key].trim());
     }
   }
 
   return params.size
-    ? `/shop?${params.toString()}`
+    ? `/shop?${params}`
     : "/shop";
 }
 
@@ -348,25 +201,30 @@ function Icon({ name, size = 22 }) {
         <path d="m16 16 4 4" />
       </>
     ),
+
     heart: (
       <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" />
     ),
+
     bag: (
       <>
         <path d="M6 8h12l1 13H5L6 8Z" />
         <path d="M9 8V6a3 3 0 0 1 6 0v2" />
       </>
     ),
+
     user: (
       <>
         <circle cx="12" cy="8" r="4" />
         <path d="M4 21c.8-4.2 3.4-6 8-6s7.2 1.8 8 6" />
       </>
     ),
+
     menu: <path d="M4 6h16M4 12h16M4 18h16" />,
     close: <path d="m6 6 12 12M18 6 6 18" />,
     chevron: <path d="m6 9 6 6 6-6" />,
     arrow: <path d="M5 12h14m-6-6 6 6-6 6" />,
+
     history: (
       <>
         <path d="M3 10a9 9 0 1 1 2 8M3 4v6h6" />
@@ -484,14 +342,17 @@ function SearchBox({
           type: "product",
           product,
           label: product.name,
+
           href: `/product/${encodeURIComponent(
             String(product.id),
           )}`,
         })),
+
         {
           type: "query",
           label: `Search all results for “${clean}”`,
           query: clean,
+
           href: `/shop?${new URLSearchParams({
             search: clean,
           })}`,
@@ -501,6 +362,7 @@ function SearchBox({
         type: "query",
         label: query,
         query,
+
         href: `/shop?${new URLSearchParams({
           search: query,
         })}`,
@@ -526,9 +388,6 @@ function SearchBox({
       }
     }
 
-    // Do not close suggestions on input blur.
-    // Mobile browsers can blur before delivering
-    // the customer's tap on a suggestion.
     document.addEventListener(
       "pointerdown",
       outside,
@@ -740,10 +599,12 @@ function SearchBox({
                     textAlign: "left",
                     font: "inherit",
                     color: "inherit",
+
                     background:
                       index === active
                         ? "#f5f5f6"
                         : "#fff",
+
                     touchAction: "manipulation",
                   }}
                   onPointerMove={(event) => {
@@ -754,8 +615,7 @@ function SearchBox({
                     }
                   }}
                   onClick={() => {
-                    // Keep this link mounted and let
-                    // React Router handle navigation.
+                    // Keep the link mounted so the tap can navigate.
                     if (option.type === "query") {
                       onRemember?.(option.query);
                     }
@@ -783,6 +643,7 @@ function SearchBox({
                     {option.type === "product" && (
                       <small>
                         {option.product.category}
+
                         {option.product.brand
                           ? ` · ${option.product.brand}`
                           : ""}
@@ -812,7 +673,10 @@ function SearchBox({
         </div>
       )}
 
-      <span className="gn-sr" role="status">
+      <span
+        className="gn-sr"
+        role="status"
+      >
         {open && clean
           ? `${matches.length} product suggestions`
           : ""}
@@ -827,6 +691,13 @@ export default function Navbar({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const { products } = useCatalog();
+
+  const navigationGroups = useMemo(
+    () => buildNavigationGroups(products),
+    [products],
+  );
 
   const {
     user,
@@ -958,7 +829,10 @@ export default function Navbar({
     if (!drawerOpen) return undefined;
 
     const element = dialog.current;
-    const previousFocus = document.activeElement;
+
+    const previousFocus =
+      document.activeElement;
+
     const previousOverflow =
       document.body.style.overflow;
 
@@ -983,7 +857,10 @@ export default function Navbar({
       }
     }
 
-    desktop.addEventListener("change", resize);
+    desktop.addEventListener(
+      "change",
+      resize,
+    );
 
     return () => {
       desktop.removeEventListener(
@@ -1015,6 +892,7 @@ export default function Navbar({
   function remember(value) {
     const updated = [
       value,
+
       ...getRecentSearches().filter(
         (item) =>
           normalizeText(item) !==
@@ -1068,11 +946,14 @@ export default function Navbar({
       navigate(
         {
           pathname: "/shop",
+
           search: params.size
             ? `?${params}`
             : "",
         },
-        { replace: true },
+        {
+          replace: true,
+        },
       );
     }
   }
@@ -1102,6 +983,7 @@ export default function Navbar({
 
     try {
       await logout();
+
       closeMenus();
       navigate("/");
     } catch {
@@ -1173,14 +1055,16 @@ export default function Navbar({
           aria-label="Main categories"
         >
           {navigationGroups.map((group) => (
-            <button
+            <Link
+              to={shopPath({
+                department: group.id,
+              })}
               key={group.id}
               ref={(node) => {
                 triggers.current[group.id] =
                   node;
               }}
               id={`${menuId}-trigger-${group.id}`}
-              type="button"
               className="gn-trigger"
               aria-expanded={
                 activeMenu === group.id
@@ -1197,9 +1081,7 @@ export default function Navbar({
                   setActiveMenu(group.id);
                 }
               }}
-              onClick={() =>
-                setActiveMenu(group.id)
-              }
+              onClick={closeMenus}
               onKeyDown={(event) => {
                 if (
                   event.key === "ArrowDown"
@@ -1219,7 +1101,7 @@ export default function Navbar({
               }}
             >
               {group.label}
-            </button>
+            </Link>
           ))}
 
           <Link
@@ -1564,7 +1446,10 @@ export default function Navbar({
                 onClick={closeMenus}
               >
                 SHOP ALL{" "}
-                <Icon name="arrow" size={18} />
+                <Icon
+                  name="arrow"
+                  size={18}
+                />
               </Link>
             </div>
           </div>
@@ -1583,15 +1468,15 @@ export default function Navbar({
         </Link>
 
         {navigationGroups.map((group) => (
-          <button
+          <Link
             key={group.id}
-            type="button"
-            onClick={() =>
-              openDrawer(group.id)
-            }
+            to={shopPath({
+              department: group.id,
+            })}
+            onClick={closeMenus}
           >
             {group.label}
-          </button>
+          </Link>
         ))}
 
         <Link
@@ -1774,7 +1659,10 @@ export default function Navbar({
             onClick={closeMenus}
           >
             All products{" "}
-            <Icon name="arrow" size={17} />
+            <Icon
+              name="arrow"
+              size={17}
+            />
           </Link>
 
           <Link

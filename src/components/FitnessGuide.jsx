@@ -271,16 +271,6 @@ function RecommendationItem({
           {money(row.pricePaise / 100)}
         </strong>
 
-        {!answers.kit && (
-          <p className="gd-guide-muted">
-            Estimated standard delivery:{" "}
-            {money(row.estimate.shippingPaise / 100)}
-            {" · "}
-            Estimated total for this option:{" "}
-            {money(row.estimate.totalPaise / 100)}
-          </p>
-        )}
-
         <p>{row.reason}</p>
 
         <form
@@ -651,9 +641,24 @@ export default function FitnessGuide() {
             type="button"
             onClick={open}
             aria-haspopup="dialog"
+            aria-label="Help me choose products"
+            title="Help me choose products"
           >
-            <span aria-hidden="true">✦</span>
-            Help Me Choose Products
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="m12 3 2.7 6.3L21 12l-6.3 2.7L12 21l-2.7-6.3L3 12l6.3-2.7L12 3Z" />
+              <path d="M20 3v4m-2-2h4" />
+            </svg>
           </button>
 
           {launcherMessage && (
@@ -1116,74 +1121,16 @@ export default function FitnessGuide() {
                       </p>
                     )}
 
-                    {result.combined ? (
-                      <div className="gd-guide-total">
-                        <h4>
-                          A starting selection for your kit
-                        </h4>
-
-                        <p>
-                          These are individual products,
-                          with one of each shown below.
-                          This may be a partial selection.
-                          Add only the items you want.
-                        </p>
-
-                        <dl>
-                          <div>
-                            <dt>Suggested items</dt>
-                            <dd>
-                              {money(
-                                result.estimate
-                                  .subtotalPaise / 100,
-                              )}
-                            </dd>
-                          </div>
-
-                          <div>
-                            <dt>
-                              Estimated standard delivery
-                            </dt>
-                            <dd>
-                              {money(
-                                result.estimate
-                                  .shippingPaise / 100,
-                              )}
-                            </dd>
-                          </div>
-
-                          <div>
-                            <dt>Estimated total</dt>
-                            <dd>
-                              <strong>
-                                {money(
-                                  result.estimate
-                                    .totalPaise / 100,
-                                )}
-                              </strong>
-                            </dd>
-                          </div>
-                        </dl>
-
-                        <p className="gd-guide-muted">
-                          Final delivery charges are
-                          confirmed at checkout. Existing
-                          bag items and extra quantities
-                          are not included in this estimate.
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="gd-guide-notice">
-                        <strong>
-                          These products are alternatives.
-                        </strong>
-                        {" "}
-                        Each option fits your budget with
-                        estimated standard delivery when
-                        bought on its own. The whole list
-                        is not a combined basket.
-                      </p>
-                    )}
+                    <div className="gd-guide-notice">
+                      <strong>
+                        {result.combined
+                          ? "Build your own essentials."
+                          : "Find your next gym essential."}
+                      </strong>{" "}
+                      {result.combined
+                        ? "Explore these suggestions and add only what you need. Each product is sold separately."
+                        : "These are individual options. Choose the products that suit you."}
+                    </div>
 
                     <div className="gd-guide-results">
                       {result.rows.map((row) => (

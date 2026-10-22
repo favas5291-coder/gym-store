@@ -15,6 +15,12 @@ const PAYMENT_METHODS = [
   "cod-partial",
 ];
 
+const PAYMENT_REQUEST_TIMEOUT = 45000;
+const PAYMENT_CHECK_TIMEOUT = 55000;
+
+const creatingOrders = new Map();
+const verifyingPayments = new Map();
+
 function paymentError(
   message,
   {
@@ -32,6 +38,90 @@ function paymentError(
   return error;
 }
 
+function accessIdentity(token) {
+  return token
+    ? `account:${token}`
+    : `guest:${guestAccess()?.token || ""}`;
+}
+
+function snapshot(value) {
+  try {
+    return JSON.parse(
+      JSON.stringify(value),
+    );
+  } catch {
+    throw paymentError(
+      "Payment information could not be prepared. Review checkout and try again.",
+      {
+        code: "INVALID_CHECKOUT_DATA",
+      },
+    );
+  }
+}
+
+function shareRequest(
+  pending,
+  key,
+  body,
+  run,
+) {
+  const signature = JSON.stringify(body);
+  const existing = pending.get(key);
+
+  if (existing) {
+    if (existing.signature !== signature) {
+      throw paymentError(
+        "This checkout is already being processed with different details. Check the existing attempt before starting another payment.",
+        {
+          code: "PAYMENT_ATTEMPT_IN_PROGRESS",
+
+          data: {
+            verificationUncertain: true,
+          },
+        },
+      );
+    }
+
+    return existing.promise;
+  }
+
+  const entry = {
+    signature,
+    promise: null,
+  };
+
+  let resolveRequest;
+  let rejectRequest;
+
+  const result = new Promise(
+    (resolve, reject) => {
+      resolveRequest = resolve;
+      rejectRequest = reject;
+    },
+  );
+
+  entry.promise = result.finally(() => {
+    if (pending.get(key) === entry) {
+      pending.delete(key);
+    }
+  });
+
+  pending.set(key, entry);
+
+  try {
+    // Capture current access headers before another action
+    // can restore a different guest code or change accounts.
+    Promise.resolve(run()).then(
+      resolveRequest,
+      rejectRequest,
+    );
+  } catch (error) {
+    rejectRequest(error);
+  }
+
+  return entry.promise;
+}
+
 async function request(
   path,
   {
@@ -40,6 +130,7 @@ async function request(
     body,
     verification = false,
     signal,
+    timeoutMs = PAYMENT_REQUEST_TIMEOUT,
   } = {},
 ) {
   if (!token && !guestAccess()) {
@@ -60,100 +151,170 @@ async function request(
     headers["Content-Type"] = "application/json";
   }
 
-  let response;
+  const serializedBody =
+    body === undefined
+      ? undefined
+      : JSON.stringify(body);
+
+  const creatingOrder =
+    method === "POST" &&
+    path === "/payments/razorpay/order";
+
+  const uncertain =
+    verification || creatingOrder;
+
+  const uncertainty = {
+    verificationUncertain: uncertain,
+    orderCreationUncertain: creatingOrder,
+  };
+
+  const controller = new AbortController();
+
+  let timedOut = false;
+
+  const abort = () => {
+    controller.abort();
+  };
+
+  function interrupted() {
+    return paymentError(
+      verification
+        ? timedOut
+          ? "Payment confirmation timed out. Your payment may have succeeded. Do not pay again; check My orders or contact support."
+          : "The payment check was interrupted. Your payment may have succeeded. Do not pay again; check My orders or contact support."
+        : "Payment preparation timed out or was interrupted. The server may have created your order. Check this same checkout attempt before trying again.",
+      {
+        code: timedOut
+          ? "PAYMENT_REQUEST_TIMEOUT"
+          : "PAYMENT_REQUEST_CANCELLED",
+
+        data: uncertainty,
+      },
+    );
+  }
+
+  if (signal?.aborted) {
+    throw interrupted();
+  }
+
+  signal?.addEventListener(
+    "abort",
+    abort,
+    {
+      once: true,
+    },
+  );
+
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
 
   try {
-    response = await fetch(
-      `${API_URL}${path}`,
-      {
-        method,
-        headers,
-        cache: "no-store",
-        signal,
+    let response;
 
-        body:
-          body !== undefined
-            ? JSON.stringify(body)
-            : undefined,
-      },
-    );
-  } catch {
-    throw paymentError(
-      verification
-        ? "We could not confirm your payment because the connection was interrupted. Your payment may have succeeded. Do not pay again; check My orders or contact support."
-        : "Unable to connect to GymDrobe to start payment. Check your connection and try again.",
-      {
-        code: "PAYMENT_CONNECTION_FAILED",
-
-        data: {
-          verificationUncertain: verification,
+    try {
+      response = await fetch(
+        `${API_URL}${path}`,
+        {
+          method,
+          headers,
+          cache: "no-store",
+          signal: controller.signal,
+          body: serializedBody,
         },
-      },
-    );
-  }
+      );
+    } catch {
+      if (controller.signal.aborted) {
+        throw interrupted();
+      }
 
-  let data;
-
-  try {
-    data = await response.json();
-  } catch {
-    throw paymentError(
-      verification
-        ? "The payment server returned an unreadable response. Your payment may have succeeded. Do not pay again; check My orders or contact support."
-        : "The payment server returned an unreadable response. Please try again later.",
-      {
-        status: response.status,
-        code: "INVALID_PAYMENT_RESPONSE",
-
-        data: {
-          verificationUncertain: verification,
+      throw paymentError(
+        verification
+          ? "We could not confirm your payment because the connection was interrupted. Your payment may have succeeded. Do not pay again; check My orders or contact support."
+          : "Connection lost while preparing payment. The server may have created your order. Check this same checkout attempt before trying again.",
+        {
+          code: "PAYMENT_CONNECTION_FAILED",
+          data: uncertainty,
         },
-      },
-    );
-  }
+      );
+    }
 
-  if (
-    !data ||
-    typeof data !== "object" ||
-    Array.isArray(data) ||
-    typeof data.success !== "boolean"
-  ) {
-    throw paymentError(
-      verification
-        ? "Your payment confirmation could not be read. Do not pay again; check My orders or contact support."
-        : "Payment could not be started. Please try again later.",
-      {
-        status: response.status,
-        code: "INVALID_PAYMENT_RESPONSE",
+    let data;
 
-        data: {
-          verificationUncertain: verification,
+    try {
+      data = await response.json();
+    } catch {
+      if (controller.signal.aborted) {
+        throw interrupted();
+      }
+
+      throw paymentError(
+        verification
+          ? "The payment server returned an unreadable response. Your payment may have succeeded. Do not pay again; check My orders or contact support."
+          : "The payment server returned an unreadable response. Your order may have been created. Check this same checkout attempt before trying again.",
+        {
+          status: response.status,
+          code: "INVALID_PAYMENT_RESPONSE",
+          data: uncertainty,
         },
-      },
+      );
+    }
+
+    if (controller.signal.aborted) {
+      throw interrupted();
+    }
+
+    if (
+      !data ||
+      typeof data !== "object" ||
+      Array.isArray(data) ||
+      typeof data.success !== "boolean"
+    ) {
+      throw paymentError(
+        verification
+          ? "Your payment confirmation could not be read. Do not pay again; check My orders or contact support."
+          : "Payment preparation could not be confirmed. Check this same checkout attempt before trying again.",
+        {
+          status: response.status,
+          code: "INVALID_PAYMENT_RESPONSE",
+          data: uncertainty,
+        },
+      );
+    }
+
+    if (
+      !response.ok ||
+      data.success === false
+    ) {
+      throw paymentError(
+        typeof data.message === "string" &&
+        data.message.trim()
+          ? data.message
+          : verification
+            ? "Payment confirmation failed. Check My orders before attempting another payment."
+            : "Payment could not be started. Please try again.",
+        {
+          status: response.status,
+
+          code:
+            data.code ||
+            "PAYMENT_REQUEST_FAILED",
+
+          data,
+        },
+      );
+    }
+
+    return data;
+  } finally {
+    clearTimeout(timer);
+
+    signal?.removeEventListener(
+      "abort",
+      abort,
     );
   }
-
-  if (!response.ok || data.success === false) {
-    throw paymentError(
-      typeof data.message === "string" &&
-      data.message.trim()
-        ? data.message
-        : verification
-          ? "Payment confirmation failed. Check My orders before attempting another payment."
-          : "Payment could not be started. Please try again.",
-      {
-        status: response.status,
-
-        code:
-          data.code ||
-          "PAYMENT_REQUEST_FAILED",
-
-        data,
-      },
-    );
-  }
-
-  return data;
 }
 
 function validateCheckoutData(checkoutData) {
@@ -212,16 +373,26 @@ export async function createRazorpayPaymentOrder(
 ) {
   validateCheckoutData(checkoutData);
 
-  return request(
-    "/payments/razorpay/order",
-    {
-      token,
-      method: "POST",
+  const body = snapshot(checkoutData);
 
-      body: {
-        ...checkoutData,
-      },
-    },
+  const key = JSON.stringify([
+    accessIdentity(token),
+    body.checkoutToken,
+  ]);
+
+  return shareRequest(
+    creatingOrders,
+    key,
+    body,
+    () =>
+      request(
+        "/payments/razorpay/order",
+        {
+          token,
+          method: "POST",
+          body,
+        },
+      ),
   );
 }
 
@@ -259,14 +430,27 @@ export async function verifyRazorpayPayment(
     }
   }
 
-  return request(
-    "/payments/razorpay/verify",
-    {
-      token,
-      method: "POST",
-      body: details,
-      verification: true,
-    },
+  const key = JSON.stringify([
+    accessIdentity(token),
+    checkoutToken,
+    razorpay_order_id,
+    razorpay_payment_id,
+  ]);
+
+  return shareRequest(
+    verifyingPayments,
+    key,
+    details,
+    () =>
+      request(
+        "/payments/razorpay/verify",
+        {
+          token,
+          method: "POST",
+          body: details,
+          verification: true,
+        },
+      ),
   );
 }
 
@@ -295,81 +479,57 @@ export async function checkRazorpayPayment(
     );
   }
 
-  const controller = new AbortController();
+  const path = admin
+    ? `/payments/admin/orders/${encodeURIComponent(
+        orderId,
+      )}/check`
+    : "/payments/razorpay/check";
 
-  const abort = () => controller.abort();
+  const data = await request(path, {
+    token,
+    method: "POST",
 
-  if (signal?.aborted) {
-    abort();
-  }
+    body: admin
+      ? {}
+      : { orderId },
 
-  signal?.addEventListener(
-    "abort",
-    abort,
-    { once: true },
-  );
+    verification: true,
+    signal,
+    timeoutMs: PAYMENT_CHECK_TIMEOUT,
+  });
 
-  const timer = setTimeout(abort, 55000);
+  const result = data.result;
 
-  try {
-    const path = admin
-      ? `/payments/admin/orders/${encodeURIComponent(
-          orderId,
-        )}/check`
-      : "/payments/razorpay/check";
+  if (
+    !result ||
+    ![
+      "verified",
+      "pending",
+      "authorized",
+      "review",
+    ].includes(result.state) ||
+    typeof result.message !== "string" ||
+    typeof result.orderNumber !== "string" ||
+    (
+      orderId.startsWith("GD-") &&
+      result.orderNumber !== orderId
+    ) ||
+    (
+      result.state === "verified" &&
+      result.paymentVerified !== true
+    )
+  ) {
+    throw paymentError(
+      "Payment check could not be read. Do not pay again; reload your order or contact support.",
+      {
+        code: "INVALID_PAYMENT_RESPONSE",
 
-    const data = await request(path, {
-      token,
-      method: "POST",
-
-      body: admin
-        ? {}
-        : { orderId },
-
-      verification: true,
-      signal: controller.signal,
-    });
-
-    const result = data.result;
-
-    if (
-      !result ||
-      ![
-        "verified",
-        "pending",
-        "authorized",
-        "review",
-      ].includes(result.state) ||
-      typeof result.message !== "string" ||
-      typeof result.orderNumber !== "string" ||
-      (
-        orderId.startsWith("GD-") &&
-        result.orderNumber !== orderId
-      ) ||
-      (
-        result.state === "verified" &&
-        result.paymentVerified !== true
-      )
-    ) {
-      throw paymentError(
-        "Payment check could not be read. Do not pay again; reload your order or contact support.",
-        {
-          code: "INVALID_PAYMENT_RESPONSE",
-
-          data: {
-            verificationUncertain: true,
-          },
+        data: {
+          verificationUncertain: true,
         },
-      );
-    }
-
-    return result;
-  } finally {
-    clearTimeout(timer);
-
-    signal?.removeEventListener(
-      "abort",
-      abort,
+      },
     );
   }
+
+  return result;
 }
