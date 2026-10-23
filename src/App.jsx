@@ -181,6 +181,11 @@ const AdminShippingSettingsPage = lazy(
     import("./pages/AdminShippingSettingsPage.jsx"),
 );
 
+const AdminCartAddonSettingsPage = lazy(
+  () =>
+    import("./pages/AdminCartAddonSettingsPage.jsx"),
+);
+
 const StoreConsolePage = import.meta.env.DEV
   ? lazy(
       () => import("./pages/StoreConsolePage.jsx"),
@@ -569,6 +574,13 @@ function Layout() {
 
               <Link
                 className="text-link"
+                to="/admin/cart-addons"
+              >
+                Cart add-ons
+              </Link>
+
+              <Link
+                className="text-link"
                 to="/admin/package-plans"
               >
                 Package plans
@@ -783,6 +795,10 @@ function Layout() {
                 [
                   "/admin/shipping-settings",
                   AdminShippingSettingsPage,
+                ],
+                [
+                  "/admin/cart-addons",
+                  AdminCartAddonSettingsPage,
                 ],
                 [
                   "/admin/package-plans",
