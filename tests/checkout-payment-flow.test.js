@@ -988,6 +988,7 @@ async function application({
       EmptyState: "EmptyState",
       ProductImage: "ProductImage",
       CouponBox: "CouponBox",
+      FreeShippingProgress: "FreeShippingProgress",
 
       CheckoutKitReview:
         "CheckoutKitReview",

@@ -13,12 +13,17 @@ import { useStore } from "../context/StoreContext.jsx";
 import Modal from "./Modal.jsx";
 import { ProductImage } from "./StorefrontShared.jsx";
 
-import { getVariantStock } from "../utils/cartUtils.js";
+import {
+  getCartItemKey,
+  getVariantStock,
+  normalizeCartItem,
+} from "../utils/cartUtils.js";
 import { selectedProductImage } from "../utils/productImages.js";
 import { optionLabels } from "../utils/productInformation.js";
 import { money } from "../utils/productPricing.js";
 
 import {
+  MAX_PURCHASE_QUANTITY,
   productReference,
   purchaseOptions,
   purchaseState,
@@ -66,6 +71,8 @@ function RecommendationItem({
   row,
   answers,
   onLeave,
+  chosenKeys,
+  onChoose,
 }) {
   const { addToCart, notify } = useStore();
 
@@ -79,7 +86,6 @@ function RecommendationItem({
   const [color, setColor] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [added, setAdded] = useState(false);
 
   const lock = useRef(false);
   const mounted = useRef(false);
@@ -98,6 +104,11 @@ function RecommendationItem({
   const sizes = purchaseOptions(product.sizes);
   const colors = purchaseOptions(product.colors);
   const labels = optionLabels(product);
+  const added = chosenKeys.includes(
+    getCartItemKey(
+      normalizeCartItem(product, 1, size || null, color || null),
+    ),
+  );
 
   const path = `/product/${encodeURIComponent(
     productReference(product),
@@ -106,7 +117,7 @@ function RecommendationItem({
   async function add(event) {
     event.preventDefault();
 
-    if (lock.current) return;
+    if (lock.current || added) return;
 
     const selection = purchaseState(
       product,
@@ -131,7 +142,6 @@ function RecommendationItem({
     lock.current = true;
     setBusy(true);
     setError("");
-    setAdded(false);
 
     try {
       const products = await refreshProducts();
@@ -155,13 +165,17 @@ function RecommendationItem({
         answers,
       );
 
-      const stillRecommended = reviewed.rows.some(
+      const currentRecommendation = reviewed.rows.find(
         (item) =>
           String(productReference(item.product)) ===
           String(productReference(product)),
       );
 
-      if (!current || !stillRecommended) {
+      if (
+        !current ||
+        !currentRecommendation ||
+        currentRecommendation.pricePaise !== row.pricePaise
+      ) {
         throw new Error(
           "Prices, stock or suggestions changed. Review the updated selection before adding.",
         );
@@ -192,10 +206,12 @@ function RecommendationItem({
         );
       }
 
-      setAdded(true);
+      onChoose(
+        normalizeCartItem(current, 1, size || null, color || null),
+      );
     } catch (failure) {
       const message =
-        failure.message ||
+        failure?.message ||
         "Unable to add this item. Please retry.";
 
       if (mounted.current) {
@@ -214,7 +230,6 @@ function RecommendationItem({
 
   function changeColor(value) {
     setColor(value);
-    setAdded(false);
 
     if (
       sizes.length &&
@@ -271,7 +286,12 @@ function RecommendationItem({
           {money(row.pricePaise / 100)}
         </strong>
 
-        <p>{row.reason}</p>
+        <p>
+          {row.reason.replace(
+            "Store goal tag:",
+            "Tagged in our catalogue for:",
+          )}
+        </p>
 
         <form
           onSubmit={add}
@@ -329,7 +349,6 @@ function RecommendationItem({
                 onChange={(event) => {
                   setSize(event.target.value);
                   setError("");
-                  setAdded(false);
                 }}
                 aria-invalid={Boolean(error && !size)}
               >
@@ -377,8 +396,8 @@ function RecommendationItem({
 
           {added && (
             <p className="gd-guide-added" role="status">
-              Added to your bag. Your other items are
-              still there.
+              Added to your bag. You can change the
+              quantity in your chosen items below.
             </p>
           )}
 
@@ -395,10 +414,10 @@ function RecommendationItem({
               className="button"
               type="submit"
               disabled={
-                busy || refreshing || !catalogReady
+                added || busy || refreshing || !catalogReady
               }
             >
-              {busy ? "Checking…" : "Add to Cart"}
+              {busy ? "Checking…" : added ? "Added to Cart" : "Add to Cart"}
             </button>
           </div>
         </form>
@@ -407,8 +426,140 @@ function RecommendationItem({
   );
 }
 
+function ChosenSuggestions({ items, onForget }) {
+  const { updateQuantity, removeFromCart } = useStore();
+  const { catalogReady, refreshing } = useCatalog();
+  const [error, setError] = useState("");
+
+  if (!items.length) return null;
+
+  const subtotalPaise = items.reduce(
+    (sum, item) =>
+      sum + Math.round(Number(item.price) * 100) * Number(item.quantity),
+    0,
+  );
+
+  function changeQuantity(item, quantity) {
+    setError("");
+
+    if (!updateQuantity(getCartItemKey(item), quantity)) {
+      setError(
+        "The quantity could not be changed. Check the available stock or review your bag.",
+      );
+    }
+  }
+
+  function remove(item) {
+    const key = getCartItemKey(item);
+    setError("");
+
+    if (removeFromCart(key)) {
+      onForget(key);
+    } else {
+      setError("This item could not be removed. Please review your bag.");
+    }
+  }
+
+  return (
+    <section className="gd-guide-total" aria-label="Your chosen items">
+      <h4>Your chosen items</h4>
+
+      <p>
+        These are the products you chose here. Quantities include any
+        of these exact options already in your bag.
+      </p>
+
+      {items.map((item) => {
+        const key = getCartItemKey(item);
+        const labels = optionLabels(item);
+        const maximum = Math.min(
+          MAX_PURCHASE_QUANTITY,
+          getVariantStock(item, item.selectedSize, item.selectedColor),
+        );
+
+        return (
+          <div className="gd-guide-summary" key={key}>
+            <h4>{item.name}</h4>
+
+            <p className="gd-guide-muted">
+              {[
+                item.selectedColor
+                  ? `${labels.color}: ${item.selectedColor}`
+                  : "",
+                item.selectedSize
+                  ? `${labels.size}: ${item.selectedSize}`
+                  : "",
+              ].filter(Boolean).join(" · ") || "Standard option"}
+              {" · "}{money(item.price)} each
+            </p>
+
+            <p>
+              Quantity: {item.quantity}
+              {" · "}
+              <strong>
+                {money(
+                  (Math.round(Number(item.price) * 100) * item.quantity) / 100,
+                )}
+              </strong>
+            </p>
+
+            <div className="gd-guide-actions">
+              <button
+                type="button"
+                className="button secondary"
+                aria-label={`Decrease quantity of ${item.name}`}
+                disabled={!catalogReady || refreshing || item.quantity <= 1}
+                onClick={() => changeQuantity(item, item.quantity - 1)}
+              >
+                −
+              </button>
+
+              <button
+                type="button"
+                className="button secondary"
+                aria-label={`Increase quantity of ${item.name}`}
+                disabled={!catalogReady || refreshing || item.quantity >= maximum}
+                onClick={() => changeQuantity(item, item.quantity + 1)}
+              >
+                +
+              </button>
+
+              <button
+                type="button"
+                className="button secondary"
+                aria-label={`Remove ${item.name} from your bag`}
+                onClick={() => remove(item)}
+              >
+                Remove from Bag
+              </button>
+            </div>
+          </div>
+        );
+      })}
+
+      <dl aria-live="polite" aria-atomic="true">
+        <div>
+          <dt>Selected items subtotal</dt>
+          <dd><strong>{money(subtotalPaise / 100)}</strong></dd>
+        </div>
+      </dl>
+
+      <p className="gd-guide-muted">
+        This subtotal is before bag coupons and delivery charges.
+        Review your bag for all items and discounts. Delivery
+        eligibility, any extra charges and the final payable amount
+        are confirmed at checkout before payment.
+      </p>
+
+      {error && <p className="gd-guide-error" role="alert">{error}</p>}
+    </section>
+  );
+}
+
 export default function FitnessGuide() {
   const { pathname } = useLocation();
+  const { cart, shoppingKey } = useStore();
+  const shopper = shoppingKey("gymdrobe-guide-selection");
 
   const {
     products,
@@ -435,6 +586,13 @@ export default function FitnessGuide() {
   const [error, setError] = useState("");
   const [launcherMessage, setLauncherMessage] =
     useState("");
+  const [selection, setSelection] = useState({ shopper: "", keys: [] });
+
+  const chosenItems = cart.filter((item) =>
+    selection.shopper === shopper &&
+    selection.keys.includes(getCartItemKey(item)),
+  );
+  const chosenKeys = chosenItems.map(getCartItemKey);
 
   const heading = useRef(null);
   const scroll = useRef(null);
@@ -625,6 +783,25 @@ export default function FitnessGuide() {
     setStep(0);
     setError("");
     setView("questions");
+  }
+
+  function choose(item) {
+    const key = getCartItemKey(item);
+
+    setSelection((current) => ({
+      shopper,
+      keys: [...new Set([
+        ...(current.shopper === shopper ? current.keys : []),
+        key,
+      ])],
+    }));
+  }
+
+  function forget(key) {
+    setSelection((current) => current.shopper === shopper
+      ? { ...current, keys: current.keys.filter((value) => value !== key) }
+      : current,
+    );
   }
 
   if (!allowed) return null;
@@ -1135,12 +1312,12 @@ export default function FitnessGuide() {
                     <div className="gd-guide-results">
                       {result.rows.map((row) => (
                         <RecommendationItem
-                          key={String(
-                            productReference(row.product),
-                          )}
+                          key={`${shopper}:${productReference(row.product)}`}
                           row={row}
                           answers={answers}
                           onLeave={close}
+                          chosenKeys={chosenKeys}
+                          onChoose={choose}
                         />
                       ))}
                     </div>
@@ -1152,36 +1329,42 @@ export default function FitnessGuide() {
                       checkout. No products are added
                       automatically.
                     </p>
-
-                    <div className="gd-guide-actions">
-                      <Link
-                        className="button"
-                        to="/cart"
-                        onClick={close}
-                      >
-                        View My Bag
-                      </Link>
-
-                      {answers.kit && (
-                        <Link
-                          className="button secondary"
-                          to="/kits"
-                          onClick={close}
-                        >
-                          Explore Customisable Fitness Kits
-                        </Link>
-                      )}
-                    </div>
-
-                    {answers.kit && (
-                      <p className="gd-guide-muted">
-                        Fitness Kit templates have their
-                        own contents, prices and delivery
-                        arrangements. Review the total
-                        in the kit builder before buying.
-                      </p>
-                    )}
                   </>
+                )}
+
+                <ChosenSuggestions
+                  key={shopper}
+                  items={chosenItems}
+                  onForget={forget}
+                />
+
+                <div className="gd-guide-actions">
+                  <Link
+                    className="button"
+                    to="/cart"
+                    onClick={close}
+                  >
+                    View My Bag
+                  </Link>
+
+                  {answers.kit && (
+                    <Link
+                      className="button secondary"
+                      to="/kits"
+                      onClick={close}
+                    >
+                      Explore Customisable Fitness Kits
+                    </Link>
+                  )}
+                </div>
+
+                {answers.kit && (
+                  <p className="gd-guide-muted">
+                    Fitness Kit templates have their
+                    own contents, prices and delivery
+                    arrangements. Review the total
+                    in the kit builder before buying.
+                  </p>
                 )}
               </>
             )}

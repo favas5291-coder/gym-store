@@ -347,6 +347,7 @@ async function application({
       EmptyState: "EmptyState",
       ProductImage: "ProductImage",
       CouponBox: "CouponBox",
+      FreeShippingProgress: "FreeShippingProgress",
       CheckoutKitReview: "CheckoutKitReview",
 
       FREE_SHIPPING_LIMIT: 500,
@@ -472,7 +473,7 @@ test(
 );
 
 test(
-  "initial empty form and Strict Mode cleanup never overwrite a stored guest address",
+  "initial empty form and Strict Mode cleanup never overwrite a storedguest address",
   async () => {
     const local = storage();
     const session = storage();
@@ -621,7 +622,7 @@ test(
 );
 
 test(
-  "malformed stored shapes and unexpected fields do not crash or enter checkout",
+  "malformed stored shapes and unexpected fields do not crash or entercheckout",
   async () => {
     for (const invalid of [
       "[broken",
@@ -904,7 +905,7 @@ test(
 );
 
 test(
-  "payment recovery retains the reviewed address and prevents clearing it during confirmation",
+  "payment recovery retains the reviewed address and prevents clearingit during confirmation",
   async () => {
     const local = storage();
     const session = storage();

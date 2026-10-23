@@ -22,6 +22,7 @@ import {
 } from "./StorefrontShared.jsx";
 
 import CouponBox from "./CouponBox.jsx";
+import CartShippingReview from "./CartShippingReview.jsx";
 
 import {
   getCartItemKey,
@@ -47,10 +48,11 @@ import {
 
 import {
   calculateOrderPricing,
-  FREE_SHIPPING_LIMIT,
 } from "../utils/orderCalculations.js";
 
-import { money } from "../utils/productPricing.js";
+import {
+  money,
+} from "../utils/productPricing.js";
 
 import {
   analyticsVisitKey,
@@ -89,16 +91,25 @@ export default function Cart() {
 
   const navigate = useNavigate();
 
-  const [editingKey, setEditingKey] = useState(null);
-  const [retrying, setRetrying] = useState(false);
-  const [actionError, setActionError] = useState(null);
-  const [checkoutError, setCheckoutError] = useState("");
+  const [editingKey, setEditingKey] =
+    useState(null);
+
+  const [retrying, setRetrying] =
+    useState(false);
+
+  const [actionError, setActionError] =
+    useState(null);
+
+  const [checkoutError, setCheckoutError] =
+    useState("");
 
   const retryLock = useRef(false);
   const actionLock = useRef(false);
   const mounted = useRef(false);
 
-  const shopper = shoppingKey("gymdrobe-cart");
+  const shopper =
+    shoppingKey("gymdrobe-cart");
+
   const shopperRef = useRef(shopper);
 
   shopperRef.current = shopper;
@@ -185,6 +196,7 @@ export default function Cart() {
       trackOnce(
         `bag:${analyticsVisitKey()}`,
         "view_cart",
+
         commercePayload(
           review.pricingRows,
           pricing.totalAfterCoupon,
@@ -267,7 +279,8 @@ export default function Cart() {
       );
     }
 
-    const catalogue = getLatestProducts();
+    const catalogue =
+      getLatestProducts();
 
     if (!Array.isArray(catalogue)) {
       throw new Error(
@@ -292,7 +305,10 @@ export default function Cart() {
     };
   }
 
-  function changeQuantity(item, quantity) {
+  function changeQuantity(
+    item,
+    quantity,
+  ) {
     if (actionLock.current) {
       return;
     }
@@ -308,13 +324,14 @@ export default function Cart() {
         latest,
       } = freshBag();
 
-      const changed = latest.map((row) =>
-        getCartItemKey(row) === item.key
-          ? {
-              ...row,
-              quantity,
-            }
-          : row,
+      const changed = latest.map(
+        (row) =>
+          getCartItemKey(row) === item.key
+            ? {
+                ...row,
+                quantity,
+              }
+            : row,
       );
 
       const checked = reviewCart(
@@ -330,7 +347,7 @@ export default function Cart() {
       if (!target?.available) {
         throw new Error(
           target?.message ||
-          "This item is no longer in your bag.",
+            "This item is no longer in your bag.",
         );
       }
 
@@ -341,8 +358,10 @@ export default function Cart() {
         ) !== true ||
         !latestCart().some(
           (row) =>
-            getCartItemKey(row) === item.key &&
-            Number(row.quantity) === quantity,
+            getCartItemKey(row) ===
+              item.key &&
+            Number(row.quantity) ===
+              quantity,
         )
       ) {
         throw new Error(
@@ -368,7 +387,9 @@ export default function Cart() {
       product?._id,
       product?.legacyId,
     ]
-      .filter((value) => value != null)
+      .filter(
+        (value) => value != null,
+      )
       .map(String);
 
     return (
@@ -404,7 +425,8 @@ export default function Cart() {
       if (
         !latest.some(
           (row) =>
-            getCartItemKey(row) === item.key,
+            getCartItemKey(row) ===
+            item.key,
         )
       ) {
         throw new Error(
@@ -412,10 +434,11 @@ export default function Cart() {
         );
       }
 
-      const product = latestPurchaseProduct(
-        catalogue,
-        item,
-      );
+      const product =
+        latestPurchaseProduct(
+          catalogue,
+          item,
+        );
 
       if (
         !product ||
@@ -490,7 +513,8 @@ export default function Cart() {
     try {
       if (
         authLoading ||
-        typeof removeKitFromCart !== "function" ||
+        typeof removeKitFromCart !==
+          "function" ||
         removeKitFromCart(group.id) !== true
       ) {
         throw new Error(
@@ -522,8 +546,6 @@ export default function Cart() {
           ),
         )
       ) {
-        // Checkout validates kit selections, prices,
-        // stock and shipping on the server.
         navigate("/checkout");
         return;
       }
@@ -539,7 +561,7 @@ export default function Cart() {
           checked.rows.find(
             (row) => !row.available,
           )?.message ||
-          "Refresh products and check your bag quantities and prices before checkout.",
+            "Refresh products and check your bag quantities and prices before checkout.",
         );
       }
 
@@ -561,7 +583,7 @@ export default function Cart() {
     } catch (error) {
       setCheckoutError(
         error.message ||
-        "Checkout could not be opened. Please retry.",
+          "Checkout could not be opened. Please retry.",
       );
     }
   }
@@ -604,7 +626,8 @@ export default function Cart() {
             aria-live="polite"
           >
             {rows.every(
-              (item) => item.quantityValid,
+              (item) =>
+                item.quantityValid,
             ) &&
             Number.isSafeInteger(itemCount)
               ? `${itemCount} ${
@@ -629,7 +652,8 @@ export default function Cart() {
           className="notice"
           role="status"
         >
-          Checking current prices and available stock…
+          Checking current prices and available
+          stock…
         </p>
       )}
 
@@ -638,9 +662,9 @@ export default function Cart() {
           className="field-error"
           role="alert"
         >
-          Products could not be loaded. Your saved bag
-          is shown below. Retry product loading before
-          checkout.
+          Products could not be loaded. Your
+          saved bag is shown below. Retry
+          product loading before checkout.
         </p>
       )}
 
@@ -691,7 +715,9 @@ export default function Cart() {
 
             const product = {
               ...(item.product || item),
-              selectedColor: item.selectedColor,
+
+              selectedColor:
+                item.selectedColor,
             };
 
             const information =
@@ -714,12 +740,13 @@ export default function Cart() {
               .filter(Boolean)
               .join(" / ");
 
-            const quantityOptions = Array.from(
-              {
-                length: item.maxQuantity,
-              },
-              (_, index) => index + 1,
-            );
+            const quantityOptions =
+              Array.from(
+                {
+                  length: item.maxQuantity,
+                },
+                (_, index) => index + 1,
+              );
 
             if (
               item.quantityValid &&
@@ -747,7 +774,9 @@ export default function Cart() {
               .join(" / ");
 
             const id =
-              productReference(item.product) ||
+              productReference(
+                item.product,
+              ) ||
               productReference(item);
 
             return (
@@ -759,9 +788,10 @@ export default function Cart() {
                   <Link
                     to={productPath(id)}
                     className="cart-thumb"
-                    aria-label={
-                      `View ${product.name || "product"}`
-                    }
+                    aria-label={`View ${
+                      product.name ||
+                      "product"
+                    }`}
                   >
                     <ProductImage
                       product={product}
@@ -773,14 +803,19 @@ export default function Cart() {
                   <div className="cart-head">
                     <div>
                       <p className="eyebrow">
-                        {productText(product.brand) ||
+                        {productText(
+                          product.brand,
+                        ) ||
                           "Brand not recorded"}
                       </p>
 
                       {id && !unavailable ? (
-                        <Link to={productPath(id)}>
+                        <Link
+                          to={productPath(id)}
+                        >
                           <h2>
-                            {product.name || "Product"}
+                            {product.name ||
+                              "Product"}
                           </h2>
                         </Link>
                       ) : (
@@ -794,25 +829,32 @@ export default function Cart() {
                     <div className="cart-price">
                       <strong>
                         {item.lineSafe
-                          ? money(item.lineTotal)
+                          ? money(
+                              item.lineTotal,
+                            )
                           : "Check price / quantity"}
                       </strong>
 
                       {item.lineSavings > 0 && (
                         <del className="muted">
-                          {money(item.lineOriginal)}
+                          {money(
+                            item.lineOriginal,
+                          )}
                         </del>
                       )}
                     </div>
                   </div>
 
                   <p className="muted">
-                    {variants || "Standard option"}
+                    {variants ||
+                      "Standard option"}
                   </p>
 
                   <p className="muted">
                     {item.priceSafe
-                      ? `${money(item.unitPrice)} each`
+                      ? `${money(
+                          item.unitPrice,
+                        )} each`
                       : "Price unavailable"}
 
                     {!ready
@@ -823,7 +865,9 @@ export default function Cart() {
                   {item.lineSavings > 0 && (
                     <p className="positive">
                       Product savings:{" "}
-                      {money(item.lineSavings)}
+                      {money(
+                        item.lineSavings,
+                      )}
                     </p>
                   )}
 
@@ -831,7 +875,8 @@ export default function Cart() {
                     item.available &&
                     information.estimate && (
                       <p className="muted">
-                        Recorded delivery estimate:{" "}
+                        Recorded delivery
+                        estimate:{" "}
                         {information.estimate}
                       </p>
                     )}
@@ -851,7 +896,9 @@ export default function Cart() {
                         Return conditions
                       </summary>
 
-                      <p>{information.returns}</p>
+                      <p>
+                        {information.returns}
+                      </p>
 
                       {information.returnDetails.map(
                         (detail) => (
@@ -868,15 +915,14 @@ export default function Cart() {
                       Qty{" "}
 
                       <select
-                        aria-label={
-                          `Quantity for ${
-                            product.name || "product"
-                          }`
+                        aria-label={`Quantity for ${
+                          product.name ||
+                          "product"
+                        }`}
+                        aria-describedby={`bag-row-${item.index}`}
+                        value={
+                          item.quantity ?? ""
                         }
-                        aria-describedby={
-                          `bag-row-${item.index}`
-                        }
-                        value={item.quantity ?? ""}
                         disabled={
                           !item.canAdjust ||
                           authLoading
@@ -884,13 +930,18 @@ export default function Cart() {
                         onChange={(event) =>
                           changeQuantity(
                             item,
-                            Number(event.target.value),
+                            Number(
+                              event.target.value,
+                            ),
                           )
                         }
                       >
                         {!item.quantityValid && (
                           <option
-                            value={item.quantity ?? ""}
+                            value={
+                              item.quantity ??
+                              ""
+                            }
                             disabled
                           >
                             Check quantity
@@ -930,7 +981,10 @@ export default function Cart() {
                         }
                         onClick={() => {
                           setActionError(null);
-                          setEditingKey(item.key);
+
+                          setEditingKey(
+                            item.key,
+                          );
                         }}
                       >
                         Edit {optionNames}
@@ -987,7 +1041,8 @@ export default function Cart() {
                       )}
                   </p>
 
-                  {actionError?.key === item.key && (
+                  {actionError?.key ===
+                    item.key && (
                     <p
                       className="field-error"
                       role="alert"
@@ -1007,17 +1062,22 @@ export default function Cart() {
         >
           {hasKits ? (
             <section className="price-summary">
-              <h2>Kit pricing needs confirmation</h2>
+              <h2>
+                Kit pricing needs confirmation
+              </h2>
 
               {totalsKnown && (
                 <dl>
                   <div>
                     <dt>
-                      All items before kit and coupon discounts
+                      All items before kit
+                      and coupon discounts
                     </dt>
 
                     <dd>
-                      {money(pricing.subtotal)}
+                      {money(
+                        pricing.subtotal,
+                      )}
                     </dd>
                   </div>
                 </dl>
@@ -1025,20 +1085,24 @@ export default function Cart() {
 
               {!totalsKnown && (
                 <p>
-                  Check the highlighted prices and quantities.
+                  Check the highlighted prices
+                  and quantities.
                 </p>
               )}
 
               <p className="notice">
-                Kit discounts, coupons and delivery must
-                be calculated together before payment.
-                A final payable total is not available yet.
+                Kit discounts, coupons and
+                delivery must be calculated
+                together before payment. A
+                final payable total is not
+                available yet.
               </p>
 
               <p>
-                Use Edit kit to change choices. Continue
-                to review current server prices, package
-                contents and shipping charges for your
+                Use Edit kit to change choices.
+                Continue to review current
+                server prices, package contents
+                and shipping charges for your
                 delivery pincode.
               </p>
             </section>
@@ -1046,7 +1110,9 @@ export default function Cart() {
             <>
               <fieldset
                 aria-label="Order coupons"
-                disabled={!ready || authLoading}
+                disabled={
+                  !ready || authLoading
+                }
                 style={{
                   border: 0,
                   padding: 0,
@@ -1054,30 +1120,42 @@ export default function Cart() {
                 }}
               >
                 <CouponBox
-                  subtotal={pricing.subtotal}
+                  subtotal={
+                    pricing.subtotal
+                  }
                 />
               </fieldset>
 
               <section className="price-summary">
-                <h2>Estimated order total</h2>
+                <h2>
+                  Estimated order total
+                </h2>
 
                 <dl>
                   <div>
                     <dt>
-                      Items before product discounts
+                      Items before product
+                      discounts
                     </dt>
 
                     <dd>
-                      {money(review.originalTotal)}
+                      {money(
+                        review.originalTotal,
+                      )}
                     </dd>
                   </div>
 
                   {review.productSavings > 0 && (
                     <div>
-                      <dt>Product savings</dt>
+                      <dt>
+                        Product savings
+                      </dt>
 
                       <dd className="positive">
-                        −{money(review.productSavings)}
+                        −
+                        {money(
+                          review.productSavings,
+                        )}
                       </dd>
                     </div>
                   )}
@@ -1086,58 +1164,58 @@ export default function Cart() {
                     <dt>Items subtotal</dt>
 
                     <dd>
-                      {money(pricing.subtotal)}
+                      {money(
+                        pricing.subtotal,
+                      )}
                     </dd>
                   </div>
 
                   {pricing.couponDiscount > 0 && (
                     <div>
-                      <dt>Coupon savings</dt>
+                      <dt>
+                        Coupon savings
+                      </dt>
 
                       <dd className="positive">
-                        −{money(pricing.couponDiscount)}
+                        −
+                        {money(
+                          pricing.couponDiscount,
+                        )}
                       </dd>
                     </div>
                   )}
-
-                  <div>
-                    <dt>
-                      Estimated standard delivery
-                    </dt>
-
-                    <dd>
-                      {pricing.shipping > 0
-                        ? money(pricing.shipping)
-                        : "Free"}
-                    </dd>
-                  </div>
-
-                  <div className="total">
-                    <dt>Estimated total</dt>
-
-                    <dd>
-                      {money(pricing.finalTotal)}
-                    </dd>
-                  </div>
                 </dl>
 
                 {savings > 0 && (
                   <p className="positive">
-                    Your savings: {money(savings)}
+                    Your savings:{" "}
+                    {money(savings)}
                   </p>
                 )}
 
-                <p className="muted">
-                  Standard delivery is free from{" "}
-                  {money(FREE_SHIPPING_LIMIT)} after
-                  coupons. Your selected delivery method
-                  and final charges are shown at checkout.
-                </p>
+                <CartShippingReview
+                  key={shopper}
+                  items={
+                    review.pricingRows
+                  }
+                  coupon={coupon}
+                  enabled={
+                    ready &&
+                    review.canCheckout &&
+                    !authLoading
+                  }
+                  storageKey={shoppingKey(
+                    "gymdrobe-delivery-pincode",
+                  )}
+                  expectedPricing={pricing}
+                  onRefresh={retryCatalog}
+                />
 
                 {!review.canCheckout && (
                   <p className="muted">
-                    Review the highlighted items before
-                    using this estimate to check out.
+                    Review the highlighted items
+                    before using this estimate
+                    to check out.
                   </p>
                 )}
               </section>
@@ -1147,28 +1225,34 @@ export default function Cart() {
               className="notice"
               role="status"
             >
-              The total cannot be calculated until every
-              item has a valid price and quantity.
-              Correct the highlighted items or remove them.
+              The total cannot be calculated
+              until every item has a valid
+              price and quantity. Correct the
+              highlighted items or remove them.
             </p>
           )}
 
           <div className="panel cart-trust">
             <p>
-              <strong>Review before payment</strong>
+              <strong>
+                Review before payment
+              </strong>
             </p>
 
             <p className="muted">
-              Product prices, variants and stock are
-              checked again before placing your order.
+              Product prices, variants and stock
+              are checked again before placing
+              your order.
             </p>
 
             <p className="muted">
-              If you choose COD with a 10% advance,
-              the advance is calculated on products
-              after coupons. The remaining balance
-              includes delivery charges. Review
-              cancellation and refund terms at checkout.
+              If you choose COD with a 10%
+              advance, the advance is calculated
+              on products after coupons. The
+              remaining balance includes
+              delivery charges. Review
+              cancellation and refund terms
+              at checkout.
             </p>
           </div>
 
@@ -1248,7 +1332,8 @@ function KitBagGroup({
         [
           item.state?.message,
 
-          !item.priceSafe || !item.lineSafe
+          !item.priceSafe ||
+          !item.lineSafe
             ? "A component has an unavailable price or invalid quantity."
             : "",
 
@@ -1258,7 +1343,8 @@ function KitBagGroup({
 
           ready &&
           item.quantityValid &&
-          item.quantity > item.stockRemaining
+          item.quantity >
+            item.stockRemaining
             ? "Components share stock with other bag items. Review kit quantities."
             : "",
         ].filter(Boolean),
@@ -1312,7 +1398,9 @@ function KitBagGroup({
         {group.items.map((item) => {
           const product = {
             ...(item.product || item),
-            selectedColor: item.selectedColor,
+
+            selectedColor:
+              item.selectedColor,
           };
 
           const variants = [
@@ -1326,7 +1414,9 @@ function KitBagGroup({
             .join(" / ");
 
           const id =
-            productReference(item.product) ||
+            productReference(
+              item.product,
+            ) ||
             productReference(item);
 
           return (
@@ -1342,18 +1432,24 @@ function KitBagGroup({
 
               <div className="cart-copy">
                 <p className="eyebrow">
-                  {productText(product.brand) ||
+                  {productText(
+                    product.brand,
+                  ) ||
                     "Brand not recorded"}
                 </p>
 
                 {id &&
                 (
                   !ready ||
-                  item.product?.isActive !== false
+                  item.product
+                    ?.isActive !== false
                 ) ? (
-                  <Link to={productPath(id)}>
+                  <Link
+                    to={productPath(id)}
+                  >
                     <h3>
-                      {product.name || "Product"}
+                      {product.name ||
+                        "Product"}
                     </h3>
                   </Link>
                 ) : (
@@ -1364,7 +1460,8 @@ function KitBagGroup({
                 )}
 
                 <p>
-                  {variants || "Standard option"}
+                  {variants ||
+                    "Standard option"}
                 </p>
 
                 <p>
@@ -1376,7 +1473,9 @@ function KitBagGroup({
 
                 <p>
                   {item.priceSafe
-                    ? `${money(item.unitPrice)} each`
+                    ? `${money(
+                        item.unitPrice,
+                      )} each`
                     : "Price unavailable"}
 
                   {!ready
@@ -1386,12 +1485,15 @@ function KitBagGroup({
 
                 <strong>
                   {item.lineSafe
-                    ? money(item.lineTotal)
+                    ? money(
+                        item.lineTotal,
+                      )
                     : "Check component total"}
                 </strong>
 
                 <small className="muted">
-                  Before kit and coupon discounts
+                  Before kit and coupon
+                  discounts
                 </small>
               </div>
             </article>
@@ -1401,7 +1503,9 @@ function KitBagGroup({
 
       <div className="cart-kit-footer">
         <p>
-          <strong>Component subtotal:</strong>{" "}
+          <strong>
+            Component subtotal:
+          </strong>{" "}
 
           {totalsKnown &&
           Number.isSafeInteger(
@@ -1414,11 +1518,12 @@ function KitBagGroup({
         </p>
 
         <p className="notice">
-          This kit is saved in your bag. Use Edit kit
-          to change its contents. Checkout confirms
-          current discounts, package contents and
-          delivery charges before payment. No stock
-          is reserved in your bag.
+          This kit is saved in your bag. Use
+          Edit kit to change its contents.
+          Checkout confirms current discounts,
+          package contents and delivery charges
+          before payment. No stock is reserved
+          in your bag.
         </p>
 
         {reasons.length > 0 && (

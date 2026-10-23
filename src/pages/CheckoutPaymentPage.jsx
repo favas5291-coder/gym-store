@@ -1,4 +1,6 @@
+import FreeShippingProgress from "../components/FreeShippingProgress.jsx";
 import { ensureGuestAccess, guestAccess } from "../utils/guestCheckout.js";
+
 import {
   pincodeForCheckout,
   savedPincode,
@@ -6,36 +8,58 @@ import {
   validPincode,
   clearPincode,
 } from "../utils/deliveryPincode.js";
-import { getCartItemKey, getKitGroup } from "../utils/cartUtils.js";
-import { kitGroupSignature } from "../utils/kitCart.js";
-import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+
+import {
+  getCartItemKey,
+  getKitGroup,
+} from "../utils/cartUtils.js";
+
+import {
+  kitGroupSignature,
+} from "../utils/kitCart.js";
+
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  Link,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
+
 import { useAuth } from "../context/AuthContext.jsx";
 import { useStore } from "../context/StoreContext.jsx";
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { useShoppingTools } from "../context/ShoppingToolsContext.jsx";
+
 import { selectedBag } from "../utils/commerce.js";
 import { reviewCart } from "../utils/cartReview.js";
 import { buyingInformation } from "../utils/productInformation.js";
-import {
-  calculateOrderPricing,
-  resolveCoupon,
-  FREE_SHIPPING_LIMIT,
-} from "../utils/orderCalculations.js";
+import { resolveCoupon } from "../utils/orderCalculations.js";
 import { money } from "../utils/productPricing.js";
+
 import {
   EMPTY_ADDRESS,
   normalizeAddress,
   ownerKey,
   persistOrder,
 } from "../utils/customerData.js";
+
 import {
   makeId,
   readStorage,
   userKey,
   writeStorage,
 } from "../utils/storage.js";
-import { readSession, writeSession } from "../utils/shopperStorage.js";
+
+import {
+  readSession,
+  writeSession,
+} from "../utils/shopperStorage.js";
+
 import {
   checkoutAddress,
   checkoutAddressErrors,
@@ -46,6 +70,7 @@ import {
   orderIsComplete,
   subtractPurchasedItems,
 } from "../utils/checkoutPayment.js";
+
 import {
   analyticsVisitKey,
   commercePayload,
@@ -53,18 +78,31 @@ import {
   trackEvent,
   trackPurchase,
 } from "../utils/analytics.js";
-import { getAddresses, createAddress } from "../services/addressApi.js";
+
+import {
+  getAddresses,
+  createAddress,
+} from "../services/addressApi.js";
+
 import {
   createRazorpayPaymentOrder,
   verifyRazorpayPayment,
   checkRazorpayPayment,
 } from "../services/paymentApi.js";
-import { getOrderById } from "../services/orderApi.js";
+
+import {
+  getOrderById,
+} from "../services/orderApi.js";
+
 import {
   loadRazorpay,
   openRazorpayCheckout,
 } from "../utils/razorpay.js";
-import { getCheckoutQuote } from "../services/checkoutQuoteApi.js";
+
+import {
+  getCheckoutQuote,
+} from "../services/checkoutQuoteApi.js";
+
 import {
   containsKit,
   checkoutSelectionRows,
@@ -72,6 +110,7 @@ import {
   kitQuoteSignature,
   kitQuotePayable,
 } from "../utils/kitPaymentReview.js";
+
 import CheckoutKitReview from "../components/CheckoutKitReview.jsx";
 import { ProductImage } from "../components/StorefrontShared.jsx";
 import AddressForm from "../components/AddressForm.jsx";
@@ -95,7 +134,8 @@ function timedCheckoutStep(name, work) {
       }
 
       try {
-        const label = `gymdrobe:checkout:${name}`;
+        const label =
+          `gymdrobe:checkout:${name}`;
 
         if (
           timing.getEntriesByName(label).length >= 20
@@ -137,7 +177,9 @@ function editableAddress(value) {
     label: 30,
   };
 
-  const result = { ...EMPTY_ADDRESS };
+  const result = {
+    ...EMPTY_ADDRESS,
+  };
 
   for (
     const [key, maximum] of
@@ -155,7 +197,10 @@ function editableAddress(value) {
 
     if (typeof field === "string") {
       result[key] = field
-        .replace(/[\u0000-\u001f\u007f]/g, "")
+        .replace(
+          /[\u0000-\u001f\u007f]/g,
+          "",
+        )
         .slice(0, maximum);
     }
   }
@@ -175,12 +220,10 @@ function readAddressDraft(
     candidates.push(cached);
   }
 
-  for (
-    const name of [
-      "localStorage",
-      "sessionStorage",
-    ]
-  ) {
+  for (const name of [
+    "localStorage",
+    "sessionStorage",
+  ]) {
     try {
       const record = JSON.parse(
         globalThis[name].getItem(
@@ -188,15 +231,16 @@ function readAddressDraft(
         ) || "null",
       );
 
-      const address = editableAddress(
-        record?.address,
-      );
+      const address =
+        editableAddress(record?.address);
 
       if (
-        record?.version === ADDRESS_DRAFT_VERSION &&
+        record?.version ===
+          ADDRESS_DRAFT_VERSION &&
         Number.isSafeInteger(record.savedAt) &&
         record.savedAt >= 0 &&
-        record.savedAt <= Date.now() + 300000 &&
+        record.savedAt <=
+          Date.now() + 300000 &&
         address
       ) {
         candidates.push({
@@ -211,7 +255,8 @@ function readAddressDraft(
 
   if (candidates.length) {
     const newest = candidates.sort(
-      (a, b) => b.savedAt - a.savedAt,
+      (a, b) =>
+        b.savedAt - a.savedAt,
     )[0];
 
     checkoutAddressDrafts.set(
@@ -226,12 +271,10 @@ function readAddressDraft(
     const sourceKey of
     new Set([key, ...legacyKeys])
   ) {
-    for (
-      const name of [
-        "localStorage",
-        "sessionStorage",
-      ]
-    ) {
+    for (const name of [
+      "localStorage",
+      "sessionStorage",
+    ]) {
       try {
         const value = JSON.parse(
           globalThis[name].getItem(
@@ -258,7 +301,9 @@ function readAddressDraft(
     }
   }
 
-  return { ...EMPTY_ADDRESS };
+  return {
+    ...EMPTY_ADDRESS,
+  };
 }
 
 function writeAddressDraft(
@@ -267,8 +312,9 @@ function writeAddressDraft(
   clear = false,
 ) {
   const address =
-    editableAddress(value) ||
-    { ...EMPTY_ADDRESS };
+    editableAddress(value) || {
+      ...EMPTY_ADDRESS,
+    };
 
   const previous =
     checkoutAddressDrafts.get(key);
@@ -294,15 +340,12 @@ function writeAddressDraft(
     record,
   );
 
-  for (
-    const [name, field] of [
-      ["localStorage", "local"],
-      ["sessionStorage", "session"],
-    ]
-  ) {
+  for (const [name, field] of [
+    ["localStorage", "local"],
+    ["sessionStorage", "session"],
+  ]) {
     try {
-      const target =
-        globalThis[name];
+      const target = globalThis[name];
 
       target.setItem(
         `${key}:draft-v2`,
@@ -379,6 +422,7 @@ function Checkout({ auth, mode }) {
 
   const addressKey = userKey(
     "gymdrobe-checkout-address",
+
     user
       ? {
           ...user,
@@ -414,6 +458,7 @@ function Checkout({ auth, mode }) {
     () =>
       readAddressDraft(
         addressKey,
+
         user && (user.id || user.email)
           ? [
               userKey(
@@ -425,14 +470,12 @@ function Checkout({ auth, mode }) {
       ),
   );
 
-  const [address, setAddress] =
-    useState(() =>
+  const [address, setAddress] = useState(
+    () =>
       checkoutAddress({
         ...EMPTY_ADDRESS,
 
-        ...normalizeAddress(
-          addressDraft,
-        ),
+        ...normalizeAddress(addressDraft),
 
         email:
           user?.email ||
@@ -461,15 +504,14 @@ function Checkout({ auth, mode }) {
             ?.shippingAddress || {}
         ),
       }),
-    );
+  );
 
-  const [method, setMethod] =
-    useState(
-      savedAttempt?.payload
-        ?.deliveryMethod === "express"
-        ? "express"
-        : "standard",
-    );
+  const [method, setMethod] = useState(
+    savedAttempt?.payload
+      ?.deliveryMethod === "express"
+      ? "express"
+      : "standard",
+  );
 
   const [
     paymentMethod,
@@ -508,9 +550,7 @@ function Checkout({ auth, mode }) {
   const [
     addressesLoading,
     setAddressesLoading,
-  ] = useState(
-    Boolean(user && token),
-  );
+  ] = useState(Boolean(user && token));
 
   const [
     addressesError,
@@ -523,10 +563,8 @@ function Checkout({ auth, mode }) {
   const [quoteError, setQuoteError] =
     useState("");
 
-  const [
-    quoteLoading,
-    setQuoteLoading,
-  ] = useState(false);
+  const [quoteLoading, setQuoteLoading] =
+    useState(false);
 
   const [
     quoteRevision,
@@ -542,30 +580,22 @@ function Checkout({ auth, mode }) {
   const [error, setError] =
     useState("");
 
-  const [
-    addressNotice,
-    setAddressNotice,
-  ] = useState("");
+  const [addressNotice, setAddressNotice] =
+    useState("");
 
   const [busy, setBusy] =
     useState(false);
 
-  const [
-    paymentStage,
-    setPaymentStage,
-  ] = useState("");
+  const [paymentStage, setPaymentStage] =
+    useState("");
 
-  const [
-    refreshing,
-    setRefreshing,
-  ] = useState(false);
+  const [refreshing, setRefreshing] =
+    useState(false);
 
   const [pending, setPending] =
     useState(savedAttempt);
 
-  const pendingRef = useRef(
-    pending,
-  );
+  const pendingRef = useRef(pending);
 
   const current = useRef(null);
 
@@ -612,15 +642,13 @@ function Checkout({ auth, mode }) {
     },
   );
 
-  const hasKits =
-    containsKit(items);
+  const hasKits = containsKit(items);
 
-  const kitIssue =
-    kitSelectionIssue(
-      items,
-      store.cart,
-      mode,
-    );
+  const kitIssue = kitSelectionIssue(
+    items,
+    store.cart,
+    mode,
+  );
 
   let quoteSignature = "";
 
@@ -629,22 +657,20 @@ function Checkout({ auth, mode }) {
       !kitIssue &&
       review.canCheckout
     ) {
-      quoteSignature =
-        kitQuoteSignature(
-          review.pricingRows,
-          store.coupon,
-          method,
-          paymentMethod,
-          address.pincode,
-        );
+      quoteSignature = kitQuoteSignature(
+        review.pricingRows,
+        store.coupon,
+        method,
+        paymentMethod,
+        address.pincode,
+      );
     }
   } catch {
     // Cart review reports invalid selections.
   }
 
   const kitQuote =
-    kitResult?.signature ===
-    quoteSignature
+    kitResult?.signature === quoteSignature
       ? kitResult.quote
       : null;
 
@@ -654,14 +680,7 @@ function Checkout({ auth, mode }) {
       : null
     : kitQuote?.deliveryReview?.ready
       ? kitQuote.pricing
-      : review.totalsKnown &&
-          items.length
-        ? calculateOrderPricing({
-            cart: review.pricingRows,
-            coupon: store.coupon,
-            deliveryMethod: method,
-          })
-        : null;
+      : null;
 
   const amounts = pricing
     ? paymentAmounts(
@@ -683,8 +702,8 @@ function Checkout({ auth, mode }) {
     (
       hasKits
         ? kitQuotePayable(kitQuote)
-        : kitQuote?.deliveryReview
-            ?.ready === true &&
+        : kitQuote?.deliveryReview?.ready ===
+            true &&
           Date.parse(
             kitQuote.deliveryReview
               .validUntil,
@@ -692,9 +711,7 @@ function Checkout({ auth, mode }) {
     ) &&
     review.canCheckout &&
     review.rows.length <= 50 &&
-    Number.isSafeInteger(
-      amounts?.paise,
-    ) &&
+    Number.isSafeInteger(amounts?.paise) &&
     amounts.paise >= 100 &&
     Number.isSafeInteger(
       Math.round(
@@ -709,6 +726,7 @@ function Checkout({ auth, mode }) {
     displayedPricing
       ? paymentAmounts(
           displayedPricing,
+
           pending?.payload
             ?.paymentMethod ||
             paymentMethod,
@@ -737,7 +755,6 @@ function Checkout({ auth, mode }) {
       return;
     }
 
-    // These helpers already share concurrent requests.
     // Preparation creates no order or charge.
     void timedCheckoutStep(
       "razorpay_prepare",
@@ -762,9 +779,7 @@ function Checkout({ auth, mode }) {
       !quoteSignature ||
       pending ||
       !/^[1-9]\d{5}$/.test(
-        String(
-          address.pincode,
-        ).trim(),
+        String(address.pincode).trim(),
       )
     ) {
       setQuoteLoading(false);
@@ -780,63 +795,52 @@ function Checkout({ auth, mode }) {
     setQuoteError("");
     setKitResult(null);
 
-    const timer = setTimeout(
-      () => {
-        getCheckoutQuote(
-          token,
+    const timer = setTimeout(() => {
+      getCheckoutQuote(
+        token,
 
-          {
-            items:
-              review.pricingRows,
+        {
+          items: review.pricingRows,
 
-            coupon:
-              resolveCoupon(
-                store.coupon,
-              )?.code || "",
+          coupon:
+            resolveCoupon(
+              store.coupon,
+            )?.code || "",
 
-            deliveryMethod:
-              method,
+          deliveryMethod: method,
+          paymentMethod,
 
-            paymentMethod,
+          pincode: String(
+            address.pincode,
+          ).trim(),
+        },
 
-            pincode: String(
-              address.pincode,
-            ).trim(),
-          },
-
-          {
-            signal:
-              controller.signal,
-          },
-        )
-          .then((quote) => {
-            if (!cancelled) {
-              setKitResult({
-                signature:
-                  quoteSignature,
-
-                quote,
-              });
-            }
-          })
-          .catch((failure) => {
-            if (!cancelled) {
-              setQuoteError(
-                failure.message ||
-                  "Checkout prices could not be checked.",
-              );
-            }
-          })
-          .finally(() => {
-            if (!cancelled) {
-              setQuoteLoading(
-                false,
-              );
-            }
-          });
-      },
-      350,
-    );
+        {
+          signal: controller.signal,
+        },
+      )
+        .then((quote) => {
+          if (!cancelled) {
+            setKitResult({
+              signature: quoteSignature,
+              quote,
+            });
+          }
+        })
+        .catch((failure) => {
+          if (!cancelled) {
+            setQuoteError(
+              failure.message ||
+                "Checkout prices could not be checked.",
+            );
+          }
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setQuoteLoading(false);
+          }
+        });
+    }, 350);
 
     return () => {
       cancelled = true;
@@ -866,9 +870,7 @@ function Checkout({ auth, mode }) {
       ) - Date.now();
 
     if (
-      !Number.isFinite(
-        remaining,
-      )
+      !Number.isFinite(remaining)
     ) {
       return;
     }
@@ -884,7 +886,6 @@ function Checkout({ auth, mode }) {
 
       Math.max(
         0,
-
         Math.min(
           remaining,
           2147483647,
@@ -892,39 +893,26 @@ function Checkout({ auth, mode }) {
       ),
     );
 
-    return () =>
-      clearTimeout(timer);
-  }, [
-    kitQuote,
-    Boolean(pending),
-  ]);
+    return () => clearTimeout(timer);
+  }, [kitQuote, Boolean(pending)]);
 
   useEffect(() => {
-    const timer = setTimeout(
-      () => {
-        if (
-          !mounted.current ||
-          pendingRef.current
-        ) {
-          return;
-        }
+    const timer = setTimeout(() => {
+      if (
+        !mounted.current ||
+        pendingRef.current
+      ) {
+        return;
+      }
 
-        writeStorage(
-          optionsKey,
-          {
-            deliveryMethod:
-              method,
+      writeStorage(optionsKey, {
+        deliveryMethod: method,
+        giftMessage,
+        orderNote,
+      });
+    }, 300);
 
-            giftMessage,
-            orderNote,
-          },
-        );
-      },
-      300,
-    );
-
-    return () =>
-      clearTimeout(timer);
+    return () => clearTimeout(timer);
   }, [
     method,
     giftMessage,
@@ -954,8 +942,7 @@ function Checkout({ auth, mode }) {
 
         const preferred =
           valid.find(
-            (row) =>
-              row.isDefault,
+            (row) => row.isDefault,
           ) || valid[0];
 
         if (
@@ -992,19 +979,14 @@ function Checkout({ auth, mode }) {
       })
       .finally(() => {
         if (!cancelled) {
-          setAddressesLoading(
-            false,
-          );
+          setAddressesLoading(false);
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [
-    user,
-    token,
-  ]);
+  }, [user, token]);
 
   useEffect(() => {
     function track() {
@@ -1052,8 +1034,8 @@ function Checkout({ auth, mode }) {
     const source =
       record?.payload?.source ||
       record?.mode ||
-      pendingRef.current
-        ?.payload?.source ||
+      pendingRef.current?.payload
+        ?.source ||
       pendingRef.current?.mode ||
       mode;
 
@@ -1064,35 +1046,28 @@ function Checkout({ auth, mode }) {
         }
       : null;
 
-    const savedActive =
-      writeSession(
-        activeKey,
-        value,
-      );
+    const savedActive = writeSession(
+      activeKey,
+      value,
+    );
 
-    const savedMode =
-      writeSession(
-        store.shoppingKey(
-          `gymdrobe-payment-confirmation-${source}`,
-        ),
-        value,
-      );
+    const savedMode = writeSession(
+      store.shoppingKey(
+        `gymdrobe-payment-confirmation-${source}`,
+      ),
+      value,
+    );
 
     const saved =
-      savedActive &&
-      savedMode;
+      savedActive && savedMode;
 
-    if (
-      required &&
-      !saved
-    ) {
+    if (required && !saved) {
       throw new Error(
         "Enable browser session storage before starting payment. No payment was started.",
       );
     }
 
-    pendingRef.current =
-      value;
+    pendingRef.current = value;
 
     if (mounted.current) {
       setPending(value);
@@ -1101,10 +1076,7 @@ function Checkout({ auth, mode }) {
     return saved;
   }
 
-  function finishOrder(
-    order,
-    record,
-  ) {
+  function finishOrder(order, record) {
     if (
       !mounted.current ||
       finished.current
@@ -1116,8 +1088,7 @@ function Checkout({ auth, mode }) {
       validateConfirmedOrder(
         order,
         record,
-        user?.id ||
-          user?._id,
+        user?.id || user?._id,
       );
 
     finished.current = true;
@@ -1126,8 +1097,7 @@ function Checkout({ auth, mode }) {
 
     persistOrder({
       ...savedOrder,
-      ownerKey:
-        ownerKey(user),
+      ownerKey: ownerKey(user),
     });
 
     writeStorage(
@@ -1142,25 +1112,20 @@ function Checkout({ auth, mode }) {
       optionsKey,
 
       {
-        deliveryMethod:
-          "standard",
-
+        deliveryMethod: "standard",
         giftMessage: "",
         orderNote: "",
       },
     );
 
     // Save completion before cart cleanup.
-    const completionSaved =
-      remember({
-        ...record,
-        phase: "complete",
-        orderId:
-          savedOrder.id,
-      });
+    const completionSaved = remember({
+      ...record,
+      phase: "complete",
+      orderId: savedOrder.id,
+    });
 
-    const latest =
-      current.current;
+    const latest = current.current;
 
     if (
       completionSaved &&
@@ -1172,10 +1137,7 @@ function Checkout({ auth, mode }) {
         record.mode ||
         mode;
 
-      if (
-        purchaseMode ===
-        "buy-now"
-      ) {
+      if (purchaseMode === "buy-now") {
         const bought =
           record.snapshot[0];
 
@@ -1196,23 +1158,15 @@ function Checkout({ auth, mode }) {
       } else if (
         latest.store.catalogReady
       ) {
-        const quantities =
-          (rows) =>
-            JSON.stringify(
-              rows
-                .map(
-                  (row) => [
-                    getCartItemKey(
-                      row,
-                    ),
-
-                    Number(
-                      row?.quantity,
-                    ),
-                  ],
-                )
-                .sort(),
-            );
+        const quantities = (rows) =>
+          JSON.stringify(
+            rows
+              .map((row) => [
+                getCartItemKey(row),
+                Number(row?.quantity),
+              ])
+              .sort(),
+          );
 
         if (
           quantities(
@@ -1228,9 +1182,7 @@ function Checkout({ auth, mode }) {
               record.snapshot,
             );
 
-          latest.store.setCart(
-            cleaned,
-          );
+          latest.store.setCart(cleaned);
 
           const purchasedKitIds =
             new Set(
@@ -1243,11 +1195,10 @@ function Checkout({ auth, mode }) {
             );
 
           if (
-            cleaned.some(
-              (row) =>
-                purchasedKitIds.has(
-                  row.kitGroup?.id,
-                ),
+            cleaned.some((row) =>
+              purchasedKitIds.has(
+                row.kitGroup?.id,
+              ),
             )
           ) {
             latest.store.notify(
@@ -1316,15 +1267,11 @@ function Checkout({ auth, mode }) {
           checkoutAddress(value),
         ) ===
         JSON.stringify(
-          checkoutAddress(
-            candidate,
-          ),
+          checkoutAddress(candidate),
         );
 
       if (
-        !latest.addresses.some(
-          same,
-        )
+        !latest.addresses.some(same)
       ) {
         // Optional address saving must not delay confirmation.
         createAddress(
@@ -1353,30 +1300,21 @@ function Checkout({ auth, mode }) {
       `/order-success?orderId=${encodeURIComponent(
         savedOrder.id,
       )}`,
+
       {
         replace: true,
       },
     );
   }
 
-  function acceptOrder(
-    order,
-    record,
-  ) {
-    if (
-      orderIsComplete(order)
-    ) {
-      finishOrder(
-        order,
-        record,
-      );
-
+  function acceptOrder(order, record) {
+    if (orderIsComplete(order)) {
+      finishOrder(order, record);
       return true;
     }
 
     if (
-      order?.status ===
-        "cancelled" ||
+      order?.status === "cancelled" ||
       [
         "refunded",
         "partially-refunded",
@@ -1430,16 +1368,13 @@ function Checkout({ auth, mode }) {
     return false;
   }
 
-  function paymentStatus(
-    record,
-  ) {
+  function paymentStatus(record) {
     if (
       statusRequest.current &&
-      statusRequest.current
-        .orderId === record.orderId
+      statusRequest.current.orderId ===
+        record.orderId
     ) {
-      return statusRequest.current
-        .promise;
+      return statusRequest.current.promise;
     }
 
     const controller =
@@ -1454,6 +1389,7 @@ function Checkout({ auth, mode }) {
     entry.promise =
       timedCheckoutStep(
         "payment_status",
+
         async () => {
           let order =
             await getOrderById(
@@ -1485,10 +1421,8 @@ function Checkout({ auth, mode }) {
               );
 
             if (
-              result.state ===
-                "verified" ||
-              result.state ===
-                "review"
+              result.state === "verified" ||
+              result.state === "review"
             ) {
               order =
                 await getOrderById(
@@ -1510,16 +1444,13 @@ function Checkout({ auth, mode }) {
         },
       ).finally(() => {
         if (
-          statusRequest.current ===
-          entry
+          statusRequest.current === entry
         ) {
-          statusRequest.current =
-            null;
+          statusRequest.current = null;
         }
       });
 
-    statusRequest.current =
-      entry;
+    statusRequest.current = entry;
 
     return entry.promise;
   }
@@ -1527,7 +1458,10 @@ function Checkout({ auth, mode }) {
   useEffect(() => {
     if (
       !pending?.orderId ||
-      (!token && !guestAccess()) ||
+      (
+        !token &&
+        !guestAccess()
+      ) ||
       finished.current ||
       pending.phase === "closed" ||
       pending.phase === "complete" ||
@@ -1583,10 +1517,7 @@ function Checkout({ auth, mode }) {
             pendingRef.current ===
               record
           ) {
-            acceptOrder(
-              order,
-              record,
-            );
+            acceptOrder(order, record);
           }
         }
       } catch {
@@ -1683,9 +1614,7 @@ function Checkout({ auth, mode }) {
     quote = kitQuote,
   ) {
     const coupon =
-      resolveCoupon(
-        store.coupon,
-      );
+      resolveCoupon(store.coupon);
 
     return {
       source: mode,
@@ -1693,9 +1622,7 @@ function Checkout({ auth, mode }) {
       deliveryMethod: method,
 
       shippingAddress:
-        checkoutAddress(
-          address,
-        ),
+        checkoutAddress(address),
 
       giftMessage:
         giftMessage.trim(),
@@ -1704,9 +1631,7 @@ function Checkout({ auth, mode }) {
         orderNote.trim(),
 
       items:
-        checkoutSelectionRows(
-          rows,
-        ),
+        checkoutSelectionRows(rows),
 
       ...(
         containsKit(rows)
@@ -1780,30 +1705,28 @@ function Checkout({ auth, mode }) {
     let verificationStarted = false;
 
     try {
-      const preparing =
-        Promise.all([
-          token
-            ? Promise.resolve()
-            : timedCheckoutStep(
-                "guest_access",
-                ensureGuestAccess,
-              ),
+      const preparing = Promise.all([
+        token
+          ? Promise.resolve()
+          : timedCheckoutStep(
+              "guest_access",
+              ensureGuestAccess,
+            ),
 
-          checkOnly
-            ? Promise.resolve()
-            : timedCheckoutStep(
-                "razorpay_load",
-                loadRazorpay,
-              ),
-        ]);
+        checkOnly
+          ? Promise.resolve()
+          : timedCheckoutStep(
+              "razorpay_load",
+              loadRazorpay,
+            ),
+      ]);
 
       // Share a running recovery check before requesting another payment.
       const recovering =
         statusRequest.current &&
-        statusRequest.current
-          .orderId === record.orderId
-          ? statusRequest.current
-              .promise
+        statusRequest.current.orderId ===
+          record.orderId
+          ? statusRequest.current.promise
           : null;
 
       const [, status] =
@@ -1831,10 +1754,7 @@ function Checkout({ auth, mode }) {
       }
 
       if (firstRequest) {
-        remember(
-          record,
-          true,
-        );
+        remember(record, true);
       }
 
       if (
@@ -1847,8 +1767,10 @@ function Checkout({ auth, mode }) {
 
         const { order, result } =
           status ||
-          await paymentStatus(
-            record,
+          (
+            await paymentStatus(
+              record,
+            )
           );
 
         if (!mounted.current) {
@@ -1862,8 +1784,7 @@ function Checkout({ auth, mode }) {
           )
         ) {
           if (
-            result?.state ===
-              "pending" &&
+            result?.state === "pending" &&
             order.status ===
               "payment-pending" &&
             !order.payment?.verifiedAt
@@ -1912,10 +1833,7 @@ function Checkout({ auth, mode }) {
         return;
       }
 
-      validateGateway(
-        data,
-        record,
-      );
+      validateGateway(data, record);
 
       active = {
         ...record,
@@ -1959,17 +1877,13 @@ function Checkout({ auth, mode }) {
           order_id:
             data.razorpayOrderId,
 
-          amount:
-            data.amount,
-
-          currency:
-            data.currency,
+          amount: data.amount,
+          currency: data.currency,
 
           name: "GymDrobe",
 
           description:
-            record.payload
-              .paymentMethod ===
+            record.payload.paymentMethod ===
             "cod-partial"
               ? "10% COD advance"
               : "Order payment",
@@ -1977,18 +1891,15 @@ function Checkout({ auth, mode }) {
           prefill: {
             name:
               record.payload
-                .shippingAddress
-                .fullName,
+                .shippingAddress.fullName,
 
             email:
               record.payload
-                .shippingAddress
-                .email,
+                .shippingAddress.email,
 
             contact:
               record.payload
-                .shippingAddress
-                .phone,
+                .shippingAddress.phone,
           },
 
           notes: {
@@ -2041,8 +1952,7 @@ function Checkout({ auth, mode }) {
 
       const verification = {
         checkoutToken:
-          record.payload
-            .checkoutToken,
+          record.payload.checkoutToken,
 
         ...response,
       };
@@ -2108,8 +2018,7 @@ function Checkout({ auth, mode }) {
         !active.orderId &&
         !failure.data
           ?.verificationUncertain &&
-        !failure.data
-          ?.paymentReceived &&
+        !failure.data?.paymentReceived &&
         (
           failure.status === 400 ||
           failure.status === 401 ||
@@ -2124,9 +2033,7 @@ function Checkout({ auth, mode }) {
             "SHIPPING_SNAPSHOT_INVALID",
             "KIT_UNAVAILABLE",
             "KIT_VERSION_CHANGED",
-          ].includes(
-            failure.code,
-          )
+          ].includes(failure.code)
         );
 
       if (safeRejection) {
@@ -2139,8 +2046,7 @@ function Checkout({ auth, mode }) {
 
           phase:
             verificationStarted ||
-            active.phase ===
-              "confirming"
+            active.phase === "confirming"
               ? "confirming"
               : "check",
         });
@@ -2150,6 +2056,7 @@ function Checkout({ auth, mode }) {
         failure.data?.order &&
         acceptOrder(
           failure.data.order,
+
           pendingRef.current ||
             active,
         )
@@ -2158,8 +2065,7 @@ function Checkout({ auth, mode }) {
       }
 
       const reference =
-        failure.data
-          ?.errorReference;
+        failure.data?.errorReference;
 
       setError(
         `${
@@ -2177,8 +2083,7 @@ function Checkout({ auth, mode }) {
 
         {
           payment_type:
-            record.payload
-              .paymentMethod,
+            record.payload.paymentMethod,
 
           failure_stage:
             pendingRef.current
@@ -2201,36 +2106,28 @@ function Checkout({ auth, mode }) {
     }
 
     const clean =
-      checkoutAddress(
-        address,
-      );
+      checkoutAddress(address);
 
     const validation =
-      checkoutAddressErrors(
-        clean,
-      );
+      checkoutAddressErrors(clean);
 
     setErrors(validation);
     setError("");
 
     if (
-      Object.keys(
-        validation,
-      ).length
+      Object.keys(validation).length
     ) {
       setError(
         "Correct the highlighted delivery details.",
       );
 
-      requestAnimationFrame(
-        () => {
-          formRef.current
-            ?.querySelector(
-              '[aria-invalid="true"]',
-            )
-            ?.focus();
-        },
-      );
+      requestAnimationFrame(() => {
+        formRef.current
+          ?.querySelector(
+            '[aria-invalid="true"]',
+          )
+          ?.focus();
+      });
 
       return;
     }
@@ -2253,9 +2150,7 @@ function Checkout({ auth, mode }) {
     const latestItems =
       mode === "buy-now"
         ? latestStore.buyNowItem
-          ? [
-              latestStore.buyNowItem,
-            ]
+          ? [latestStore.buyNowItem]
           : []
         : mode === "selection"
           ? selectedBag(
@@ -2265,20 +2160,17 @@ function Checkout({ auth, mode }) {
             )
           : latestStore.latestCart();
 
-    const fresh =
-      reviewCart(
-        latestItems,
-        latestCatalog,
+    const fresh = reviewCart(
+      latestItems,
+      latestCatalog,
 
-        latestStore.catalogReady &&
-          Array.isArray(
-            latestCatalog,
-          ),
+      latestStore.catalogReady &&
+        Array.isArray(latestCatalog),
 
-        {
-          allowKitReview: true,
-        },
-      );
+      {
+        allowKitReview: true,
+      },
+    );
 
     let latestQuote = null;
 
@@ -2308,8 +2200,7 @@ function Checkout({ auth, mode }) {
         );
 
       if (
-        signature !==
-        quoteSignature
+        signature !== quoteSignature
       ) {
         setError(
           "Your bag changed. Refresh prices and delivery before paying.",
@@ -2394,7 +2285,8 @@ function Checkout({ auth, mode }) {
           mode === "buy-now"
             ? currentStore.buyNowItem
               ? [
-                  currentStore.buyNowItem,
+                  currentStore
+                    .buyNowItem,
                 ]
               : []
             : mode === "selection"
@@ -2478,8 +2370,7 @@ function Checkout({ auth, mode }) {
           payloadFor(
             fresh.pricingRows,
             latestPricing,
-            latestQuote ||
-              kitQuote,
+            latestQuote || kitQuote,
           );
 
         if (
@@ -2523,8 +2414,7 @@ function Checkout({ auth, mode }) {
           );
 
         const checkoutToken =
-          previousAttempt
-            ?.signature ===
+          previousAttempt?.signature ===
           checkoutSignature
             ? previousAttempt
                 .checkoutToken
@@ -2559,8 +2449,7 @@ function Checkout({ auth, mode }) {
             checkoutToken,
           },
 
-          pricing:
-            latestPricing,
+          pricing: latestPricing,
 
           snapshot:
             fresh.pricingRows.map(
@@ -2645,11 +2534,9 @@ function Checkout({ auth, mode }) {
       } finally {
         controller.abort();
 
-        quoteSubmit.current =
-          null;
+        quoteSubmit.current = null;
 
-        locked.current =
-          false;
+        locked.current = false;
 
         if (mounted.current) {
           setBusy(false);
@@ -2692,31 +2579,24 @@ function Checkout({ auth, mode }) {
       items[row.index];
 
     const group =
-      getKitGroup(
-        original,
-      );
+      getKitGroup(original);
 
     setError("");
 
     try {
       if (mode === "buy-now") {
-        if (
-          nextQuantity === 0
-        ) {
+        if (nextQuantity === 0) {
           store.clearBuyNow();
         } else {
           store.buyNow(
-            row.product ||
-              original,
+            row.product || original,
             nextQuantity,
             row.selectedSize,
             row.selectedColor,
           );
         }
       } else if (!group) {
-        if (
-          nextQuantity === 0
-        ) {
+        if (nextQuantity === 0) {
           store.removeFromCart(
             row.key,
           );
@@ -2728,6 +2608,7 @@ function Checkout({ auth, mode }) {
         }
       } else {
         locked.current = true;
+
         setBusy(true);
 
         const cart =
@@ -2736,50 +2617,44 @@ function Checkout({ auth, mode }) {
         const components =
           cart.filter(
             (item) =>
-              getKitGroup(item)
-                ?.id === group.id,
+              getKitGroup(item)?.id ===
+              group.id,
           );
 
         const selections =
-          components.map(
-            (item) => ({
-              slotKey:
-                item.kitGroup
-                  .slotKey,
+          components.map((item) => ({
+            slotKey:
+              item.kitGroup.slotKey,
 
-              included:
-                getCartItemKey(
-                  item,
-                ) !== row.key ||
-                nextQuantity > 0,
+            included:
+              getCartItemKey(item) !==
+                row.key ||
+              nextQuantity > 0,
 
-              productId:
-                String(item.id),
+            productId:
+              String(item.id),
 
-              selectedSize:
-                item.selectedSize ??
-                null,
+            selectedSize:
+              item.selectedSize ??
+              null,
 
-              selectedColor:
-                item.selectedColor ??
-                null,
+            selectedColor:
+              item.selectedColor ??
+              null,
 
-              quantity:
-                getCartItemKey(
-                  item,
-                ) === row.key
-                  ? Math.max(
-                      1,
-                      nextQuantity,
-                    )
-                  : item.quantity,
-            }),
-          );
+            quantity:
+              getCartItemKey(item) ===
+              row.key
+                ? Math.max(
+                    1,
+                    nextQuantity,
+                  )
+                : item.quantity,
+          }));
 
         if (
           !selections.some(
-            (item) =>
-              item.included,
+            (item) => item.included,
           )
         ) {
           store.removeKitFromCart(
@@ -2822,19 +2697,17 @@ function Checkout({ auth, mode }) {
     }
   }
 
-  function changeAddress(
-    value,
-  ) {
+  function changeAddress(value) {
     if (frozen) {
       return;
     }
 
-    addressTouched.current =
-      true;
+    addressTouched.current = true;
 
     const next =
-      editableAddress(value) ||
-      { ...EMPTY_ADDRESS };
+      editableAddress(value) || {
+        ...EMPTY_ADDRESS,
+      };
 
     const stored =
       writeAddressDraft(
@@ -2871,23 +2744,18 @@ function Checkout({ auth, mode }) {
     // Save immediately before refresh or navigation.
     setAddress(next);
 
-    setErrors(
-      (previous) =>
-        Object.fromEntries(
-          Object.entries(
-            previous,
-          ).filter(
-            ([key]) =>
-              String(
-                value?.[key] ??
-                  "",
-              ) ===
-              String(
-                address[key] ??
-                  "",
-              ),
-          ),
+    setErrors((previous) =>
+      Object.fromEntries(
+        Object.entries(previous).filter(
+          ([key]) =>
+            String(
+              value?.[key] ?? "",
+            ) ===
+            String(
+              address[key] ?? "",
+            ),
         ),
+      ),
     );
 
     setError("");
@@ -2902,8 +2770,7 @@ function Checkout({ auth, mode }) {
       return;
     }
 
-    addressTouched.current =
-      true;
+    addressTouched.current = true;
 
     const blank = {
       ...EMPTY_ADDRESS,
@@ -2970,9 +2837,7 @@ function Checkout({ auth, mode }) {
           Delivery & payment
         </strong>
 
-        <span>
-          Order confirmed
-        </span>
+        <span>Order confirmed</span>
       </nav>
 
       <div className="page-heading">
@@ -2985,6 +2850,7 @@ function Checkout({ auth, mode }) {
 
           <p className="muted">
             {review.itemCount} items ·{" "}
+
             {mode === "buy-now"
               ? "Buy now"
               : mode === "selection"
@@ -2999,10 +2865,12 @@ function Checkout({ auth, mode }) {
           <strong>
             Guest checkout
           </strong>
+
           {" · "}
-          No account required. Your private order
-          access will be saved on this browser.
-          {" "}
+
+          No account required. Your private
+          order access will be saved on
+          this browser.{" "}
 
           <Link to={loginPath}>
             Sign in with Google instead
@@ -3026,10 +2894,9 @@ function Checkout({ auth, mode }) {
               <p>
                 Order:{" "}
                 {pending.orderId ||
-                  "Waiting for the server reference"}.
-                {" "}
-                Keep this page open while payment
-                is checked.
+                  "Waiting for the server reference"}
+                . Keep this page open while
+                payment is checked.
               </p>
 
               <p>
@@ -3046,7 +2913,8 @@ function Checkout({ auth, mode }) {
 
               <div className="purchase-actions">
                 {pending.payload &&
-                  pending.phase !== "closed" && (
+                  pending.phase !==
+                    "closed" && (
                     <button
                       className="button secondary"
                       type="button"
@@ -3086,7 +2954,8 @@ function Checkout({ auth, mode }) {
                     </button>
                   )}
 
-                {pending.phase === "closed" && (
+                {pending.phase ===
+                  "closed" && (
                   <button
                     className="button secondary"
                     type="button"
@@ -3119,12 +2988,15 @@ function Checkout({ auth, mode }) {
                 )}
               </div>
 
-              {pending.phase !== "closed" && (
+              {pending.phase !==
+                "closed" && (
                 <p className="muted">
-                  Resume checks this saved order
-                  with the server before opening
-                  Razorpay again. If money was
-                  deducted, check payment status first.
+                  Resume checks this saved
+                  order with the server
+                  before opening Razorpay
+                  again. If money was
+                  deducted, check payment
+                  status first.
                 </p>
               )}
             </>
@@ -3134,8 +3006,8 @@ function Checkout({ auth, mode }) {
 
       {pending?.testMode && (
         <p className="notice">
-          Test payment mode: this checkout does
-          not collect live payments.
+          Test payment mode: this checkout
+          does not collect live payments.
         </p>
       )}
 
@@ -3148,37 +3020,36 @@ function Checkout({ auth, mode }) {
         </p>
       )}
 
-      {!pending && !review.canCheckout && (
-        <section
-          className="notice"
-          role="status"
-        >
-          <p>
-            Checkout needs a current product and
-            stock check. Review highlighted items
-            below.
-          </p>
-
-          <button
-            className="button secondary"
-            type="button"
-            disabled={
-              refreshing || busy
-            }
-            onClick={refresh}
+      {!pending &&
+        !review.canCheckout && (
+          <section
+            className="notice"
+            role="status"
           >
-            {refreshing
-              ? "Checking products…"
-              : "Refresh products"}
-          </button>
+            <p>
+              Checkout needs a current
+              product and stock check.
+              Review highlighted items below.
+            </p>
 
-          {" "}
+            <button
+              className="button secondary"
+              type="button"
+              disabled={
+                refreshing || busy
+              }
+              onClick={refresh}
+            >
+              {refreshing
+                ? "Checking products…"
+                : "Refresh products"}
+            </button>{" "}
 
-          <Link to="/cart">
-            Review bag
-          </Link>
-        </section>
-      )}
+            <Link to="/cart">
+              Review bag
+            </Link>
+          </section>
+        )}
 
       <div className="checkout-layout">
         <form
@@ -3242,7 +3113,9 @@ function Checkout({ auth, mode }) {
 
                       <span>
                         {value.addressLine}
+
                         {" · "}
+
                         {value.city}{" "}
                         {value.pincode}
                       </span>
@@ -3302,8 +3175,8 @@ function Checkout({ auth, mode }) {
 
           <details className="panel">
             <summary>
-              Gift message & delivery instructions
-              (optional)
+              Gift message & delivery
+              instructions (optional)
             </summary>
 
             <div className="field">
@@ -3381,27 +3254,12 @@ function Checkout({ auth, mode }) {
 
                   {" · "}
 
-                  {hasKits
-                    ? method === value &&
-                      pricing
-                      ? money(
-                          pricing.shipping,
-                        )
-                      : "Checked for your pincode"
-                    : pricing
-                      ? money(
-                          calculateOrderPricing({
-                            cart:
-                              review.pricingRows,
-
-                            coupon:
-                              store.coupon,
-
-                            deliveryMethod:
-                              value,
-                          }).shipping,
-                        )
-                      : "Charge unavailable"}
+                  {method === value &&
+                  pricing
+                    ? money(
+                        pricing.shipping,
+                      )
+                    : "Checked for your pincode"}
                 </span>
               </label>
             ))}
@@ -3409,11 +3267,17 @@ function Checkout({ auth, mode }) {
             <p className="muted">
               {hasKits
                 ? "Kit charges depend on the measured packages, your pincode and payment method. Review the confirmed package breakdown below."
-                : `Standard delivery is free from ${money(
-                    FREE_SHIPPING_LIMIT,
-                  )} after coupons. Supplier preparation and courier transit are separate.`}
+                : "Standard delivery offers depend on your products, coupons and delivery pincode. Supplier preparation and courier transit are separate."}
             </p>
           </fieldset>
+
+          {!hasKits && !pending && (
+            <FreeShippingProgress
+              quote={kitQuote}
+              loading={quoteLoading}
+              error={quoteError}
+            />
+          )}
 
           <fieldset
             className="panel gd-checkout-fields"
@@ -3446,8 +3310,8 @@ function Checkout({ auth, mode }) {
                 <br />
 
                 Pay the complete order amount
-                through Razorpay. Nothing remains
-                due on delivery.
+                through Razorpay. Nothing
+                remains due on delivery.
               </span>
             </label>
 
@@ -3474,8 +3338,9 @@ function Checkout({ auth, mode }) {
                 <br />
 
                 The advance is 10% of products
-                after coupons. Delivery charges
-                stay in the remaining balance.
+                after coupons. Delivery
+                charges stay in the remaining
+                balance.
               </span>
             </label>
 
@@ -3483,13 +3348,13 @@ function Checkout({ auth, mode }) {
               Review{" "}
 
               <Link to="/help">
-                cancellation, return and refund
-                information
-              </Link>
+                cancellation, return and
+                refund information
+              </Link>{" "}
 
-              {" "}
-              before paying. Contact support if
-              eligibility or terms are unconfirmed.
+              before paying. Contact support
+              if eligibility or terms are
+              unconfirmed.
             </p>
           </fieldset>
 
@@ -3498,17 +3363,10 @@ function Checkout({ auth, mode }) {
             orderNote.trim()
           ) && (
             <section className="panel">
-              <h2>
-                ORDER NOTES
-              </h2>
+              <h2>ORDER NOTES</h2>
 
-              <p>
-                {giftMessage}
-              </p>
-
-              <p>
-                {orderNote}
-              </p>
+              <p>{giftMessage}</p>
+              <p>{orderNote}</p>
             </section>
           )}
 
@@ -3523,8 +3381,8 @@ function Checkout({ auth, mode }) {
 
               {quoteLoading ? (
                 <p role="status">
-                  Checking current prices, stock
-                  and delivery settings…
+                  Checking current prices,
+                  stock and delivery settings…
                 </p>
               ) : quoteError ? (
                 <p
@@ -3533,13 +3391,17 @@ function Checkout({ auth, mode }) {
                 >
                   {quoteError}
                 </p>
-              ) : kitQuote?.deliveryReview?.ready ? (
+              ) : kitQuote?.deliveryReview
+                  ?.ready ? (
                 <>
                   <p>
-                    Prices checked for pincode{" "}
+                    Prices checked for
+                    pincode{" "}
+
                     <strong>
                       {
-                        kitQuote.deliveryReview
+                        kitQuote
+                          .deliveryReview
                           .pincode
                       }
                     </strong>
@@ -3551,32 +3413,37 @@ function Checkout({ auth, mode }) {
                     <p>
                       Recorded preparation and
                       delivery estimate:{" "}
+
                       {
-                        kitQuote.deliveryReview
-                          .estimatedDays.minimum
+                        kitQuote
+                          .deliveryReview
+                          .estimatedDays
+                          .minimum
                       }
                       –
                       {
-                        kitQuote.deliveryReview
-                          .estimatedDays.maximum
-                      }
-                      {" "}
+                        kitQuote
+                          .deliveryReview
+                          .estimatedDays
+                          .maximum
+                      }{" "}
                       days.
                     </p>
                   )}
 
                   <p className="muted">
                     {
-                      kitQuote.deliveryReview
+                      kitQuote
+                        .deliveryReview
                         .notice
                     }
                   </p>
                 </>
               ) : (
                 <p>
-                  Enter your six-digit delivery
-                  pincode to check products and
-                  the final cost.
+                  Enter your six-digit
+                  delivery pincode to check
+                  products and the final cost.
                 </p>
               )}
 
@@ -3584,13 +3451,11 @@ function Checkout({ auth, mode }) {
                 type="button"
                 className="text-link"
                 disabled={
-                  frozen ||
-                  quoteLoading
+                  frozen || quoteLoading
                 }
                 onClick={() =>
                   setQuoteRevision(
-                    (value) =>
-                      value + 1,
+                    (value) => value + 1,
                   )
                 }
               >
@@ -3610,17 +3475,14 @@ function Checkout({ auth, mode }) {
               }
               onRefresh={() =>
                 setQuoteRevision(
-                  (value) =>
-                    value + 1,
+                  (value) => value + 1,
                 )
               }
             />
           )}
 
           <section className="panel">
-            <h2>
-              YOUR PRODUCTS
-            </h2>
+            <h2>YOUR PRODUCTS</h2>
 
             {review.rows.map((row) => {
               const information =
@@ -3693,10 +3555,7 @@ function Checkout({ auth, mode }) {
                 >
                   <ProductImage
                     product={{
-                      ...(
-                        row.product ||
-                        row
-                      ),
+                      ...(row.product || row),
 
                       selectedColor:
                         row.selectedColor,
@@ -3716,9 +3575,7 @@ function Checkout({ auth, mode }) {
                         "Brand not recorded"}
                     </p>
 
-                    <p>
-                      {variants}
-                    </p>
+                    <p>{variants}</p>
 
                     {Number.isFinite(
                       linePrice,
@@ -3730,6 +3587,7 @@ function Checkout({ auth, mode }) {
 
                     <p>
                       Quantity:{" "}
+
                       {row.quantityValid
                         ? row.quantity
                         : "Needs correction"}
@@ -3751,7 +3609,8 @@ function Checkout({ auth, mode }) {
                     {!frozen && (
                       <div className="gd-checkout-quantity">
                         <label>
-                          Quantity for {row.name}
+                          Quantity for{" "}
+                          {row.name}
 
                           <select
                             value={
@@ -3764,13 +3623,15 @@ function Checkout({ auth, mode }) {
                                 row,
 
                                 Number(
-                                  event.target.value,
+                                  event.target
+                                    .value,
                                 ),
                               )
                             }
                             disabled={
                               busy ||
-                              row.maxQuantity < 1
+                              row.maxQuantity <
+                                1
                             }
                           >
                             {!row.quantityValid && (
@@ -3891,15 +3752,14 @@ function Checkout({ auth, mode }) {
           )}
 
           <section className="price-summary">
-            <h2>
-              ORDER SUMMARY
-            </h2>
+            <h2>ORDER SUMMARY</h2>
 
             {displayedPricing ? (
               <dl>
                 <div>
                   <dt>
-                    Products after product discounts
+                    Products after product
+                    discounts
                   </dt>
 
                   <dd>
@@ -3909,31 +3769,29 @@ function Checkout({ auth, mode }) {
                   </dd>
                 </div>
 
-                {displayedPricing.kitDiscount >
-                  0 && (
+                {displayedPricing
+                  .kitDiscount > 0 && (
                   <div>
-                    <dt>
-                      Kit savings
-                    </dt>
+                    <dt>Kit savings</dt>
 
                     <dd>
                       −
                       {money(
-                        displayedPricing.kitDiscount,
+                        displayedPricing
+                          .kitDiscount,
                       )}
                     </dd>
                   </div>
                 )}
 
                 <div>
-                  <dt>
-                    Coupon savings
-                  </dt>
+                  <dt>Coupon savings</dt>
 
                   <dd>
                     −
                     {money(
-                      displayedPricing.couponDiscount,
+                      displayedPricing
+                        .couponDiscount,
                     )}
                   </dd>
                 </div>
@@ -3942,8 +3800,7 @@ function Checkout({ auth, mode }) {
                   <dt>
                     {method === "express"
                       ? "Express"
-                      : "Standard"}
-                    {" "}
+                      : "Standard"}{" "}
                     delivery
                   </dt>
 
@@ -3955,21 +3812,18 @@ function Checkout({ auth, mode }) {
                 </div>
 
                 <div className="total">
-                  <dt>
-                    Total amount
-                  </dt>
+                  <dt>Total amount</dt>
 
                   <dd>
                     {money(
-                      displayedPricing.finalTotal,
+                      displayedPricing
+                        .finalTotal,
                     )}
                   </dd>
                 </div>
 
                 <div>
-                  <dt>
-                    Pay now
-                  </dt>
+                  <dt>Pay now</dt>
 
                   <dd>
                     {money(
@@ -3979,9 +3833,7 @@ function Checkout({ auth, mode }) {
                 </div>
 
                 <div>
-                  <dt>
-                    Pay on delivery
-                  </dt>
+                  <dt>Pay on delivery</dt>
 
                   <dd>
                     {money(
@@ -3994,7 +3846,8 @@ function Checkout({ auth, mode }) {
                   !pending && (
                     <div>
                       <dt>
-                        Product savings included above
+                        Product savings
+                        included above
                       </dt>
 
                       <dd>
@@ -4059,20 +3912,12 @@ function Checkout({ auth, mode }) {
                 <span
                   aria-hidden="true"
                   style={{
-                    position:
-                      "absolute",
-
+                    position: "absolute",
                     inset: 0,
                     display: "flex",
-
-                    alignItems:
-                      "center",
-
-                    justifyContent:
-                      "center",
-
-                    padding:
-                      "inherit",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "inherit",
                   }}
                 >
                   {busy
