@@ -3,6 +3,8 @@
   height: 52px;
   min-height: 52px;
   width: 100%;
+  min-width: 0;
+  margin: 0;
   padding: 10px 12px;
   border-radius: 8px;
   box-sizing: border-box;
@@ -10,14 +12,18 @@
   align-items: center;
   justify-content: center;
   text-align: center;
+  align-self: stretch;
 }
 
 .gd-storefront .purchase-actions.product-primary-actions {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 10px;
 }
 
 .gd-storefront .product-primary-actions .buy-now {
+  margin: 0;
   background: var(--gd-accent, #ff3f6c);
   border-color: var(--gd-accent, #ff3f6c);
   color: #fff;

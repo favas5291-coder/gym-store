@@ -23,6 +23,7 @@ import {
 
 import CouponBox from "./CouponBox.jsx";
 import CartShippingReview from "./CartShippingReview.jsx";
+import CartAddons from "./CartAddons.jsx";
 
 import {
   getCartItemKey,
@@ -1054,6 +1055,8 @@ export default function Cart() {
               </article>
             );
           })}
+
+          <CartAddons key={shopper} />
         </div>
 
         <aside

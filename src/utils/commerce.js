@@ -7,6 +7,15 @@ import {
 
 import { getDiscountedPrice } from "./productPricing.js";
 
+import {
+  productPriceAvailable,
+  productReference,
+  purchaseOptions,
+  purchaseState,
+} from "./productPurchase.js";
+
+import { productText } from "./productInformation.js";
+
 // ======================================================
 // BAG VARIANT
 // ======================================================
@@ -465,6 +474,317 @@ export function rankRelated(product, catalogue) {
         a.index - b.index,
     )
     .map((entry) => entry.item);
+}
+
+// ======================================================
+// CART ADD-ONS
+// ======================================================
+
+function addonReferences(value) {
+  const values =
+    value && typeof value === "object"
+      ? [
+          value.id,
+          value._id,
+          value.legacyId,
+          value.productId,
+          ...(
+            value.product &&
+            typeof value.product === "object"
+              ? [
+                  value.product.id,
+                  value.product._id,
+                  value.product.legacyId,
+                ]
+              : [value.product]
+          ),
+        ]
+      : [value];
+
+  return [
+    ...new Set(
+      values
+        .filter(
+          (id) =>
+            typeof id === "string" ||
+            (
+              typeof id === "number" &&
+              Number.isFinite(id)
+            ),
+        )
+        .map((id) => String(id).trim())
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function addonAvailable(product) {
+  if (
+    !product ||
+    !productPriceAvailable(product) ||
+    !addonReferences(product).length
+  ) {
+    return false;
+  }
+
+  const sizes = purchaseOptions(product.sizes);
+  const colors = purchaseOptions(product.colors);
+
+  // Find an available combination without selecting it for the customer.
+  return (sizes.length ? sizes : [null]).some(
+    (size) =>
+      (colors.length ? colors : [null]).some(
+        (color) =>
+          purchaseState(
+            product,
+            size,
+            color,
+            1,
+            true,
+          ).canBuy,
+      ),
+  );
+}
+
+function addonReason(source, configured) {
+  const name = productText(source.name);
+
+  if (configured) {
+    return name
+      ? `Suggested alongside ${name}.`
+      : "Suggested alongside an item in your bag.";
+  }
+
+  const category = normalizeValue(source.category);
+
+  if (category === "protein") {
+    return "An extra to explore alongside the protein in your bag.";
+  }
+
+  if (category === "workout clothes") {
+    return "An extra to explore alongside your workout clothing.";
+  }
+
+  return name
+    ? `An extra to explore alongside ${name}.`
+    : "An extra to explore alongside an item in your bag.";
+}
+
+// Selection only: this function never changes the bag or reserves stock.
+// configuredPairs: [{ sourceId, productId, enabled: true | false }].
+// An explicitly disabled pair suppresses that source/product relationship.
+// eligibleProductIds, when supplied, must come from a fresh server review.
+// The cart UI must recheck the chosen variant and backend quote before adding.
+// Shipping, coupons, bundle discounts and payable totals remain server-owned.
+export function rankCartAddons(
+  cart,
+  catalogue,
+  options = {},
+) {
+  if (
+    !Array.isArray(cart) ||
+    !cart.length ||
+    !Array.isArray(catalogue)
+  ) {
+    return [];
+  }
+
+  const limit =
+    Number.isSafeInteger(options?.limit) &&
+    options.limit >= 0
+      ? Math.min(options.limit, 3)
+      : 3;
+
+  if (limit === 0) return [];
+
+  const pairs = (
+    Array.isArray(options?.configuredPairs)
+      ? options.configuredPairs
+      : []
+  ).flatMap((pair, index) => {
+    const source = addonReferences(pair?.sourceId);
+    const target = addonReferences(pair?.productId);
+
+    return (
+      source.length === 1 &&
+      target.length === 1 &&
+      typeof pair?.enabled === "boolean"
+    )
+      ? [{
+          sourceId: source[0],
+          productId: target[0],
+          enabled: pair.enabled,
+          index,
+        }]
+      : [];
+  });
+
+  let eligible = null;
+
+  if (
+    Object.prototype.hasOwnProperty.call(
+      options || {},
+      "eligibleProductIds",
+    )
+  ) {
+    if (!Array.isArray(options.eligibleProductIds)) {
+      return [];
+    }
+
+    eligible = new Set(
+      options.eligibleProductIds.flatMap(addonReferences),
+    );
+  }
+
+  const inBag = new Set(cart.flatMap(addonReferences));
+  const sourceIds = new Set();
+  const sources = [];
+
+  for (const row of cart) {
+    if (!row || positiveQuantity(row.quantity) == null) {
+      continue;
+    }
+
+    const ids = new Set(addonReferences(row));
+
+    const product = catalogue.find(
+      (item) =>
+        addonReferences(item).some((id) => ids.has(id)),
+    );
+
+    if (!product) continue;
+
+    const references = addonReferences(product);
+
+    // Exclude every alias, including kit components and other variants.
+    references.forEach((id) => inBag.add(id));
+
+    if (
+      references.some((id) => sourceIds.has(id)) ||
+      !purchaseState(
+        product,
+        row.selectedSize ?? null,
+        row.selectedColor ?? null,
+        positiveQuantity(row.quantity),
+        true,
+      ).canBuy
+    ) {
+      continue;
+    }
+
+    references.forEach((id) => sourceIds.add(id));
+    sources.push({ product, references });
+  }
+
+  if (!sources.length) return [];
+
+  const seen = new Set();
+  const ranked = [];
+
+  for (const [index, product] of catalogue.entries()) {
+    const references = addonReferences(product);
+
+    if (
+      !references.length ||
+      references.some((id) => inBag.has(id) || seen.has(id)) ||
+      (
+        eligible &&
+        !references.some((id) => eligible.has(id))
+      ) ||
+      !addonAvailable(product)
+    ) {
+      continue;
+    }
+
+    const pricePaise = Math.round(
+      getDiscountedPrice(product) * 100,
+    );
+
+    if (!Number.isSafeInteger(pricePaise) || pricePaise < 0) {
+      continue;
+    }
+
+    let best = null;
+
+    for (const source of sources) {
+      const matching = pairs.filter(
+        (pair) =>
+          source.references.includes(pair.sourceId) &&
+          references.includes(pair.productId),
+      );
+
+      if (matching.some((pair) => !pair.enabled)) {
+        continue;
+      }
+
+      const configuredOrder = matching.length
+        ? matching[0].index
+        : Infinity;
+
+      const score = complementaryScore(source.product, product);
+
+      if (!matching.length && score <= 0) continue;
+
+      if (
+        !best ||
+        configuredOrder < best.configuredOrder ||
+        (
+          configuredOrder === best.configuredOrder &&
+          score > best.score
+        )
+      ) {
+        best = {
+          configuredOrder,
+          score,
+          source: source.product,
+        };
+      }
+    }
+
+    if (!best) continue;
+
+    references.forEach((id) => seen.add(id));
+
+    ranked.push({
+      product,
+      pricePaise,
+      sourceId: String(productReference(best.source)),
+      reason: addonReason(
+        best.source,
+        best.configuredOrder !== Infinity,
+      ),
+      requiresOptions:
+        purchaseOptions(product.sizes).length > 0 ||
+        purchaseOptions(product.colors).length > 0,
+      recommendationType:
+        best.configuredOrder !== Infinity
+          ? "configured"
+          : "category",
+      configuredOrder: best.configuredOrder,
+      score: best.score,
+      index,
+    });
+  }
+
+  return ranked
+    .sort(
+      (a, b) =>
+        (
+          a.configuredOrder === b.configuredOrder
+            ? 0
+            : a.configuredOrder < b.configuredOrder ? -1 : 1
+        ) ||
+        b.score - a.score ||
+        a.pricePaise - b.pricePaise ||
+        a.index - b.index,
+    )
+    .slice(0, limit)
+    .map(({
+      configuredOrder,
+      score,
+      index,
+      ...suggestion
+    }) => suggestion);
 }
 
 // ======================================================
