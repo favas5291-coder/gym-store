@@ -331,7 +331,7 @@ export default function ProductCard({
 
               <ProductOptions
                 key={item.id}
-                product={item}
+                product={{ ...item, selectedColor: quickSelectedColor }}
                 onColorChange={changeQuickColor}
                 onAdded={() => setQuick(false)}
               />

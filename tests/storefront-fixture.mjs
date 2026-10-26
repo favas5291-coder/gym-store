@@ -11,7 +11,7 @@ export async function startStorefrontFixture(port = 4210) {
   const server = await createServer({root, server:{host:'127.0.0.1',port,strictPort:true},logLevel:'error'});
   await server.listen();
   const { default: seeds } = await server.ssrLoadModule('/src/data/products.js');
-  const products = seeds.map(p => ({...p, id:String(p.id).padStart(24,'0'), _id:String(p.id).padStart(24,'0'), reviews:[], reviewCount:0, rating:0}));
+  const products = seeds.map(p => ({...p, id:String(p.id).padStart(24,'0'), _id:String(p.id).padStart(24,'0'), colorImages:(p.colors || []).map((color,index)=>({color,images:[p.images[index % p.images.length]]})), reviews:[], reviewCount:0, rating:0}));
   return {server, products, url:`http://127.0.0.1:${port}`};
 }
 function quoteFor(body, products) {

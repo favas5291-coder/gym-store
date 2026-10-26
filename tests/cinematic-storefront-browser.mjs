@@ -31,7 +31,7 @@ try{
   await search.fill('shoes');await search.press('Enter');await x.p.waitForURL('**/shop?**');
   await x.p.locator('.product-grid .gm-product-card').first().waitFor();assert.match(x.p.url(),/search=shoes/);
   assert.equal(await x.p.locator('.product-grid .gm-product-card').count(),1);
-  await visit(x.p,'/shop');await x.p.getByRole('checkbox',{name:/Workout Clothes/}).first().check();
+  await visit(x.p,'/shop');await x.p.getByRole('checkbox',{name:/Workout Clothes/}).first().click();
   await x.p.waitForURL(/category=/);assert.equal(await x.p.locator('.product-grid .gm-product-card').count(),1);
   await x.p.getByLabel('Sort by:').selectOption('price-low');await x.p.waitForURL(/sort=price-low/);
   await x.p.reload();await x.p.getByRole('checkbox',{name:/Workout Clothes/}).first().waitFor();assert.equal(await x.p.getByRole('checkbox',{name:/Workout Clothes/}).first().isChecked(),true);
@@ -41,7 +41,7 @@ try{
   await choose(x.p);
   const before=await x.p.locator('.gallery .main-photo img').getAttribute('src');
   await x.p.getByRole('button',{name:'Colour White',exact:true}).click();
-  await x.p.waitForTimeout(150);const after=await x.p.locator('.gallery .main-photo img').getAttribute('src');assert.notEqual(before,after);
+  await x.p.waitForFunction(previous=>document.querySelector('.gallery .main-photo img')?.getAttribute('src')!==previous,before);const after=await x.p.locator('.gallery .main-photo img').getAttribute('src');assert.notEqual(before,after);
   await choose(x.p);
   const sizes=await x.p.locator('.product-primary-actions .button').evaluateAll(els=>els.map(e=>({width:e.getBoundingClientRect().width,height:e.getBoundingClientRect().height})));
   assert.ok(Math.abs(sizes[0].width-sizes[1].width)<1);assert.equal(sizes[0].height,sizes[1].height);
@@ -52,6 +52,7 @@ try{
   await x.p.reload();await qty.waitFor();assert.equal(await qty.inputValue(),'2');await capture(x.p,'cart-desktop');
  });
  await check('Guest checkout validation, delivery persistence, COD totals and coupon controls',async()=>{
+  if(!await x.p.getByRole('combobox',{name:'Quantity for Gym Training T-Shirt'}).count()){await visit(x.p,`/product/${fixtureProductId}`);await choose(x.p);await x.p.getByRole('button',{name:/Add to (Cart|Bag)/i}).first().click();await x.p.getByText('✓ Added to your bag').waitFor();await visit(x.p,'/cart');await x.p.getByRole('combobox',{name:'Quantity for Gym Training T-Shirt'}).selectOption('2');}
   await visit(x.p,'/checkout');await x.p.getByLabel('Pincode',{exact:true}).fill('673001');
   const pay=x.p.locator('.gd-checkout-pay');await x.p.waitForFunction(()=>{const b=document.querySelector('.gd-checkout-pay');return b&&!b.disabled;});
   await pay.click();await x.p.getByText('Correct the highlighted delivery details.',{exact:true}).waitFor();assert.ok(await x.p.locator('[aria-invalid="true"]').count()>0);
@@ -66,7 +67,7 @@ try{
  await check('Quick add retains card colour and validates variants',async()=>{
   await visit(quick.p,'/shop');await quick.p.getByRole('button',{name:'Preview White Gym Training T-Shirt'}).click();
   await quick.p.getByRole('button',{name:'Quick add Gym Training T-Shirt'}).click();const modal=quick.p.getByRole('dialog');await modal.waitFor();
-  assert.equal(await modal.getByRole('button',{name:'Colour White',exact:true}).getAttribute('aria-pressed'),'true');
+  await modal.getByRole('button',{name:'Colour White',exact:true}).waitFor();assert.equal(await modal.getByRole('button',{name:'Colour White',exact:true}).getAttribute('aria-pressed'),'true');
   await modal.getByRole('button',{name:'Size M',exact:true}).click();await modal.getByRole('button',{name:/Add to (Cart|Bag)/i}).click();await modal.waitFor({state:'hidden'});
  });await quick.c.close();
  const buy=await context(390);

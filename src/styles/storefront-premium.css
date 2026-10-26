@@ -376,3 +376,16 @@
   #app .premium-storefront .gd-nav .gn-wordmark { font-size: 20px; }
   .footer-statement > a { font-size: 42px; }
 }
+#app .premium-storefront .gd-order-tracker { --track-accent: var(--accent); --track-soft: #f4eae1; --track-ink: var(--ink); --track-muted: var(--muted); }
+#app .premium-storefront :is(.gd-track-card,.gd-track-payment) { border-color: var(--line); border-radius: 3px; box-shadow: none; }
+#app .premium-storefront .gd-track-payment { background: #eeeee7; }
+#app .premium-storefront .gd-track-status { color: var(--accent); border-radius: 3px; }
+#app .premium-storefront .gd-track-art { border-radius: 4px; background: #f1f1eb; border-color: var(--line); color: #72756b; }
+#app .premium-storefront .gd-track-step.is-current .gd-track-art { background: #f4eae1; border-color: #cda68e; color: var(--accent); animation: none; }
+#app .premium-storefront .gd-track-step.is-complete .gd-track-art { background: #eef1e9; color: #52634a; border-color: #cdd5c3; }
+#app .premium-storefront .vto-entry { background: #eeeee7; color: var(--ink); border-color: var(--line); border-radius: 3px; box-shadow: none; }
+#app .premium-storefront .vto-entry-icon { color: var(--accent); background: #e6ddd3; }
+#app .premium-storefront .checkout-item-policy { margin-top: 12px; font-size: 12px; }
+#app .premium-storefront .checkout-item-policy summary { cursor: pointer; min-height: 36px; display: flex; align-items: center; gap: 10px; color: var(--muted); }
+#app .premium-storefront .checkout-item-policy summary::after { content: '+'; }
+#app .premium-storefront .checkout-item-policy[open] summary::after { content: '−'; }

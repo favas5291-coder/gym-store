@@ -3709,6 +3709,8 @@ function Checkout({ auth, mode }) {
                       </p>
                     )}
 
+                    <details className="checkout-item-policy">
+                    <summary>Delivery & returns</summary>
                     <p className="muted">
                       {information.transit ||
                         information.estimate ||
@@ -3729,6 +3731,7 @@ function Checkout({ auth, mode }) {
                         </p>
                       ),
                     )}
+                    </details>
                   </div>
                 </article>
               );
