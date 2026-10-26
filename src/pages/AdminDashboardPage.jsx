@@ -132,6 +132,7 @@ function AdminMenu() {
     ["/admin/returns", "Returns"],
     ["/admin/support", "Support"],
     ["/admin/suppliers", "Suppliers"],
+    ...(import.meta.env.VITE_SUPPLIER_PORTAL_ENABLED === "true" ? [["/admin/supplier-onboarding", "Supplier onboarding"]] : []),
     ["/admin/kits", "Fitness Kits"],
     ["/admin/packing-locations", "Packing locations"],
     ["/admin/shipping-profiles", "Shipping profiles"],

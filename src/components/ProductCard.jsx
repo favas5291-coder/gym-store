@@ -40,6 +40,7 @@ export default function ProductCard({
   ...legacy
 }) {
   const item = product || legacy;
+  const [cardColor, setCardColor] = useState(null);
 
   const [quickColor, setQuickColor] =
     useState(null);
@@ -48,10 +49,10 @@ export default function ProductCard({
     useState(false);
 
   const initialQuickColor =
-    Array.isArray(item.colors) &&
+    cardColor || (Array.isArray(item.colors) &&
     item.colors.includes(item.selectedColor)
       ? item.selectedColor
-      : firstOptions(item).selectedColor;
+      : firstOptions(item).selectedColor);
 
   const changeQuickColor = useCallback(
     (color) => {
@@ -106,7 +107,7 @@ export default function ProductCard({
   } = useProductReviews(item);
 
   const alternateImage =
-    productImageSources(item)[1] || null;
+    productImageSources({ ...item, selectedColor: cardColor || item.selectedColor })[1] || null;
 
   const path = productPath(item.id);
 
@@ -123,7 +124,7 @@ export default function ProductCard({
           to={path}
           aria-label={`View ${item.name}`}
         >
-          <ProductImage product={item} />
+          <ProductImage product={{ ...item, selectedColor: cardColor || item.selectedColor }} />
 
           {alternateImage && (
             <ProductImage
@@ -252,6 +253,13 @@ export default function ProductCard({
             : "Currently unavailable"}
         </p>
 
+        {Array.isArray(item.colors) && item.colors.length > 0 && <div className="card-colors" role="group" aria-label={`${item.name} colours`}>
+          {item.colors.slice(0, 4).map(color => <button type="button" key={color} aria-label={`Preview ${color} ${item.name}`} aria-pressed={(cardColor || item.selectedColor || firstOptions(item).selectedColor) === color} title={color} onClick={() => setCardColor(color)}>
+            <span aria-hidden="true" style={{ backgroundColor: typeof CSS !== "undefined" && CSS.supports("color", color) ? color : "#b2b2a5" }} />
+          </button>)}
+          {item.colors.length > 4 && <Link to={path} aria-label={`View all ${item.colors.length} colours`}>+{item.colors.length - 4}</Link>}
+        </div>}
+
         <div className="gm-product-card-cta">
           {available ? (
             <button
@@ -271,12 +279,7 @@ export default function ProductCard({
             </Link>
           )}
 
-          <Link
-            className="text-link"
-            to={path}
-          >
-            View details →
-          </Link>
+
         </div>
 
         <button

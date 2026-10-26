@@ -16,7 +16,8 @@
     "test:vto": "node --test tests/vto*.test.js",
     "test:vto:browser": "node tests/vto-browser.mjs",
     "seo:sitemap": "node scripts/generate-sitemap.mjs",
-    "build:seo": "npm run build"
+    "build:seo": "npm run build",
+    "test:storefront": "node tests/cinematic-storefront-browser.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "1.0.1",

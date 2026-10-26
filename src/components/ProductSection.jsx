@@ -222,8 +222,7 @@ function Filters({
       </div>
 
       {categoryOptions.length > 0 && (
-        <fieldset>
-          <legend>CATEGORIES</legend>
+        <details className="filter-group" open><summary>CATEGORIES</summary><fieldset><legend className="sr-only">CATEGORIES</legend>
 
           {categoryOptions.map((category) => {
             const selected =
@@ -269,12 +268,11 @@ function Filters({
               </label>
             );
           })}
-        </fieldset>
+        </fieldset></details>
       )}
 
       {subcategories.length > 0 && (
-        <fieldset>
-          <legend>PRODUCT TYPE</legend>
+        <details className="filter-group"><summary>PRODUCT TYPE</summary><fieldset><legend className="sr-only">PRODUCT TYPE</legend>
 
           {subcategories.map((value) => (
             <label
@@ -319,11 +317,10 @@ function Filters({
               Clear product type
             </button>
           )}
-        </fieldset>
+        </fieldset></details>
       )}
 
-      <fieldset>
-        <legend>PRICE</legend>
+      <details className="filter-group" open><summary>PRICE</summary><fieldset><legend className="sr-only">PRICE</legend>
 
         <div className="filter-quick-options">
           {[
@@ -405,7 +402,7 @@ function Filters({
             Apply price
           </button>
         </form>
-      </fieldset>
+      </fieldset></details>
 
       {[
         ["brand", "BRAND", "brand"],
@@ -426,8 +423,7 @@ function Filters({
         if (!options.length) return null;
 
         return (
-          <fieldset key={key}>
-            <legend>{label}</legend>
+          <details className="filter-group" key={key} open={Boolean(params.get(key))}><summary>{label}</summary><fieldset><legend className="sr-only">{label}</legend>
 
             {options.map((value) => {
               const count = scoped.filter(
@@ -461,12 +457,11 @@ function Filters({
                 </label>
               );
             })}
-          </fieldset>
+          </fieldset></details>
         );
       })}
 
-      <fieldset>
-        <legend>AVAILABILITY</legend>
+      <details className="filter-group" open><summary>AVAILABILITY</summary><fieldset><legend className="sr-only">AVAILABILITY</legend>
 
         <label className="check">
           <input
@@ -488,10 +483,9 @@ function Filters({
 
           <span>In stock only</span>
         </label>
-      </fieldset>
+      </fieldset></details>
 
-      <fieldset>
-        <legend>CUSTOMER RATING</legend>
+      <details className="filter-group"><summary>CUSTOMER RATING</summary><fieldset><legend className="sr-only">CUSTOMER RATING</legend>
 
         {[4, 3].map((rating) => (
           <label
@@ -529,10 +523,9 @@ function Filters({
             Clear rating
           </button>
         )}
-      </fieldset>
+      </fieldset></details>
 
-      <fieldset>
-        <legend>DISCOUNT</legend>
+      <details className="filter-group"><summary>DISCOUNT</summary><fieldset><legend className="sr-only">DISCOUNT</legend>
 
         <label className="check">
           <input
@@ -551,7 +544,7 @@ function Filters({
 
           <span>10% and above</span>
         </label>
-      </fieldset>
+      </fieldset></details>
     </div>
   );
 }

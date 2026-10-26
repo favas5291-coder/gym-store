@@ -635,10 +635,8 @@ function ProductOptionsContent({
       </p>
 
       {benefits.length > 0 && (
-        <div className="panel product-buying-benefits">
-          <p className="eyebrow">
-            LISTED PRODUCT FEATURES
-          </p>
+        <details className="product-buying-benefits">
+          <summary>Product highlights</summary>
 
           <ul>
             {benefits.map((benefit) => (
@@ -647,7 +645,7 @@ function ProductOptionsContent({
               </li>
             ))}
           </ul>
-        </div>
+        </details>
       )}
 
       {colors.length > 0 && (
@@ -895,7 +893,8 @@ function ProductOptionsContent({
           </p>
         )}
 
-      <div className="panel product-purchase-trust">
+      <details className="product-purchase-trust">
+        <summary>Delivery & return information</summary>
         {information.deliveryUnavailable ? (
           <p>
             Delivery is currently unavailable
@@ -926,7 +925,7 @@ function ProductOptionsContent({
           Checkout recalculates prices and checks stock
           before an order is confirmed.
         </p>
-      </div>
+      </details>
 
       <div className="purchase-actions product-primary-actions">
         <button

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import categories from "../data/categories.js";
 
@@ -139,132 +139,11 @@ export function categoryCards(products = []) {
 }
 
 export default function CategorySection() {
-  const {
-    products,
-    loading,
-    error,
-  } = useCatalog();
-
-  const [paused, setPaused] = useState(false);
-
-  const [reducedMotion, setReducedMotion] =
-    useState(
-      () =>
-        typeof window === "undefined" ||
-        Boolean(
-          window.matchMedia?.(
-            "(prefers-reduced-motion: reduce)",
-          ).matches,
-        ),
-    );
-
-  useEffect(() => {
-    const preference = window.matchMedia?.(
-      "(prefers-reduced-motion: reduce)",
-    );
-
-    if (!preference) {
-      return;
-    }
-
-    function update() {
-      setReducedMotion(preference.matches);
-    }
-
-    update();
-
-    preference.addEventListener?.(
-      "change",
-      update,
-    );
-
-    return () => {
-      preference.removeEventListener?.(
-        "change",
-        update,
-      );
-    };
-  }, []);
-
+  const { products, loading, error } = useCatalog();
   const cards = categoryCards(products);
-
-  const canRotate = cards.some(
-    (category) => category.images.length > 1,
-  );
-
-  const autoRotate = !paused && !reducedMotion;
-
-  if (
-    !cards.length &&
-    !loading &&
-    !error
-  ) {
-    return null;
-  }
-
-  return (
-    <section
-      className="gm-section gm-categories"
-      id="categories"
-      aria-labelledby="gm-category-title"
-    >
-      <div
-        className="gm-section-head"
-        style={{
-          flexWrap: "wrap",
-          gap: "8px 16px",
-        }}
-      >
-        <h2 id="gm-category-title">
-          SHOP BY CATEGORY
-        </h2>
-
-        {canRotate && (
-          <button
-            type="button"
-            className="text-link"
-            disabled={reducedMotion}
-            style={{
-              minHeight: 44,
-              flexShrink: 0,
-            }}
-            aria-label={
-              reducedMotion
-                ? "Category photos paused for reduced motion"
-                : paused
-                  ? "Resume category photos"
-                  : "Pause category photos"
-            }
-            onClick={() =>
-              setPaused((current) => !current)
-            }
-          >
-            {reducedMotion
-              ? "Photos paused"
-              : paused
-                ? "Resume photos"
-                : "Pause photos"}
-          </button>
-        )}
-      </div>
-
-      {!cards.length ? (
-        <p className="muted" role="status">
-          {error
-            ? "Categories could not be loaded. Please try again shortly."
-            : "Loading product categories…"}
-        </p>
-      ) : (
-        <div className="gm-category-grid">
-          {cards.map((category) => (
-            <CategoryCard
-              key={category.name}
-              {...category}
-              autoRotate={autoRotate}
-            />
-          ))}
-        </div>
-      )}
-    </section>
-  );
+  if (!cards.length && !loading && !error) return null;
+  return <section className="gm-section gm-categories" id="categories" aria-labelledby="gm-category-title">
+    <div className="gm-section-head"><div><p className="eyebrow">FIND YOUR FOCUS</p><h2 id="gm-category-title">Every way you move.</h2></div><Link to="/shop">All essentials <span aria-hidden="true">↗</span></Link></div>
+    {!cards.length ? <p className="muted" role="status">{error ? "Categories are temporarily unavailable." : "Loading your collections…"}</p> : <div className="gm-category-grid">{cards.map(category => <CategoryCard key={category.name} {...category} autoRotate={false} />)}</div>}
+  </section>;
 }

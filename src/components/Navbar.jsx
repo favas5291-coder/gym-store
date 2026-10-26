@@ -36,7 +36,7 @@ const MAX_RECENT_SEARCHES = 6;
 function buildNavigationGroups(products) {
   const catalogue = catalogProducts(products);
 
-  return SHOP_DEPARTMENTS.map((department) => {
+  return SHOP_DEPARTMENTS.filter(department => catalogue.some(product => productDepartment(product) === department.id)).map((department) => {
     const scoped = catalogue.filter(
       (product) =>
         productDepartment(product) === department.id,
@@ -1054,6 +1054,7 @@ export default function Navbar({
           className="gn-desktop"
           aria-label="Main categories"
         >
+          <Link to="/shop" className="gn-trigger" onClick={closeMenus}>SHOP ALL</Link>
           {navigationGroups.map((group) => (
             <Link
               to={shopPath({
@@ -1113,7 +1114,7 @@ export default function Navbar({
             onClick={closeMenus}
           >
             OFFERS
-            <sup>NEW</sup>
+
           </Link>
         </nav>
 
