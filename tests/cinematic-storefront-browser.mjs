@@ -65,7 +65,7 @@ try{
  });
  await x.c.close();
  const saved=await context(390,{signedIn:true});
- await check('Saved address edit persists through API refresh',async()=>{await visit(saved.p,'/addresses');await saved.p.getByRole('button',{name:'Edit',exact:true}).first().click();const dialog=saved.p.getByRole('dialog');await dialog.getByLabel('House number, building and street',{exact:true}).fill('24 Updated Preview Street');await dialog.getByRole('button',{name:'Update address',exact:true}).click();await dialog.waitFor({state:'hidden'});await saved.p.reload();await saved.p.getByText('24 Updated Preview Street',{exact:true}).waitFor();assert.ok(saved.mock.requests.some(r=>r.method==='PUT'&&r.path.startsWith('/api/addresses/')));});await saved.c.close();
+ await check('Saved address edit persists through API refresh',async()=>{await visit(saved.p,'/addresses');await saved.p.getByRole('button',{name:'Edit',exact:true}).first().click();const dialog=saved.p.getByRole('dialog');await dialog.getByLabel('House number, building and street',{exact:true}).fill('24 Updated Preview Street');await dialog.getByRole('button',{name:'Update address',exact:true}).click();await dialog.waitFor({state:'hidden'});await saved.p.reload();await saved.p.getByText('24 Updated Preview Street',{exact:false}).waitFor();assert.ok(saved.mock.requests.some(r=>r.method==='PUT'&&r.path.startsWith('/api/addresses/')));});await saved.c.close();
  const quick=await context();
  await check('Quick add retains card colour and validates variants',async()=>{
   await visit(quick.p,'/shop');await quick.p.getByRole('button',{name:'Preview White Gym Training T-Shirt'}).click();

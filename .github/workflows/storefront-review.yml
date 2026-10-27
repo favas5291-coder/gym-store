@@ -1,8 +1,5 @@
 name: Storefront review
 on:
-  push:
-    branches: [feature/cinematic-storefront]
-    paths: ['index.html', 'src/**', 'public/**', 'tests/**', 'package*.json', '.github/workflows/storefront-review.yml']
   pull_request:
     paths: ['index.html', 'src/**', 'public/**', 'tests/**', 'package*.json', '.github/workflows/storefront-review.yml']
 concurrency:
