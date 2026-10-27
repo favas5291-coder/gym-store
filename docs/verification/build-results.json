@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-27",
+  "sourceCommit": "acb5591392228e83eab3c00f89b7dcd4161374f8",
+  "workflow": "https://github.com/favas5291-coder/gym-store/actions/runs/40448993240",
+  "jobId": 122006981529,
+  "artifactId": 12710045316,
+  "artifactSha256": "3dcb61bcdc79a0ecf2a8de3740c14d6ef008a97153e1fdd7c6d1b2a6a90dfd47",
+  "install": "npm ci --ignore-scripts on Node 24, repository lockfile",
+  "unitTests": {
+    "command": "npm test",
+    "passed": 164,
+    "failed": 0
+  },
+  "browserChecks": {
+    "command": "npm run test:storefront",
+    "passed": 68,
+    "failed": 0,
+    "widths": [
+      320,
+      390,
+      768,
+      1440
+    ],
+    "data": "Test-only catalog, addresses, quotes and orders; no live payments"
+  },
+  "compile": {
+    "command": "npx --no-install vite build",
+    "viteVersion": "8.2.2",
+    "result": "passed",
+    "durationMs": 589
+  },
+  "fullBuild": {
+    "command": "npm run build",
+    "result": "blocked",
+    "reason": "Existing sitemap preflight requires real VITE_SITE_URL and reachable complete VITE_API_URL catalog; neither supplied"
+  },
+  "notVerified": [
+    "Deployed Core Web Vitals and INP",
+    "Razorpay test-mode transaction against real backend",
+    "Google OAuth in production environment",
+    "Shipping-provider integration with real API",
+    "Live cancellations, returns and refunds"
+  ],
+  "deployment": "Not merged or deployed"
+}

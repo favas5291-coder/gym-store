@@ -12,13 +12,13 @@ The two Higgsfield Seedance 2.5 films are generated editorial atmosphere, not pr
 | Portrait poster | `public/media/campaign/hero-mobile.webp` | 900 × 1600 | 45 KB |
 | Editorial still | `public/media/campaign/editorial.webp` | 1200 × 675 | See file |
 
-The manifest is `src/data/campaignMedia.js`. Replace these files at the same paths, or update that manifest. HTML supplies all brand text, headings and links. Do not bake text or logos into the campaign film. Product photography and collection thumbnails continue to come from the catalog.
+The manifest is `src/data/campaignMedia.js`. Replace these files at the same paths, or update that manifest and the homepage poster preload paths in `index.html`. HTML supplies all brand text, headings and links. Do not bake text or logos into the campaign film. Product photography and collection thumbnails continue to come from the catalog.
 
 **Production asset still missing:** the 6–9 second insert of identifiable, currently available products with supplier-approved references. The current film uses a neutral dumbbell/rubber-floor detail in that slot. It is a clearly documented temporary campaign insert, not a representation of a purchasable SKU. The generated shoes and wardrobe are also generic atmosphere. Check the complete film for anatomy, continuity, unidentified marks and mobile framing before final brand approval.
 
 ## Source masters, separate from public delivery
 
-Keep source masters in a campaign/DAM folder, not `public`. Retain original frame rates and resolution; do not repeatedly recompress the web exports. Higgsfield generation records and source downloads:
+Keep source masters in a campaign/DAM folder, not `public`. Retain original frame rates and resolution; do not repeatedly recompress the web exports. Higgsfield generation records and source downloads (four submissions, 866 credits quoted in total; the final account balance was not independently checked):
 
 - Desktop original: `497789d0-9d2e-4bdf-8f7d-6b54e0fb97bf`.
 - Portrait original: `a08ccaf1-3684-436c-b40a-df5a51fa0cce`.
