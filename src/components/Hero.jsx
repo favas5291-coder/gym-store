@@ -1,534 +1,93 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { heroMedia } from "../data/campaignMedia.js";
 
-import {
-  useCatalog,
-} from "../context/CatalogContext.jsx";
-
-import categories from "../data/categories";
-
-import {
-  Arrow,
-  ProductImage,
-  categoryPath,
-  inStock,
-  priceDetails,
-  validProducts,
-} from "./StorefrontShared";
-
-import ProductArtwork from "./ProductArtwork.jsx";
-
-import "./GymDrobeStorefront.css";
-
-function highestDiscount(items) {
-  return Math.max(
-    0,
-    ...items.map((product) => {
-      const price = priceDetails(product);
-
-      return price.valid
-        ? price.discount
-        : 0;
-    }),
-  );
-}
-
-function CampaignPhoto({ slide }) {
-  const [
-    failedBanner,
-    setFailedBanner,
-  ] = useState("");
-
-  const hasBanner =
-    Boolean(slide.bannerImage) &&
-    failedBanner !== slide.bannerImage;
-
-  return (
-    <Link
-      className="gm-campaign-photo"
-      to={slide.href}
-      aria-label={`Shop ${slide.title}`}
-    >
-      {hasBanner ? (
-        <img
-          className="gm-editorial-image"
-          src={slide.bannerImage}
-          alt=""
-          loading="eager"
-          fetchPriority="high"
-          decoding="async"
-          style={{
-            objectPosition:
-              slide.bannerPosition || "center",
-          }}
-          onError={() =>
-            setFailedBanner(slide.bannerImage)
-          }
-        />
-      ) : slide.product?.image ? (
-        <ProductImage
-          product={slide.product}
-          eager
-          fetchPriority="high"
-          decorative
-        />
-      ) : (
-        <div
-          className="campaign-art"
-          aria-hidden="true"
-        >
-          <div className="campaign-art-copy">
-            <span>GYMDROBE</span>
-
-            <strong>
-              TRAIN.
-              <br />
-              MOVE.
-              <br />
-              <em>REPEAT.</em>
-            </strong>
-
-            <p>Gear for every session.</p>
-          </div>
-
-          <div className="campaign-art-product">
-            <ProductArtwork
-              category={slide.title}
-              name={slide.product?.name}
-            />
-
-            <small>
-              GymDrobe collection
-            </small>
-          </div>
-        </div>
-      )}
-
-      <span className="gm-campaign-brand">
-        {slide.product?.brand || "GymDrobe"}
-      </span>
-    </Link>
-  );
-}
-
+// The poster and shopping UI never wait for media, consent, or playback.
 export default function Hero() {
-  const { products } = useCatalog();
-
-  const [active, setActive] = useState(0);
+  const section = useRef(null);
+  const video = useRef(null);
+  const [portrait, setPortrait] = useState(() => window.matchMedia("(max-width: 700px)").matches);
+  const [reduced, setReduced] = useState(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  const [visible, setVisible] = useState(true);
+  const [hidden, setHidden] = useState(document.hidden);
+  const [idle, setIdle] = useState(false);
   const [paused, setPaused] = useState(false);
-  const [hovered, setHovered] = useState(false);
-  const [focused, setFocused] = useState(false);
-  const [hidden, setHidden] = useState(false);
-
-  const [
-    reduceMotion,
-    setReduceMotion,
-  ] = useState(false);
-
-  const {
-    slides,
-    maxDiscount,
-  } = useMemo(() => {
-    const available =
-      validProducts(products).filter(inStock);
-
-    const grouped = new Map();
-
-    for (const product of available) {
-      const name =
-        typeof product.category === "string"
-          ? product.category.trim()
-          : "";
-
-      const key =
-        name || "Workout Essentials";
-
-      if (!grouped.has(key)) {
-        grouped.set(key, {
-          name,
-          items: [],
-        });
-      }
-
-      grouped.get(key).items.push(product);
-    }
-
-    const categoryData =
-      Array.isArray(categories)
-        ? categories
-        : [];
-
-    const featured = [
-      ...grouped.entries(),
-    ]
-      .slice(0, 5)
-      .map(([title, group]) => {
-        const product =
-          group.items.find(
-            (item) => item.image,
-          ) || group.items[0];
-
-        const category =
-          categoryData.find(
-            (item) =>
-              item?.name === group.name,
-          );
-
-        const customBanner =
-          category?.bannerImage ||
-          product?.bannerImage;
-
-        return {
-          id: title,
-          title,
-          product,
-
-          discount: highestDiscount(
-            group.items,
-          ),
-
-          href: group.name
-            ? categoryPath(group.name)
-            : "/shop",
-
-          bannerImage:
-            typeof customBanner === "string"
-              ? customBanner
-              : "",
-
-          bannerPosition:
-            category?.bannerPosition ||
-            product?.bannerPosition,
-        };
-      });
-
-    return {
-      maxDiscount:
-        highestDiscount(available),
-
-      slides: featured.length
-        ? featured
-        : [
-            {
-              id: "collection",
-              title: "Workout Essentials",
-              href: "/shop",
-              discount: 0,
-            },
-          ],
-    };
-  }, [products]);
+  const [requested, setRequested] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [hasFrame, setHasFrame] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const media = portrait ? heroMedia.mobile : heroMedia.desktop;
+  const saveData = Boolean(navigator.connection?.saveData);
+  const loadFilm = Boolean(media.video) && !failed && (requested || (idle && !reduced && !saveData));
 
   useEffect(() => {
-    const media = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    );
-
-    const update = () =>
-      setReduceMotion(media.matches);
-
-    const visibility = () =>
-      setHidden(document.hidden);
-
-    update();
-    visibility();
-
-    media.addEventListener(
-      "change",
-      update,
-    );
-
-    document.addEventListener(
-      "visibilitychange",
-      visibility,
-    );
-
+    const size = window.matchMedia("(max-width: 700px)");
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const resize = () => { setPortrait(size.matches); setHasFrame(false); setFailed(false); };
+    const preference = () => { setReduced(motion.matches); setRequested(false); };
+    const visibility = () => setHidden(document.hidden);
+    size.addEventListener("change", resize);
+    motion.addEventListener("change", preference);
+    document.addEventListener("visibilitychange", visibility);
+    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), { threshold: 0.05 });
+    observer.observe(section.current);
+    const timer = window.setTimeout(() => setIdle(true), 1400);
     return () => {
-      media.removeEventListener(
-        "change",
-        update,
-      );
-
-      document.removeEventListener(
-        "visibilitychange",
-        visibility,
-      );
+      size.removeEventListener("change", resize);
+      motion.removeEventListener("change", preference);
+      document.removeEventListener("visibilitychange", visibility);
+      observer.disconnect();
+      window.clearTimeout(timer);
     };
   }, []);
 
   useEffect(() => {
-    if (
-      paused ||
-      hovered ||
-      focused ||
-      hidden ||
-      reduceMotion ||
-      slides.length < 2
-    ) {
-      return;
-    }
+    const player = video.current;
+    if (!player) return;
+    if (paused || !visible || hidden || !loadFilm) { player.pause(); return; }
+    const promise = player.play();
+    promise?.catch(() => setPlaying(false));
+    return () => player.pause();
+  }, [paused, visible, hidden, loadFilm, portrait, attempt]);
 
-    const timer = window.setInterval(() => {
-      setActive(
-        (value) =>
-          (value + 1) % slides.length,
-      );
-    }, 6000);
-
-    return () =>
-      window.clearInterval(timer);
-  }, [
-    paused,
-    hovered,
-    focused,
-    hidden,
-    reduceMotion,
-    slides.length,
-  ]);
-
-  const slide =
-    slides[active] || slides[0];
-
-  function select(index) {
-    setActive(
-      (index + slides.length) %
-        slides.length,
-    );
-
-    setPaused(true);
+  function toggleFilm() {
+    if (playing) { setPaused(true); return; }
+    setRequested(true);
+    setPaused(false);
+    if (failed) { setFailed(false); setAttempt(value => value + 1); }
+    video.current?.play()?.catch(() => setPlaying(false));
   }
 
   return (
-    <section
-      className="gm-hero"
-      aria-label="GymDrobe fitness store"
-      aria-roledescription="carousel"
-      onPointerEnter={(event) => {
-        if (event.pointerType === "mouse") {
-          setHovered(true);
-        }
-      }}
-      onPointerLeave={() =>
-        setHovered(false)
-      }
-      onFocusCapture={() =>
-        setFocused(true)
-      }
-      onBlurCapture={(event) => {
-        if (
-          !event.currentTarget.contains(
-            event.relatedTarget,
-          )
-        ) {
-          setFocused(false);
-        }
-      }}
-    >
-      <Link
-        to={
-          maxDiscount > 0
-            ? "/shop?discount=1"
-            : "/shop"
-        }
-        className={`gm-offer-ticket${
-          maxDiscount > 0
-            ? ""
-            : " gm-ticket-collection"
-        }`}
-      >
-        <span className="gm-ticket-main">
-          {maxDiscount > 0 ? (
-            <>
-              UP TO{" "}
-              <strong>
-                {maxDiscount}% OFF
-              </strong>
-            </>
-          ) : (
-            "GYMDROBE FITNESS STORE"
-          )}
-        </span>
-
-        <span className="gm-ticket-side">
-          <span>
-            {maxDiscount > 0
-              ? "Real discounts on selected workout essentials"
-              : "Everything you need for every workout"}
-          </span>
-
-          <strong>
-            Shop now <Arrow />
-          </strong>
-        </span>
-      </Link>
-
-      <div
-        className="gm-campaign"
-        key={slide.id}
-        role="group"
-        aria-roledescription="slide"
-        aria-label={
-          `${active + 1} of ${slides.length}`
-        }
-      >
-        <CampaignPhoto slide={slide} />
-
-        <div className="gm-campaign-copy">
-          <p className="eyebrow">
-            GYMDROBE
-          </p>
-
-          <h1>
-            Everything You Need for Every Workout.
-          </h1>
-
-          <p className="gm-campaign-discount">
-            Shop workout clothing, shoes and gym
-            essentials in one fitness-focused store.
-          </p>
-
-          <div className="gm-hero-actions">
-            <Link
-              to="/shop"
-              className="button"
-            >
-              Shop Now
-            </Link>
-
-            <a
-              href="#categories"
-              className="button secondary"
-            >
-              Explore Categories
-            </a>
-          </div>
-
-          <div className="gm-hero-featured">
-            <span>Featured:</span>
-
-            <Link
-              to={slide.href}
-              className="gm-explore-link"
-            >
-              {slide.title} <Arrow />
-            </Link>
-
-            {slide.discount > 0 && (
-              <strong>
-                Up to {slide.discount}% off
-              </strong>
-            )}
-          </div>
-
-          <div
-            className="gm-hero-trust"
-            aria-label="GymDrobe checkout benefits"
-          >
-            <span>
-              ✓ Secure Razorpay payments
-            </span>
-
-            <span>
-              ✓ Full online or COD with 10% advance
-            </span>
-
-            <span>
-              ✓ Delivery & return details shown
-              before purchase
-            </span>
-          </div>
+    <section className="cinema-hero" ref={section} aria-labelledby="cinema-title">
+      <picture className="cinema-poster">
+        <source media="(max-width: 700px)" srcSet={heroMedia.mobile.poster} width="900" height="1600" />
+        <img src={heroMedia.desktop.poster} alt="" width="1920" height="1080" fetchPriority="high" decoding="async" />
+      </picture>
+      {loadFilm && (
+        <video key={`${portrait}-${attempt}`} ref={video} className={`cinema-film${hasFrame ? " is-ready" : ""}`}
+          src={media.video} poster={media.poster} muted loop playsInline preload="none" aria-hidden="true" tabIndex={-1}
+          onPlaying={() => { setPlaying(true); setHasFrame(true); }} onPause={() => setPlaying(false)}
+          onError={() => { setFailed(true); setPlaying(false); setHasFrame(false); }} />
+      )}
+      <div className="cinema-shade" aria-hidden="true" />
+      <div className="cinema-content">
+        <p className="cinema-kicker"><span /> THE FITNESS COLLECTIVE</p>
+        <h1 id="cinema-title">Your workout.<br /><span>Fully equipped.</span></h1>
+        <p className="cinema-tagline">Everything You Need for Every Workout.</p>
+        <div className="cinema-actions">
+          <Link className="button cinema-shop" to="/shop">Shop Essentials <span aria-hidden="true">↗</span></Link>
+          <a href="#categories" className="cinema-explore">Explore Collections <span aria-hidden="true">↓</span></a>
         </div>
       </div>
-
-      {slides.length > 1 && (
-        <div className="gm-carousel-controls">
-          <button
-            className="gm-carousel-arrow"
-            type="button"
-            aria-label="Previous collection"
-            onClick={() => select(active - 1)}
-          >
-            <Arrow direction="left" />
-          </button>
-
-          <div className="gm-carousel-dots">
-            {slides.map((item, index) => (
-              <button
-                key={item.id}
-                type="button"
-                aria-label={`Show ${item.title}`}
-                aria-current={
-                  active === index
-                    ? "true"
-                    : undefined
-                }
-                onClick={() => select(index)}
-              >
-                <span />
-              </button>
-            ))}
-          </div>
-
-          <button
-            className="gm-carousel-arrow"
-            type="button"
-            aria-label="Next collection"
-            onClick={() => select(active + 1)}
-          >
-            <Arrow />
-          </button>
-
-          {!reduceMotion && (
-            <button
-              className="gm-play"
-              type="button"
-              aria-label={
-                paused
-                  ? "Play banner rotation"
-                  : "Pause banner rotation"
-              }
-              aria-pressed={paused}
-              onClick={() =>
-                setPaused((value) => !value)
-              }
-            >
-              {paused ? "Play" : "Pause"}
-            </button>
-          )}
-        </div>
-      )}
-
-      <Link
-        to="/shop"
-        className="gm-collection-band"
-      >
-        <span
-          className="gm-band-mark"
-          aria-hidden="true"
-        >
-          GD
-        </span>
-
-        <span className="gm-band-copy">
-          <strong>
-            Built for your workout routine.
-          </strong>
-
-          <span>
-            Clothing · Footwear · Hydration ·
-            Gym essentials
-          </span>
-        </span>
-
-        <strong>Shop all</strong>
-
-        <Arrow />
-      </Link>
+      <div className="cinema-bottom">
+        <span className="cinema-edition">01 / MADE FOR YOUR EVERYDAY</span>
+        {media.video && <button type="button" className="cinema-control" onClick={toggleFilm} aria-label={playing ? "Pause hero film" : "Play hero film"} aria-pressed={!playing}>
+          <span aria-hidden="true">{playing ? "Ⅱ" : "▷"}</span> {playing ? "Pause film" : failed ? "Retry film" : "Play film"}
+        </button>}
+        <a href="#categories" className="cinema-scroll">Discover your next essential <span aria-hidden="true">↓</span></a>
+      </div>
     </section>
   );
 }

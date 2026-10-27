@@ -3709,6 +3709,8 @@ function Checkout({ auth, mode }) {
                       </p>
                     )}
 
+                    <details className="checkout-item-policy">
+                    <summary>Delivery & returns</summary>
                     <p className="muted">
                       {information.transit ||
                         information.estimate ||
@@ -3729,6 +3731,7 @@ function Checkout({ auth, mode }) {
                         </p>
                       ),
                     )}
+                    </details>
                   </div>
                 </article>
               );
@@ -3758,8 +3761,7 @@ function Checkout({ auth, mode }) {
               <dl>
                 <div>
                   <dt>
-                    Products after product
-                    discounts
+                    Items (discounts included)
                   </dt>
 
                   <dd>
@@ -3938,7 +3940,7 @@ function Checkout({ auth, mode }) {
               {busy
                 ? paymentStage ||
                   "Preparing secure payment…"
-                : "Prices and stock are checked again on the server. After verified payment and order confirmation, you will see your order number and tracking link."}
+                : "You’ll receive your order number and tracking link after payment is verified."}
             </p>
           </section>
         </aside>

@@ -1,0 +1,12 @@
+.gd-portal-facts { margin: 20px 0; }
+.gd-portal-facts > div { display: grid; grid-template-columns: minmax(140px, 1fr) 2fr; gap: 16px; padding: 12px 0; border-bottom: 1px solid #e2e8f0; }
+.gd-portal-facts dt { color: #64748b; }
+.gd-portal-facts dd { margin: 0; overflow-wrap: anywhere; }
+.gd-portal-terms { max-height: 420px; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; line-height: 1.7; }
+.gd-portal-history { padding-left: 24px; }
+.gd-portal-history li { padding: 12px 0; }
+.gd-portal-history span { display: block; font-size: 13px; color: #64748b; margin-top: 6px; }
+.gd-portal-history p { margin: 6px 0; }
+.gd-portal-intro { max-width: 760px; }
+.gd-portal-detail { scroll-margin-top: 100px; }
+@media (max-width: 600px) { .gd-portal-facts > div { grid-template-columns: 1fr; gap: 5px; } }

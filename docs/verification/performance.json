@@ -1,0 +1,80 @@
+{
+  "conditions": {
+    "browser": "151.0.7922.34",
+    "host": "GitHub ubuntu-latest headless Chromium",
+    "server": "Vite production preview on localhost; no CDN/compression configured",
+    "catalog": "Test-only catalog and instant mocked APIs; external services blocked",
+    "cache": "Fresh browser context per run; three samples per viewport",
+    "desktop": "1440×960, no CPU/network throttle",
+    "mobile": "390×960, 4× CPU slowdown, 150 ms latency, 1.6 Mbps down / 0.75 Mbps up",
+    "motion": "Default motion; hero film enabled after poster",
+    "limitations": "LCP/CLS lab samples only. CLS is the sum of observed shifts in the measurement window. INP and field percentiles not measured."
+  },
+  "targets": {
+    "lcpMs": 2500,
+    "inpMs": 200,
+    "cls": 0.1
+  },
+  "samples": [
+    {
+      "width": 390,
+      "run": 1,
+      "lcp": 1552,
+      "cls": 0.0001493194667022792,
+      "lcpElement": "IMG",
+      "domContentLoaded": 1388.3999999999942,
+      "posterLoaded": true,
+      "requests": 34
+    },
+    {
+      "width": 390,
+      "run": 2,
+      "lcp": 1524,
+      "cls": 0.0001493194667022792,
+      "lcpElement": "IMG",
+      "domContentLoaded": 1376.2999999999884,
+      "posterLoaded": true,
+      "requests": 34
+    },
+    {
+      "width": 390,
+      "run": 3,
+      "lcp": 1552,
+      "cls": 0.0001493194667022792,
+      "lcpElement": "IMG",
+      "domContentLoaded": 1380,
+      "posterLoaded": true,
+      "requests": 34
+    },
+    {
+      "width": 1440,
+      "run": 1,
+      "lcp": 172,
+      "cls": 0.0011712442719887313,
+      "lcpElement": "IMG",
+      "domContentLoaded": 66.29999999998836,
+      "posterLoaded": true,
+      "requests": 35
+    },
+    {
+      "width": 1440,
+      "run": 2,
+      "lcp": 156,
+      "cls": 0.0011712442719887313,
+      "lcpElement": "IMG",
+      "domContentLoaded": 60.39999999999418,
+      "posterLoaded": true,
+      "requests": 35
+    },
+    {
+      "width": 1440,
+      "run": 3,
+      "lcp": 120,
+      "cls": 0.0011712442719887313,
+      "lcpElement": "IMG",
+      "domContentLoaded": 48.20000000001164,
+      "posterLoaded": true,
+      "requests": 35
+    }
+  ]
+}

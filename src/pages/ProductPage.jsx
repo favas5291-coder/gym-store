@@ -491,11 +491,6 @@ function ProductDetail({
 
           <h1>{product.name}</h1>
 
-          {description && (
-            <p className="product-summary">
-              {description}
-            </p>
-          )}
 
           {count > 0 ? (
             <a
@@ -558,6 +553,8 @@ function ProductDetail({
               storageKey={deliveryKey}
             />
 
+            <details>
+              <summary>Shipping charges & return policy</summary>
             <p>
               <strong>
                 Standard shipping:
@@ -600,10 +597,10 @@ function ProductDetail({
             >
               Ask about delivery or return conditions →
             </Link>
+            </details>
           </div>
 
           <details
-            open
             className="product-description"
           >
             <summary>

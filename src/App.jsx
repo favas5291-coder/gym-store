@@ -153,6 +153,10 @@ const AdminSuppliersPage = lazy(
   () => import("./pages/AdminSuppliersPage.jsx"),
 );
 
+const SupplierPortalPage = lazy(() => import("./pages/SupplierPortalPage.jsx"));
+const AdminSupplierOnboardingPage = lazy(() => import("./pages/AdminSupplierOnboardingPage.jsx"));
+const supplierPortalEnabled = import.meta.env.VITE_SUPPLIER_PORTAL_ENABLED === "true";
+
 const AdminKitsPage = lazy(
   () => import("./pages/AdminKitsPage.jsx"),
 );
@@ -328,6 +332,7 @@ function CheckoutHeader() {
   return (
     <header
       aria-label="GymDrobe checkout"
+      className="premium-checkout-header"
       style={{
         background: "#fff",
         borderBottom:
@@ -475,8 +480,10 @@ function Layout() {
     currentPath === "/forgot-password" ||
     currentPath === "/reset-password";
 
+  const internal = currentPath.startsWith("/admin") || currentPath.startsWith("/supplier") || currentPath.startsWith("/dev");
+
   return (
-    <>
+    <div className={internal ? "internal-workspace" : `premium-storefront${currentPath === "/" ? " storefront-home" : ""}${isCheckout ? " storefront-checkout" : ""}`}>
       <a
         className="skip-link"
         href="#main-content"
@@ -721,6 +728,7 @@ function Layout() {
               ))}
 
               {[
+                ...(supplierPortalEnabled ? [["/supplier", SupplierPortalPage]] : []),
                 [
                   "/account",
                   AccountPage,
@@ -748,6 +756,7 @@ function Layout() {
               ))}
 
               {[
+                ...(supplierPortalEnabled ? [["/admin/supplier-onboarding", AdminSupplierOnboardingPage]] : []),
                 [
                   "/admin",
                   AdminDashboardPage,
@@ -868,7 +877,7 @@ function Layout() {
         type={toast?.type}
         onClose={closeToast}
       />
-    </>
+    </div>
   );
 }
 

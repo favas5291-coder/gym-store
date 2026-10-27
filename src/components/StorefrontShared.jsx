@@ -1,6 +1,5 @@
 import { useState } from "react";
 
-import ProductArtwork from "./ProductArtwork.jsx";
 
 import {
   responsiveProductImage,
@@ -216,17 +215,14 @@ function ProductImageContent({
       className={`gm-image-fallback ${className}`}
       aria-hidden={decorative || undefined}
     >
-      <ProductArtwork
-        category={product?.category}
-        name={product?.name}
-      />
+      <span className="image-placeholder-mark" aria-hidden="true">GD.</span>
 
       <span className="sr-only">
         {product?.name || "GymDrobe"}
       </span>
 
       <small>
-        Illustration · photo unavailable
+        Photo unavailable
       </small>
     </span>
   );
