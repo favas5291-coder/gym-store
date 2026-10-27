@@ -77,6 +77,7 @@ export async function mockStorefront(context, products, {signedIn=false, catalog
     } else if(u.pathname==='/api/orders') data={success:true,orders:signedIn?[order]:[]};
     else if(u.pathname===`/api/orders/${fixtureOrderId}`) data={success:true,order};
     else if(u.pathname==='/api/payments/checkout/quote') data={success:true,quote:quoteFor(body,products)};
+    else if(u.pathname==='/api/payments/guest-session') data={success:true,guestToken:'gco_'+('b'.repeat(64)),expiresAt:new Date(Date.now()+86400000).toISOString()};
     else if(u.pathname.includes('/payments/')) {status=403;data={success:false,message:'Preview fixture: payments are disabled.'};}
     else if(u.pathname.includes('coupons')) data={success:true,coupons:[]};
     else if(u.pathname.includes('virtual-try-on')) data={success:true,available:false};

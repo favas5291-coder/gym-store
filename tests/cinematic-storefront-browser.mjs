@@ -9,7 +9,7 @@ await fs.mkdir(output,{recursive:true});
 const f=await startStorefrontFixture(Number(process.env.STOREFRONT_TEST_PORT || 4210));
 const browser=await chromium.launch({headless:true,...(process.env.GYMDROBE_CHROMIUM_PATH?{executablePath:process.env.GYMDROBE_CHROMIUM_PATH}:{}),args:['--no-sandbox','--disable-dev-shm-usage']});
 const results=[], errors=[];
-const check=async(name,fn)=>{try{await fn();results.push({name,passed:true});console.log('PASS',name);}catch(e){results.push({name,passed:false,error:e.message});console.error('FAIL',name,e.message);}};
+const check=async(name,fn)=>{try{await fn();results.push({name,passed:true});console.log('PASS',name);}catch(e){results.push({name,passed:false,error:e.message,stack:e.stack});console.error('FAIL',name,e.stack);}};
 async function context(width=1440,options={}){
  const c=await browser.newContext({viewport:{width,height:960},reducedMotion:'reduce',...options.browser});
  const mock=await mockStorefront(c,f.products,options);
@@ -21,6 +21,7 @@ async function capture(p,name){
  await p.evaluate(async()=>{for(let y=0;y<document.body.scrollHeight;y+=800){scrollTo(0,y);await new Promise(r=>setTimeout(r,45));}scrollTo(0,0);});
  await p.waitForTimeout(150);
  await p.screenshot({path:path.join(output,name+'.png'),fullPage:true});
+ if(name.startsWith('home-'))await p.screenshot({path:path.join(output,name+'-viewport.png')});
 }
 async function choose(p){await p.getByRole('button',{name:'Colour Black',exact:true}).first().click();await p.getByRole('button',{name:'Size M',exact:true}).first().click();}
 try{
@@ -30,9 +31,9 @@ try{
   const search=x.p.getByRole('combobox',{name:'Search products'});
   await search.fill('shoes');await search.press('Enter');await x.p.waitForURL('**/shop?**');
   await x.p.locator('.product-grid .gm-product-card').first().waitFor();assert.match(x.p.url(),/search=shoes/);
-  assert.equal(await x.p.locator('.product-grid .gm-product-card').count(),1);
+  await x.p.waitForFunction(()=>document.querySelectorAll('.product-grid .gm-product-card').length===1);assert.equal(await x.p.locator('.product-grid .gm-product-card').count(),1);
   await visit(x.p,'/shop');await x.p.getByRole('checkbox',{name:/Workout Clothes/}).first().click();
-  await x.p.waitForURL(/category=/);assert.equal(await x.p.locator('.product-grid .gm-product-card').count(),1);
+  await x.p.waitForURL(/category=/);await x.p.waitForFunction(()=>document.querySelectorAll('.product-grid .gm-product-card').length===1);assert.equal(await x.p.locator('.product-grid .gm-product-card').count(),1);
   await x.p.getByLabel('Sort by:').selectOption('price-low');await x.p.waitForURL(/sort=price-low/);
   await x.p.reload();await x.p.getByRole('checkbox',{name:/Workout Clothes/}).first().waitFor();assert.equal(await x.p.getByRole('checkbox',{name:/Workout Clothes/}).first().isChecked(),true);
  });
@@ -60,9 +61,11 @@ try{
   await x.p.reload();await x.p.getByLabel('Full name',{exact:true}).waitFor();assert.equal(await x.p.getByLabel('Full name',{exact:true}).inputValue(),'Preview Customer');
   await x.p.getByRole('radio',{name:/COD with 10% advance/}).check();await x.p.waitForTimeout(550);assert.match(await x.p.locator('.price-summary').innerText(),/₹143\.80/);
   assert.ok(await x.p.locator('.gd-checkout-coupon summary').count());await capture(x.p,'checkout-desktop');
-  assert.equal(x.mock.requests.filter(r=>r.path.includes('/payments/')&&!r.path.endsWith('/quote')).length,0);
+  assert.equal(x.mock.requests.filter(r=>r.path==='/api/payments/razorpay/order'||r.path==='/api/payments/razorpay/verify').length,0);
  });
  await x.c.close();
+ const saved=await context(390,{signedIn:true});
+ await check('Saved address edit persists through API refresh',async()=>{await visit(saved.p,'/addresses');await saved.p.getByRole('button',{name:'Edit',exact:true}).first().click();const dialog=saved.p.getByRole('dialog');await dialog.getByLabel('House number, building and street',{exact:true}).fill('24 Updated Preview Street');await dialog.getByRole('button',{name:'Update address',exact:true}).click();await dialog.waitFor({state:'hidden'});await saved.p.reload();await saved.p.getByText('24 Updated Preview Street',{exact:true}).waitFor();assert.ok(saved.mock.requests.some(r=>r.method==='PUT'&&r.path.startsWith('/api/addresses/')));});await saved.c.close();
  const quick=await context();
  await check('Quick add retains card colour and validates variants',async()=>{
   await visit(quick.p,'/shop');await quick.p.getByRole('button',{name:'Preview White Gym Training T-Shirt'}).click();
@@ -103,6 +106,9 @@ try{
    await motion.p.getByRole('button',{name:'Play hero film'}).click();await motion.p.waitForFunction(()=>!document.querySelector('.cinema-film').paused);await motion.p.evaluate(()=>scrollTo(0,1500));await motion.p.waitForFunction(()=>document.querySelector('.cinema-film').paused);
   });await motion.c.close();
  }
+ const autoplay=await context(390,{browser:{reducedMotion:'no-preference'}});
+ await autoplay.c.addInitScript(()=>{const original=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){return window.allowFilmPlayback?original.call(this):Promise.reject(new DOMException('Autoplay blocked in test','NotAllowedError'));};});
+ await check('Autoplay rejection preserves poster and manual play recovers',async()=>{await visit(autoplay.p,'/');await autoplay.p.waitForTimeout(1700);assert.equal(await autoplay.p.locator('.cinema-film.is-ready').count(),0);await autoplay.p.evaluate(()=>window.allowFilmPlayback=true);await autoplay.p.getByRole('button',{name:'Play hero film'}).click();await autoplay.p.locator('.cinema-film.is-ready').waitFor();});await autoplay.c.close();
  const fail=await context(390,{browser:{reducedMotion:'no-preference'}});await fail.c.route('**/media/campaign/*.mp4',r=>r.abort());
  await check('Failed film keeps a readable poster and retry control',async()=>{await visit(fail.p,'/');await fail.p.getByRole('button',{name:'Play hero film'}).waitFor();await fail.p.waitForTimeout(1900);assert.ok(await fail.p.locator('.cinema-poster img').evaluate(img=>img.complete&&img.naturalWidth>0));await fail.p.getByRole('link',{name:/Shop Essentials/}).click();await fail.p.waitForURL('**/shop');});await fail.c.close();
  const save=await context(390,{browser:{reducedMotion:'no-preference'}});await save.c.addInitScript(()=>Object.defineProperty(navigator,'connection',{value:{saveData:true},configurable:true}));

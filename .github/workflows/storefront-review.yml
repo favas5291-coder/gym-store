@@ -2,9 +2,9 @@ name: Storefront review
 on:
   push:
     branches: [feature/cinematic-storefront]
-    paths: ['src/**', 'public/**', 'tests/**', 'package*.json', '.github/workflows/storefront-review.yml']
+    paths: ['index.html', 'src/**', 'public/**', 'tests/**', 'package*.json', '.github/workflows/storefront-review.yml']
   pull_request:
-    paths: ['src/**', 'public/**', 'tests/**', 'package*.json', '.github/workflows/storefront-review.yml']
+    paths: ['index.html', 'src/**', 'public/**', 'tests/**', 'package*.json', '.github/workflows/storefront-review.yml']
 concurrency:
   group: storefront-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true

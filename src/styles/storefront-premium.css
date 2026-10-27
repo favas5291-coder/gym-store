@@ -389,3 +389,5 @@
 #app .premium-storefront .checkout-item-policy summary { cursor: pointer; min-height: 36px; display: flex; align-items: center; gap: 10px; color: var(--muted); }
 #app .premium-storefront .checkout-item-policy summary::after { content: '+'; }
 #app .premium-storefront .checkout-item-policy[open] summary::after { content: '−'; }
+#app .premium-storefront :is(a,button,input,select,textarea,summary,[tabindex]):focus-visible { outline: 2px solid #b65b37 !important; outline-offset: 4px !important; }
+#app .premium-storefront :is(.gm-product-sold-out,.gm-product-availability.unavailable) { color: #8b442b; }

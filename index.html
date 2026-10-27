@@ -8,6 +8,22 @@
       content="width=device-width, initial-scale=1.0"
     />
 
+    <script>
+      // Start the homepage's first frame before the React bundle executes.
+      // Other routes do not download campaign media until they need it.
+      if (window.location.pathname === "/") {
+        const poster = document.createElement("link");
+        poster.rel = "preload";
+        poster.as = "image";
+        poster.type = "image/webp";
+        poster.fetchPriority = "high";
+        poster.href = window.matchMedia("(max-width: 700px)").matches
+          ? "/media/campaign/hero-mobile.webp"
+          : "/media/campaign/hero-desktop.webp";
+        document.head.appendChild(poster);
+      }
+    </script>
+
     <meta
       name="theme-color"
       content="#ffffff"
