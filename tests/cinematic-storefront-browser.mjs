@@ -181,6 +181,10 @@ try{
   assert.equal(await video.count(),1);
   assert.ok(await autoplay.p.locator('.cinema-poster img').evaluate(i=>i.complete&&i.naturalWidth>0));
   assert.equal(await video.evaluate(v=>v.loop&&v.muted&&v.playsInline&&!v.controls),true);
+  // Chromium may start native HTML autoplay even if JS play() is mocked.
+  // Force an actual media failure to verify the visible poster fallback.
+  await video.evaluate(v=>{v.pause();v.dispatchEvent(new Event('error'));});
+  await autoplay.p.waitForFunction(()=>!document.querySelector('.cinema-film').classList.contains('is-ready'));
   assert.equal(await autoplay.p.locator('.cinema-film.is-ready').count(),0);
   assert.equal(await autoplay.p.locator('.cinema-play-fallback,.cinema-control').count(),0);
   assert.equal(await autoplay.p.getByRole('button',{name:/Play cinematic|Pause hero|Replay/i}).count(),0);
