@@ -215,7 +215,7 @@ function ProductImageContent({
       className={`gm-image-fallback ${className}`}
       aria-hidden={decorative || undefined}
     >
-      <span className="image-placeholder-mark" aria-hidden="true">GD.</span>
+      <span className="image-placeholder-mark" aria-hidden="true">GD</span>
 
       <span className="sr-only">
         {product?.name || "GymDrobe"}
