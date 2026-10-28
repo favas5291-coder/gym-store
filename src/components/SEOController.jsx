@@ -12,6 +12,10 @@ const DEFAULT_DESCRIPTION =
 const DEFAULT_SHARE_IMAGE = "/gymdrobe-share-v1.png";
 
 const PAGES = {
+  "/install": {
+    title: "Install GymDrobe | Your Fitness Store",
+    description: "Add GymDrobe to your home screen for quick access to fitness essentials, your shopping bag and orders.",
+  },
   "/": {
     title: "GymDrobe | Everything for Every Workout",
     description: DEFAULT_DESCRIPTION,

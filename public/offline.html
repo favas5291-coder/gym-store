@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="robots" content="noindex" />
+  <title>You’re offline | GymDrobe</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:28px;background:#f5f4ef;color:#202321;font-family:Arial,sans-serif}main{width:100%;max-width:440px}img{display:block;border-radius:18px;margin-bottom:36px}small{font-size:11px;letter-spacing:.15em}h1{font-size:46px;line-height:1.05;font-weight:500;letter-spacing:-2px;margin:20px 0}p{color:#60665f;font-size:15px;line-height:1.7}button{min-height:48px;padding:13px 24px;background:#202321;color:#fff;border:0;font:inherit;cursor:pointer;margin-top:16px}button:focus-visible,a:focus-visible{outline:2px solid #995526;outline-offset:5px}a{display:inline-block;color:inherit;margin:22px 0;font-size:14px}#connection{font-size:13px;min-height:22px}
+  </style>
+</head>
+<body>
+  <main>
+    <img src="/icons/gymdrobe-maskable-512.png?v=1" width="80" height="80" alt="GymDrobe GD monogram" />
+    <small>GYMDROBE / LET’S RECONNECT</small>
+    <h1>You’re offline.</h1>
+    <p>Connect to the internet to shop, pay or check your orders. If you were paying, check your order status after reconnecting before trying the payment again.</p>
+    <button id="retry" type="button">Try again</button><br />
+    <a href="/">Back to GymDrobe</a>
+    <p id="connection" role="status"></p>
+  </main>
+  <script src="/offline.js" defer></script>
+</body>
+</html>

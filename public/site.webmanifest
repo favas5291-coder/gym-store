@@ -1,6 +1,9 @@
 {
   "name": "GymDrobe — Everything You Need for Every Workout",
   "short_name": "GymDrobe",
+  "id": "/",
+  "lang": "en-IN",
+  "categories": ["shopping", "sports"],
   "description": "Fitness essentials from multiple brands in one shopping experience.",
   "start_url": "/",
   "scope": "/",
@@ -19,6 +22,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/icons/gymdrobe-maskable-512.png?v=1",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

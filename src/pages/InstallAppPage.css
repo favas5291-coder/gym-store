@@ -1,0 +1,30 @@
+.install-app { max-width:1120px; margin:0 auto; padding:88px 28px 100px; display:grid; grid-template-columns:1.2fr 1fr; gap:80px; align-items:center; color:#202321; }
+.install-app-eyebrow { font-size:11px; font-weight:600; letter-spacing:.15em; }
+.install-app h1 { margin:24px 0; font-size:clamp(38px,5vw,64px); line-height:1.05; font-weight:500; letter-spacing:-.045em; }
+.install-app-intro { max-width:430px; color:#60665f; font-size:16px; line-height:1.7; }
+.install-app-benefits { display:grid; gap:14px; padding:18px 0; margin:0 0 20px; list-style:none; }
+.install-app-benefits li { display:flex; align-items:center; gap:10px; font-size:14px; line-height:1.5; }
+.install-app-benefits svg { flex-shrink:0; }
+.install-app-primary { display:inline-flex; min-height:48px; align-items:center; justify-content:center; gap:10px; padding:13px 24px; border:1px solid #202321; border-radius:2px; background:#202321; color:white; font:inherit; font-size:14px; cursor:pointer; }
+.install-app-primary:disabled { opacity:.6; cursor:default; }
+.install-app-primary:focus-visible,.install-app-shop:focus-visible,.install-app summary:focus-visible { outline:2px solid #995526; outline-offset:5px; }
+.install-app-shop { display:flex; align-items:center; width:fit-content; gap:6px; margin-top:26px; color:inherit; font-size:14px; text-decoration:underline; text-underline-offset:5px; }
+.install-app-message { display:flex; gap:8px; align-items:center; font-size:14px; line-height:1.6; }
+.install-app-hint { font-size:14px; line-height:1.6; }
+.install-app-card { padding:36px; border:1px solid #dedfd9; background:#f5f4ef; }
+.install-app-icon { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:30px; }
+.install-app-icon img { display:block; border-radius:18px; }
+.install-app-card h2 { font-size:23px; font-weight:500; letter-spacing:-.03em; margin:0 0 25px; }
+.install-app-card details { border-top:1px solid #dedfd9; }
+.install-app-card summary { padding:17px 0; min-height:48px; cursor:pointer; font-size:14px; font-weight:600; }
+.install-app-card ol { padding-left:20px; margin:0 0 20px; }
+.install-app-card li,.install-app-card details p { font-size:14px; line-height:1.7; margin:0 0 8px; }
+.install-app-note { font-size:12px; line-height:1.6; color:#60665f; margin:22px 0 0; }
+.install-app-update { margin-top:20px; padding:16px; border:1px solid #dedfd9; font-size:14px; }
+@media(max-width:700px) {
+  .install-app { padding:44px max(20px,env(safe-area-inset-left)) max(48px,env(safe-area-inset-bottom)); grid-template-columns:1fr; gap:38px; }
+  .install-app h1 { font-size:44px; }
+  .install-app-card { padding:26px; }
+  .install-app-primary { width:100%; }
+}
+@media(max-width:360px) { .install-app h1 { font-size:38px; } .install-app-card { padding:22px; } }

@@ -46,6 +46,8 @@ const Shop = lazy(
   () => import("./pages/Shop.jsx"),
 );
 
+const InstallAppPage = lazy(() => import("./pages/InstallAppPage.jsx"));
+
 const ProductPage = lazy(
   () => import("./pages/ProductPage.jsx"),
 );
@@ -622,6 +624,7 @@ function Layout() {
               />
 
               {[
+                ["/install", InstallAppPage],
                 ["/shop", Shop],
                 [
                   "/product/:id",
