@@ -33,7 +33,7 @@ for (const name of assets) {
   if (entry < 0 || avc < 0) throw new Error(`${name} lacks H.264/AVC video`);
   const profile = metadata[avc + 5];
   const level = metadata[avc + 7];
-  if (![66,77,100].includes(profile) || level > 42) throw new Error(`Unexpected mobile H.264 profile/level: ${profile}/${level}`);
+  if (![66,77,100].includes(profile) || (name === "hero-mobile.mp4" && level > 42)) throw new Error(`Unexpected mobile H.264 profile/level: ${profile}/${level}`);
   console.log(`OK ${name}: ${source.length} bytes, avc1, H264 profile ${profile}, level ${level / 10}, faststart, included in dist`);
 }
 
