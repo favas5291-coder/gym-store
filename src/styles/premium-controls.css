@@ -1,0 +1,143 @@
+/* GymDrobe premium customer-facing interaction system.
+   One set of focus, motion, spacing and icon rules, scoped to the storefront. */
+#app .premium-storefront :is(.premium-button,.premium-text-link,.premium-icon-button) {
+  box-sizing:border-box;
+  font-family:inherit;
+  -webkit-tap-highlight-color:transparent;
+  text-decoration:none;
+  text-transform:none;
+  transition:color .22s ease,background-color .22s ease,border-color .22s ease,transform .22s ease;
+}
+#app .premium-storefront .premium-button {
+  display:inline-flex;align-items:center;justify-content:space-between;
+  gap:clamp(12px,2vw,28px);
+  min-width:0;max-width:100%;min-height:48px;
+  padding:13px 20px;
+  border:1px solid #202820;border-radius:2px;
+  background:#202820;color:#fff;
+  font-size:12px;font-weight:600;letter-spacing:.025em;line-height:1.25;
+  cursor:pointer;user-select:none;
+}
+#app .premium-storefront .premium-button--secondary {
+  background:#f3f3ef;color:#202820;border-color:#d5d8d0;
+}
+#app .premium-storefront .premium-button--outline {
+  background:transparent;color:#202820;border-color:#a5aaa1;
+}
+#app .premium-storefront .premium-button--text {
+  background:transparent;color:inherit;border-color:transparent;padding-inline:0;
+}
+#app .premium-storefront .premium-button:hover {background:#39453b;border-color:#39453b;color:#fff;}
+#app .premium-storefront .premium-button--secondary:hover {background:#e5e8df;border-color:#bfc5b8;color:#202820;}
+#app .premium-storefront .premium-button--outline:hover {background:#202820;border-color:#202820;color:#fff;}
+#app .premium-storefront .premium-button--text:hover {background:transparent;border-color:transparent;color:#95482e;}
+#app .premium-storefront .premium-text-link {
+  display:inline-flex;align-items:center;gap:12px;justify-content:flex-start;
+  position:relative;min-width:0;max-width:100%;min-height:44px;
+  padding:8px 0;border:0;background:transparent;
+  color:inherit;font-size:12px;font-weight:500;line-height:1.3;letter-spacing:.015em;
+  cursor:pointer;white-space:normal;text-align:left;
+}
+#app .premium-storefront .premium-text-link-label {position:relative;}
+#app .premium-storefront .premium-text-link-label::after {
+  content:"";position:absolute;left:0;right:0;bottom:-4px;height:1px;
+  background:currentColor;transform:scaleX(0);transform-origin:left center;
+  transition:transform .22s ease;
+}
+@media(hover:hover) and (pointer:fine){
+  #app .premium-storefront .premium-text-link:hover .premium-text-link-label::after {transform:scaleX(1);}
+}
+#app .premium-storefront .premium-text-link:hover {color:#95482e;}
+#app .premium-storefront .premium-control-arrow {
+  display:block;flex:none;width:17px;height:17px;
+  stroke:currentColor;transition:transform .22s ease;
+}
+@media(hover:hover) and (pointer:fine){
+  #app .premium-storefront :is(.premium-button,.premium-text-link):hover .premium-control-arrow {transform:translateX(4px);}
+}
+#app .premium-storefront :is(.premium-button,.premium-text-link):active {transform:translateY(1px);}
+#app .premium-storefront .premium-icon-button {
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:44px;min-width:44px;padding:8px;
+  border:1px solid #d7dbd3;border-radius:2px;background:#fff;color:#202820;
+  cursor:pointer;
+}
+#app .premium-storefront .premium-icon-button:hover {color:#95482e;border-color:#9fa89c;background:#f5f6f1;}
+#app .premium-storefront .premium-icon-button:active {transform:scale(.97);}
+#app .premium-storefront :is(.premium-button,.premium-text-link,.premium-icon-button):focus-visible {
+  outline:2px solid #95482e!important;outline-offset:3px!important;
+}
+#app .premium-storefront :is(.premium-button,.premium-text-link,.premium-icon-button):disabled,
+#app .premium-storefront :is(.premium-button,.premium-text-link,.premium-icon-button)[aria-disabled="true"] {
+  opacity:.55;cursor:not-allowed;transform:none;
+}
+/* Hero CTA layout inherits the correct video contrast on mobile and split on desktop. */
+#app .premium-storefront .cinema-actions {align-items:center;gap:14px 24px;}
+#app .premium-storefront .cinema-shop.premium-button {
+  display:inline-flex;justify-content:space-between;align-items:center;
+  min-width:174px;min-height:52px;padding:14px 20px;
+  border:1px solid #202820;border-radius:2px;background:#202820;color:#fff;
+}
+#app .premium-storefront .cinema-shop.premium-button:hover {background:#414d42;border-color:#414d42;}
+#app .premium-storefront .cinema-explore.premium-text-link {border:0;min-height:48px;color:#30382c;gap:12px;}
+#app .premium-storefront .cinema-explore.premium-text-link:hover {color:#95482e;}
+/* Product controls are deliberate and consistent; no accidental emoji glyphs. */
+#app .premium-storefront .gm-product-card-cta .premium-button {
+  width:100%;min-height:44px;justify-content:space-between;
+  padding:10px 14px;font-size:12px;border:1px solid #a4aa9e;
+  background:transparent;color:#202820;
+}
+#app .premium-storefront .gm-product-card-cta .premium-button:hover {
+  background:#202820;color:white;border-color:#202820;
+}
+#app .premium-storefront .compare-toggle.premium-text-link {
+  width:100%;min-height:44px;gap:9px;justify-content:flex-start;
+  color:#626961;font-size:11px;
+}
+#app .premium-storefront .compare-toggle.premium-text-link[aria-pressed="true"] {color:#95482e;}
+#app .premium-storefront .card-heart.premium-icon-button {
+  width:44px;height:44px;min-width:44px;min-height:44px;
+  border:1px solid #ffffffb5;border-radius:2px;background:#fffffff0;
+}
+#app .premium-storefront .card-heart.premium-icon-button.saved {color:#95482e;}
+#app .premium-storefront .gm-section-head .premium-text-link {
+  min-height:44px;gap:10px;color:#30382c;white-space:nowrap;
+}
+#app .premium-storefront .category-arrow .premium-control-arrow {width:16px;height:16px;}
+#app .premium-storefront .gm-category-copy .category-arrow {display:flex;align-items:center;}
+#app .premium-storefront .edit-intro .premium-text-link {color:#30382c;}
+#app .premium-storefront .editorial-copy .premium-button {min-height:48px;max-width:100%;}
+#app .premium-storefront .home-kit-options .premium-text-link {
+  width:100%;justify-content:space-between;min-height:52px;
+  border-bottom:1px solid #dfe0db;
+}
+#app .premium-storefront .edit-product .premium-control-arrow {width:18px;height:18px;}
+#app .premium-storefront .gm-row-controls .premium-icon-button {
+  min-width:44px;width:44px;height:44px;border-radius:2px;
+}
+@media(max-width:700px){
+  #app .premium-storefront .cinema-actions {display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;}
+  #app .premium-storefront .cinema-shop.premium-button {
+    min-width:152px;min-height:48px;padding:12px 16px;
+    background:#f5f5ec;color:#202820;border-color:#f5f5ec;
+  }
+  #app .premium-storefront .cinema-shop.premium-button:hover {background:#e9ede3;border-color:#e9ede3;}
+  #app .premium-storefront .cinema-explore.premium-text-link {
+    color:#f9f9f6;min-height:44px;padding-inline:0;
+    font-size:11px;white-space:nowrap;
+  }
+  #app .premium-storefront .cinema-explore.premium-text-link:hover {color:#fff;}
+  #app .premium-storefront .gm-product-card-cta .premium-button {min-height:44px;padding:10px 12px;}
+  #app .premium-storefront .product-primary-actions .button {
+    min-height:52px;transition:background-color .22s ease,border-color .22s ease,color .22s ease,transform .22s ease;
+  }
+}
+@media(max-width:360px){
+  #app .premium-storefront .cinema-actions {flex-direction:column;align-items:stretch;gap:2px;width:100%;}
+  #app .premium-storefront .cinema-shop.premium-button {width:100%;}
+  #app .premium-storefront .cinema-explore.premium-text-link {justify-content:flex-start;}
+}
+@media(prefers-reduced-motion:reduce){
+  #app .premium-storefront :is(.premium-button,.premium-text-link,.premium-icon-button,.premium-control-arrow,.premium-text-link-label)::after {transition:none!important;animation:none!important;}
+  #app .premium-storefront :is(.premium-button,.premium-text-link,.premium-icon-button,.premium-control-arrow) {transition:none!important;animation:none!important;}
+}
