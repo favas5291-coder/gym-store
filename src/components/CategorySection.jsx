@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { TextLink } from "./PremiumControls.jsx";
 
 import categories from "../data/categories.js";
 
@@ -155,7 +156,7 @@ export default function CategorySection() {
   for (const card of ordered) if (picks.length < 6 && !picks.includes(card)) picks.push(card);
   if (!cards.length && !loading && !error) return null;
   return <section className="gm-section gm-categories" id="categories" aria-labelledby="gm-category-title">
-    <div className="gm-section-head"><h2 id="gm-category-title">Shop by category</h2><Link to="/shop">Shop all <span aria-hidden="true">↗</span></Link></div>
+    <div className="gm-section-head"><h2 id="gm-category-title">Shop by category</h2><TextLink to="/shop">Shop all</TextLink></div>
     {!cards.length ? <p className="muted" role="status">{error ? "Categories are temporarily unavailable." : "Loading collections…"}</p> : <div className="gm-category-grid">{picks.map(category => <CategoryCard key={category.name} {...category} offer="" autoRotate={false} minimal />)}</div>}
     {cards.length > picks.length && <details className="category-directory"><summary>Explore all {cards.length} categories</summary><nav aria-label="All product categories">{cards.map(c => <Link to={categoryPath(c.name)} key={c.name}>{c.name}</Link>)}</nav></details>}
   </section>;
