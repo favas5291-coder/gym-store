@@ -10,6 +10,7 @@ import "./features.css";
 import "./mobile-commerce.css";
 import "./utils/accessibility.css";
 import "./styles/storefront-premium.css";
+import "./styles/flagship-mobile-cinema.css";
 
 import { readStorage } from "./utils/storage.js";
 import { importGuestShopping } from "./utils/shopperStorage.js";
