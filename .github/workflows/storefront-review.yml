@@ -24,6 +24,8 @@ jobs:
           VITE_API_URL: https://gym-drobe-backend.onrender.com/api
           VITE_SITE_URL: https://www.gymdrobe.com
         run: npm run build
+      - name: Verify transparent favicon assets in Vite dist
+        run: node scripts/verify-favicon-build.mjs
       - name: Verify actual H.264 pixel format, MP4 build assets and live range support
         run: |
           if ! command -v ffprobe >/dev/null 2>&1; then

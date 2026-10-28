@@ -1,0 +1,22 @@
+name: Transparent GD favicon generation
+on:
+  pull_request:
+    paths:
+      - scripts/generate-transparent-favicons.py
+      - .github/workflows/transparent-gd-favicons.yml
+      - src/assets/logo.png
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pillow numpy opencv-python-headless
+      - name: Extract glossy GD monogram and generate transparent icon sizes
+        run: python scripts/generate-transparent-favicons.py --emit-base64
