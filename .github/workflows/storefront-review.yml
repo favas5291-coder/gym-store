@@ -24,6 +24,8 @@ jobs:
           VITE_API_URL: https://gym-drobe-backend.onrender.com/api
           VITE_SITE_URL: https://www.gymdrobe.com
         run: npm run build
+      - name: Verify cinematic MP4 encoding, copied assets and production HTTP range support
+        run: node scripts/verify-cinematic-media.mjs
       - name: Install isolated browser test tooling
         run: |
           npm install --no-save --package-lock=false playwright@1.62.1
