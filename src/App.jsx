@@ -40,6 +40,7 @@ import SEOController from "./components/SEOController.jsx";
 import DeferredFitnessGuide from "./components/DeferredFitnessGuide.jsx";
 
 import Home from "./pages/Home.jsx";
+import { installRoutePrefetch } from "./utils/routePrefetch.js";
 
 const Shop = lazy(
   () => import("./pages/Shop.jsx"),
@@ -404,6 +405,7 @@ function CheckoutHeader() {
 }
 
 function Layout() {
+  useEffect(() => installRoutePrefetch(), []);
   const {
     cart,
     wishlist,
