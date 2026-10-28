@@ -106,6 +106,70 @@ try{
   await keyboardUI.p.locator('.cinema-hero').click({position:{x:10,y:180},force:true});
   assert.equal(await keyboardUI.p.locator('.gn-results').count(),0);
  });await keyboardUI.c.close();
+ // The detail hero should not letterbox square or landscape photos inside
+ // a fixed portrait frame. No image pixels may be cropped to achieve the fill.
+ for (const width of [320,360,375,390,430,768,1024,1440]) {
+  const galleryUI=await context(width,{browser:{isMobile:width<=430,hasTouch:width<=430}});
+  await check(width+'px product gallery fills media column without cropping',async()=>{
+   await visit(galleryUI.p,`/product/${fixtureProductId}`);
+   const hero=galleryUI.p.locator('.gd-color-gallery > .main-photo');
+   const photo=hero.locator('img');
+   await photo.waitFor({state:'visible'});
+   await galleryUI.p.waitForFunction(()=>{
+    const el=document.querySelector('.gd-color-gallery > .main-photo > img');
+    return el && el.complete && el.naturalWidth>0 && el.naturalHeight>0;
+   });
+   await galleryUI.p.waitForTimeout(80);
+   const info=await hero.evaluate(el=>{
+    const img=el.querySelector('img'),rect=el.getBoundingClientRect();
+    const page=document.querySelector('.product-page').getBoundingClientRect();
+    const thumb=document.querySelector('.gd-color-gallery .thumbnails');
+    const computed=getComputedStyle(img),frameStyle=getComputedStyle(el);
+    return {frame:{x:rect.x,width:rect.width,height:rect.height,top:rect.top,bottom:rect.bottom},
+      page:{x:page.x,width:page.width},orientation:el.dataset.galleryOrientation,
+      sourceRatio:img.naturalWidth/img.naturalHeight,
+      frameRatio:rect.width/rect.height,objectFit:computed.objectFit,
+      naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,
+      imgWidth:img.getBoundingClientRect().width,
+      thumbBelow:!thumb||thumb.getBoundingClientRect().top>=rect.bottom-1,
+      documentWidth:document.documentElement.scrollWidth,viewport:innerWidth};
+   });
+   assert.ok(info.thumbBelow,'Thumbnails stay below main photo '+JSON.stringify(info));
+   assert.ok(info.documentWidth<=width+1,'No horizontal overflow '+JSON.stringify(info));
+   assert.equal(info.objectFit,'contain','Never crop or distort product detail photography');
+   if(width<=700){
+    assert.ok(info.frame.width>=width-2,'Image fills mobile viewport '+JSON.stringify(info));
+    assert.ok(info.frame.x>=-1 && info.frame.x<=1,'Mobile hero aligned to screen edges '+JSON.stringify(info));
+    const safeRatio=Math.min(1.6,Math.max(.7,info.sourceRatio));
+    assert.ok(Math.abs(info.frameRatio-safeRatio)<.03,'Photo frame matches image shape '+JSON.stringify(info));
+   }else{
+    assert.ok(info.frame.width<width*.72,'Desktop/tablet product gallery remains in its column');
+   }
+  });await galleryUI.c.close();
+ }
+ const galleryChoice=await context(390,{browser:{isMobile:true,hasTouch:true}});
+ await check('390px gallery thumbnails, variant image switching and zoom remain working',async()=>{
+  await visit(galleryChoice.p,`/product/${fixtureProductId}`);
+  const gallery=galleryChoice.p.locator('.gd-color-gallery');
+  const thumbs=gallery.locator('.thumbnails button');
+  assert.ok(await thumbs.count()>1,'Fixture has multiple product images');
+  await thumbs.nth(1).click();
+  assert.equal(await thumbs.nth(1).getAttribute('aria-pressed'),'true');
+  const secondSrc=await gallery.locator('.main-photo img').getAttribute('src');
+  assert.ok(secondSrc,'Selected image visible');
+  await gallery.getByRole('button',{name:/Enlarge .* image/}).click();
+  const zoom=galleryChoice.p.getByRole('dialog');
+  await zoom.waitFor();
+  assert.ok(await zoom.locator('img').count()>0,'Zoom shows active image');
+  await galleryChoice.p.keyboard.press('Escape');
+  await zoom.waitFor({state:'hidden'});
+  await galleryChoice.p.getByRole('button',{name:'Colour White',exact:true}).first().click();
+  await galleryChoice.p.waitForFunction(()=>{
+    const el=document.querySelector('.gd-color-gallery .main-photo img');
+    return !!el && el.complete && el.naturalWidth>0;
+  });
+  assert.ok(await gallery.locator('.main-photo img').getAttribute('src'));
+ });await galleryChoice.c.close();
  const x=await context();
  await check('Search and URL-preserving catalog filters',async()=>{
   await visit(x.p,'/');
