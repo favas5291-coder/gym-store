@@ -58,3 +58,9 @@
 @media(prefers-reduced-motion:reduce){
   .address-form .gd-address-suggestions button {transition:none;}
 }
+
+/* Saved-address dialogs and checkout have different inherited input rules.
+   Always use a real 16px font for iOS Safari so focus never triggers page zoom. */
+#app .premium-storefront .address-form .gd-address-location .gd-address-input-wrap input {
+  font-size: 16px !important;
+}
