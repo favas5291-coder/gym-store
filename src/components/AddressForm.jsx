@@ -212,7 +212,18 @@ export default function AddressForm({value={},onChange,errors={}}){
             return <li role="presentation" key={`${text}-${index}`}>
               <button type="button" role="option" id={`${id}-option-${index}`}
                 aria-selected={index===active}
-                onPointerDown={event=>{if(event.pointerType==="mouse")event.preventDefault();}}
+                onPointerDown={event=>{
+                  // Select before iOS blurs/unmounts the listbox; keep native
+                  // click for assistive technology and keyboard activation.
+                  if(event.pointerType==="mouse"||event.pointerType==="touch"){
+                    event.preventDefault();
+                    if(name==="pincode"){
+                      const current=latest.current;
+                      current.onChange({...current.value,city:item.locality,state:validIndianState(item.state)?item.state:current.value.state});
+                      setFocused("");setActive(-1);
+                    }else selectOption(item,name);
+                  }
+                }}
                 onClick={()=>{
                   if(name==="pincode"){
                     const current=latest.current;
