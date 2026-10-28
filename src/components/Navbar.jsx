@@ -257,7 +257,7 @@ function Brand() {
   if (failed || !logoImage) {
     return (
       <span className="gn-wordmark">
-        GYMDROBE.
+        GYMDROBE
       </span>
     );
   }
