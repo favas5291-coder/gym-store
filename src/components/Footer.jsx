@@ -11,7 +11,7 @@ export default function Footer() {
   const names = [...new Set(products.filter(p => p.isActive !== false).map(p => p.category).filter(Boolean))];
   function backToTop() { window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" }); }
   return <footer className="gd-footer premium-footer">
-    <div className="footer-statement"><Link to="/" aria-label="GymDrobe home">GYMDROBE<span>.</span></Link><p>Everything You Need<br />for Every Workout.</p></div>
+    <div className="footer-statement"><Link to="/" aria-label="GymDrobe home">GYMDROBE</Link><p>Everything You Need<br />for Every Workout.</p></div>
     <div className="footer-grid">
       <div className="footer-about"><p>For the way you train.<br />For the life you build.</p><span>Your specialist fitness marketplace.</span></div>
       <nav aria-label="Footer online shopping"><h2>THE COLLECTION</h2><Link to="/shop">All essentials</Link>{names.slice(0, 5).map(name => <Link key={name} to={categoryPath(name)}>{name}</Link>)}<Link to="/kits">Workout kits</Link></nav>
