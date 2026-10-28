@@ -1,6 +1,7 @@
 // Production MP4 verification (no external npm dependency).
 // Checks the real campaign files and reports deploy-time HTTP video headers.
 import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 
 const assets = ["hero-mobile.mp4", "hero-desktop.mp4"];
 const root = "media/campaign";
@@ -18,6 +19,24 @@ function atoms(data) {
 }
 
 for (const name of assets) {
+  const probe = spawnSync("ffprobe", [
+    "-v", "error", "-show_entries",
+    "stream=codec_name,profile,pix_fmt,width,height,level,codec_type",
+    "-of", "json", `public/${root}/${name}`,
+  ], { encoding: "utf8" });
+  if (probe.error || probe.status !== 0) {
+    throw new Error(`ffprobe failed for ${name}: ${probe.stderr || probe.error?.message}`);
+  }
+  const streams = JSON.parse(probe.stdout).streams;
+  const video = streams.find(stream => stream.codec_type === "video");
+  const audio = streams.filter(stream => stream.codec_type === "audio");
+  if (!video || video.codec_name !== "h264" || video.pix_fmt !== "yuv420p" || audio.length !== 0) {
+    throw new Error(`iPhone MP4 incompatibility ${name}: ${JSON.stringify(streams)}`);
+  }
+  if (name === "hero-mobile.mp4" && (video.level > 42 || video.width > 1080 || video.height > 1920)) {
+    throw new Error(`Mobile MP4 has an oversized H.264 level or resolution: ${JSON.stringify(video)}`);
+  }
+  console.log(`ffprobe ${name}: ${video.codec_name}, ${video.profile}, ${video.pix_fmt}, ${video.width}x${video.height}, level ${video.level / 10}, no audio`);
   const [source, deployed] = await Promise.all([
     readFile(`public/${root}/${name}`),
     readFile(`dist/${root}/${name}`),
