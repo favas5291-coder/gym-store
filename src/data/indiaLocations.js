@@ -56,12 +56,13 @@ export function matchCities(query,state="",additional=[]) {
   const list=[...CITY_SEEDS.map(([city,region,aliases=[]])=>({city,state:region,aliases})),...additional];
   const dedup=new Set();
   return list.filter(item=>{
-    if(stateKey && normalize(item.state)!==stateKey) return false;
     return [item.city,...(item.aliases||[])].some(word=>normalize(word).includes(key));
   }).sort((a,b)=>{
     const aStart=[a.city,...(a.aliases||[])].some(w=>normalize(w).startsWith(key))?0:1;
     const bStart=[b.city,...(b.aliases||[])].some(w=>normalize(w).startsWith(key))?0:1;
-    return aStart-bStart || a.city.localeCompare(b.city);
+    const aState=stateKey && normalize(a.state)===stateKey?0:1;
+    const bState=stateKey && normalize(b.state)===stateKey?0:1;
+    return aState-bState || aStart-bStart || a.city.localeCompare(b.city);
   }).filter(item=>{
     const k=`${normalize(item.city)}|${normalize(item.state)}`;
     if(dedup.has(k))return false;dedup.add(k);return true;
