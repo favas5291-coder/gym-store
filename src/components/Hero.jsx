@@ -161,13 +161,13 @@ export default function Hero() {
             onError={() => { setFailed(true); setNeedsTap(true); setHasFrame(false); }}
           />
         )}
-        {showTap && (
-          <button type="button" className="cinema-play-fallback" onClick={playOnTap} aria-label="Play cinematic background video">
-            <span aria-hidden="true">▶</span> Play video
-          </button>
-        )}
         <div className="cinema-caption"><span>MAKE TIME FOR YOURSELF.</span></div>
       </div>
+      {showTap && (
+        <button type="button" className="cinema-play-fallback" onClick={playOnTap} aria-label="Play cinematic background video">
+          <span aria-hidden="true">▶</span> Play video
+        </button>
+      )}
     </section>
   );
 }
