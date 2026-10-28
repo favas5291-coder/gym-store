@@ -136,6 +136,11 @@ export default function Hero() {
           disableRemotePlayback
           aria-hidden="true"
           tabIndex={-1}
+          onPlaying={() => setHasFrame(true)}
+          onLoadedData={() => {
+            const player = videoRef.current;
+            if (player && !player.paused && player.readyState >= 2) setHasFrame(true);
+          }}
           onError={() => setHasFrame(false)}
         >
           <source src={media.video} type="video/mp4" />
