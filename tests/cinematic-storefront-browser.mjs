@@ -73,12 +73,22 @@ try{
   await modal.getByRole('button',{name:'Colour White',exact:true}).waitFor();assert.equal(await modal.getByRole('button',{name:'Colour White',exact:true}).getAttribute('aria-pressed'),'true');
   await modal.getByRole('button',{name:'Size M',exact:true}).click();await modal.getByRole('button',{name:/Add to (Cart|Bag)/i}).click();await modal.waitFor({state:'hidden'});
  });await quick.c.close();
+ const reviewer=await context(390,{signedIn:true});
+ await check('Review form remains accessible in its compact disclosure',async()=>{
+  await visit(reviewer.p,`/product/${fixtureProductId}`);await reviewer.p.locator('.review-compose>summary').click();
+  await reviewer.p.getByLabel('Your review',{exact:true}).fill('Review draft for the browser check.');
+  assert.equal(await reviewer.p.getByLabel('Your review',{exact:true}).inputValue(),'Review draft for the browser check.');
+  assert.ok(await reviewer.p.getByRole('button',{name:'Submit review',exact:true}).isEnabled());
+ });await reviewer.c.close();
  const buy=await context(390);
  await check('Mobile menu, filter drawer, pincode and Buy Now',async()=>{
   await visit(buy.p,'/');await buy.p.getByRole('button',{name:'Open menu',exact:true}).click();await buy.p.getByRole('button',{name:'Close menu',exact:true}).waitFor();await buy.p.keyboard.press('Escape');
   await visit(buy.p,'/shop');await buy.p.getByRole('button',{name:'Filters',exact:true}).click();await buy.p.getByRole('dialog').waitFor();await buy.p.keyboard.press('Escape');
   await visit(buy.p,`/product/${fixtureProductId}`);await choose(buy.p);
   const pin=buy.p.locator('.delivery-pincode input');if(await pin.count()){await pin.fill('12');await pin.press('Enter');assert.ok(await buy.p.locator('.delivery-pincode [aria-invalid="true"]').count());await pin.fill('673001');await pin.press('Enter');}
+  await buy.p.locator('#product-reviews').scrollIntoViewIfNeeded();await buy.p.locator('.product-primary-actions.is-floating').waitFor();const actions=await buy.p.locator('.product-primary-actions').boundingBox();assert.ok(actions.y+actions.height<=960,'Mobile purchase controls stay inside the viewport');
+  await buy.p.evaluate(()=>scrollTo(0,0));await buy.p.waitForFunction(()=>!document.querySelector('.product-primary-actions.is-floating'));
+  await buy.p.locator('#product-reviews').scrollIntoViewIfNeeded();await buy.p.locator('.product-primary-actions.is-floating').waitFor();
   await buy.p.getByRole('button',{name:'Buy Now',exact:true}).click();await buy.p.waitForURL('**/checkout?mode=buy-now');
   await buy.p.getByLabel('Pincode',{exact:true}).fill('673001');await buy.p.waitForTimeout(450);await capture(buy.p,'checkout-mobile');
  });await buy.c.close();
@@ -89,7 +99,7 @@ try{
    await visit(v.p,route);await v.p.waitForTimeout(150);
    assert.ok(await v.p.locator('main h1,main h2,main .page-heading').count(), 'Page heading is present');
    const dimensions=await v.p.evaluate(()=>({page:document.documentElement.scrollWidth,viewport:innerWidth}));assert.ok(dimensions.page<=dimensions.viewport+1,JSON.stringify(dimensions));
-   if([390,1440].includes(width))await capture(v.p,`${name}-${width}`);
+   if([390,1440].includes(width)||(width===768&&name==='home'))await capture(v.p,`${name}-${width}`);
   });await v.c.close();
  }
  for(const [name,options,route,pattern]of [['empty',{empty:true},'/shop',/no (matching )?products/i],['catalog-error',{catalogFailure:true},'/shop',/Unable to load products/i],['empty-cart',{},'/cart',/bag|cart/i],['login',{},'/login',/sign in|log in|welcome/i],['out-of-stock',{},'/product/000000000000000000000006',/Out of stock/i]]){
@@ -99,8 +109,10 @@ try{
   const v=await context(width);const media=[];v.p.on('request',r=>{if(r.url().includes('/media/campaign/'))media.push(r.url());});
   await check(`${width}px reduced motion loads poster and no film`,async()=>{await visit(v.p,'/');await v.p.waitForTimeout(1600);assert.ok(await v.p.locator('.cinema-poster img').evaluate(img=>img.complete&&img.naturalWidth>0));assert.equal(media.filter(u=>u.endsWith('.mp4')).length,0);assert.ok(media.some(u=>u.includes(width<700?'hero-mobile.webp':'hero-desktop.webp')));});await v.c.close();
   const motion=await context(width,{browser:{reducedMotion:'no-preference'}});const requests=[];motion.p.on('request',r=>{if(r.url().endsWith('.mp4'))requests.push(r.url());});
+  await motion.c.addInitScript(()=>{const original=HTMLMediaElement.prototype.play;window.filmAttempts=[];HTMLMediaElement.prototype.play=function(){window.filmAttempts.push(performance.now());return original.call(this);};});
   await check(`${width}px correct film, pause and offscreen lifecycle`,async()=>{
    await visit(motion.p,'/');await motion.p.locator('.cinema-film.is-ready').waitFor({timeout:20000});assert.ok(requests.every(u=>u.endsWith(width<700?'hero-mobile.mp4':'hero-desktop.mp4')));
+   const initial=await motion.p.locator('video').evaluate(v=>({time:v.currentTime,muted:v.muted,inline:v.playsInline,autoplay:v.autoplay,attempts:window.filmAttempts}));assert.ok(initial.muted&&initial.inline&&initial.autoplay&&initial.attempts.length>0);await motion.p.waitForTimeout(250);assert.ok(await motion.p.locator('video').evaluate((v,time)=>v.currentTime>time,initial.time),'Film actually advances without a user gesture');
    await motion.p.getByRole('button',{name:'Pause hero film'}).click();await motion.p.waitForFunction(()=>document.querySelector('.cinema-film').paused);
    await motion.p.evaluate(()=>scrollTo(0,1400));await motion.p.waitForTimeout(100);await motion.p.evaluate(()=>scrollTo(0,0));await motion.p.waitForTimeout(200);assert.ok(await motion.p.locator('video').evaluate(v=>v.paused));
    await motion.p.getByRole('button',{name:'Play hero film'}).click();await motion.p.waitForFunction(()=>!document.querySelector('.cinema-film').paused);await motion.p.evaluate(()=>scrollTo(0,1500));await motion.p.waitForFunction(()=>document.querySelector('.cinema-film').paused);
@@ -110,7 +122,7 @@ try{
  await autoplay.c.addInitScript(()=>{const original=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){return window.allowFilmPlayback?original.call(this):Promise.reject(new DOMException('Autoplay blocked in test','NotAllowedError'));};});
  await check('Autoplay rejection preserves poster and manual play recovers',async()=>{await visit(autoplay.p,'/');await autoplay.p.waitForTimeout(1700);assert.equal(await autoplay.p.locator('.cinema-film.is-ready').count(),0);await autoplay.p.evaluate(()=>window.allowFilmPlayback=true);await autoplay.p.getByRole('button',{name:'Play hero film'}).click();await autoplay.p.locator('.cinema-film.is-ready').waitFor();});await autoplay.c.close();
  const fail=await context(390,{browser:{reducedMotion:'no-preference'}});await fail.c.route('**/media/campaign/*.mp4',r=>r.abort());
- await check('Failed film keeps a readable poster and retry control',async()=>{await visit(fail.p,'/');await fail.p.getByRole('button',{name:'Play hero film'}).waitFor();await fail.p.waitForTimeout(1900);assert.ok(await fail.p.locator('.cinema-poster img').evaluate(img=>img.complete&&img.naturalWidth>0));await fail.p.getByRole('link',{name:/Shop Essentials/}).click();await fail.p.waitForURL('**/shop');});await fail.c.close();
+ await check('Failed film keeps a readable poster and retry control',async()=>{await visit(fail.p,'/');await fail.p.getByRole('button',{name:'Play hero film'}).waitFor();await fail.p.waitForTimeout(1900);assert.ok(await fail.p.locator('.cinema-poster img').evaluate(img=>img.complete&&img.naturalWidth>0));await fail.p.locator('.cinema-shop').click();await fail.p.waitForURL('**/shop');});await fail.c.close();
  const save=await context(390,{browser:{reducedMotion:'no-preference'}});await save.c.addInitScript(()=>Object.defineProperty(navigator,'connection',{value:{saveData:true},configurable:true}));
  await check('Data saver leaves shopping available without downloading film',async()=>{await visit(save.p,'/');await save.p.waitForTimeout(1700);assert.equal(await save.p.locator('video').count(),0);});await save.c.close();
  const policies=await context();

@@ -102,6 +102,7 @@ function ProductOptionsContent({
   product,
   onAdded,
   onColorChange,
+  showSupporting = true,
 }) {
   const {
     watches,
@@ -140,6 +141,32 @@ function ProductOptionsContent({
   const lastAdded = useRef("");
   const sizeField = useRef(null);
   const colorField = useRef(null);
+  const actionSlot = useRef(null);
+  const [floatingActions, setFloatingActions] = useState(false);
+
+  useEffect(() => {
+    if (showSupporting || !actionSlot.current || typeof IntersectionObserver === "undefined") return;
+    const mobile = window.matchMedia("(max-width: 700px)");
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const bounds = actionSlot.current?.getBoundingClientRect();
+      setFloatingActions(Boolean(mobile.matches && bounds && bounds.bottom <= 106));
+    };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+    const observer = new IntersectionObserver(schedule, { rootMargin: "-106px 0px 0px 0px" });
+    observer.observe(actionSlot.current);
+    // A jump from below the slot to above it can skip an intersection change.
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule, { passive: true });
+    mobile.addEventListener("change", schedule);
+    return () => {
+      observer.disconnect(); cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      mobile.removeEventListener("change", schedule);
+    };
+  }, [showSupporting]);
 
   const [selection, setSelection] = useState(() => {
     const initial = firstOptions(product);
@@ -634,7 +661,7 @@ function ProductOptionsContent({
         are shown separately at checkout.
       </p>
 
-      {benefits.length > 0 && (
+      {showSupporting && benefits.length > 0 && (
         <details className="product-buying-benefits">
           <summary>Product highlights</summary>
 
@@ -893,7 +920,7 @@ function ProductOptionsContent({
           </p>
         )}
 
-      <details className="product-purchase-trust">
+      {showSupporting && <details className="product-purchase-trust">
         <summary>Delivery & return information</summary>
         {information.deliveryUnavailable ? (
           <p>
@@ -925,9 +952,10 @@ function ProductOptionsContent({
           Checkout recalculates prices and checks stock
           before an order is confirmed.
         </p>
-      </details>
+      </details>}
 
-      <div className="purchase-actions product-primary-actions">
+      <div ref={actionSlot} className="purchase-action-slot">
+      <div className={`purchase-actions product-primary-actions${floatingActions ? " is-floating" : ""}`}>
         <button
           type="button"
           className="button"
@@ -953,6 +981,7 @@ function ProductOptionsContent({
             ? "Please wait…"
             : "Buy Now"}
         </button>
+      </div>
       </div>
 
       <div id={errorId}>
@@ -1057,6 +1086,7 @@ export default function ProductOptions({
   product,
   onAdded,
   onColorChange,
+  showSupporting = true,
 }) {
   return (
     <ProductOptionsContent
@@ -1066,6 +1096,7 @@ export default function ProductOptions({
       product={product}
       onAdded={onAdded}
       onColorChange={onColorChange}
+      showSupporting={showSupporting}
     />
   );
 }

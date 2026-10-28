@@ -59,10 +59,6 @@ import {
   useCatalog,
 } from "../context/CatalogContext.jsx";
 
-import {
-  money,
-} from "../utils/productPricing.js";
-
 import useProductReviews from "../hooks/useProductReviews.js";
 
 import {
@@ -73,11 +69,6 @@ import {
   supplierSizeChart,
 } from "../utils/productInformation.js";
 
-import {
-  EXPRESS_SHIPPING,
-  FREE_SHIPPING_LIMIT,
-  STANDARD_SHIPPING,
-} from "../utils/orderCalculations.js";
 
 function ProductDetail({
   product,
@@ -521,6 +512,7 @@ function ProductDetail({
           )}
 
           <ProductOptions
+            showSupporting={false}
             onColorChange={
               chooseGalleryColor
             }
@@ -556,22 +548,13 @@ function ProductDetail({
             <details>
               <summary>Shipping charges & return policy</summary>
             <p>
-              <strong>
-                Standard shipping:
-              </strong>{" "}
-
-              {money(STANDARD_SHIPPING)} below{" "}
-              {money(FREE_SHIPPING_LIMIT)};
-              free from{" "}
-              {money(FREE_SHIPPING_LIMIT)} on
-              the product subtotal after coupons.
+              Shipping charges and eligible offers are calculated
+              from your items, pincode and delivery method at checkout.
             </p>
 
             <p>
-              Express shipping:{" "}
-              {money(EXPRESS_SHIPPING)} where
-              offered. Checkout confirms the final
-              charges and available delivery methods.
+              Checkout confirms available standard and express
+              delivery options before payment.
             </p>
 
             <p>

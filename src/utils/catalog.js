@@ -380,6 +380,8 @@ export function filterProducts(
         !(
           (collection === "featured" &&
             product.isFeatured) ||
+          (collection === "trending" &&
+            product.isTrending) ||
           (collection === "bestsellers" &&
             product.isBestSeller) ||
           (collection === "new" &&

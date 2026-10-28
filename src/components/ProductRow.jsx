@@ -8,6 +8,7 @@ export default function ProductRow({
   title,
   products,
   id,
+  grid = false,
   to = "/shop",
 }) {
   const trackRef = useRef(null);
@@ -62,7 +63,7 @@ export default function ProductRow({
 
   return (
     <section
-      className="gm-section"
+      className={`gm-section${grid ? " product-grid-section" : ""}`}
       id={id}
       aria-labelledby={headingId}
     >
@@ -70,23 +71,23 @@ export default function ProductRow({
         <h2 id={headingId}>{label}</h2>
 
         <div className="gm-row-controls">
-          <button
+          {!grid && <button
             type="button"
             aria-label={`Previous ${label.toLowerCase()}`}
             aria-controls={trackId}
             onClick={() => scroll(-1)}
           >
             <Arrow direction="left" />
-          </button>
+          </button>}
 
-          <button
+          {!grid && <button
             type="button"
             aria-label={`Next ${label.toLowerCase()}`}
             aria-controls={trackId}
             onClick={() => scroll(1)}
           >
             <Arrow />
-          </button>
+          </button>}
 
           <Link
             to={to}
@@ -100,10 +101,10 @@ export default function ProductRow({
       <div
         ref={trackRef}
         id={trackId}
-        className="gm-product-track"
+        className={grid ? "gm-home-product-grid" : "gm-product-track"}
         role="region"
         aria-labelledby={headingId}
-        tabIndex={0}
+        tabIndex={grid ? undefined : 0}
         onKeyDown={handleKeyDown}
       >
         {rows.map((product) => (

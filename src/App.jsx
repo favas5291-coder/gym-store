@@ -510,9 +510,11 @@ function Layout() {
             }
           />
 
-          <StoreUtilityBar />
+          {internal && <StoreUtilityBar />}
 
           {user?.role === "admin" && (
+            <details className="admin-shortcuts" open={internal || undefined}>
+            <summary>Admin tools</summary>
             <nav
               aria-label="Admin quick access"
               style={{
@@ -593,6 +595,7 @@ function Layout() {
                 Package plans
               </Link>
             </nav>
+            </details>
           )}
         </>
       )}

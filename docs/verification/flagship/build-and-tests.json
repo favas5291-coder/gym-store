@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-27",
+  "base": "232fd9fe9ddb28f32de1d98489ee4d11e7a155ce",
+  "build": {
+    "command": "npm run build",
+    "environment": {
+      "VITE_SITE_URL": "https://www.gymdrobe.com",
+      "VITE_API_URL": "https://gym-drobe-backend.onrender.com/api"
+    },
+    "result": "passed; real catalog sitemap and production Vite bundle; no sitemap bypass"
+  },
+  "unit": {
+    "command": "npm test",
+    "passed": 195,
+    "failed": 0
+  },
+  "browser": {
+    "command": "npm run test:storefront",
+    "passed": 69,
+    "failed": 0,
+    "viewports": [
+      320,
+      390,
+      768,
+      1440
+    ],
+    "conditions": "Chromium 153.0.8010.0; deterministic test-only catalog, address, quote, order and account fixtures. External writes and payments blocked."
+  },
+  "visual": {
+    "catalog": "Public Render API and existing catalog image URLs, read-only through a local curl relay for workspace networking. Not a production network performance test.",
+    "viewports": [
+      390,
+      768,
+      1440
+    ],
+    "runtimeErrors": []
+  },
+  "notVerified": [
+    "Real Razorpay test-mode authorization, webhooks and refunds",
+    "Live Google authentication",
+    "Real supplier/admin mutations",
+    "Safari and physical iOS/Android browsers",
+    "Field Core Web Vitals and INP"
+  ]
+}

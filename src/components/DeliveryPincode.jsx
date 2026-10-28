@@ -139,9 +139,7 @@ export default function DeliveryPincode({
       aria-label="Delivery pincode"
     >
       <p className="muted">
-        Save or change your delivery pincode. Checkout
-        reviews the final delivery methods and shipping
-        charges.
+        Save your pincode for checkout delivery options and charges.
       </p>
 
       <form
@@ -209,8 +207,7 @@ export default function DeliveryPincode({
                 <strong>
                   Listed delivery estimate:
                 </strong>{" "}
-                {information.estimate}. Your location
-                and preparation time may affect delivery.
+                {information.estimate} (may vary by location).
               </p>
             )}
 
@@ -235,9 +232,7 @@ export default function DeliveryPincode({
         )}
 
         <p className="muted">
-          These are recorded product settings. This form
-          does not check live courier coverage for your
-          pincode.
+          Product estimate only. This form does not check live courier coverage.
         </p>
       </div>
     </section>

@@ -3173,51 +3173,6 @@ function Checkout({ auth, mode }) {
             )}
           </fieldset>
 
-          <details className="panel">
-            <summary>
-              Gift message & delivery
-              instructions (optional)
-            </summary>
-
-            <div className="field">
-              <label htmlFor="gift-message">
-                Gift message
-              </label>
-
-              <textarea
-                id="gift-message"
-                maxLength={250}
-                rows={3}
-                value={giftMessage}
-                disabled={frozen}
-                onChange={(event) =>
-                  setGiftMessage(
-                    event.target.value,
-                  )
-                }
-              />
-            </div>
-
-            <div className="field">
-              <label htmlFor="order-note">
-                Delivery instructions
-              </label>
-
-              <textarea
-                id="order-note"
-                maxLength={300}
-                rows={2}
-                value={orderNote}
-                disabled={frozen}
-                onChange={(event) =>
-                  setOrderNote(
-                    event.target.value,
-                  )
-                }
-              />
-            </div>
-          </details>
-
           <fieldset
             className="panel gd-checkout-fields"
             disabled={frozen}
@@ -3267,17 +3222,109 @@ function Checkout({ auth, mode }) {
             <p className="muted">
               {hasKits
                 ? "Kit charges depend on the measured packages, your pincode and payment method. Review the confirmed package breakdown below."
-                : "Standard delivery offers depend on your products, coupons and delivery pincode. Supplier preparation and courier transit are separate."}
+                : "Delivery charges and offers are checked for your pincode and items."}
             </p>
-          </fieldset>
+            {!hasKits && !pending && (
+              <FreeShippingProgress
+                quote={kitQuote}
+                loading={quoteLoading}
+                error={quoteError}
+              />
+            )}
+            {!hasKits && !pending && (
+              <section
+                className="checkout-delivery-check"
+                aria-label="Delivery availability"
+              >
+                <h2>
+                  DELIVERY & PRICE CHECK
+                </h2>
 
-          {!hasKits && !pending && (
-            <FreeShippingProgress
-              quote={kitQuote}
-              loading={quoteLoading}
-              error={quoteError}
-            />
-          )}
+                {quoteLoading ? (
+                  <p role="status">
+                    Checking current prices,
+                    stock and delivery settings…
+                  </p>
+                ) : quoteError ? (
+                  <p
+                    className="field-error"
+                    role="alert"
+                  >
+                    {quoteError}
+                  </p>
+                ) : kitQuote?.deliveryReview
+                    ?.ready ? (
+                  <>
+                    <p>
+                      Prices checked for
+                      pincode{" "}
+
+                      <strong>
+                        {
+                          kitQuote
+                            .deliveryReview
+                            .pincode
+                        }
+                      </strong>
+                      .
+                    </p>
+
+                    {kitQuote.deliveryReview
+                      .estimatedDays && (
+                      <p>
+                        Recorded preparation and
+                        delivery estimate:{" "}
+
+                        {
+                          kitQuote
+                            .deliveryReview
+                            .estimatedDays
+                            .minimum
+                        }
+                        –
+                        {
+                          kitQuote
+                            .deliveryReview
+                            .estimatedDays
+                            .maximum
+                        }{" "}
+                        days.
+                      </p>
+                    )}
+
+                    <p className="muted">
+                      {
+                        kitQuote
+                          .deliveryReview
+                          .notice
+                      }
+                    </p>
+                  </>
+                ) : (
+                  <p>
+                    Enter your six-digit
+                    delivery pincode to check
+                    products and the final cost.
+                  </p>
+                )}
+
+                <button
+                  type="button"
+                  className="text-link"
+                  disabled={
+                    frozen || quoteLoading
+                  }
+                  onClick={() =>
+                    setQuoteRevision(
+                      (value) => value + 1,
+                    )
+                  }
+                >
+                  Refresh prices & delivery
+                </button>
+              </section>
+            )}
+          </fieldset>
 
           <fieldset
             className="panel gd-checkout-fields"
@@ -3309,9 +3356,7 @@ function Checkout({ auth, mode }) {
 
                 <br />
 
-                Pay the complete order amount
-                through Razorpay. Nothing
-                remains due on delivery.
+                Pay in full through Razorpay.
               </span>
             </label>
 
@@ -3337,10 +3382,8 @@ function Checkout({ auth, mode }) {
 
                 <br />
 
-                The advance is 10% of products
-                after coupons. Delivery
-                charges stay in the remaining
-                balance.
+                Pay 10% of products after coupons now.
+                Pay the balance, including delivery, on arrival.
               </span>
             </label>
 
@@ -3352,11 +3395,54 @@ function Checkout({ auth, mode }) {
                 refund information
               </Link>{" "}
 
-              before paying. Contact support
-              if eligibility or terms are
-              unconfirmed.
+              before paying.
             </p>
           </fieldset>
+
+          <details className="panel">
+            <summary>
+              Gift message & delivery
+              instructions (optional)
+            </summary>
+
+            <div className="field">
+              <label htmlFor="gift-message">
+                Gift message
+              </label>
+
+              <textarea
+                id="gift-message"
+                maxLength={250}
+                rows={3}
+                value={giftMessage}
+                disabled={frozen}
+                onChange={(event) =>
+                  setGiftMessage(
+                    event.target.value,
+                  )
+                }
+              />
+            </div>
+
+            <div className="field">
+              <label htmlFor="order-note">
+                Delivery instructions
+              </label>
+
+              <textarea
+                id="order-note"
+                maxLength={300}
+                rows={2}
+                value={orderNote}
+                disabled={frozen}
+                onChange={(event) =>
+                  setOrderNote(
+                    event.target.value,
+                  )
+                }
+              />
+            </div>
+          </details>
 
           {(
             giftMessage.trim() ||
@@ -3367,100 +3453,6 @@ function Checkout({ auth, mode }) {
 
               <p>{giftMessage}</p>
               <p>{orderNote}</p>
-            </section>
-          )}
-
-          {!hasKits && !pending && (
-            <section
-              className="panel"
-              aria-label="Delivery availability"
-            >
-              <h2>
-                DELIVERY & PRICE CHECK
-              </h2>
-
-              {quoteLoading ? (
-                <p role="status">
-                  Checking current prices,
-                  stock and delivery settings…
-                </p>
-              ) : quoteError ? (
-                <p
-                  className="field-error"
-                  role="alert"
-                >
-                  {quoteError}
-                </p>
-              ) : kitQuote?.deliveryReview
-                  ?.ready ? (
-                <>
-                  <p>
-                    Prices checked for
-                    pincode{" "}
-
-                    <strong>
-                      {
-                        kitQuote
-                          .deliveryReview
-                          .pincode
-                      }
-                    </strong>
-                    .
-                  </p>
-
-                  {kitQuote.deliveryReview
-                    .estimatedDays && (
-                    <p>
-                      Recorded preparation and
-                      delivery estimate:{" "}
-
-                      {
-                        kitQuote
-                          .deliveryReview
-                          .estimatedDays
-                          .minimum
-                      }
-                      –
-                      {
-                        kitQuote
-                          .deliveryReview
-                          .estimatedDays
-                          .maximum
-                      }{" "}
-                      days.
-                    </p>
-                  )}
-
-                  <p className="muted">
-                    {
-                      kitQuote
-                        .deliveryReview
-                        .notice
-                    }
-                  </p>
-                </>
-              ) : (
-                <p>
-                  Enter your six-digit
-                  delivery pincode to check
-                  products and the final cost.
-                </p>
-              )}
-
-              <button
-                type="button"
-                className="text-link"
-                disabled={
-                  frozen || quoteLoading
-                }
-                onClick={() =>
-                  setQuoteRevision(
-                    (value) => value + 1,
-                  )
-                }
-              >
-                Refresh prices & delivery
-              </button>
             </section>
           )}
 

@@ -1,3 +1,5 @@
+> Historical first redesign. See [the current flagship implementation and verification](FLAGSHIP_REDESIGN.md) for the latest design, screenshots and test results.
+
 # GymDrobe cinematic storefront
 
 ## Implementation plan and scope

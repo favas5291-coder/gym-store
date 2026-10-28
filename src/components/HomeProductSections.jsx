@@ -1,36 +1,36 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useCatalog } from "../context/CatalogContext.jsx";
-import { heroMedia } from "../data/campaignMedia.js";
-import { inStock, validProducts, Arrow } from "./StorefrontShared.jsx";
+import { homeCollections } from "../utils/homeCollections.js";
+import { productDepartment } from "../utils/catalog.js";
+import { ProductImage, categoryPath } from "./StorefrontShared.jsx";
 import ProductRow from "./ProductRow.jsx";
 import RecentlyViewed from "./RecentlyViewed.jsx";
 import HomeKits from "./HomeKits.jsx";
 
 export default function HomeProductSections() {
   const { products, loading, error, refreshProducts } = useCatalog();
-  const { featured, fresh } = useMemo(() => {
-    const available = validProducts(products).filter(product => product.isActive !== false && inStock(product));
-    const selected = [...available.filter(product => product.isFeatured), ...available];
-    const seen = new Set();
-    return {
-      featured: selected.filter(product => { const id = String(product.id ?? product._id); if (seen.has(id)) return false; seen.add(id); return true; }).slice(0, 8),
-      fresh: available.filter(product => product.isNew).slice(0, 8),
-    };
-  }, [products]);
+  const {available, lead, leadTitle, fresh, more, moreTitle} = useMemo(() => homeCollections(products), [products]);
+  const apparel = available.find(p => productDepartment(p) === 'workout');
+  const equipment = available.find(p => productDepartment(p) === 'accessories') || available.find(p => productDepartment(p) === 'hydration');
   return <>
-    {featured.length ? <ProductRow title="The essentials edit" id="featured" products={featured} /> :
+    {lead.length ? <ProductRow title={leadTitle} id="featured" products={lead} grid to={leadTitle === 'Best sellers' ? '/shop?collection=bestsellers' : '/shop'} /> :
       <section className="gm-section catalog-status" aria-live="polite">
-        <p className="eyebrow">THE ESSENTIALS EDIT</p><h2>{loading ? "Finding your next essential…" : error ? "Let’s reconnect." : "A new collection is on its way."}</h2>
-        <p>{loading ? "Loading the latest products." : error ? "We couldn’t load the collection. Please try again." : "Check back soon for available products."}</p>
+        <h2>{loading ? "Loading the collection…" : error ? "The collection couldn’t load." : "New essentials are on their way."}</h2>
+        <p>{loading ? "Your next workout starts here." : error ? "Please try again in a moment." : "Explore again soon."}</p>
         {error && <button type="button" className="button" onClick={refreshProducts}>Retry collection</button>}
       </section>}
-    <section className="editorial-collection" aria-labelledby="editorial-title">
-      <div className="editorial-photo"><img src={heroMedia.editorial} alt="An athlete preparing for a training session" width="1200" height="1000" loading="lazy" decoding="async" /></div>
-      <div className="editorial-copy"><p className="eyebrow">THE EVERYDAY ATHLETE</p><h2 id="editorial-title">Built for<br />every rep.</h2><p>The early starts. The extra set. The time you make for yourself. Find the essentials that belong in your routine.</p><Link to="/shop" className="editorial-link">Find your training essentials <Arrow /></Link><span className="editorial-index" aria-hidden="true">GYMDROBE / 02</span></div>
-    </section>
+    {apparel && <section className="editorial-collection" aria-labelledby="editorial-title">
+      <Link to={categoryPath(apparel.category)} className="editorial-photo" aria-label={`Shop ${apparel.category}`}><ProductImage product={apparel} decorative /></Link>
+      <div className="editorial-copy"><p className="eyebrow">THE TRAINING WARDROBE</p><h2 id="editorial-title">Good gear.<br />Better routine.</h2><p>Find your fit for the warm-up, the last set, and everything in between.</p><Link to="/shop?department=workout" className="button">Explore workout clothing <span aria-hidden="true">↗</span></Link></div>
+    </section>}
+    {more.length > 0 && <ProductRow title={moreTitle} products={more} grid to={moreTitle === 'Trending now' ? '/shop?collection=trending' : '/shop?collection=featured'} />}
+    {equipment && <section className="gymdrobe-edit gm-section" aria-labelledby="edit-title">
+      <div className="edit-intro"><p className="eyebrow">THE GYMDROBE EDIT</p><h2 id="edit-title">The details<br />make the difference.</h2><p>Round out your routine with the essentials you reach for every day.</p><Link to={`/shop?department=${productDepartment(equipment)}`} className="text-link">Explore {productDepartment(equipment)} <span aria-hidden="true">→</span></Link></div>
+      <Link className="edit-product" to={categoryPath(equipment.category)}><ProductImage product={equipment} decorative /><span>{equipment.category.toLowerCase() === 'bag' ? 'Pack for your next session' : `Explore ${equipment.category.toLowerCase()}`} <span aria-hidden="true">↗</span></span></Link>
+    </section>}
+    {fresh.length > 0 && <ProductRow title="New arrivals" products={fresh} grid to="/shop?collection=new" />}
     <HomeKits />
-    {fresh.length >= 4 && <ProductRow title="Fresh in the rotation" products={fresh} to="/shop?collection=new" />}
     <RecentlyViewed />
   </>;
 }
