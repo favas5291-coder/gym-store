@@ -6,7 +6,6 @@ import { heroMedia } from "../data/campaignMedia.js";
 export default function Hero() {
   const videoRef = useRef(null);
   const attemptedRef = useRef(false);
-  const finishedRef = useRef(false);
   const mediaRef = useRef(null);
   if (!mediaRef.current) {
     mediaRef.current = window.matchMedia("(max-width: 700px)").matches
@@ -37,30 +36,17 @@ export default function Hero() {
 
   useEffect(() => {
     const player = videoRef.current;
-    if (!player || !motionAllowed || attemptedRef.current || finishedRef.current) return;
+    if (!player || !motionAllowed || attemptedRef.current) return;
     attemptedRef.current = true;
     player.muted = true;
     player.defaultMuted = true;
-    // One attempt only. The poster stays visible if autoplay is not allowed.
+    // One autoplay attempt; native looping handles subsequent cycles without React re-renders.
     player.play()?.catch(() => {
       setFailed(true);
       setHasFrame(false);
     });
   }, [motionAllowed]);
 
-  function handleEnded(event) {
-    finishedRef.current = true;
-    const player = event.currentTarget;
-    player.pause();
-    // Keep a decoded closing frame on browsers that clear the exact EOF position.
-    if (Number.isFinite(player.duration) && player.duration > 0) {
-      try {
-        player.currentTime = Math.max(0, player.duration - 1 / 30);
-      } catch {
-        // The decoder's native last frame remains visible if seeking is unsupported.
-      }
-    }
-  }
 
   return (
     <section className="cinema-hero" aria-labelledby="cinema-title">
@@ -89,11 +75,10 @@ export default function Hero() {
             muted
             playsInline
             preload="auto"
-            loop={false}
+            loop
             aria-hidden="true"
             tabIndex={-1}
             onPlaying={() => setHasFrame(true)}
-            onEnded={handleEnded}
             onError={() => { setFailed(true); setHasFrame(false); }}
           />
         )}
