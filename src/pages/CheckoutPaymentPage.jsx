@@ -98,6 +98,7 @@ import {
   loadRazorpay,
   openRazorpayCheckout,
 } from "../utils/razorpay.js";
+import { setNativePaymentFlowActive } from "../native/payment.js";
 
 import {
   getCheckoutQuote,
@@ -1670,6 +1671,7 @@ function Checkout({ auth, mode }) {
     }
 
     locked.current = true;
+    setNativePaymentFlowActive(true);
 
     setBusy(true);
     setError("");
@@ -1688,6 +1690,7 @@ function Checkout({ auth, mode }) {
       );
     } finally {
       locked.current = false;
+      setNativePaymentFlowActive(false);
 
       if (mounted.current) {
         setBusy(false);

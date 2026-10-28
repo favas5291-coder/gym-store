@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { isNativeApp } from "../native/platform.js";
 
 const PwaContext = createContext(null);
 
@@ -12,7 +13,7 @@ export default function PwaProvider({ children }) {
 
   useEffect(() => {
     const display = window.matchMedia("(display-mode: standalone)");
-    const readDisplay = () => setInstalled(display.matches || navigator.standalone === true);
+    const readDisplay = () => setInstalled(isNativeApp() || display.matches || navigator.standalone === true);
     const capturePrompt = (event) => {
       event.preventDefault();
       setInstallPrompt(event);
@@ -39,7 +40,7 @@ export default function PwaProvider({ children }) {
 
   useEffect(() => {
     // Development and preview fixtures must not install a persistent worker.
-    if (!import.meta.env.PROD || !window.isSecureContext || !("serviceWorker" in navigator)) return;
+    if (isNativeApp() || !import.meta.env.PROD || !window.isSecureContext || !("serviceWorker" in navigator)) return;
     let cancelled = false;
     let stopWatching = () => {};
     const controllerChanged = () => {

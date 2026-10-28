@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import vm from "node:vm";
+import { setNativePaymentFlowActive } from "../src/native/payment.js";
 import { transformWithOxc } from "vite";
 
 import * as payment from "../src/utils/checkoutPayment.js";
@@ -874,6 +875,7 @@ async function application({
         };
       },
 
+      setNativePaymentFlowActive,
       async openRazorpayCheckout(
         options,
       ) {

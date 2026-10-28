@@ -69,8 +69,7 @@ return flow, interrupted payment recovery, order tracking and offline retry.
 Browser automation checks the web behaviour and installability criteria; it
 does not confirm an operating-system installation or a successful live payment.
 
-Do not merge or publish this phase as an Android/iOS store release. The next
-phase is a Capacitor project with native Google login, payment/deep-link handling,
-device back-button behaviour, signing, and device verification. Push notifications,
-store listings, privacy declarations and account-deletion requirements are separate
-release work.
+The Android development project is documented in [ANDROID_APP.md](ANDROID_APP.md).
+It adds native Google login, Razorpay checkout, app links and device navigation.
+Physical-device verification, release signing, push notifications and store
+publication remain separate release work.

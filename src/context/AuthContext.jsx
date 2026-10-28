@@ -13,6 +13,8 @@ import {
   loginWithGoogle,
   updateUserProfile,
 } from "../services/authApi.js";
+import { isNativeApp } from "../native/platform.js";
+import { clearNativeGoogleSession } from "../native/google.js";
 
 import {
   importGuestShopping,
@@ -276,6 +278,7 @@ export default function AuthProvider({ children }) {
 
     // Avoid automatically selecting the previous Google account.
     window.google?.accounts?.id?.disableAutoSelect();
+    if (isNativeApp()) await clearNativeGoogleSession();
 
     return removed;
   }, []);
