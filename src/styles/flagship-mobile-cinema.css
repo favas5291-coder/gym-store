@@ -1,0 +1,174 @@
+/* Mobile cinematic hero for the FLAGSHIP storefront.
+   Desktop's existing light split-layout is intentionally untouched. */
+@media (max-width: 700px) {
+  #app .premium-storefront .gd-nav .gn-bar {
+    box-sizing: border-box;
+    height: 96px;
+    grid-template-columns: 36px minmax(0, 1fr) 132px;
+    grid-template-rows: 50px 36px;
+    grid-template-areas: 'menu brand actions' 'search search search';
+    padding: 4px max(12px, env(safe-area-inset-right)) 6px max(12px, env(safe-area-inset-left));
+    gap: 0 6px;
+    align-items: center;
+  }
+  #app .premium-storefront .gd-nav .gn-menu-toggle {
+    min-width: 40px;
+    min-height: 44px;
+  }
+  #app .premium-storefront .gd-nav .gn-brand { max-width: 100%; min-width: 0; overflow: hidden; }
+  #app .premium-storefront .gd-nav .gn-actions { gap: 0; justify-content: flex-end; min-width: 0; }
+  #app .premium-storefront .gd-nav .gn-action {
+    box-sizing: border-box;
+    height: 44px;
+    min-height: 44px;
+    width: 44px;
+    min-width: 44px;
+  }
+  #app .premium-storefront .gd-nav .gn-form { height: 36px; }
+  #app .premium-storefront .gd-nav .gn-form input { min-height: 34px; font-size: 16px; }
+
+  /* Full-viewport layer: the portrait video is behind, not above, the heading. */
+  #app .premium-storefront .cinema-hero {
+    position: relative;
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    height: max(450px, calc(100svh - 96px));
+    min-height: 450px;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    isolation: isolate;
+    background: #101510;
+    color: white;
+  }
+  #app .premium-storefront .cinema-stage {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+    overflow: hidden;
+    background: #101510;
+  }
+  #app .premium-storefront .cinema-poster,
+  #app .premium-storefront .cinema-poster img,
+  #app .premium-storefront .cinema-film {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+  }
+  #app .premium-storefront .cinema-poster img,
+  #app .premium-storefront .cinema-film {
+    object-fit: cover;
+    object-position: 50% 35%;
+    min-width: 100%;
+    min-height: 100%;
+  }
+  #app .premium-storefront .cinema-film { pointer-events: none; }
+  #app .premium-storefront .cinema-hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+      linear-gradient(0deg, #0d120fed 0%, #0d120fcc 22%, #0d120f63 46%, #0d120f08 76%),
+      linear-gradient(90deg, #0d120f35, transparent 60%);
+  }
+  #app .premium-storefront .cinema-content {
+    position: relative;
+    z-index: 2;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-end;
+    width: 100%;
+    max-width: 620px;
+    height: 100%;
+    padding: 26px 6% max(36px, calc(env(safe-area-inset-bottom) + 24px));
+    margin: 0;
+  }
+  #app .premium-storefront .cinema-kicker {
+    margin: 0 0 13px;
+    color: #f1f0e9;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: .17em;
+  }
+  #app .premium-storefront .cinema-content h1 {
+    width: 100%;
+    max-width: 490px;
+    margin: 0;
+    color: white;
+    font-weight: 600;
+    font-size: clamp(35px, 9.7vw, 56px);
+    letter-spacing: -.055em;
+    line-height: 1.04;
+    text-wrap: balance;
+  }
+  #app .premium-storefront .cinema-content h1 span { color: #dedfd5; }
+  #app .premium-storefront .cinema-tagline {
+    margin: 16px 0 22px;
+    max-width: 340px;
+    color: #e4e6dd;
+    font-size: clamp(11px, 3vw, 14px);
+    line-height: 1.55;
+  }
+  #app .premium-storefront .cinema-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 19px;
+    max-width: 100%;
+  }
+  #app .premium-storefront .cinema-shop {
+    min-width: 150px;
+    min-height: 48px;
+    padding: 12px 18px;
+    background: #f7f7ef;
+    border-color: #f7f7ef;
+    color: #202820 !important;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  #app .premium-storefront .cinema-explore {
+    color: #f7f7ef;
+    min-height: 44px;
+    border-color: #f7f7ef99;
+    font-size: 11px;
+    gap: 10px;
+    white-space: nowrap;
+  }
+  #app .premium-storefront .cinema-note,
+  #app .premium-storefront .cinema-caption { display: none; }
+}
+@media (max-width: 360px) {
+  #app .premium-storefront .gd-nav .gn-bar {
+    grid-template-columns: 36px minmax(0, 1fr) 126px;
+    gap: 0 3px;
+  }
+  #app .premium-storefront .gd-nav .gn-action { width: 42px; min-width: 42px; }
+  #app .premium-storefront .cinema-content h1 { font-size: 35px; }
+  #app .premium-storefront .cinema-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    gap: 8px;
+  }
+  #app .premium-storefront .cinema-shop { width: 100%; }
+}
+@media (max-width: 700px) and (max-height: 620px) {
+  #app .premium-storefront .cinema-content {
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+  }
+  #app .premium-storefront .cinema-kicker { margin-bottom: 8px; }
+  #app .premium-storefront .cinema-tagline { margin: 10px 0 12px; }
+}
