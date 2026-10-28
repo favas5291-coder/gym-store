@@ -142,23 +142,25 @@ try{
   });await v.c.close();
   const motion=await context(width,{browser:{reducedMotion:'no-preference'}});const requests=[];
   motion.p.on('request',r=>{if(r.url().endsWith('.mp4'))requests.push(r.url());});
-  await check(width+'px plays once, holds last frame, never restarts on scroll or resize',async()=>{
+  await check(width+'px hero loops continuously without remounting or pausing',async()=>{
    await visit(motion.p,'/');await motion.p.locator('.cinema-film.is-ready').waitFor({timeout:20000});
    assert.ok(requests.length>0 && requests.every(u=>u.endsWith(width<700?'hero-mobile.mp4':'hero-desktop.mp4')));
    const state=await motion.p.locator('.cinema-film').evaluate(v=>({muted:v.muted,inline:v.playsInline,autoplay:v.autoplay,loop:v.loop,controls:v.controls}));
-   assert.ok(state.muted&&state.inline&&state.autoplay&&!state.loop&&!state.controls,JSON.stringify(state));
+   assert.ok(state.muted&&state.inline&&state.autoplay&&state.loop&&!state.controls,JSON.stringify(state));
    await motion.p.evaluate(()=>{window.__initialHeroVideo=document.querySelector('.cinema-film');});
    await motion.p.setViewportSize({width:width===390?430:1366,height:960});
    assert.ok(await motion.p.evaluate(()=>window.__initialHeroVideo===document.querySelector('.cinema-film')),'Responsive resize must retain player');
-   await motion.p.locator('.cinema-film').evaluate(v=>{v.currentTime=Math.max(0,v.duration-.14);});
-   await motion.p.waitForFunction(()=>{const v=document.querySelector('.cinema-film');return v && v.paused && Number.isFinite(v.duration) && v.currentTime>v.duration-.2;},undefined,{timeout:20000});
-   const t=await motion.p.locator('.cinema-film').evaluate(v=>v.currentTime);
+   // Seek to the end twice to prove native playback wraps and keeps running.
+   for(let cycle=0;cycle<2;cycle++){
+    await motion.p.locator('.cinema-film').evaluate(v=>{v.currentTime=Math.max(0,v.duration-.18);});
+    await motion.p.waitForFunction(()=>{const v=document.querySelector('.cinema-film');return v && Number.isFinite(v.duration) && v.duration>1 && v.currentTime<1 && !v.paused;},undefined,{timeout:20000});
+   }
    await motion.p.evaluate(()=>scrollTo(0,1600));await motion.p.waitForTimeout(160);
    await motion.p.evaluate(()=>scrollTo(0,0));await motion.p.waitForTimeout(160);
-   const final=await motion.p.locator('.cinema-film').evaluate(v=>({paused:v.paused,currentTime:v.currentTime}));
-   assert.ok(final.paused&&Math.abs(final.currentTime-t)<.11,JSON.stringify({t,final}));
-   assert.equal(await motion.p.locator('.cinema-film.is-ready').count(),1);
-   assert.equal(requests.length,1,'Do not redownload the film after scrolling');
+   const final=await motion.p.locator('.cinema-film').evaluate(v=>({paused:v.paused,loop:v.loop,ready:v.classList.contains('is-ready')}));
+   assert.ok(!final.paused&&final.loop&&final.ready,JSON.stringify(final));
+   assert.ok(await motion.p.evaluate(()=>window.__initialHeroVideo===document.querySelector('.cinema-film')));
+   assert.ok(requests.every(u=>u.endsWith(width<700?'hero-mobile.mp4':'hero-desktop.mp4')));
   });await motion.c.close();
  }
  const autoplay=await context(390,{browser:{reducedMotion:'no-preference'}});
