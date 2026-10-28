@@ -139,6 +139,9 @@ try{
    assert.ok(await v.p.locator('.cinema-poster img').evaluate(i=>i.complete&&i.naturalWidth>0));
    assert.equal(media.filter(u=>u.endsWith('.mp4')).length,0);
    assert.ok(media.some(u=>u.includes(width<700?'hero-mobile.webp':'hero-desktop.webp')));
+   assert.equal(await v.p.locator('.cinema-film').count(),1,'Keep video mounted for iOS user gesture');
+   assert.equal(await v.p.locator('.cinema-film').getAttribute('preload'),'none');
+   assert.ok(await v.p.getByRole('button',{name:'Play cinematic background video'}).isVisible());
   });await v.c.close();
   const motion=await context(width,{browser:{reducedMotion:'no-preference'}});const requests=[];
   motion.p.on('request',r=>{if(r.url().endsWith('.mp4'))requests.push(r.url());});
@@ -164,13 +167,40 @@ try{
   });await motion.c.close();
  }
  const autoplay=await context(390,{browser:{reducedMotion:'no-preference'}});
- await autoplay.c.addInitScript(()=>{HTMLMediaElement.prototype.play=function(){return Promise.reject(new DOMException('Blocked autoplay','NotAllowedError'));};});
- await check('Blocked autoplay retains poster and shopping CTA',async()=>{
+ await autoplay.c.addInitScript(()=>{
+  const nativePlay=HTMLMediaElement.prototype.play;
+  window.allowFilmPlayback=false;
+  HTMLMediaElement.prototype.play=function(){
+   return window.allowFilmPlayback?nativePlay.call(this):Promise.reject(new DOMException('Blocked autoplay','NotAllowedError'));
+  };
+ });
+ await check('Mobile autoplay rejection exposes tap-to-play recovery without removing video',async()=>{
   await visit(autoplay.p,'/');await autoplay.p.waitForTimeout(350);
   assert.ok(await autoplay.p.locator('.cinema-poster img').evaluate(i=>i.complete&&i.naturalWidth>0));
-  assert.equal(await autoplay.p.locator('.cinema-film.is-ready').count(),0);
+  assert.equal(await autoplay.p.locator('.cinema-film').count(),1);
+  const button=autoplay.p.getByRole('button',{name:'Play cinematic background video'});
+  // Native attribute autoplay can beat our mocked play() in Chromium. When it does,
+  // force a playback error to exercise the restricted-device recovery UI.
+  if(!await button.isVisible().catch(()=>false)){
+    await autoplay.p.locator('.cinema-film').evaluate(v=>{v.pause();v.dispatchEvent(new Event('error'));});
+  }
+  await button.waitFor();
+  await autoplay.p.evaluate(()=>{window.allowFilmPlayback=true;});
+  await button.click();
+  await autoplay.p.locator('.cinema-film.is-ready').waitFor({timeout:20000});
+  assert.equal(await button.count(),0);
   assert.ok(await autoplay.p.getByRole('link',{name:/Shop Now/}).isVisible());
  });await autoplay.c.close();
+ const iphone=await context(390,{browser:{reducedMotion:'reduce',isMobile:true,hasTouch:true,deviceScaleFactor:3}});
+ await check('iPhone-style touch interaction can start a reduced-motion film inline',async()=>{
+  await visit(iphone.p,'/');
+  const video=iphone.p.locator('.cinema-film');
+  assert.equal(await video.getAttribute('preload'),'none');
+  await iphone.p.getByRole('button',{name:'Play cinematic background video'}).tap();
+  await iphone.p.locator('.cinema-film.is-ready').waitFor({timeout:20000});
+  assert.ok(await video.evaluate(v=>!v.paused&&v.muted&&v.playsInline&&v.loop));
+  assert.equal(await iphone.p.getByRole('button',{name:'Play cinematic background video'}).count(),0);
+ });await iphone.c.close();
  const fail=await context(390,{browser:{reducedMotion:'no-preference'}});await fail.c.route('**/media/campaign/*.mp4',r=>r.abort());
  await check('Failed film retains poster and Shop Now',async()=>{
   await visit(fail.p,'/');await fail.p.waitForTimeout(350);
@@ -179,8 +209,13 @@ try{
  });await fail.c.close();
  const save=await context(390,{browser:{reducedMotion:'no-preference'}});
  await save.c.addInitScript(()=>Object.defineProperty(navigator,'connection',{value:{saveData:true},configurable:true}));
- await check('Data saver keeps poster without downloading film',async()=>{
-  await visit(save.p,'/');assert.equal(await save.p.locator('video').count(),0);
+ await check('Data saver keeps poster and offers user-initiated playback',async()=>{
+  await visit(save.p,'/');
+  assert.equal(await save.p.locator('video').count(),1);
+  assert.equal(await save.p.locator('video').getAttribute('preload'),'none');
+  assert.ok(await save.p.getByRole('button',{name:'Play cinematic background video'}).isVisible());
+  await save.p.getByRole('button',{name:'Play cinematic background video'}).click();
+  await save.p.locator('.cinema-film.is-ready').waitFor({timeout:20000});
  });await save.c.close();
  const policies=await context();
  await check('Existing policy URLs and keyboard focus',async()=>{for(const route of ['/shipping-and-returns.html','/virtual-try-on-privacy.html']){await policies.p.goto(f.url+route);assert.equal(await policies.p.locator('h1').count(),1);await policies.p.keyboard.press('Tab');assert.notEqual(await policies.p.evaluate(()=>document.activeElement.tagName),'BODY');}});await policies.c.close();
