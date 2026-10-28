@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
 
 import {
   ProductImage,
@@ -111,7 +112,7 @@ export default function CategoryCard({
       </div>
 
       <div className="gm-category-copy">
-        <h3>{name}</h3>{minimal && <span className="category-arrow" aria-hidden="true">↗</span>}
+        <h3>{name}</h3>{minimal && <span className="category-arrow" aria-hidden="true"><ArrowRight size={17} strokeWidth={1.7} className="premium-control-arrow" /></span>}
 
         {!minimal && <strong>
           {comingSoon

@@ -4,6 +4,8 @@ import {
 } from "react";
 
 import { Link } from "react-router-dom";
+import { Heart as HeartIcon } from "lucide-react";
+import { PremiumButton, TextLink, IconButton } from "./PremiumControls.jsx";
 
 import {
   productImageSources,
@@ -22,7 +24,6 @@ import {
 } from "../context/StoreContext.jsx";
 
 import {
-  Heart,
   ProductImage,
   productPath,
   priceDetails,
@@ -147,22 +148,14 @@ export default function ProductCard({
           </span>
         )}
 
-        <button
-          type="button"
-          className={
-            "card-heart " +
-            (saved ? "saved" : "")
-          }
-          aria-label={
-            `${saved ? "Remove" : "Save"} ` +
-            `${item.name} ` +
-            `${saved ? "from" : "to"} wishlist`
-          }
+        <IconButton
+          className={`card-heart ${saved ? "saved" : ""}`}
+          label={`${saved ? "Remove" : "Save"} ${item.name} ${saved ? "from" : "to"} wishlist`}
           aria-pressed={saved}
           onClick={() => toggleWishlist(item)}
         >
-          <Heart filled={saved} />
-        </button>
+          <HeartIcon size={19} strokeWidth={1.7} fill={saved ? "currentColor" : "none"} aria-hidden="true" />
+        </IconButton>
 
         {count > 0 && (
           <span
@@ -262,36 +255,23 @@ export default function ProductCard({
 
         <div className="gm-product-card-cta">
           {available ? (
-            <button
-              type="button"
+            <PremiumButton
               className="button full"
               aria-label={`Quick add ${item.name}`}
               onClick={openQuick}
-            >
-              Quick add
-            </button>
+            >Quick add</PremiumButton>
           ) : (
-            <Link
-              className="button full"
-              to={path}
-            >
-              View product
-            </Link>
+            <PremiumButton variant="outline" className="button full" to={path}>View product</PremiumButton>
           )}
 
 
         </div>
 
-        <button
+        <TextLink
           className="compare-toggle"
-          type="button"
           aria-pressed={isCompared}
           onClick={() => toggleCompare(item)}
-        >
-          {isCompared
-            ? "✓ Added to comparison"
-            : "+ Compare"}
-        </button>
+        >{isCompared ? "Added to comparison" : "Compare"}</TextLink>
       </div>
 
       {quick && (
@@ -336,13 +316,7 @@ export default function ProductCard({
                 onAdded={() => setQuick(false)}
               />
 
-              <Link
-                className="text-link"
-                to={path}
-                onClick={() => setQuick(false)}
-              >
-                View full product details →
-              </Link>
+              <TextLink className="text-link" to={path} onClick={() => setQuick(false)}>View full product details</TextLink>
             </div>
           </div>
         </Modal>

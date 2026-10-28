@@ -1,3 +1,4 @@
+import { ArrowRight } from "lucide-react";
 import "./ProductColorImages.css";
 import "./PurchaseFlow.css";
 
@@ -1014,7 +1015,7 @@ function ProductOptionsContent({
           <span>✓ Added to your bag</span>
 
           <Link to="/cart">
-            View bag & checkout →
+            View bag &amp; checkout <ArrowRight className="premium-control-arrow" size={16} strokeWidth={1.7} aria-hidden="true" />
           </Link>
         </div>
       )}

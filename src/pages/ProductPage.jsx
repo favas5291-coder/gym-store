@@ -1,3 +1,4 @@
+import { ArrowRight } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -578,7 +579,7 @@ function ProductDetail({
                 )}`
               }
             >
-              Ask about delivery or return conditions →
+              Ask about delivery or return conditions <ArrowRight className="premium-control-arrow" size={16} strokeWidth={1.7} aria-hidden="true" />
             </Link>
             </details>
           </div>
@@ -760,7 +761,7 @@ function ProductDetail({
               className="text-link"
               onClick={share}
             >
-              Share product ↗
+              Share product <ArrowRight className="premium-control-arrow" size={16} strokeWidth={1.7} aria-hidden="true" />
             </button>
           </div>
         </div>
