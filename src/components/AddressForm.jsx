@@ -38,7 +38,7 @@ export default function AddressForm({value={},onChange,errors={}}){
   const [remoteCities,setRemoteCities]=useState([]);
   const [postalMatches,setPostalMatches]=useState([]);
   const [postalStatus,setPostalStatus]=useState("");
-  const [visibleSpace,setVisibleSpace]=useState(240);
+  const [suggestionPosition,setSuggestionPosition]=useState({height:240,above:false});
   const fieldRefs=useRef({});
   const latest=useRef(null);
   latest.current={value,onChange};
@@ -113,9 +113,16 @@ export default function AddressForm({value={},onChange,errors={}}){
       frame=requestAnimationFrame(()=>{
         const node=fieldRefs.current[focused];
         if(!node)return;
-        const bottom=node.getBoundingClientRect().bottom;
+        const bounds=node.getBoundingClientRect();
+        const visibleTop=vv?vv.offsetTop:0;
         const visibleBottom=vv?vv.offsetTop+vv.height:window.innerHeight;
-        setVisibleSpace(Math.max(0,Math.min(240,visibleBottom-bottom-8)));
+        const below=Math.max(0,visibleBottom-bounds.bottom-8);
+        const above=Math.max(0,bounds.top-visibleTop-8);
+        const placeAbove=below<110 && above>below;
+        const height=Math.max(0,Math.min(240,placeAbove?above:below));
+        setSuggestionPosition(previous=>
+          previous.height===height && previous.above===placeAbove
+            ? previous : {height,above:placeAbove});
       });
     };
     measure();
@@ -208,8 +215,8 @@ export default function AddressForm({value={},onChange,errors={}}){
           {name==="state"&&<ChevronDown size={16} strokeWidth={1.6} aria-hidden="true"/>}
           {name==="pincode"&&<MapPin size={16} strokeWidth={1.6} aria-hidden="true"/>}
         </div>
-        {showOptions && visibleSpace>44 && <ul id={`${id}-suggestions`} className="gd-address-suggestions"
-          role="listbox" style={{maxHeight:`${visibleSpace}px`}}>
+        {showOptions && suggestionPosition.height>44 && <ul id={`${id}-suggestions`} className={`gd-address-suggestions${suggestionPosition.above?" is-above":""}`}
+          role="listbox" style={{maxHeight:`${suggestionPosition.height}px`}}>
           {(name==="pincode"?postalMatches:options).slice(0,name==="pincode"?30:12).map((item,index)=>{
             const text=name==="pincode"?item.locality:item.label;
             const sub=name==="pincode"?[item.district,item.state].filter(Boolean).join(" · "):item.subtitle;
