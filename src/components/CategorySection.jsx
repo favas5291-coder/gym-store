@@ -5,6 +5,8 @@ import categories from "../data/categories.js";
 import { useCatalog } from "../context/CatalogContext.jsx";
 
 import CategoryCard from "./CategoryCard.jsx";
+import { productDepartment } from "../utils/catalog.js";
+import { categoryPath } from "./StorefrontShared.jsx";
 
 import {
   inStock,
@@ -141,9 +143,20 @@ export function categoryCards(products = []) {
 export default function CategorySection() {
   const { products, loading, error } = useCatalog();
   const cards = categoryCards(products);
+  const ordered = [...cards].sort((a,b) => {
+    const stock = name => products.filter(p => p.category === name).reduce((sum,p) => sum + Number(p.stock || 0),0);
+    return stock(b.name) - stock(a.name);
+  });
+  const picks = [];
+  for (const department of ['workout','workout','shoes','accessories','hydration','supplements']) {
+    const next = ordered.find(c => !picks.includes(c) && productDepartment({category:c.name}) === department);
+    if (next) picks.push(next);
+  }
+  for (const card of ordered) if (picks.length < 6 && !picks.includes(card)) picks.push(card);
   if (!cards.length && !loading && !error) return null;
   return <section className="gm-section gm-categories" id="categories" aria-labelledby="gm-category-title">
-    <div className="gm-section-head"><div><p className="eyebrow">FIND YOUR FOCUS</p><h2 id="gm-category-title">Every way you move.</h2></div><Link to="/shop">All essentials <span aria-hidden="true">↗</span></Link></div>
-    {!cards.length ? <p className="muted" role="status">{error ? "Categories are temporarily unavailable." : "Loading your collections…"}</p> : <div className="gm-category-grid">{cards.map(category => <CategoryCard key={category.name} {...category} autoRotate={false} />)}</div>}
+    <div className="gm-section-head"><h2 id="gm-category-title">Shop by category</h2><Link to="/shop">Shop all <span aria-hidden="true">↗</span></Link></div>
+    {!cards.length ? <p className="muted" role="status">{error ? "Categories are temporarily unavailable." : "Loading collections…"}</p> : <div className="gm-category-grid">{picks.map(category => <CategoryCard key={category.name} {...category} offer="" autoRotate={false} minimal />)}</div>}
+    {cards.length > picks.length && <details className="category-directory"><summary>Explore all {cards.length} categories</summary><nav aria-label="All product categories">{cards.map(c => <Link to={categoryPath(c.name)} key={c.name}>{c.name}</Link>)}</nav></details>}
   </section>;
 }

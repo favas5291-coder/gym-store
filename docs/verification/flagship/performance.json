@@ -1,0 +1,80 @@
+{
+  "conditions": {
+    "browser": "153.0.8010.0",
+    "host": "linux x64 workspace; headless Chromium",
+    "server": "Vite production preview on localhost; no CDN/compression configured",
+    "catalog": "Test-only catalog and instant mocked APIs; external services blocked",
+    "cache": "Fresh browser context per run; three samples per viewport",
+    "desktop": "1440×960, no CPU/network throttle",
+    "mobile": "390×960, 4× CPU slowdown, 150 ms latency, 1.6 Mbps down / 0.75 Mbps up",
+    "motion": "Default motion; muted hero autoplay attempted immediately",
+    "limitations": "LCP/CLS lab samples only. CLS is the sum of observed shifts in the measurement window. INP and field percentiles not measured."
+  },
+  "targets": {
+    "lcpMs": 2500,
+    "inpMs": 200,
+    "cls": 0.1
+  },
+  "samples": [
+    {
+      "width": 390,
+      "run": 1,
+      "lcp": 2976,
+      "cls": 0.00016588416466346154,
+      "lcpElement": "VIDEO",
+      "domContentLoaded": 1451.1000000000931,
+      "posterLoaded": true,
+      "requests": 32
+    },
+    {
+      "width": 390,
+      "run": 2,
+      "lcp": 3216,
+      "cls": 0.00016588416466346154,
+      "lcpElement": "VIDEO",
+      "domContentLoaded": 1405.1000000000931,
+      "posterLoaded": true,
+      "requests": 32
+    },
+    {
+      "width": 390,
+      "run": 3,
+      "lcp": 2868,
+      "cls": 0.00016588416466346154,
+      "lcpElement": "VIDEO",
+      "domContentLoaded": 1421.6000000000931,
+      "posterLoaded": true,
+      "requests": 32
+    },
+    {
+      "width": 1440,
+      "run": 1,
+      "lcp": 224,
+      "cls": 0.001472789434739101,
+      "lcpElement": "VIDEO",
+      "domContentLoaded": 49.199999999953434,
+      "posterLoaded": true,
+      "requests": 34
+    },
+    {
+      "width": 1440,
+      "run": 2,
+      "lcp": 244,
+      "cls": 0.001472789434739101,
+      "lcpElement": "VIDEO",
+      "domContentLoaded": 56.299999999813735,
+      "posterLoaded": true,
+      "requests": 34
+    },
+    {
+      "width": 1440,
+      "run": 3,
+      "lcp": 236,
+      "cls": 0.027066273818781347,
+      "lcpElement": "VIDEO",
+      "domContentLoaded": 71.80000000004657,
+      "posterLoaded": true,
+      "requests": 34
+    }
+  ]
+}

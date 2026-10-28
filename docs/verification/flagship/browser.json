@@ -1,0 +1,282 @@
+{
+  "conditions": "Local Vite dev server; Chromium; test-only catalog, address, quote and order fixtures; third-party services blocked; no live payments",
+  "results": [
+    {
+      "name": "Search and URL-preserving catalog filters",
+      "passed": true
+    },
+    {
+      "name": "Product colour imagery, balanced actions, wishlist and cart quantity",
+      "passed": true
+    },
+    {
+      "name": "Guest checkout validation, delivery persistence, COD totals and coupon controls",
+      "passed": true
+    },
+    {
+      "name": "Saved address edit persists through API refresh",
+      "passed": true
+    },
+    {
+      "name": "Quick add retains card colour and validates variants",
+      "passed": true
+    },
+    {
+      "name": "Review form remains accessible in its compact disclosure",
+      "passed": true
+    },
+    {
+      "name": "Mobile menu, filter drawer, pincode and Buy Now",
+      "passed": true
+    },
+    {
+      "name": "320px home: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "320px shop: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "320px product: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "320px account: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "320px addresses: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "320px orders: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "320px order: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "320px tracking: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "320px success: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "320px returns: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "320px help: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "320px kits: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "390px home: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "390px shop: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "390px product: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "390px account: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "390px addresses: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "390px orders: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "390px order: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "390px tracking: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "390px success: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "390px returns: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "390px help: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "390px kits: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "768px home: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "768px shop: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "768px product: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "768px account: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "768px addresses: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "768px orders: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "768px order: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "768px tracking: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "768px success: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "768px returns: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "768px help: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "768px kits: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "1440px home: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "1440px shop: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "1440px product: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "1440px account: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "1440px addresses: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "1440px orders: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "1440px order: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "1440px tracking: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "1440px success: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "1440px returns: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "1440px help: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "1440px kits: layout and rendered state",
+      "passed": true
+    },
+    {
+      "name": "empty",
+      "passed": true
+    },
+    {
+      "name": "catalog-error",
+      "passed": true
+    },
+    {
+      "name": "empty-cart",
+      "passed": true
+    },
+    {
+      "name": "login",
+      "passed": true
+    },
+    {
+      "name": "out-of-stock",
+      "passed": true
+    },
+    {
+      "name": "390px reduced motion loads poster and no film",
+      "passed": true
+    },
+    {
+      "name": "390px correct film, pause and offscreen lifecycle",
+      "passed": true
+    },
+    {
+      "name": "1440px reduced motion loads poster and no film",
+      "passed": true
+    },
+    {
+      "name": "1440px correct film, pause and offscreen lifecycle",
+      "passed": true
+    },
+    {
+      "name": "Autoplay rejection preserves poster and manual play recovers",
+      "passed": true
+    },
+    {
+      "name": "Failed film keeps a readable poster and retry control",
+      "passed": true
+    },
+    {
+      "name": "Data saver leaves shopping available without downloading film",
+      "passed": true
+    },
+    {
+      "name": "Existing policy URLs and keyboard focus",
+      "passed": true
+    },
+    {
+      "name": "No browser runtime exceptions",
+      "passed": true
+    }
+  ],
+  "errors": []
+}

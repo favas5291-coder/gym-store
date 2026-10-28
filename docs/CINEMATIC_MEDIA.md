@@ -1,29 +1,31 @@
 # GymDrobe campaign media
 
-## Integrated delivery assets
+## Integrated flagship delivery assets — 27 October 2026
 
-The two Higgsfield Seedance 2.5 films are generated editorial atmosphere, not product demonstrations or evidence of product benefits. They share wardrobe, gym, athlete and lighting. A second edit removed unintended lettering and chest marks. The last 0.7 seconds dissolve to the opening frame. Each web loop is 11.79 seconds, muted, 24 fps, H.264/YUV420p with fast-start metadata.
+The current Higgsfield Seedance 2.5 films are generated editorial atmosphere, not filmed footage, product demonstrations or evidence of benefits. Separate landscape and portrait sequences show shoe preparation, a controlled curl and recovery. A portrait cleanup removes an unintended shirt symbol. Both web files are 11.79 seconds, muted, 24 fps, H.264/YUV420p, with fast-start metadata and a 0.4-second dissolve to the opening frame.
 
 | Placement | Delivery file | Dimensions | Approximate size |
 | --- | --- | --- | --- |
-| Desktop film | `public/media/campaign/hero-desktop.mp4` | 1920 × 1080 | 2.48 MB |
-| Portrait film | `public/media/campaign/hero-mobile.mp4` | 720 × 1280 | 1.21 MB |
-| Desktop poster | `public/media/campaign/hero-desktop.webp` | 1920 × 1080 | 55 KB |
-| Portrait poster | `public/media/campaign/hero-mobile.webp` | 900 × 1600 | 45 KB |
-| Editorial still | `public/media/campaign/editorial.webp` | 1200 × 675 | See file |
+| Desktop film | `public/media/campaign/hero-desktop.mp4` | 1920 × 1080 | 1.3 MB |
+| Portrait film | `public/media/campaign/hero-mobile.mp4` | 720 × 1280 | 936 KB |
+| Desktop poster | `public/media/campaign/hero-desktop.webp` | 1920 × 1080 | 47 KB |
+| Portrait poster | `public/media/campaign/hero-mobile.webp` | 900 × 1600 | 47 KB |
 
-The manifest is `src/data/campaignMedia.js`. Replace these files at the same paths, or update that manifest and the homepage poster preload paths in `index.html`. HTML supplies all brand text, headings and links. Do not bake text or logos into the campaign film. Product photography and collection thumbnails continue to come from the catalog.
+The manifest is `src/data/campaignMedia.js`. Replace these files at the same paths, or update the manifest and homepage poster preload paths in `index.html`. HTML supplies brand text, headings and links. Do not bake text or logos into the film. Collection photography comes from the real catalog. The 90 MB presenter advertisement at `src/assets/gymdrobe ad.mp4` is preserved as source; it is not imported or downloaded by the storefront.
 
-**Production asset still missing:** the 6–9 second insert of identifiable, currently available products with supplier-approved references. The current film uses a neutral dumbbell/rubber-floor detail in that slot. It is a clearly documented temporary campaign insert, not a representation of a purchasable SKU. The generated shoes and wardrobe are also generic atmosphere. Check the complete film for anatomy, continuity, unidentified marks and mobile framing before final brand approval.
+The 700 px media switch requests one film. Normal visitors get an immediate muted inline autoplay attempt; reduced-motion and data-saver visitors get the poster with an explicit Play control. Pausing is preserved across scroll-away/return. Offscreen and hidden-tab playback pauses. Blocked or failed playback retains the poster and a manual retry. Mobile displays the complete portrait canvas within a dark frame, avoiding an additional crop of hands or shoes. Some source shots are intentional close-ups; the two variants are independent renders and are not frame-identical.
+
+**Production asset still missing:** identifiable, currently available products photographed or generated from supplier-approved SKU/colour references. Current shoes, wardrobe and dumbbells are generic atmosphere and are not offered as product demonstrations. The final product insert can replace a short portion of the training sequence using Shot 3 below. Final brand review of generated anatomy, movement and continuity is still appropriate.
 
 ## Source masters, separate from public delivery
 
-Keep source masters in a campaign/DAM folder, not `public`. Retain original frame rates and resolution; do not repeatedly recompress the web exports. Higgsfield generation records and source downloads (four submissions, 866 credits quoted in total; the final account balance was not independently checked):
+Source files remain available through Higgsfield. Retain these originals in the campaign/DAM workflow; do not repeatedly recompress web exports. Three generations in this redesign were quoted at 625 credits total (192 + 192 + 241); an ending account balance was not independently verified.
 
-- Desktop original: `497789d0-9d2e-4bdf-8f7d-6b54e0fb97bf`.
-- Portrait original: `a08ccaf1-3684-436c-b40a-df5a51fa0cce`.
-- Desktop cleanup: `d94058f2-1dae-4574-a410-bdcfc6be60c4` — [source MP4](https://d8j0ntlcm91z4.cloudfront.net/user_3HOQTb2DeZm8porGiuaajml7EwH/hf_20261026_132829_d94058f2-1dae-4574-a410-bdcfc6be60c4.mp4).
-- Portrait cleanup: `6a6a8f9e-5356-43e7-bb84-cc2e34250b2e` — [source MP4](https://d8j0ntlcm91z4.cloudfront.net/user_3HOQTb2DeZm8porGiuaajml7EwH/hf_20261026_133330_6a6a8f9e-5356-43e7-bb84-cc2e34250b2e.mp4).
+- Desktop: `5f097581-1e2b-4abd-82bc-0f274ef4a46c` — [source MP4](https://d8j0ntlcm91z4.cloudfront.net/user_3HOQTb2DeZm8porGiuaajml7EwH/hf_20261027_094005_5f097581-1e2b-4abd-82bc-0f274ef4a46c.mp4).
+- Portrait original (superseded by cleanup): `f29b98d2-8962-438d-8fc1-9a82c2d1764e` — [source MP4](https://d8j0ntlcm91z4.cloudfront.net/user_3HOQTb2DeZm8porGiuaajml7EwH/hf_20261027_094005_f29b98d2-8962-438d-8fc1-9a82c2d1764e.mp4).
+- Portrait cleanup: `3ae1197c-ebdc-44dd-9a6a-db9922d7fa7b` — [source MP4](https://d8j0ntlcm91z4.cloudfront.net/user_3HOQTb2DeZm8porGiuaajml7EwH/hf_20261027_142754_3ae1197c-ebdc-44dd-9a6a-db9922d7fa7b.mp4).
+
+Earlier campaign versions are preserved in git history. The original individual shot prompts below remain the reference-guided production brief for a merchandise-accurate replacement, rather than a claim that the present films show those approved products.
 
 ## Reference pack needed for a product-accurate final cut
 
@@ -36,10 +38,10 @@ Generate each shot separately with handles, then assemble 0–3 / 3–6 / 6–9 
 **References:** approved shoe and variant from multiple angles; athlete/wardrobe continuity frame; opening poster lighting reference.
 
 ```text
-Create a 4-second shot, delivering a usable 3-second action plus edit handles. Photorealistic premium fitness commercial, modern dark gym, Indian athlete, natural anatomy and movement, realistic skin and fabric, tactile rubber and brushed-metal textures, dramatic controlled lighting, subtle atmospheric depth, restrained cinematic camera movement, premium commercial colour grading. Close-up of the athlete's hands tightening the training shoe in the attached approved product reference. Preserve its exact shape, sole profile, lace construction, fabric, colour and physical branding. Natural fingers, believable lace tension, no warping. Matte charcoal wardrobe, warm side light from camera right, deep neutral shadows, restrained grain. A very slow lateral camera drift. Begin with a composed, sharp frame suitable as a still poster. Desktop 16:9: action on the right with quiet negative space on the left for HTML headlines. No added words, graphics, captions or logos; retain only genuine markings on the referenced product. No invented claims or endorsement.
+Create a 4-second shot, delivering a usable 3-second action plus edit handles. Photorealistic premium fitness commercial, modern dark gym, Indian athlete, natural anatomy and movement, realistic skin and fabric, tactile rubber and brushed-metal textures, dramatic controlled lighting, subtle atmospheric depth, restrained cinematic camera movement, premium commercial colour grading. Close-up of the athlete's hands tightening the training shoe in the attached approved product reference. Preserve its exact shape, sole profile, lace construction, fabric, colour and physical branding. Natural fingers, believable lace tension, no warping. Matte charcoal wardrobe, warm side light from camera right, deep neutral shadows, restrained grain. A very slow lateral camera drift. Begin with a composed, sharp frame suitable as a still poster. Desktop 16:9: keep the complete action inside the central 65%, with headroom and room for a narrow desktop panel. HTML headlines sit in a separate panel. No added words, graphics, captions or logos; retain only genuine markings on the referenced product. No invented claims or endorsement.
 ```
 
-For the separate portrait render, replace the desktop framing sentence with: `Compose natively in 9:16. Keep the shoe and hands within the central 80% and upper 60%; leave the lower 40% quiet enough for HTML text. Do not crop a landscape export.`
+For the separate portrait render, replace the desktop framing sentence with: `Compose natively in 9:16. Keep the complete shoe and hands within the central 80%, with breathing room on all sides. Website text sits outside the footage. Do not crop a landscape export.`
 
 ### Shot 2 — The grip (3–6 seconds)
 

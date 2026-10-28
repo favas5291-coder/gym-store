@@ -2,6 +2,7 @@
 import {preview} from 'vite';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import {startStorefrontFixture,mockStorefront} from './storefront-fixture.mjs';
 const {chromium}=await import(process.env.GYMDROBE_PLAYWRIGHT_MODULE||'playwright');
 const f=await startStorefrontFixture(4210);
@@ -31,6 +32,6 @@ try{
   const metrics=await p.evaluate(()=>({...window.lab,domContentLoaded:performance.getEntriesByType('navigation')[0].domContentLoadedEventEnd,posterLoaded:document.querySelector('.cinema-poster img')?.naturalWidth>0,requests:performance.getEntriesByType('resource').length}));
   samples.push({width,run,...metrics});console.log('LAB',JSON.stringify(samples.at(-1)));await c.close();
  }
- const report={conditions:{browser:await browser.version(),host:'GitHub ubuntu-latest headless Chromium',server:'Vite production preview on localhost; no CDN/compression configured',catalog:'Test-only catalog and instant mocked APIs; external services blocked',cache:'Fresh browser context per run; three samples per viewport',desktop:'1440×960, no CPU/network throttle',mobile:'390×960, 4× CPU slowdown, 150 ms latency, 1.6 Mbps down / 0.75 Mbps up',motion:'Default motion; hero film enabled after poster',limitations:'LCP/CLS lab samples only. CLS is the sum of observed shifts in the measurement window. INP and field percentiles not measured.'},targets:{lcpMs:2500,inpMs:200,cls:0.1},samples};
+ const report={conditions:{browser:await browser.version(),host:process.env.GITHUB_ACTIONS?'GitHub ubuntu-latest':`${os.platform()} ${os.arch()} workspace; headless Chromium`,server:'Vite production preview on localhost; no CDN/compression configured',catalog:'Test-only catalog and instant mocked APIs; external services blocked',cache:'Fresh browser context per run; three samples per viewport',desktop:'1440×960, no CPU/network throttle',mobile:'390×960, 4× CPU slowdown, 150 ms latency, 1.6 Mbps down / 0.75 Mbps up',motion:'Default motion; muted hero autoplay attempted immediately',limitations:'LCP/CLS lab samples only. CLS is the sum of observed shifts in the measurement window. INP and field percentiles not measured.'},targets:{lcpMs:2500,inpMs:200,cls:0.1},samples};
  const output=process.env.STOREFRONT_ARTIFACTS||'test-results/storefront';await fs.mkdir(output,{recursive:true});await fs.writeFile(path.join(output,'performance.json'),JSON.stringify(report,null,2));
 }finally{await browser.close();await new Promise(resolve=>server.httpServer.close(resolve));await f.server.close();}

@@ -324,7 +324,7 @@ function ReviewPanel({ product, productId }) {
             </p>
           </div>
 
-          {[5, 4, 3, 2, 1].map((stars) => {
+          {count > 0 && [5, 4, 3, 2, 1].map((stars) => {
             const total = reviews.filter(
               (review) =>
                 Number(review.rating) === stars,
@@ -348,6 +348,8 @@ function ReviewPanel({ product, productId }) {
             );
           })}
 
+          <details className="review-compose" open={editing ? true : undefined}>
+          <summary>{editing ? "Edit your review" : "Write a review"}</summary>
           <form
             className="review-form"
             onSubmit={submit}
@@ -477,10 +479,11 @@ function ReviewPanel({ product, productId }) {
               </p>
             )}
           </form>
+          </details>
         </div>
 
         <div>
-          <div className="browse-controls">
+          {count > 0 && <div className="browse-controls">
             <label>
               Sort reviews{" "}
               <select
@@ -528,7 +531,7 @@ function ReviewPanel({ product, productId }) {
                 ))}
               </select>
             </label>
-          </div>
+          </div>}
 
           {loading && (
             <p role="status">

@@ -11,6 +11,7 @@ const PHOTO_INTERVAL = 5000;
 
 export default function CategoryCard({
   name,
+  minimal = false,
   icon,
   images = [],
   offer,
@@ -110,15 +111,15 @@ export default function CategoryCard({
       </div>
 
       <div className="gm-category-copy">
-        <h3>{name}</h3>
+        <h3>{name}</h3>{minimal && <span className="category-arrow" aria-hidden="true">↗</span>}
 
-        <strong>
+        {!minimal && <strong>
           {comingSoon
             ? "COMING SOON"
             : outOfStock
               ? "OUT OF STOCK"
               : offer || "SHOP THE EDIT"}
-        </strong>
+        </strong>}
 
         <span>
           {comingSoon

@@ -19,8 +19,11 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm test
-      - name: Compile production application (sitemap needs production API)
-        run: npx --no-install vite build
+      - name: Build production application and catalog sitemap
+        env:
+          VITE_API_URL: https://gym-drobe-backend.onrender.com/api
+          VITE_SITE_URL: https://www.gymdrobe.com
+        run: npm run build
       - name: Install isolated browser test tooling
         run: |
           npm install --no-save --package-lock=false playwright@1.62.1
