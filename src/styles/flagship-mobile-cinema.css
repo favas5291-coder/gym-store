@@ -1,3 +1,39 @@
+/* Recover playback on phones that block muted inline autoplay, without showing a
+   control during normal playback or changing the flagship desktop composition. */
+#app .premium-storefront .cinema-hero { position: relative; }
+#app .premium-storefront .cinema-play-fallback {
+  position: absolute;
+  z-index: 4;
+  top: 22px;
+  right: 22px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid #ffffff80;
+  border-radius: 24px;
+  background: #101510c9;
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+#app .premium-storefront .cinema-play-fallback:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+@media (max-width: 700px) {
+  #app .premium-storefront .cinema-play-fallback {
+    top: 16px;
+    right: 16px;
+    min-width: 116px;
+  }
+}
+
 /* Mobile cinematic hero for the FLAGSHIP storefront.
    Desktop's existing light split-layout is intentionally untouched. */
 @media (max-width: 700px) {
