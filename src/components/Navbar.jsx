@@ -20,14 +20,11 @@ import {
   productDepartment,
 } from "../utils/catalog.js";
 
-import { asset } from "../data/assets.js";
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 import "./GymDrobeStorefront.css";
 import { Search, Clock3, ArrowRight, X } from "lucide-react";
-
-const logoImage = asset("new logo.png");
 
 const RECENT_SEARCH_KEY =
   "gymdrobe-recent-searches";
@@ -252,23 +249,9 @@ function Icon({ name, size = 22 }) {
 }
 
 function Brand() {
-  const [failed, setFailed] = useState(false);
-
-  if (failed || !logoImage) {
-    return (
-      <span className="gn-wordmark">
-        GYMDROBE
-      </span>
-    );
-  }
-
-  return (
-    <img
-      src={logoImage}
-      alt="GymDrobe"
-      onError={() => setFailed(true)}
-    />
-  );
+  // The original image reference was missing from the bundled assets.
+  // Render the same live wordmark consistently on desktop and mobile.
+  return <span className="gn-wordmark">GYMDROBE</span>;
 }
 
 function Thumbnail({ src }) {
