@@ -218,6 +218,7 @@ const common = {
   TextLink: "TextLink",
   IconButton: "IconButton",
   HeartIcon: "HeartIcon",
+  ArrowRight: "ArrowRight",
   ProductImage: "ProductImage",
   Modal: "Modal",
   Heart: "Heart",
@@ -329,7 +330,7 @@ async function optionsHarness(
 const button = (tree, label) =>
   nodes(tree).find(
     (row) =>
-      row.type === "button" &&
+      (row.type === "button" || row.type === "PremiumButton") &&
       row.props["aria-label"] === label,
   );
 
