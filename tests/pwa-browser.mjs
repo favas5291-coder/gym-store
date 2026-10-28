@@ -110,7 +110,9 @@ try {
       await mobile.page.screenshot({ path: path.join(output, "offline-390.png"), fullPage: true });
       await mobile.page.getByRole("heading", { name: "You’re offline." }).waitFor();
       assert.equal(mobile.page.url(), origin + "/install?resume=1");
-      assert.equal(await mobile.page.locator("#connection").textContent(), "Waiting for an internet connection.");
+      // A server outage does not necessarily change navigator.onLine. Both
+      // browser-reported states must retain a usable, explicit retry action.
+      assert.match(await mobile.page.locator("#connection").textContent(), /Waiting for an internet connection|Connection available/);
       const image = await mobile.page.locator("main img").evaluate((image) => image.complete && image.naturalWidth === 512);
       assert.equal(image, true);
       await mobile.page.screenshot({ path: path.join(output, "offline-390.png"), fullPage: true });
@@ -138,6 +140,7 @@ try {
   });
 
   await check("updates wait for an explicit action instead of reloading a session", async () => {
+    await visit(mobile.page);
     const updated = originalWorker.replace(/gymdrobe-offline-([a-f0-9]+)/, "gymdrobe-offline-$1-test");
     await mobile.page.evaluate(() => { window.__sessionPreserved = "active-shopping-session"; });
     await fs.writeFile(workerPath, updated);
