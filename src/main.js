@@ -12,6 +12,7 @@ import "./utils/accessibility.css";
 import "./styles/storefront-premium.css";
 import "./styles/flagship-mobile-cinema.css";
 import "./styles/premium-controls.css";
+import "./styles/search-mobile-premium.css";
 
 import { readStorage } from "./utils/storage.js";
 import { importGuestShopping } from "./utils/shopperStorage.js";

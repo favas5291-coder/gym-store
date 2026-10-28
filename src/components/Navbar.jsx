@@ -25,6 +25,7 @@ import { useCatalog } from "../context/CatalogContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 import "./GymDrobeStorefront.css";
+import { Search, Clock3, ArrowRight, X } from "lucide-react";
 
 const logoImage = asset("new logo.png");
 
@@ -309,6 +310,7 @@ function SearchBox({
 
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
+  const [availableHeight, setAvailableHeight] = useState(300);
 
   const listId = useId();
   const clean = value.trim();
@@ -401,6 +403,38 @@ function SearchBox({
     };
   }, []);
 
+  // visualViewport is the keyboard-aware visible area in iOS Safari.
+  // Keep the panel inside that area rather than using a full-screen vh guess.
+  useEffect(() => {
+    if (!open) return undefined;
+    const viewport = window.visualViewport;
+    let frame = 0;
+    const measure = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const rect = container.current?.getBoundingClientRect();
+        if (!rect) return;
+        const visibleBottom = viewport
+          ? viewport.offsetTop + viewport.height
+          : window.innerHeight;
+        const next = Math.max(0, Math.min(310, Math.floor(visibleBottom - rect.bottom - 12)));
+        setAvailableHeight(old => old === next ? old : next);
+      });
+    };
+    measure();
+    viewport?.addEventListener("resize", measure);
+    viewport?.addEventListener("scroll", measure);
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      viewport?.removeEventListener("resize", measure);
+      viewport?.removeEventListener("scroll", measure);
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure);
+    };
+  }, [open]);
+
   function choose(option) {
     if (!option) return;
 
@@ -443,11 +477,14 @@ function SearchBox({
       setActive(next);
 
       requestAnimationFrame(() => {
-        document
-          .getElementById(`${listId}-${next}`)
-          ?.scrollIntoView({
-            block: "nearest",
-          });
+        const list = container.current?.querySelector(".gn-results ul");
+        const option = document.getElementById(`${listId}-${next}`);
+        if (!list || !option) return;
+        // Scroll only the menu; never jump the page underneath the iOS keyboard.
+        const item = option.getBoundingClientRect();
+        const viewport = list.getBoundingClientRect();
+        if (item.top < viewport.top) list.scrollTop += item.top - viewport.top;
+        else if (item.bottom > viewport.bottom) list.scrollTop += item.bottom - viewport.bottom;
       });
 
       return;
@@ -477,7 +514,7 @@ function SearchBox({
 
   return (
     <div
-      className="gn-search"
+      className={`gn-search${open ? " gn-search-open" : ""}`}
       ref={container}
     >
       <form
@@ -495,7 +532,7 @@ function SearchBox({
           type="submit"
           aria-label="Submit search"
         >
-          <Icon name="search" size={20} />
+          <Search size={19} strokeWidth={1.8} aria-hidden="true" />
         </button>
 
         <input
@@ -527,6 +564,7 @@ function SearchBox({
           }}
           onFocus={() => {
             onOpen();
+            setActive(-1);
             setOpen(true);
           }}
           onKeyDown={handleKey}
@@ -544,13 +582,13 @@ function SearchBox({
               setOpen(true);
             }}
           >
-            <Icon name="close" size={17} />
+            <X size={17} strokeWidth={1.8} aria-hidden="true" />
           </button>
         )}
       </form>
 
       {open && (
-        <div className="gn-results">
+        <div className="gn-results" style={{ "--gn-search-available": `${availableHeight}px` }}>
           <div className="gn-result-title">
             <span>
               {clean
@@ -558,15 +596,29 @@ function SearchBox({
                 : "Recent searches"}
             </span>
 
-            {!clean && recent.length > 0 && (
+            <div className="gn-results-actions">
+              {!clean && recent.length > 0 && (
+                <button
+                  className="gn-clear-history"
+                  type="button"
+                  onMouseDown={event => event.preventDefault()}
+                  onClick={onClearHistory}
+                >
+                  Clear history
+                </button>
+              )}
               <button
-                className="gn-clear-history"
+                className="gn-dismiss-search"
                 type="button"
-                onClick={onClearHistory}
+                onMouseDown={event => event.preventDefault()}
+                onClick={() => {
+                  close();
+                  input.current?.blur();
+                }}
               >
-                Clear history
+                Done
               </button>
-            )}
+            </div>
           </div>
 
           <ul
@@ -594,19 +646,7 @@ function SearchBox({
                   role="option"
                   tabIndex={-1}
                   aria-selected={index === active}
-                  style={{
-                    width: "100%",
-                    textAlign: "left",
-                    font: "inherit",
-                    color: "inherit",
-
-                    background:
-                      index === active
-                        ? "#f5f5f6"
-                        : "#fff",
-
-                    touchAction: "manipulation",
-                  }}
+                  onMouseDown={event => event.preventDefault()}
                   onPointerMove={(event) => {
                     if (
                       event.pointerType === "mouse"
@@ -615,10 +655,10 @@ function SearchBox({
                     }
                   }}
                   onClick={() => {
-                    // Keep the link mounted so the tap can navigate.
-                    if (option.type === "query") {
-                      onRemember?.(option.query);
-                    }
+                    // Keep the Link's native navigation; prevent blur-before-click.
+                    if (option.type === "query") onRemember?.(option.query);
+                    close();
+                    input.current?.blur();
                   }}
                 >
                   {option.type === "product" ? (
@@ -627,14 +667,9 @@ function SearchBox({
                       src={option.product.image}
                     />
                   ) : (
-                    <Icon
-                      name={
-                        clean
-                          ? "search"
-                          : "history"
-                      }
-                      size={18}
-                    />
+                    clean
+                      ? <Search size={17} strokeWidth={1.7} aria-hidden="true" />
+                      : <Clock3 size={17} strokeWidth={1.7} aria-hidden="true" />
                   )}
 
                   <span className="gn-option-copy">
@@ -651,7 +686,7 @@ function SearchBox({
                     )}
                   </span>
 
-                  <Icon name="arrow" size={15} />
+                  <ArrowRight size={16} strokeWidth={1.7} className="gn-option-arrow" aria-hidden="true" />
                 </Link>
               </li>
             ))}
