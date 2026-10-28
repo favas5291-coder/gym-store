@@ -141,7 +141,8 @@ try{
    assert.ok(media.some(u=>u.includes(width<700?'hero-mobile.webp':'hero-desktop.webp')));
    assert.equal(await v.p.locator('.cinema-film').count(),1,'Keep video mounted for iOS user gesture');
    assert.equal(await v.p.locator('.cinema-film').getAttribute('preload'),'none');
-   assert.ok(await v.p.getByRole('button',{name:'Play cinematic background video'}).isVisible());
+   assert.equal(await v.p.locator('.cinema-play-fallback').count(),0);
+   assert.equal(await v.p.getByRole('button',{name:/play|pause|replay.*video/i}).count(),0);
   });await v.c.close();
   const motion=await context(width,{browser:{reducedMotion:'no-preference'}});const requests=[];
   motion.p.on('request',r=>{if(r.url().endsWith('.mp4'))requests.push(r.url());});
@@ -174,32 +175,28 @@ try{
    return window.allowFilmPlayback?nativePlay.call(this):Promise.reject(new DOMException('Blocked autoplay','NotAllowedError'));
   };
  });
- await check('Mobile autoplay rejection exposes tap-to-play recovery without removing video',async()=>{
+ await check('Blocked mobile autoplay shows poster and shopping links without playback controls',async()=>{
   await visit(autoplay.p,'/');await autoplay.p.waitForTimeout(350);
+  const video=autoplay.p.locator('.cinema-film');
+  assert.equal(await video.count(),1);
   assert.ok(await autoplay.p.locator('.cinema-poster img').evaluate(i=>i.complete&&i.naturalWidth>0));
-  assert.equal(await autoplay.p.locator('.cinema-film').count(),1);
-  const button=autoplay.p.getByRole('button',{name:'Play cinematic background video'});
-  // Native attribute autoplay can beat our mocked play() in Chromium. When it does,
-  // force a playback error to exercise the restricted-device recovery UI.
-  if(!await button.isVisible().catch(()=>false)){
-    await autoplay.p.locator('.cinema-film').evaluate(v=>{v.pause();v.dispatchEvent(new Event('error'));});
-  }
-  await button.waitFor();
-  await autoplay.p.evaluate(()=>{window.allowFilmPlayback=true;});
-  await button.click();
-  await autoplay.p.locator('.cinema-film.is-ready').waitFor({timeout:20000});
-  assert.equal(await button.count(),0);
+  assert.equal(await video.evaluate(v=>v.loop&&v.muted&&v.playsInline&&!v.controls),true);
+  assert.equal(await autoplay.p.locator('.cinema-film.is-ready').count(),0);
+  assert.equal(await autoplay.p.locator('.cinema-play-fallback,.cinema-control').count(),0);
+  assert.equal(await autoplay.p.getByRole('button',{name:/Play cinematic|Pause hero|Replay/i}).count(),0);
   assert.ok(await autoplay.p.getByRole('link',{name:/Shop Now/}).isVisible());
+  assert.ok(await autoplay.p.getByRole('link',{name:/Explore Collections/}).isVisible());
  });await autoplay.c.close();
- const iphone=await context(390,{browser:{reducedMotion:'reduce',isMobile:true,hasTouch:true,deviceScaleFactor:3}});
- await check('iPhone-style touch interaction can start a reduced-motion film inline',async()=>{
+ const iphone=await context(390,{browser:{reducedMotion:'no-preference',isMobile:true,hasTouch:true,deviceScaleFactor:3}});
+ await check('iPhone-style mobile viewport has muted inline native autoplay and no fullscreen controls',async()=>{
   await visit(iphone.p,'/');
   const video=iphone.p.locator('.cinema-film');
-  assert.equal(await video.getAttribute('preload'),'none');
-  await iphone.p.getByRole('button',{name:'Play cinematic background video'}).tap();
   await iphone.p.locator('.cinema-film.is-ready').waitFor({timeout:20000});
-  assert.ok(await video.evaluate(v=>!v.paused&&v.muted&&v.playsInline&&v.loop));
-  assert.equal(await iphone.p.getByRole('button',{name:'Play cinematic background video'}).count(),0);
+  assert.ok(await video.evaluate(v=>!v.paused&&v.autoplay&&v.muted&&v.loop&&v.playsInline&&!v.controls));
+  assert.equal(await video.getAttribute('preload'),'metadata');
+  assert.ok(await video.evaluate(v=>v.hasAttribute('playsinline')&&v.hasAttribute('webkit-playsinline')));
+  assert.equal(await iphone.p.locator('.cinema-play-fallback,.cinema-control').count(),0);
+  assert.equal(await iphone.p.getByRole('button',{name:/Play cinematic|Pause hero|Replay/i}).count(),0);
  });await iphone.c.close();
  const fail=await context(390,{browser:{reducedMotion:'no-preference'}});await fail.c.route('**/media/campaign/*.mp4',r=>r.abort());
  await check('Failed film retains poster and Shop Now',async()=>{
@@ -209,14 +206,35 @@ try{
  });await fail.c.close();
  const save=await context(390,{browser:{reducedMotion:'no-preference'}});
  await save.c.addInitScript(()=>Object.defineProperty(navigator,'connection',{value:{saveData:true},configurable:true}));
- await check('Data saver keeps poster and offers user-initiated playback',async()=>{
-  await visit(save.p,'/');
+ await check('Data saver uses poster without video controls or an automatic download',async()=>{
+  await visit(save.p,'/');await save.p.waitForTimeout(200);
   assert.equal(await save.p.locator('video').count(),1);
   assert.equal(await save.p.locator('video').getAttribute('preload'),'none');
-  assert.ok(await save.p.getByRole('button',{name:'Play cinematic background video'}).isVisible());
-  await save.p.getByRole('button',{name:'Play cinematic background video'}).click();
-  await save.p.locator('.cinema-film.is-ready').waitFor({timeout:20000});
+  assert.equal(await save.p.locator('video').evaluate(v=>v.autoplay),false);
+  assert.equal(await save.p.locator('.cinema-play-fallback,.cinema-control').count(),0);
+  assert.ok(await save.p.locator('.cinema-poster img').evaluate(v=>v.complete&&v.naturalWidth>0));
+  assert.ok(await save.p.getByRole('link',{name:/Shop Now/}).isVisible());
  });await save.c.close();
+ await check('Premium controls use Lucide SVG arrows and preserve shopping action semantics',async()=>{
+  const shop=await context(390,{signedIn:true});
+  try{
+   await visit(shop.p,'/');
+   for(const name of [/Shop Now/,/Explore Collections/,/Shop all/]){
+    const link=shop.p.getByRole('link',{name}).first();
+    assert.ok(await link.isVisible(),String(name)+' link visible');
+    assert.ok(await link.locator('svg.premium-control-arrow').count()>0,String(name)+' has Lucide vector');
+   }
+   const cta=shop.p.locator('.cinema-shop');
+   assert.ok(await cta.evaluate(el=>el.getBoundingClientRect().height>=44));
+   assert.equal(await shop.p.locator('.cinema-hero').innerText().then(t=>/[↗→⬆➡]/.test(t)),false);
+   await visit(shop.p,'/shop');
+   const quick=shop.p.getByRole('button',{name:'Quick add Gym Training T-Shirt'}).first();
+   await quick.waitFor();
+   assert.ok(await quick.locator('svg.premium-control-arrow').count()>0);
+   await quick.click();
+   await shop.p.getByRole('dialog').waitFor();
+  }finally{await shop.c.close();}
+ });
  const policies=await context();
  await check('Existing policy URLs and keyboard focus',async()=>{for(const route of ['/shipping-and-returns.html','/virtual-try-on-privacy.html']){await policies.p.goto(f.url+route);assert.equal(await policies.p.locator('h1').count(),1);await policies.p.keyboard.press('Tab');assert.notEqual(await policies.p.evaluate(()=>document.activeElement.tagName),'BODY');}});await policies.c.close();
  await check('No browser runtime exceptions',async()=>assert.deepEqual(errors,[]));
