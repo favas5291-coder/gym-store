@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { ChevronDown, MapPin } from "lucide-react";
-import { INDIAN_STATES, matchCities, matchStates, validIndianState } from "../data/indiaLocations.js";
+import { matchCities, matchStates, validIndianState } from "../data/indiaLocations.js";
 import { lookupIndianPincode, searchIndianPostOffices } from "../services/indiaPostalLookup.js";
 import "./AddressAutocomplete.css";
 
@@ -8,7 +8,7 @@ const fields = [
   ["fullName","Full name","name","text"],
   ["email","Email","email","email"],
   ["phone","Mobile number","tel-national","tel"],
-  ["addressLine","House number, building and street / area","street-address","text"],
+  ["addressLine","House number, building and street","street-address","text"],
   ["landmark","Landmark (optional)","address-line2","text"],
   ["city","City","address-level2","text"],
   ["state","State","address-level1","text"],
@@ -45,8 +45,6 @@ export default function AddressForm({value={},onChange,errors={}}){
   const city=String(value?.city||"");
   const state=String(value?.state||"");
   const pin=String(value?.pincode||"");
-  const pinnedState=postalMatches.length>0 && postalMatches.every(row=>row.state===postalMatches[0].state)
-    ? postalMatches[0].state : "";
   const cityOptions=matchCities(city,state,remoteCities).map(row=>({
     label:row.city,subtitle:row.state,value:row.city,state:row.state
   }));
