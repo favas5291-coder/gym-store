@@ -12,7 +12,7 @@ const results=[], errors=[];
 const check=async(name,fn)=>{try{await fn();results.push({name,passed:true});console.log('PASS',name);}catch(e){results.push({name,passed:false,error:e.message,stack:e.stack});console.error('FAIL',name,e.stack);}};
 async function context(width=1440,options={}){
  const c=await browser.newContext({viewport:{width,height:960},reducedMotion:'reduce',...options.browser});
- const mock=await mockStorefront(c,f.products,options);
+ const mock=await mockStorefront(c,options.catalogProducts || f.products,options);
  const p=await c.newPage();p.setDefaultTimeout(9000);p.on('pageerror',e=>errors.push({url:p.url(),message:e.message}));
  return {c,p,mock};
 }
@@ -147,7 +147,18 @@ try{
    }
   });await galleryUI.c.close();
  }
- const galleryChoice=await context(390,{browser:{isMobile:true,hasTouch:true}});
+ // The baseline catalogue has one photo per colour. Supply a second
+ // authentic bundled image to this isolated fixture to exercise thumbnails.
+ const firstProduct=f.products[0];
+ const firstColour=firstProduct.colorImages[0];
+ const galleryProductFixture={
+  ...firstProduct,
+  colorImages:firstProduct.colorImages.map((row,index)=>index===0
+   ? {...row,images:[row.images[0],firstProduct.images.find(image=>image!==row.images[0])].filter(Boolean)}
+   : row),
+ };
+ const galleryChoice=await context(390,{browser:{isMobile:true,hasTouch:true},
+  catalogProducts:[galleryProductFixture,...f.products.slice(1)]});
  await check('390px gallery thumbnails, variant image switching and zoom remain working',async()=>{
   await visit(galleryChoice.p,`/product/${fixtureProductId}`);
   const gallery=galleryChoice.p.locator('.gd-color-gallery');
