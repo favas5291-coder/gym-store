@@ -185,6 +185,11 @@ function ProductDetail({
   const [zoom, setZoom] =
     useState(false);
 
+  // Match the mobile media frame to the original photograph instead of
+  // forcing square/landscape packshots into a tall portrait letterbox.
+  // Remember measured proportions across thumbnail and colour switching.
+  const [galleryImageRatios, setGalleryImageRatios] = useState({});
+
   const chooseGalleryColor = useCallback(
     (color) => {
       setSelectedColor(color);
@@ -227,6 +232,34 @@ function ProductDetail({
     0,
     images.indexOf(activePhoto),
   );
+
+  const mainPhotoAspect =
+    galleryImageRatios[activePhoto] ?? 0.8;
+
+  function rememberMainPhotoAspect(event) {
+    const image = event.target;
+
+    if (
+      image?.tagName !== "IMG" ||
+      !image.naturalWidth ||
+      !image.naturalHeight ||
+      !activePhoto
+    ) {
+      return;
+    }
+
+    // A source with unusual proportions stays fully visible (contain),
+    // but very tall assets cannot push thumbnails far below the screen.
+    const aspect = Math.round(
+      Math.max(0.7, Math.min(1.6, image.naturalWidth / image.naturalHeight)) * 1000,
+    ) / 1000;
+
+    setGalleryImageRatios((current) =>
+      current[activePhoto] === aspect
+        ? current
+        : { ...current, [activePhoto]: aspect },
+    );
+  }
 
   function galleryProduct(source) {
     return {
@@ -399,6 +432,15 @@ function ProductDetail({
             className="main-photo"
             type="button"
             disabled={!activePhoto}
+            data-gallery-orientation={
+              mainPhotoAspect > 1.1
+                ? "landscape"
+                : mainPhotoAspect >= 0.93
+                  ? "square"
+                  : "portrait"
+            }
+            style={{ "--gd-gallery-aspect": mainPhotoAspect }}
+            onLoadCapture={rememberMainPhotoAspect}
             onClick={() => setZoom(true)}
             aria-label={
               `Enlarge ${product.name} image`
@@ -411,6 +453,7 @@ function ProductDetail({
               )}
               eager
               fetchPriority="high"
+              sizes="(max-width: 700px) 100vw, (max-width: 1100px) 54vw, 48vw"
             />
           </button>
 
@@ -445,6 +488,7 @@ function ProductDetail({
                         source,
                       )}
                       decorative
+                      sizes="86px"
                     />
                   </button>
                 ),
