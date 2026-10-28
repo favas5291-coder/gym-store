@@ -194,6 +194,8 @@ function ProductImageContent({
         }
         loading={eager ? "eager" : "lazy"}
         decoding="async"
+        width={480}
+        height={600}
         fetchPriority={fetchPriority}
         onError={() => {
           if (srcSet) {
