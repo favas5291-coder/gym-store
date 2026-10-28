@@ -128,8 +128,7 @@ export default function AddressForm({value={},onChange,errors={}}){
   function selectOption(item,name){
     const current=latest.current;
     const next={...current.value,[name]:item.value};
-    if(name==="city" && item.state && validIndianState(item.state) &&
-       (!String(next.state||"").trim() || !validIndianState(next.state)))next.state=item.state;
+    if(name==="city" && item.state && validIndianState(item.state))next.state=item.state;
     current.onChange(next);
     setFocused("");
     setActive(-1);
