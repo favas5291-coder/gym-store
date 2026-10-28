@@ -105,26 +105,81 @@ try{
  for(const [name,options,route,pattern]of [['empty',{empty:true},'/shop',/no (matching )?products/i],['catalog-error',{catalogFailure:true},'/shop',/Unable to load products/i],['empty-cart',{},'/cart',/bag|cart/i],['login',{},'/login',/sign in|log in|welcome/i],['out-of-stock',{},'/product/000000000000000000000006',/Out of stock/i]]){
   const v=await context(390,options);await check(name,async()=>{await visit(v.p,route);await v.p.waitForTimeout(400);assert.match(await v.p.locator('main').innerText(),pattern);await capture(v.p,name);});await v.c.close();
  }
+
+ for(const width of [320,375,390,430,768,1024,1440,1920]){
+  const v=await context(width);
+  await check(width+'px flagship cinematic hero and responsive navigation',async()=>{
+   await visit(v.p,'/');
+   await v.p.getByRole('heading',{name:/Built for your every move/i}).waitFor();
+   assert.ok(await v.p.getByRole('link',{name:/Shop Now/}).isVisible());
+   assert.ok(await v.p.getByRole('link',{name:/Explore Collections/}).isVisible());
+   assert.equal(await v.p.getByRole('button',{name:/Pause hero film|Play hero film/}).count(),0);
+   const m=await v.p.evaluate(()=>{
+    const r=(s)=>{const x=document.querySelector(s).getBoundingClientRect();return {left:x.left,right:x.right,top:x.top,bottom:x.bottom,width:x.width,height:x.height};};
+    return {page:document.documentElement.scrollWidth,vw:innerWidth,hero:r('.cinema-hero'),stage:r('.cinema-stage'),content:r('.cinema-content'),shop:r('.cinema-shop'),explore:r('.cinema-explore')};
+   });
+   assert.ok(m.page<=m.vw+1,JSON.stringify(m));
+   assert.ok(m.shop.right<=width+1 && m.explore.right<=width+1,JSON.stringify(m));
+   if(width<=700){
+    assert.ok(m.stage.width>=width-1 && m.hero.width>=width-1,'Mobile footage must fill viewport without letterbox');
+    assert.ok(m.hero.height>=450 && m.content.bottom<=m.hero.bottom+1,'Copy overlaid inside full-screen mobile hero');
+    assert.ok(m.shop.bottom<=m.hero.bottom+1 && m.explore.bottom<=m.hero.bottom+1,'Mobile CTAs remain visible');
+    assert.ok(await v.p.getByRole('button',{name:'Open menu'}).isVisible());
+    assert.ok(await v.p.getByRole('combobox',{name:'Search products'}).isVisible());
+   }else{
+    assert.ok(m.stage.left>m.hero.left+m.hero.width*.35,'Desktop split retains film on the right');
+    assert.ok(m.content.right<=m.stage.left+2,'Desktop content stays left of the film');
+   }
+  });await v.c.close();
+ }
  for(const width of [390,1440]){
   const v=await context(width);const media=[];v.p.on('request',r=>{if(r.url().includes('/media/campaign/'))media.push(r.url());});
-  await check(`${width}px reduced motion loads poster and no film`,async()=>{await visit(v.p,'/');await v.p.waitForTimeout(1600);assert.ok(await v.p.locator('.cinema-poster img').evaluate(img=>img.complete&&img.naturalWidth>0));assert.equal(media.filter(u=>u.endsWith('.mp4')).length,0);assert.ok(media.some(u=>u.includes(width<700?'hero-mobile.webp':'hero-desktop.webp')));});await v.c.close();
-  const motion=await context(width,{browser:{reducedMotion:'no-preference'}});const requests=[];motion.p.on('request',r=>{if(r.url().endsWith('.mp4'))requests.push(r.url());});
-  await motion.c.addInitScript(()=>{const original=HTMLMediaElement.prototype.play;window.filmAttempts=[];HTMLMediaElement.prototype.play=function(){window.filmAttempts.push(performance.now());return original.call(this);};});
-  await check(`${width}px correct film, pause and offscreen lifecycle`,async()=>{
-   await visit(motion.p,'/');await motion.p.locator('.cinema-film.is-ready').waitFor({timeout:20000});assert.ok(requests.every(u=>u.endsWith(width<700?'hero-mobile.mp4':'hero-desktop.mp4')));
-   const initial=await motion.p.locator('video').evaluate(v=>({time:v.currentTime,muted:v.muted,inline:v.playsInline,autoplay:v.autoplay,attempts:window.filmAttempts}));assert.ok(initial.muted&&initial.inline&&initial.autoplay&&initial.attempts.length>0);await motion.p.waitForTimeout(250);assert.ok(await motion.p.locator('video').evaluate((v,time)=>v.currentTime>time,initial.time),'Film actually advances without a user gesture');
-   await motion.p.getByRole('button',{name:'Pause hero film'}).click();await motion.p.waitForFunction(()=>document.querySelector('.cinema-film').paused);
-   await motion.p.evaluate(()=>scrollTo(0,1400));await motion.p.waitForTimeout(100);await motion.p.evaluate(()=>scrollTo(0,0));await motion.p.waitForTimeout(200);assert.ok(await motion.p.locator('video').evaluate(v=>v.paused));
-   await motion.p.getByRole('button',{name:'Play hero film'}).click();await motion.p.waitForFunction(()=>!document.querySelector('.cinema-film').paused);await motion.p.evaluate(()=>scrollTo(0,1500));await motion.p.waitForFunction(()=>document.querySelector('.cinema-film').paused);
+  await check(width+'px reduced motion preserves poster without film',async()=>{
+   await visit(v.p,'/');await v.p.waitForTimeout(350);
+   assert.ok(await v.p.locator('.cinema-poster img').evaluate(i=>i.complete&&i.naturalWidth>0));
+   assert.equal(media.filter(u=>u.endsWith('.mp4')).length,0);
+   assert.ok(media.some(u=>u.includes(width<700?'hero-mobile.webp':'hero-desktop.webp')));
+  });await v.c.close();
+  const motion=await context(width,{browser:{reducedMotion:'no-preference'}});const requests=[];
+  motion.p.on('request',r=>{if(r.url().endsWith('.mp4'))requests.push(r.url());});
+  await check(width+'px plays once, holds last frame, never restarts on scroll or resize',async()=>{
+   await visit(motion.p,'/');await motion.p.locator('.cinema-film.is-ready').waitFor({timeout:20000});
+   assert.ok(requests.length>0 && requests.every(u=>u.endsWith(width<700?'hero-mobile.mp4':'hero-desktop.mp4')));
+   const state=await motion.p.locator('.cinema-film').evaluate(v=>({muted:v.muted,inline:v.playsInline,autoplay:v.autoplay,loop:v.loop,controls:v.controls}));
+   assert.ok(state.muted&&state.inline&&state.autoplay&&!state.loop&&!state.controls,JSON.stringify(state));
+   await motion.p.evaluate(()=>{window.__initialHeroVideo=document.querySelector('.cinema-film');});
+   await motion.p.setViewportSize({width:width===390?430:1366,height:960});
+   assert.ok(await motion.p.evaluate(()=>window.__initialHeroVideo===document.querySelector('.cinema-film')),'Responsive resize must retain player');
+   await motion.p.locator('.cinema-film').evaluate(v=>{v.currentTime=Math.max(0,v.duration-.14);});
+   await motion.p.waitForFunction(()=>{const v=document.querySelector('.cinema-film');return v && v.paused && Number.isFinite(v.duration) && v.currentTime>v.duration-.2;},undefined,{timeout:20000});
+   const t=await motion.p.locator('.cinema-film').evaluate(v=>v.currentTime);
+   await motion.p.evaluate(()=>scrollTo(0,1600));await motion.p.waitForTimeout(160);
+   await motion.p.evaluate(()=>scrollTo(0,0));await motion.p.waitForTimeout(160);
+   const final=await motion.p.locator('.cinema-film').evaluate(v=>({paused:v.paused,currentTime:v.currentTime}));
+   assert.ok(final.paused&&Math.abs(final.currentTime-t)<.11,JSON.stringify({t,final}));
+   assert.equal(await motion.p.locator('.cinema-film.is-ready').count(),1);
+   assert.equal(requests.length,1,'Do not redownload the film after scrolling');
   });await motion.c.close();
  }
  const autoplay=await context(390,{browser:{reducedMotion:'no-preference'}});
- await autoplay.c.addInitScript(()=>{const original=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){return window.allowFilmPlayback?original.call(this):Promise.reject(new DOMException('Autoplay blocked in test','NotAllowedError'));};});
- await check('Autoplay rejection preserves poster and manual play recovers',async()=>{await visit(autoplay.p,'/');await autoplay.p.waitForTimeout(1700);assert.equal(await autoplay.p.locator('.cinema-film.is-ready').count(),0);await autoplay.p.evaluate(()=>window.allowFilmPlayback=true);await autoplay.p.getByRole('button',{name:'Play hero film'}).click();await autoplay.p.locator('.cinema-film.is-ready').waitFor();});await autoplay.c.close();
+ await autoplay.c.addInitScript(()=>{HTMLMediaElement.prototype.play=function(){return Promise.reject(new DOMException('Blocked autoplay','NotAllowedError'));};});
+ await check('Blocked autoplay retains poster and shopping CTA',async()=>{
+  await visit(autoplay.p,'/');await autoplay.p.waitForTimeout(350);
+  assert.ok(await autoplay.p.locator('.cinema-poster img').evaluate(i=>i.complete&&i.naturalWidth>0));
+  assert.equal(await autoplay.p.locator('.cinema-film.is-ready').count(),0);
+  assert.ok(await autoplay.p.getByRole('link',{name:/Shop Now/}).isVisible());
+ });await autoplay.c.close();
  const fail=await context(390,{browser:{reducedMotion:'no-preference'}});await fail.c.route('**/media/campaign/*.mp4',r=>r.abort());
- await check('Failed film keeps a readable poster and retry control',async()=>{await visit(fail.p,'/');await fail.p.getByRole('button',{name:'Play hero film'}).waitFor();await fail.p.waitForTimeout(1900);assert.ok(await fail.p.locator('.cinema-poster img').evaluate(img=>img.complete&&img.naturalWidth>0));await fail.p.locator('.cinema-shop').click();await fail.p.waitForURL('**/shop');});await fail.c.close();
- const save=await context(390,{browser:{reducedMotion:'no-preference'}});await save.c.addInitScript(()=>Object.defineProperty(navigator,'connection',{value:{saveData:true},configurable:true}));
- await check('Data saver leaves shopping available without downloading film',async()=>{await visit(save.p,'/');await save.p.waitForTimeout(1700);assert.equal(await save.p.locator('video').count(),0);});await save.c.close();
+ await check('Failed film retains poster and Shop Now',async()=>{
+  await visit(fail.p,'/');await fail.p.waitForTimeout(350);
+  assert.ok(await fail.p.locator('.cinema-poster img').evaluate(i=>i.complete&&i.naturalWidth>0));
+  await fail.p.getByRole('link',{name:/Shop Now/}).click();await fail.p.waitForURL('**/shop');
+ });await fail.c.close();
+ const save=await context(390,{browser:{reducedMotion:'no-preference'}});
+ await save.c.addInitScript(()=>Object.defineProperty(navigator,'connection',{value:{saveData:true},configurable:true}));
+ await check('Data saver keeps poster without downloading film',async()=>{
+  await visit(save.p,'/');assert.equal(await save.p.locator('video').count(),0);
+ });await save.c.close();
  const policies=await context();
  await check('Existing policy URLs and keyboard focus',async()=>{for(const route of ['/shipping-and-returns.html','/virtual-try-on-privacy.html']){await policies.p.goto(f.url+route);assert.equal(await policies.p.locator('h1').count(),1);await policies.p.keyboard.press('Tab');assert.notEqual(await policies.p.evaluate(()=>document.activeElement.tagName),'BODY');}});await policies.c.close();
  await check('No browser runtime exceptions',async()=>assert.deepEqual(errors,[]));
