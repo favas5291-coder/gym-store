@@ -145,6 +145,35 @@ try{
   assert.equal(x.mock.requests.filter(r=>r.path==='/api/payments/razorpay/order'||r.path==='/api/payments/razorpay/verify').length,0);
  });
  await x.c.close();
+ const smartAddress=await context(390,{signedIn:true});
+ await smartAddress.c.route('https://api.postalpincode.in/**',route=>route.fulfill({
+  status:200,contentType:'application/json',
+  headers:{'access-control-allow-origin':'*'},
+  body:JSON.stringify([{Status:'Success',PostOffice:[
+   {Name:'Kozhikode',District:'Kozhikode',State:'Kerala',Pincode:'673585'},
+   {Name:'Koduvally',District:'Kozhikode',State:'Kerala',Pincode:'673585'}
+  ]}])
+ }));
+ await check('390px accessible city/state and multi-locality PIN autocomplete preserves saved addresses',async()=>{
+  await visit(smartAddress.p,'/addresses');
+  await smartAddress.p.getByRole('button',{name:'Edit',exact:true}).first().click();
+  const dialog=smartAddress.p.getByRole('dialog');
+  const city=dialog.getByRole('combobox',{name:'City'});
+  const state=dialog.getByRole('combobox',{name:'State'});
+  await city.fill('Koz');
+  await dialog.getByRole('option',{name:/Kozhikode.*Kerala/}).first().click();
+  assert.equal(await city.inputValue(),'Kozhikode');
+  await state.fill('Ker');
+  await dialog.getByRole('option',{name:'Kerala'}).click();
+  assert.equal(await state.inputValue(),'Kerala');
+  await dialog.getByLabel('Pincode',{exact:true}).fill('673585');
+  await dialog.getByText('Koduvally',{exact:true}).waitFor({timeout:12000});
+  await dialog.getByRole('option',{name:/Koduvally.*Kozhikode/}).click();
+  assert.equal(await city.inputValue(),'Koduvally');
+  assert.equal(await state.inputValue(),'Kerala');
+  assert.equal(await city.evaluate(el=>parseFloat(getComputedStyle(el).fontSize)>=16),true);
+  assert.ok(await dialog.getByRole('button',{name:'Update address',exact:true}).isEnabled());
+ });await smartAddress.c.close();
  const saved=await context(390,{signedIn:true});
  await check('Saved address edit persists through API refresh',async()=>{await visit(saved.p,'/addresses');await saved.p.getByRole('button',{name:'Edit',exact:true}).first().click();const dialog=saved.p.getByRole('dialog');await dialog.getByLabel('House number, building and street',{exact:true}).fill('24 Updated Preview Street');await dialog.getByRole('button',{name:'Update address',exact:true}).click();await dialog.waitFor({state:'hidden'});await saved.p.reload();await saved.p.getByText('24 Updated Preview Street',{exact:false}).waitFor();assert.ok(saved.mock.requests.some(r=>r.method==='PUT'&&r.path.startsWith('/api/addresses/')));});await saved.c.close();
  const quick=await context();
