@@ -68,8 +68,11 @@
 .cinema-stage { position:relative; overflow:hidden; min-width:0; background:#1a1c19; isolation:isolate; }
 .cinema-poster,.cinema-poster img,.cinema-film { position:absolute; inset:0; width:100%; height:100%; }
 .cinema-poster img,.cinema-film { object-fit:cover; object-position:65% center; }
-.cinema-film { opacity:0; transition:opacity .35s ease; }
-.cinema-film.is-ready { opacity:1; }
+/* iOS WebKit only autoplays a visible video. Do not initialize at
+   opacity:0 while waiting for "playing": that can deadlock autoplay.
+   The video has its own poster; the matching picture is already beneath it. */
+.cinema-film { opacity:1; }
+.cinema-film.is-autoplay-blocked { opacity:0; }
 .cinema-caption { position:absolute; left:24px; right:20px; bottom:18px; display:flex; align-items:center; justify-content:space-between; gap:16px; color:white; }
 .cinema-caption>span { font-size:9px; letter-spacing:.13em; text-shadow:0 1px 5px #000; }
 .cinema-control { display:flex; gap:8px; align-items:center; min-height:44px; padding:8px 13px; border:1px solid #ffffff70; border-radius:22px; background:#161916c9; color:white; font-size:11px; cursor:pointer; }

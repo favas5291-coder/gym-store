@@ -17,6 +17,13 @@ async function context(width=1440,options={}){
  return {c,p,mock};
 }
 async function visit(p,route){await p.goto(f.url+route);await p.locator('main').waitFor();await p.waitForTimeout(350);}
+async function waitForMovingVideo(p){
+ await p.waitForFunction(()=>{
+  const v=document.querySelector('.cinema-film');
+  return v && !v.paused && v.currentTime>0.12 && v.videoWidth>0
+    && Number(getComputedStyle(v).opacity)>.9;
+ },undefined,{timeout:20000});
+}
 async function capture(p,name){
  await p.evaluate(async()=>{for(let y=0;y<document.body.scrollHeight;y+=800){scrollTo(0,y);await new Promise(r=>setTimeout(r,45));}scrollTo(0,0);});
  await p.waitForTimeout(150);
@@ -138,7 +145,7 @@ try{
    await visit(v.p,'/');
    assert.ok(await v.p.locator('.cinema-poster img').evaluate(i=>i.complete&&i.naturalWidth>0));
    assert.ok(media.some(u=>u.includes(width<700?'hero-mobile.webp':'hero-desktop.webp')));
-   await v.p.locator('.cinema-film.is-ready').waitFor({timeout:20000});
+   await waitForMovingVideo(v.p);
    const state=await v.p.locator('.cinema-film').evaluate(v=>({autoplay:v.autoplay,muted:v.muted,defaultMuted:v.defaultMuted,inline:v.playsInline,loop:v.loop,preload:v.preload,paused:v.paused}));
    assert.ok(state.autoplay&&state.muted&&state.defaultMuted&&state.inline&&state.loop&&!state.paused,JSON.stringify(state));
    assert.equal(state.preload,'auto');
@@ -147,7 +154,7 @@ try{
   const motion=await context(width,{browser:{reducedMotion:'no-preference'}});const requests=[];
   motion.p.on('request',r=>{if(r.url().endsWith('.mp4'))requests.push(r.url());});
   await check(width+'px hero loops continuously without remounting or pausing',async()=>{
-   await visit(motion.p,'/');await motion.p.locator('.cinema-film.is-ready').waitFor({timeout:20000});
+   await visit(motion.p,'/');await waitForMovingVideo(motion.p);
    assert.ok(requests.length>0 && requests.every(u=>u.endsWith(width<700?'hero-mobile.mp4':'hero-desktop.mp4')));
    const state=await motion.p.locator('.cinema-film').evaluate(v=>({muted:v.muted,inline:v.playsInline,autoplay:v.autoplay,loop:v.loop,controls:v.controls}));
    assert.ok(state.muted&&state.inline&&state.autoplay&&state.loop&&!state.controls,JSON.stringify(state));
@@ -161,13 +168,13 @@ try{
    }
    await motion.p.evaluate(()=>scrollTo(0,1600));await motion.p.waitForTimeout(160);
    await motion.p.evaluate(()=>scrollTo(0,0));await motion.p.waitForTimeout(160);
-   const final=await motion.p.locator('.cinema-film').evaluate(v=>({paused:v.paused,loop:v.loop,ready:v.classList.contains('is-ready')}));
+   const final=await motion.p.locator('.cinema-film').evaluate(v=>({paused:v.paused,loop:v.loop,ready:Number(getComputedStyle(v).opacity)>.9}));
    assert.ok(!final.paused&&final.loop&&final.ready,JSON.stringify(final));
    assert.ok(await motion.p.evaluate(()=>window.__initialHeroVideo===document.querySelector('.cinema-film')));
    assert.ok(requests.every(u=>u.endsWith(width<700?'hero-mobile.mp4':'hero-desktop.mp4')));
-   await motion.p.reload();await motion.p.locator('.cinema-film.is-ready').waitFor({timeout:20000});
+   await motion.p.reload();await waitForMovingVideo(motion.p);
    await motion.p.getByRole('link',{name:/Shop Now/}).click();await motion.p.waitForURL('**/shop');
-   await motion.p.goBack();await motion.p.locator('.cinema-film.is-ready').waitFor({timeout:20000});
+   await motion.p.goBack();await waitForMovingVideo(motion.p);
    assert.ok(await motion.p.locator('.cinema-film').evaluate(v=>!v.paused&&v.loop&&v.muted));
   });await motion.c.close();
  }
@@ -188,18 +195,29 @@ try{
   // Chromium may start native HTML autoplay even if JS play() is mocked.
   // Force an actual media failure to verify the visible poster fallback.
   await video.evaluate(v=>{v.pause();v.dispatchEvent(new Event('error'));});
-  await autoplay.p.waitForFunction(()=>!document.querySelector('.cinema-film').classList.contains('is-ready'));
-  assert.equal(await autoplay.p.locator('.cinema-film.is-ready').count(),0);
+  await autoplay.p.waitForFunction(()=>Number(getComputedStyle(document.querySelector('.cinema-film')).opacity)===0);
+  assert.equal(await autoplay.p.locator('.cinema-film.is-autoplay-blocked').count(),1);
   assert.equal(await autoplay.p.locator('.cinema-play-fallback,.cinema-control').count(),0);
   assert.equal(await autoplay.p.getByRole('button',{name:/Play cinematic|Pause hero|Replay/i}).count(),0);
   assert.ok(await autoplay.p.getByRole('link',{name:/Shop Now/}).isVisible());
   assert.ok(await autoplay.p.getByRole('link',{name:/Explore Collections/}).isVisible());
  });await autoplay.c.close();
+ const diagnostics=await context(390,{browser:{reducedMotion:'no-preference',isMobile:true,hasTouch:true}});
+ await check('Opt-in iPhone video diagnostics report advancing frames and never appear by default',async()=>{
+  await visit(diagnostics.p,'/?heroDebug=1');await waitForMovingVideo(diagnostics.p);
+  await diagnostics.p.waitForFunction(()=>window.__gymdrobeHeroVideoState?.()?.movingSinceLastSample===true);
+  const info=await diagnostics.p.evaluate(()=>window.__gymdrobeHeroVideoState());
+  assert.ok(!info.paused && info.videoWidth>0 && info.currentTime>0 && !info.mediaErrorCode,JSON.stringify(info));
+  assert.equal(info.lastPlayError,null);
+  assert.equal(await diagnostics.p.locator('aside[aria-label="Hero video diagnostics"]').count(),1);
+  await visit(diagnostics.p,'/');
+  assert.equal(await diagnostics.p.locator('aside[aria-label="Hero video diagnostics"]').count(),0);
+ });await diagnostics.c.close();
  const iphone=await context(390,{browser:{reducedMotion:'no-preference',isMobile:true,hasTouch:true,deviceScaleFactor:3}});
  await check('iPhone-style mobile viewport has muted inline native autoplay and no fullscreen controls',async()=>{
   await visit(iphone.p,'/');
   const video=iphone.p.locator('.cinema-film');
-  await iphone.p.locator('.cinema-film.is-ready').waitFor({timeout:20000});
+  await waitForMovingVideo(iphone.p);
   assert.ok(await video.evaluate(v=>!v.paused&&v.autoplay&&v.muted&&v.loop&&v.playsInline&&!v.controls));
   assert.equal(await video.getAttribute('preload'),'auto');
   assert.ok(await video.evaluate(v=>v.hasAttribute('playsinline')&&v.hasAttribute('webkit-playsinline')));
@@ -216,7 +234,7 @@ try{
  await save.c.addInitScript(()=>Object.defineProperty(navigator,'connection',{value:{saveData:true},configurable:true}));
  await check('Mobile data-saving hint does not disable autoplay where browser permits it',async()=>{
   await visit(save.p,'/');
-  await save.p.locator('.cinema-film.is-ready').waitFor({timeout:20000});
+  await waitForMovingVideo(save.p);
   const video=save.p.locator('.cinema-film');
   assert.equal(await video.count(),1);
   assert.equal(await video.getAttribute('preload'),'auto');

@@ -24,14 +24,20 @@ jobs:
           VITE_API_URL: https://gym-drobe-backend.onrender.com/api
           VITE_SITE_URL: https://www.gymdrobe.com
         run: npm run build
-      - name: Verify cinematic MP4 encoding, copied assets and production HTTP range support
-        run: node scripts/verify-cinematic-media.mjs
+      - name: Verify actual H.264 pixel format, MP4 build assets and live range support
+        run: |
+          if ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+          fi
+          node scripts/verify-cinematic-media.mjs
       - name: Install isolated browser test tooling
         run: |
           npm install --no-save --package-lock=false playwright@1.62.1
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium webkit
       - name: Storefront interactions and responsive screenshots
         run: npm run test:storefront
+      - name: Mobile-sized WebKit moving-video checks
+        run: node tests/hero-webkit-browser.mjs
       - name: Production preview LCP and CLS lab samples
         if: always()
         run: node tests/storefront-performance.mjs
