@@ -24,7 +24,7 @@ test("city spelling aliases and selected state ranking",()=>{
   assert.equal(matchCities("che")[0].city,"Chennai");
   assert.equal(matchCities("hyd")[0].city,"Hyderabad");
   assert.equal(matchCities("del")[0].city,"Delhi");
-  assert.deepEqual(matchCities("ko","Karnataka").map(x=>x.city),[]);
+  assert.ok(matchCities("koz","Karnataka").some(x=>x.city==="Kozhikode"),"Selecting a different-state city must remain possible");
   assert.ok(matchCities("kan")[0] || CITY_SEEDS.length>60);
   assert.equal(matchCities("small", "", [{city:"Small Town",state:"Kerala",aliases:[]}])[0].city,"Small Town");
 });
