@@ -52,6 +52,13 @@ export default function AddressForm({value={},onChange,errors={}}){
   const options=focused==="city"?cityOptions:focused==="state"?stateOptions:[];
   const invalidState=Boolean(state.trim())&&!validIndianState(state);
 
+  // A React-controlled selection does not fire a native input event: update
+  // validity on every state change so an old custom error cannot block payment.
+  useEffect(()=>{
+    const input=fieldRefs.current.state?.querySelector("input");
+    if(input)input.setCustomValidity(invalidState?"Choose a valid Indian state or union territory.":"");
+  },[state,invalidState]);
+
   // No large city database or remote request on initial checkout load.
   useEffect(()=>{
     if(focused!=="city" || city.trim().length<3){
