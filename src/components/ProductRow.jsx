@@ -1,8 +1,9 @@
 import { useId, useRef } from "react";
-import { Link } from "react-router-dom";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import { TextLink, IconButton } from "./PremiumControls.jsx";
 
 import ProductCard from "./ProductCard.jsx";
-import { Arrow } from "./StorefrontShared.jsx";
+
 
 export default function ProductRow({
   title,
@@ -71,30 +72,11 @@ export default function ProductRow({
         <h2 id={headingId}>{label}</h2>
 
         <div className="gm-row-controls">
-          {!grid && <button
-            type="button"
-            aria-label={`Previous ${label.toLowerCase()}`}
-            aria-controls={trackId}
-            onClick={() => scroll(-1)}
-          >
-            <Arrow direction="left" />
-          </button>}
+          {!grid && <IconButton icon={ArrowLeft} label={`Previous ${label.toLowerCase()}`} aria-controls={trackId} onClick={() => scroll(-1)} />}
 
-          {!grid && <button
-            type="button"
-            aria-label={`Next ${label.toLowerCase()}`}
-            aria-controls={trackId}
-            onClick={() => scroll(1)}
-          >
-            <Arrow />
-          </button>}
+          {!grid && <IconButton icon={ArrowRight} label={`Next ${label.toLowerCase()}`} aria-controls={trackId} onClick={() => scroll(1)} />}
 
-          <Link
-            to={to}
-            aria-label={`View all ${label.toLowerCase()}`}
-          >
-            VIEW ALL <Arrow />
-          </Link>
+          <TextLink to={to} aria-label={`View all ${label.toLowerCase()}`}>View all</TextLink>
         </div>
       </div>
 
