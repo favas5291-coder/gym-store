@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { TextLink } from "./PremiumControls.jsx";
 import { getFitnessKits } from "../services/kitApi.js";
 
 export default function HomeKits() {
@@ -12,6 +12,6 @@ export default function HomeKits() {
   if (!kits.length) return null;
   return <section className="gm-section home-kits" aria-labelledby="home-kit-title">
     <div><p className="eyebrow">YOUR ROUTINE, TOGETHER</p><h2 id="home-kit-title">Build your workout kit.</h2><p>Choose a kit, make it yours, and review delivery before you buy.</p></div>
-    <div className="home-kit-options">{kits.slice(0, 3).map(kit => <Link key={kit.id} to={`/kits/${encodeURIComponent(kit.id)}`}><span>{kit.name}</span><span aria-hidden="true">↗</span></Link>)}</div>
+    <div className="home-kit-options">{kits.slice(0, 3).map(kit => <TextLink key={kit.id} to={`/kits/${encodeURIComponent(kit.id)}`}>{kit.name}</TextLink>)}</div>
   </section>;
 }
