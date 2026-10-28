@@ -2,13 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { heroMedia } from "../data/campaignMedia.js";
 import { PremiumButton, TextLink } from "./PremiumControls.jsx";
 
-// A stable, muted, native looping background film. Browser policies take
-// precedence: on blocked autoplay, the campaign poster and shopping links
-// remain fully available without adding an intrusive playback control.
+// Keep the source stable for the component's lifetime so React updates,
+// scrolling, and viewport-height changes do not recreate the media element.
 export default function Hero() {
   const videoRef = useRef(null);
   const mediaRef = useRef(null);
-  const blockedRef = useRef(false);
+  const [hasFrame, setHasFrame] = useState(false);
 
   if (!mediaRef.current) {
     mediaRef.current = window.matchMedia("(max-width: 700px)").matches
@@ -16,67 +15,95 @@ export default function Hero() {
       : heroMedia.desktop;
   }
   const media = mediaRef.current;
-  const [motionEnabled, setMotionEnabled] = useState(
-    () => !window.matchMedia("(prefers-reduced-motion: reduce)").matches && !navigator.connection?.saveData,
-  );
-  const [hasFrame, setHasFrame] = useState(false);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
+    // Safari needs a genuinely muted inline element BEFORE calling play().
+    // These settings are deliberately not tied to React state or data-saving
+    // heuristics; the browser itself decides whether autoplay is allowed.
     video.muted = true;
     video.defaultMuted = true;
     video.setAttribute("muted", "");
     video.setAttribute("playsinline", "");
     video.setAttribute("webkit-playsinline", "");
+    video.autoplay = true;
     video.loop = true;
+    video.preload = "auto";
 
-    const tryAutoplay = () => {
-      if (!motionEnabled || document.hidden || !video.paused || blockedRef.current || video.error) return;
+    let disposed = false;
+    let playingPromise = null;
+    let attempts = 0;
+    let policyBlocked = false;
+    const MAX_START_ATTEMPTS = 2;
+
+    function startIfAllowed() {
+      if (disposed || document.hidden || policyBlocked || video.error ||
+          !video.paused || playingPromise || attempts >= MAX_START_ATTEMPTS) return;
+
+      // A rejected NotAllowedError cannot be bypassed: retain the poster.
+      // Retry at most once for a transient early-loading/AbortError failure.
+      attempts += 1;
       try {
         const result = video.play();
-        result?.catch(error => {
-          // No artificial play button: the still poster and shop CTAs are the fallback.
-          if (error?.name === "NotAllowedError" || error?.name === "NotSupportedError") {
-            blockedRef.current = true;
-            setHasFrame(false);
-          }
-        });
-      } catch {
-        blockedRef.current = true;
-        setHasFrame(false);
+        if (result && typeof result.then === "function") {
+          playingPromise = result;
+          result.catch(error => {
+            if (disposed) return;
+            if (error?.name === "NotAllowedError" || error?.name === "SecurityError") {
+              policyBlocked = true;
+              setHasFrame(false);
+            } else if (error?.name === "NotSupportedError") {
+              // File/codec errors are not autoplay-policy failures.
+              policyBlocked = true;
+              setHasFrame(false);
+            }
+            // AbortError during source preparation may be retried on canplay.
+          }).finally(() => {
+            if (playingPromise === result) playingPromise = null;
+          });
+        }
+      } catch (error) {
+        if (error?.name !== "AbortError") {
+          policyBlocked = true;
+          setHasFrame(false);
+        }
       }
-    };
+    }
 
-    const onVisibility = () => {
-      if (!document.hidden) tryAutoplay();
-    };
-    const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const onMotionPreference = () => {
-      if (motionPreference.matches) {
-        video.pause();
-        setMotionEnabled(false);
-        setHasFrame(false);
-      } else if (!navigator.connection?.saveData) {
-        blockedRef.current = false;
-        setMotionEnabled(true);
+    function onPlaying() {
+      attempts = 0; // Allow a future user-visible return from background.
+      setHasFrame(true);
+    }
+
+    function onPageVisible() {
+      if (!document.hidden) {
+        // Browser-initiated background suspension is not a failed autoplay.
+        if (!policyBlocked) attempts = 0;
+        startIfAllowed();
       }
-    };
+    }
 
-    video.addEventListener("canplay", tryAutoplay);
-    document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("pageshow", onVisibility);
-    motionPreference.addEventListener("change", onMotionPreference);
-    tryAutoplay();
+    video.addEventListener("loadeddata", startIfAllowed);
+    video.addEventListener("canplay", startIfAllowed);
+    video.addEventListener("playing", onPlaying);
+    document.addEventListener("visibilitychange", onPageVisible);
+    window.addEventListener("pageshow", onPageVisible);
+
+    // Muted native autoplay begins immediately where permitted; this extra
+    // call handles WebKit cases where the attribute alone is insufficient.
+    startIfAllowed();
 
     return () => {
-      video.removeEventListener("canplay", tryAutoplay);
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("pageshow", onVisibility);
-      motionPreference.removeEventListener("change", onMotionPreference);
+      disposed = true;
+      video.removeEventListener("loadeddata", startIfAllowed);
+      video.removeEventListener("canplay", startIfAllowed);
+      video.removeEventListener("playing", onPlaying);
+      document.removeEventListener("visibilitychange", onPageVisible);
+      window.removeEventListener("pageshow", onPageVisible);
     };
-  }, [motionEnabled]);
+  }, []);
 
   return (
     <section className="cinema-hero" aria-labelledby="cinema-title">
@@ -99,16 +126,16 @@ export default function Hero() {
           ref={videoRef}
           className={`cinema-film${hasFrame ? " is-ready" : ""}`}
           poster={media.poster}
-          autoPlay={motionEnabled}
+          autoPlay
           muted
           loop
           playsInline
-          preload={motionEnabled ? "metadata" : "none"}
+          preload="auto"
+          controls={false}
           disablePictureInPicture
           disableRemotePlayback
           aria-hidden="true"
           tabIndex={-1}
-          onPlaying={() => setHasFrame(true)}
           onError={() => setHasFrame(false)}
         >
           <source src={media.video} type="video/mp4" />
