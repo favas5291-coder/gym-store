@@ -24,3 +24,12 @@ export function nativeRouteFromUrl(value) {
     return null;
   }
 }
+
+export function nativeRouteFromEvent(event) {
+  try {
+    const data = typeof event === "string" && event.length < 16000 ? JSON.parse(event) : event;
+    return nativeRouteFromUrl(data?.url);
+  } catch {
+    return null;
+  }
+}

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { nativeRouteFromUrl } from "../src/native/platform.js";
+import { nativeRouteFromUrl, nativeRouteFromEvent } from "../src/native/platform.js";
 import { verifiedNativePaymentShape } from "../src/native/payment.js";
 
 test("native links accept customer pages and retain allowed shop filters", () => {
@@ -14,6 +14,12 @@ test("native links cannot inject credentials, checkout results, staff routes or 
   for (const value of ["javascript:alert(1)", "https://evil.test/orders", "https://gymdrobe.com.evil.test/cart", "https://user@gymdrobe.com/cart", "https://gymdrobe.com:8080/cart", "gymdrobe://evil/cart", "gymdrobe://app/admin", "gymdrobe://app/supplier", "gymdrobe://app/checkout?paid=true", "gymdrobe://app/order-success", "gymdrobe://app/product/a%2fb", "https://gymdrobe.com/product/%5cadmin", "not a URL"]) {
     assert.equal(nativeRouteFromUrl(value), null, value);
   }
+});
+
+test("native app-link events accept object and serialized bridge data", () => {
+  assert.equal(nativeRouteFromEvent({ url: "gymdrobe://app/login" }), "/login");
+  assert.equal(nativeRouteFromEvent('{"url":"gymdrobe://app/login"}'), "/login");
+  for (const event of [null, {}, '{"url":"https://evil.test/login"}', "malformed", '{"url":"gymdrobe://app/checkout?paid=true"}']) assert.equal(nativeRouteFromEvent(event), null);
 });
 
 test("native payment results must belong to the exact gateway order", () => {

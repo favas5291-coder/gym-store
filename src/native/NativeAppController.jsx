@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { isNativeApp, nativeRouteFromUrl } from "./platform.js";
+import { isNativeApp, nativeRouteFromUrl, nativeRouteFromEvent } from "./platform.js";
 import { clearInterruptedNativePayment, interruptedNativePayment, nativePaymentActive } from "./payment.js";
 import "./native.css";
 
@@ -19,9 +19,11 @@ export default function NativeAppController() {
       if (disposed) await handle.remove();
       else listeners.push(handle);
     };
-    const openLink = ({ url }) => {
-      const route = nativeRouteFromUrl(url);
-      if (route && !nativePaymentActive()) go(route);
+    const openLink = (event) => {
+      const route = nativeRouteFromEvent(event);
+      const blocked = nativePaymentActive();
+      if (window.Capacitor?.DEBUG) console.info("Native route decision", JSON.stringify({ eventType: typeof event, route: route?.split("?")[0] || null, blocked }));
+      if (route && !blocked) go(route);
     };
     const externalLink = async (event) => {
       const anchor = event.target.closest?.("a[href]");
