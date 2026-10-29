@@ -19,7 +19,10 @@ async function request(
       signal,
 
       headers: {
-        "Content-Type": "application/json",
+        // Public review reads are simple cross-origin GETs. A JSON content
+        // type without a body would add an unnecessary OPTIONS round trip.
+        Accept: "application/json",
+        ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
         ...(token
           ? {
               Authorization: `Bearer ${token}`,
