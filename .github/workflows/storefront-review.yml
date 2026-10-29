@@ -36,6 +36,18 @@ jobs:
         run: |
           npm install --no-save --package-lock=false playwright@1.62.1
           npx playwright install --with-deps chromium webkit
+      - name: Checkout the paired shopping API contract fixture
+        uses: actions/checkout@v4
+        with:
+          repository: favas5291-coder/gym-drobe-backend
+          ref: 53b4c483ab43ed667af768c4d65ef8252112a17a
+          path: .qa-shopping-backend
+      - name: Install isolated shopping API test dependencies
+        run: npm ci --ignore-scripts --prefix .qa-shopping-backend
+      - name: Shared shopping lists through React and the actual API contract
+        env:
+          GYMDROBE_SHOPPING_BACKEND_DIR: .qa-shopping-backend
+        run: node tests/shopping-sync-browser.mjs
       - name: Storefront interactions and responsive screenshots
         run: npm run test:storefront
       - name: PWA install, offline recovery and update checks
@@ -49,6 +61,12 @@ jobs:
       - name: Production preview LCP and CLS lab samples
         if: always()
         run: node tests/storefront-performance.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shared-shopping-review
+          path: test-results/shopping-sync/
+          retention-days: 14
       - uses: actions/upload-artifact@v4
         if: always()
         with:

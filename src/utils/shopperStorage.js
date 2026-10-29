@@ -255,7 +255,7 @@ function mergedValue(base, account, guest) {
 // TRANSFER ONE GUEST STORAGE KEY
 // ======================================================
 
-function transfer(base, target, guest) {
+function transfer(base, target, guest, onTransfer) {
   // The receipt belongs to the guest list and records
   // which account is receiving it.
   const receiptKey =
@@ -327,6 +327,18 @@ function transfer(base, target, guest) {
         "The transfer could not be prepared. Your guest list was kept.",
       );
     }
+  }
+
+  if (onTransfer && ["gymdrobe-cart", "gymdrobe-wishlist"].includes(base)) {
+    if (!receipt.shoppingTransferId) {
+      receipt.shoppingTransferId = crypto.randomUUID();
+      receipt.shoppingIssuedAt = Date.now();
+      if (!writeStorage(receiptKey, receipt)) throw new Error("Your guest shopping transfer could not be saved. Both copies were kept.");
+    }
+    // Journal the same immutable transfer before changing either local copy.
+    // Its stable identifier also covers a retry after the local save succeeded.
+    onTransfer({ base, before: JSON.parse(receipt.before) || [], after: JSON.parse(receipt.after) || [],
+      id: receipt.shoppingTransferId, issuedAt: receipt.shoppingIssuedAt });
   }
 
   const alreadySaved =
@@ -431,7 +443,7 @@ function transfer(base, target, guest) {
 // IMPORT AFTER SUCCESSFUL AUTHENTICATION
 // ======================================================
 
-export function importGuestShopping(user) {
+export function importGuestShopping(user, { onTransfer } = {}) {
   const report = {
     imported: [],
     pending: [],
@@ -461,7 +473,7 @@ export function importGuestShopping(user) {
         );
       }
 
-      transfer(base, target, guest);
+      transfer(base, target, guest, onTransfer);
 
       report.imported.push(base);
     } catch (error) {

@@ -17,6 +17,7 @@ import {
 import { isNativeApp } from "../native/platform.js";
 import { sessionStorage } from "../native/session.js";
 import { clearNativeGoogleSession } from "../native/google.js";
+import { shoppingSyncEnabled, initializeShoppingJournal, appendShopping, compactShopping, shoppingChanges } from "../utils/shoppingJournal.js";
 
 import {
   importGuestShopping,
@@ -156,7 +157,16 @@ export default function AuthProvider({ children }) {
       // Storage helpers preserve the existing guest shopping behavior.
       // A migration failure must not undo a successful login.
       try {
-        importGuestShopping(data.user);
+        if (shoppingSyncEnabled()) initializeShoppingJournal(data.user);
+        importGuestShopping(data.user, {
+          onTransfer: shoppingSyncEnabled() ? ({ base, before, after, id, issuedAt }) => {
+            const cart = base === "gymdrobe-cart";
+            appendShopping(data.user, shoppingChanges(
+              compactShopping(cart ? before : [], cart ? [] : before),
+              compactShopping(cart ? after : [], cart ? [] : after),
+            ), { id, issuedAt });
+          } : undefined,
+        });
 
         const guestBuyNow = readSession("gymdrobe-buy-now", []);
 

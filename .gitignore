@@ -37,3 +37,4 @@ test-results/ios/
 
 test-results/ios-browser/
 scripts/__pycache__/
+.qa-shopping-backend/
