@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import { startStorefrontFixture, mockStorefront } from "./storefront-fixture.mjs";
 const { webkit } = await import(process.env.GYMDROBE_PLAYWRIGHT_MODULE || "playwright");
+process.env.VITE_API_URL = "http://127.0.0.1:4228/api";
 process.env.VITE_GOOGLE_IOS_CLIENT_ID = "123-fixture.apps.googleusercontent.com";
 process.env.VITE_APPLE_SIGN_IN_ENABLED = "true";
 const f = await startStorefrontFixture(4228);

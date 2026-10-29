@@ -14,7 +14,7 @@ final class GymDrobeUITests: XCTestCase {
         XCTAssertTrue(app.webViews.searchFields.firstMatch.waitForExistence(timeout: 15))
         capture("iPhone-search")
         app.links["Wishlist"].firstMatch.tap()
-        XCTAssertTrue(app.webViews.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "My wishlist")).firstMatch.waitForExistence(timeout: 15))
+        XCTAssertTrue(app.webViews.staticTexts["Your wishlist is waiting"].firstMatch.waitForExistence(timeout: 15))
     }
     private func capture(_ name: String) {
         let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
