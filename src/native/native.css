@@ -45,6 +45,9 @@ html.gymdrobe-native {
 .gymdrobe-native .native-cart { top:calc(var(--app-safe-top) + 6px); bottom:auto; right:calc(var(--app-safe-right) + 12px); width:44px; height:44px; color:#17171b; background:#fff; box-shadow:none; border-radius:8px; }
 .gymdrobe-native .native-cart span { top:0; right:-2px; }
 .gymdrobe-native .native-tabs { background:#fff; }
+.gymdrobe-native #app .premium-storefront:not(.storefront-checkout) { padding-top:56px; }
+.gymdrobe-native #app .premium-storefront .gd-nav { position:fixed; top:var(--app-safe-top); left:var(--app-safe-left); right:var(--app-safe-right); z-index:110; }
+.gymdrobe-native .native-cart { z-index:111; }
 @media(max-width:700px) {
   .gymdrobe-native #app .premium-storefront .cinema-hero { height:calc(100svh - 56px - var(--native-tab-height) - var(--app-safe-top) - var(--app-safe-bottom)); min-height:390px; }
   .gymdrobe-native #app .premium-storefront .cinema-content { padding-bottom:24px; }

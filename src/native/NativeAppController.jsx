@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { isNativeApp, nativeRouteFromUrl, nativeRouteFromEvent } from "./platform.js";
 import { clearInterruptedNativePayment, interruptedNativePayment, nativePaymentActive } from "./payment.js";
@@ -8,7 +8,7 @@ export default function NativeAppController() {
   const navigate = useNavigate();
   const navigation = useRef(navigate);
   navigation.current = navigate;
-  useEffect(() => {
+  useLayoutEffect(() => {
     const go = (...args) => navigation.current(...args);
     if (!isNativeApp()) return;
     document.documentElement.classList.add("gymdrobe-native");
