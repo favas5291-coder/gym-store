@@ -5,6 +5,7 @@ final class GymDrobeUITests: XCTestCase {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launch()
+        XCTAssertEqual(app.state, .runningForeground)
         XCTAssertTrue(app.links["Categories"].firstMatch.waitForExistence(timeout: 45))
         capture("iPhone-home")
         app.links["Categories"].firstMatch.tap()
