@@ -101,6 +101,7 @@ try {
     }
     const saved = await bind("alice"), other = await bind("bob");
     process.env.VITE_PUSH_ENABLED = "false";
+    process.env.VITE_API_URL = "http://127.0.0.1:4236/api";
     rollback = await startStorefrontFixture(4236);
     const disabled = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     await mockStorefront(disabled, rollback.products);
