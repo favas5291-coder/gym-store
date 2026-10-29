@@ -71,7 +71,9 @@ export default function NativeAppController() {
       const { SplashScreen } = await import("@capacitor/splash-screen");
       await SplashScreen.hide();
     }
-    start().catch(() => { /* The local storefront remains usable if an optional native listener fails. */ });
+    start().catch((error) => {
+      console.warn("Native app controls could not start:", error.code || error.message);
+    });
     return () => {
       disposed = true;
       document.removeEventListener("click", externalLink);
