@@ -38,8 +38,15 @@ await context.addInitScript(() => {
   };
 });
 const page = await context.newPage();
-const errors = [], results = [];
-page.on("pageerror", error => errors.push(error.message));
+const errors = [], results = [], expectedOfflineNetworkErrors = [];
+let offlineSimulation = false;
+page.on("pageerror", error => {
+  // WebKit exposes a failed in-flight fetch as a page error while network is
+  // deliberately disabled, even for a same-origin intercepted fixture request.
+  if (offlineSimulation && /\/api\/auth\/me due to access control checks\.$/.test(error.message)) {
+    expectedOfflineNetworkErrors.push(error.message);
+  } else errors.push(error.message);
+});
 await fs.mkdir("test-results/ios-browser", { recursive: true });
 async function check(name, operation) {
   try { await operation(); results.push({ name, passed: true }); console.log("PASS", name); }
@@ -69,9 +76,17 @@ try {
     await page.getByRole("button", { name: "Sign out", exact: true }).waitFor();
   });
   await check("offline messaging preserves the session and app links reject payment results", async () => {
+    offlineSimulation = true;
     await context.setOffline(true);
     await page.getByText(/You’re offline/).waitFor();
+    assert.equal(await page.locator(".native-offline").evaluate(element => {
+      const box = element.getBoundingClientRect(); return box.top >= 0 && box.bottom <= innerHeight;
+    }), true);
+    const recovered = page.waitForResponse(response => response.url().endsWith("/api/auth/me") && response.status() === 200);
     await context.setOffline(false);
+    await recovered;
+    await page.getByRole("button", { name: "Sign out", exact: true }).waitFor();
+    offlineSimulation = false;
     const before = page.url();
     await page.waitForFunction(() => Boolean(window.__nativeListeners.appUrlOpen));
     await page.evaluate(() => window.__nativeListeners.appUrlOpen({ url: "gymdrobe://app/order-success?paid=true" }));
@@ -108,7 +123,7 @@ try {
   });
   assert.deepEqual(errors, []);
 } finally {
-  await fs.writeFile("test-results/ios-browser/results.json", JSON.stringify({ results, errors }, null, 2));
+  await fs.writeFile("test-results/ios-browser/results.json", JSON.stringify({ results, errors, expectedOfflineNetworkErrors }, null, 2));
   await browser.close(); await f.server.close();
 }
 if (results.some(result => !result.passed) || errors.length) process.exitCode = 1;

@@ -41,3 +41,9 @@ test("web and existing Android sessions retain the established browser storage",
   await session.write(null);
   assert.equal(await session.read(), null);
 });
+test("storage-restricted browsers can browse as guests without claiming a persisted login", async () => {
+  const unavailable = () => { throw new Error("Storage blocked"); };
+  const session = createSessionStorage({ ios: false, secure: { read: unavailable }, storage: { getItem: unavailable, setItem: unavailable, removeItem: unavailable } });
+  assert.equal(await session.read(), null);
+  await assert.rejects(session.write("session"), /Storage blocked/);
+});

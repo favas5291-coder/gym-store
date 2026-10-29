@@ -13,7 +13,10 @@ export function createSessionStorage({ ios, secure, storage }) {
   };
   return {
     read: () => serialize(async () => {
-      if (!ios) return storage.getItem(TOKEN_KEY) || null;
+      if (!ios) {
+        try { return storage.getItem(TOKEN_KEY) || null; }
+        catch { return null; } // Preserve guest browsing when browser storage is blocked.
+      }
       const { token } = await secure.read();
       const legacy = storage.getItem(TOKEN_KEY);
       if (!token && legacy) await secure.write({ token: legacy });
@@ -35,5 +38,14 @@ export function createSessionStorage({ ios, secure, storage }) {
 
 let instance;
 export function sessionStorage() {
-  return instance ||= createSessionStorage({ ios: Capacitor.getPlatform() === "ios", secure: SecureSession, storage: localStorage });
+  return instance ||= createSessionStorage({
+    ios: Capacitor.getPlatform() === "ios", secure: SecureSession,
+    // Access the browser property lazily: its getter can itself throw in a
+    // storage-restricted browser. read() handles that as the existing guest flow.
+    storage: {
+      getItem: (key) => globalThis.localStorage.getItem(key),
+      setItem: (key, value) => globalThis.localStorage.setItem(key, value),
+      removeItem: (key) => globalThis.localStorage.removeItem(key),
+    },
+  });
 }

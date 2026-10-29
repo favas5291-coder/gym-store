@@ -20,7 +20,7 @@ html.gymdrobe-native {
 .native-tabs a:focus-visible,.native-cart:focus-visible { outline:2px solid #111; outline-offset:-3px; }
 .native-cart { position:fixed; z-index:106; right:calc(18px + var(--app-safe-right)); bottom:calc(90px + var(--app-safe-bottom)); width:52px; height:52px; border-radius:50%; display:grid; place-items:center; color:#fff; background:#17171b; box-shadow:0 5px 22px #0003; }
 .native-cart span { position:absolute; right:-3px; top:-4px; min-width:21px; height:21px; border-radius:15px; background:#fff; border:1px solid #17171b; color:#17171b; display:grid; place-items:center; font-size:11px; font-weight:700; }
-.native-offline { position:sticky; z-index:104; top:var(--app-safe-top); padding:12px 18px; background:#242428; color:#fff; font-size:13px; line-height:1.5; }
+.native-offline { position:fixed; z-index:104; top:calc(var(--app-safe-top) + 56px); left:0; right:0; padding:12px 18px; background:#242428; color:#fff; font-size:13px; line-height:1.5; }
 .native-discover { max-width:760px; min-height:70svh; padding-top:36px; }
 .native-discover h1 { font-size:clamp(28px,7vw,40px); letter-spacing:-.04em; line-height:1.13; margin-bottom:28px; }
 .native-collection { padding:24px 0; border-top:1px solid #dedee1; }
