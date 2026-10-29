@@ -2,6 +2,7 @@
   "appId": "com.gymdrobe.app",
   "appName": "GymDrobe",
   "webDir": "dist-android",
+  "includePlugins": ["@capacitor/app", "@capacitor/browser", "@capacitor/keyboard", "@capacitor/share", "@capacitor/splash-screen", "@capgo/capacitor-social-login"],
   "server": { "hostname": "localhost", "androidScheme": "https", "cleartext": false },
   "android": { "allowMixedContent": false, "backgroundColor": "#ffffff" },
   "plugins": {

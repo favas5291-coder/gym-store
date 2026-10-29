@@ -12,6 +12,7 @@ final class GymDrobeUITests: XCTestCase {
         capture("iPhone-home", app: app)
         app.links["Categories"].firstMatch.tap()
         XCTAssertTrue(app.webViews.staticTexts["Shop by category"].firstMatch.waitForExistence(timeout: 15))
+        XCTAssertTrue(app.webViews.staticTexts["Workout clothing"].firstMatch.waitForExistence(timeout: 60), "Capture a loaded collection, not the catalogue loading state")
         capture("iPhone-categories", app: app)
         app.links["Search"].firstMatch.tap()
         XCTAssertTrue(app.webViews.searchFields.firstMatch.waitForExistence(timeout: 15))

@@ -4,12 +4,14 @@ import { useCatalog } from "../context/CatalogContext.jsx";
 import { watchChanges } from "../utils/commerce.js";
 import { money } from "../utils/productPricing.js";
 import { ProductImage, productPath } from "../components/StorefrontShared.jsx";
+import OrderNotificationSettings from "../components/OrderNotificationSettings.jsx";
 export default function NotificationsPage() {
   const { watches, watchProduct } = useShoppingTools(),
     { products } = useCatalog();
   const items = watchChanges(watches, products);
   return (
     <div className="page narrow">
+      <OrderNotificationSettings />
       <div className="page-heading">
         <h1>Price & stock watches</h1>
       </div>
