@@ -41,6 +41,7 @@ import DeferredFitnessGuide from "./components/DeferredFitnessGuide.jsx";
 
 import Home from "./pages/Home.jsx";
 import { installRoutePrefetch } from "./utils/routePrefetch.js";
+import { NativeShoppingNavigation, NativeCategoriesPage, NativeSearchPage } from "./native/NativeShopping.jsx";
 import NativeAppController from "./native/NativeAppController.jsx";
 
 const Shop = lazy(
@@ -619,6 +620,8 @@ function Layout() {
             fallback={<PageLoading />}
           >
             <Routes>
+              <Route path="/categories" element={<NativeCategoriesPage />} />
+              <Route path="/search" element={<NativeSearchPage />} />
               <Route
                 path="/"
                 element={<Home />}
@@ -881,6 +884,7 @@ function Layout() {
         <AnalyticsController />
       )}
 
+      <NativeShoppingNavigation />
       <Toast
         message={toast?.message}
         type={toast?.type}

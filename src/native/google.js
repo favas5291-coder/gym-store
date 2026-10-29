@@ -1,12 +1,17 @@
+import { Capacitor } from "@capacitor/core";
 let initialization;
 
 export async function nativeGoogleCredential({ clientId, nonce }) {
   if (!clientId?.endsWith(".apps.googleusercontent.com") || typeof nonce !== "string" || !nonce) {
     throw Object.assign(new Error("Google sign-in could not start. Please retry."), { code: "SIGNIN_RESTART_REQUIRED" });
   }
+  const iosClientId = import.meta.env?.VITE_GOOGLE_IOS_CLIENT_ID?.trim();
+  if (Capacitor.getPlatform() === "ios" && !iosClientId?.endsWith(".apps.googleusercontent.com")) {
+    throw Object.assign(new Error("iPhone Google sign-in is awaiting its iOS OAuth configuration. You can continue as a guest."), { code: "IOS_GOOGLE_CONFIGURATION_REQUIRED" });
+  }
   const { SocialLogin } = await import("@capgo/capacitor-social-login");
   if (!initialization) {
-    initialization = SocialLogin.initialize({ google: { webClientId: clientId, mode: "online" } }).catch((error) => {
+    initialization = SocialLogin.initialize({ google: { webClientId: clientId, iOSClientId: iosClientId, iOSServerClientId: clientId, mode: "online" } }).catch((error) => {
       initialization = undefined;
       throw error;
     });

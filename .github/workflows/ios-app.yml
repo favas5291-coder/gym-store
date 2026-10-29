@@ -1,0 +1,62 @@
+name: iPhone app
+on:
+  pull_request:
+    paths: ['ios/**', 'capacitor.config.json', '.env.ios', 'src/**', 'scripts/**', 'public/**', 'tests/**', 'package*.json', 'index.html', 'vite.config.js', '.github/workflows/ios-app.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ios-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  simulator:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Select a stable Xcode 26 or newer
+        run: |
+          python3 - <<'PY'
+          import pathlib, re, subprocess
+          choices = []
+          for app in pathlib.Path('/Applications').glob('Xcode*.app'):
+              match = re.fullmatch(r'Xcode_(\d+)\.(\d+)(?:\.(\d+))?\.app', app.name)
+              if match and int(match[1]) >= 26:
+                  choices.append((tuple(int(value or 0) for value in match.groups()), app))
+          if not choices:
+              raise SystemExit('A stable Xcode 26+ is required; no supported toolchain installed.')
+          subprocess.run(['sudo', 'xcode-select', '-s', str(max(choices)[1] / 'Contents/Developer')], check=True)
+          PY
+          xcodebuild -version
+          xcodebuild -showsdks
+      - run: npm ci
+      - run: npm run doctor && npm test
+      - run: npm run ios:sync
+      - name: Compile unsigned simulator application
+        id: compile
+        run: |
+          set -o pipefail
+          mkdir -p test-results/ios
+          xcodebuild -quiet -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/DerivedData CODE_SIGNING_ALLOWED=NO build 2>&1 | tee test-results/ios/build.log
+      - name: Prepare iPhone simulator for native launch and navigation tests
+        timeout-minutes: 8
+        run: |
+          python3 scripts/smoke-ios.py --prepare-only
+      - name: Native iPhone shopping tab tests
+        timeout-minutes: 10
+        run: python3 scripts/test-ios-ui.py
+      - name: Package simulator build (requires a Mac; not installable on a physical iPhone)
+        if: always() && steps.compile.outcome == 'success'
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent ios/DerivedData/Build/Products/Debug-iphonesimulator/App.app test-results/ios/GymDrobe-iPhone-Simulator.zip
+          shasum -a 256 test-results/ios/GymDrobe-iPhone-Simulator.zip > test-results/ios/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: GymDrobe-iPhone-Simulator
+          path: test-results/ios/
+          retention-days: 30

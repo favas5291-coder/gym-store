@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { isNativeApp, nativeRouteFromUrl, nativeRouteFromEvent } from "./platform.js";
 import { clearInterruptedNativePayment, interruptedNativePayment, nativePaymentActive } from "./payment.js";
@@ -8,7 +8,7 @@ export default function NativeAppController() {
   const navigate = useNavigate();
   const navigation = useRef(navigate);
   navigation.current = navigate;
-  useEffect(() => {
+  useLayoutEffect(() => {
     const go = (...args) => navigation.current(...args);
     if (!isNativeApp()) return;
     document.documentElement.classList.add("gymdrobe-native");
@@ -40,9 +40,15 @@ export default function NativeAppController() {
     document.addEventListener("click", externalLink);
 
     async function start() {
+
       const { App } = await import("@capacitor/app");
       if (disposed) return;
       await listen(App, "appUrlOpen", openLink);
+      // A keyboard plugin failure must not stop app links or payment recovery.
+      import("@capacitor/keyboard").then(async ({ Keyboard }) => {
+        await listen(Keyboard, "keyboardWillShow", () => document.documentElement.classList.add("native-keyboard-open"));
+        await listen(Keyboard, "keyboardWillHide", () => document.documentElement.classList.remove("native-keyboard-open"));
+      }).catch(() => {});
       await listen(App, "backButton", async () => {
         if (nativePaymentActive()) return;
         const dialog = [...document.querySelectorAll('[role="dialog"], dialog[open]')].find((element) => element.getAttribute("aria-hidden") !== "true" && element.getClientRects().length > 0);

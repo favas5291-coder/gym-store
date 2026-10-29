@@ -23,14 +23,19 @@
     "android:sync": "npm run build:android && cap sync android",
     "android:open": "cap open android",
     "android:apk": "npm run android:sync && node scripts/android-gradle.mjs assembleDebug",
-    "android:bundle": "npm run android:sync && node scripts/android-gradle.mjs bundleRelease"
+    "android:bundle": "npm run android:sync && node scripts/android-gradle.mjs bundleRelease",
+    "build:ios": "node scripts/build-ios.mjs",
+    "ios:sync": "npm run build:ios && node scripts/sync-ios.mjs",
+    "ios:open": "cap open ios"
   },
   "dependencies": {
     "@capacitor/android": "8.6.0",
     "@capacitor/app": "8.1.2",
     "@capacitor/browser": "8.0.5",
     "@capacitor/core": "8.6.0",
+    "@capacitor/ios": "8.6.0",
     "@capacitor/keyboard": "8.0.6",
+    "@capacitor/share": "8.0.1",
     "@capacitor/splash-screen": "8.0.2",
     "@capgo/capacitor-social-login": "8.7.5",
     "@mediapipe/tasks-vision": "1.0.1",
