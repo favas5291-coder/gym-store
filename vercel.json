@@ -1,6 +1,13 @@
 {
   "routes": [
     {
+      "src": "/(?:sw\\.js|offline\\.(?:html|js)|site\\.webmanifest)",
+      "headers": {
+        "Cache-Control": "public, max-age=0, must-revalidate"
+      },
+      "continue": true
+    },
+    {
       "src": "/(.*)",
       "headers": {
         "Cross-Origin-Opener-Policy": "same-origin-allow-popups"

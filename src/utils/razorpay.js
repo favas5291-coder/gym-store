@@ -1,3 +1,5 @@
+import { isNativeApp } from "../native/platform.js";
+
 const SCRIPT_URL =
   "https://checkout.razorpay.com/v1/checkout.js";
 
@@ -15,6 +17,7 @@ function paymentError(message, code, data) {
 }
 
 export function loadRazorpay() {
+  if (isNativeApp()) return Promise.resolve(null);
   if (
     typeof window === "undefined" ||
     typeof document === "undefined"
@@ -137,6 +140,11 @@ export async function openRazorpayCheckout(options) {
       "GymDrobe currently accepts payments in INR.",
       "RAZORPAY_CURRENCY_INVALID",
     );
+  }
+
+  if (isNativeApp()) {
+    const { openNativePayment } = await import("../native/payment.js");
+    return openNativePayment(options);
   }
 
   const Razorpay = await loadRazorpay();

@@ -1,0 +1,15 @@
+{
+  "appId": "com.gymdrobe.app",
+  "appName": "GymDrobe",
+  "webDir": "dist-android",
+  "server": { "hostname": "localhost", "androidScheme": "https", "cleartext": false },
+  "android": { "allowMixedContent": false, "backgroundColor": "#ffffff" },
+  "plugins": {
+    "SocialLogin": {
+      "providers": { "google": true, "facebook": false, "apple": false, "twitter": false },
+      "logLevel": 1
+    },
+    "SplashScreen": { "launchAutoHide": true, "launchShowDuration": 800, "backgroundColor": "#f5f4ef", "showSpinner": false },
+    "SystemBars": { "insetsHandling": "native", "initialViewportFitValueHint": "contain", "style": "LIGHT" }
+  }
+}

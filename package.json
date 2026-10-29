@@ -5,29 +5,43 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run seo:sitemap && vite build",
+    "build": "npm run seo:sitemap && vite build && node scripts/build-pwa.mjs",
     "preview": "vite preview",
     "test": "node --test tests/*.test.js",
     "doctor": "node scripts/doctor.mjs",
     "check": "npm run doctor && npm test && npm run build",
     "test:browser": "node tests/browser.mjs",
+    "test:pwa:browser": "npm run build && node tests/pwa-browser.mjs",
     "setup:vto": "node scripts/setup-vto.mjs",
     "dev:vto": "node scripts/dev-vto.mjs",
     "test:vto": "node --test tests/vto*.test.js",
     "test:vto:browser": "node tests/vto-browser.mjs",
     "seo:sitemap": "node scripts/generate-sitemap.mjs",
     "build:seo": "npm run build",
-    "test:storefront": "node tests/cinematic-storefront-browser.mjs"
+    "test:storefront": "node tests/cinematic-storefront-browser.mjs",
+    "build:android": "node scripts/build-android.mjs",
+    "android:sync": "npm run build:android && cap sync android",
+    "android:open": "cap open android",
+    "android:apk": "npm run android:sync && node scripts/android-gradle.mjs assembleDebug",
+    "android:bundle": "npm run android:sync && node scripts/android-gradle.mjs bundleRelease"
   },
   "dependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/browser": "8.0.5",
+    "@capacitor/core": "8.6.0",
+    "@capacitor/keyboard": "8.0.6",
+    "@capacitor/splash-screen": "8.0.2",
+    "@capgo/capacitor-social-login": "8.7.5",
     "@mediapipe/tasks-vision": "1.0.1",
     "cors": "^2.8.6",
+    "lucide-react": "1.62.0",
     "react": "19.1.1",
     "react-dom": "19.1.1",
-    "react-router-dom": "7.18.4",
-    "lucide-react": "1.62.0"
+    "react-router-dom": "7.18.4"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.6.0",
     "@vitejs/plugin-react": "6.1.1",
     "vite": "8.2.2"
   },

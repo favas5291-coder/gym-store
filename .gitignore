@@ -9,6 +9,7 @@ lerna-debug.log*
 
 node_modules
 dist
+dist-android
 dist-ssr
 *.local
 /backend/.env
@@ -26,3 +27,7 @@ dist-ssr
 
 # Local storefront verification output
 test-results/storefront/
+test-results/pwa/
+test-results/android/
+test-results/android-browser/
+test-results/performance/

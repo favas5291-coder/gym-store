@@ -650,7 +650,10 @@
 }
 @media (hover: none) { .gm-card-action { opacity: 1 !important; transform: none !important; } }
 .gd-storefront .gm-product-visual .gm-image-fallback small { bottom: 74px; padding: 0 5px; }
-.page-skeleton { padding: 36px 4%; width: 100%; }
+.page-skeleton { padding: 36px 4%; width: 100%; min-height:100svh; }
+/* Keep the footer below the viewport while route code/catalogue data loads.
+   The loaded layout keeps its existing dimensions. */
+.shop-results[aria-busy="true"] { min-height:100svh; }
 .skeleton-heading { width: 230px; max-width: 80%; height: 24px; background: #f0f0f2; margin: 0 0 28px; }
 .skeleton-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 24px; }
 .skeleton-card > div { aspect-ratio: 3/4; background: #f4f4f5; }

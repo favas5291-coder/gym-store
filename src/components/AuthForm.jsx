@@ -9,6 +9,8 @@ import {
 import { useAuth } from "../context/AuthContext.jsx";
 import { getGoogleChallenge } from "../services/authApi.js";
 import { safeNext } from "../utils/storage.js";
+import { isNativeApp } from "../native/platform.js";
+import { nativeGoogleCredential } from "../native/google.js";
 
 const GOOGLE_CLIENT_ID = (
   import.meta.env.VITE_GOOGLE_CLIENT_ID ||
@@ -245,6 +247,28 @@ export default function AuthForm() {
   const [linkRequired, setLinkRequired] = useState(false);
   const [password, setPassword] = useState("");
   const [visible, setVisible] = useState(false);
+  const native = isNativeApp();
+  const nativeSignInBusy = useRef(false);
+
+  async function signInOnAndroid() {
+    if (nativeSignInBusy.current || busy) return;
+    nativeSignInBusy.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      const attempt = await getGoogleChallenge();
+      const credential = await nativeGoogleCredential({ clientId: GOOGLE_CLIENT_ID, nonce: attempt.nonce });
+      if (mounted.current) await callbackRef.current({ credential, challenge: attempt.challenge });
+    } catch (failure) {
+      if (mounted.current) {
+        const cancelled = /cancel/i.test(String(failure.code || "") + " " + String(failure.message || ""));
+        setError(cancelled ? { code: "GOOGLE_CANCELLED", title: "Sign-in cancelled", message: "Tap Continue with Google when you’re ready to try again." } : describeError(failure));
+      }
+    } finally {
+      nativeSignInBusy.current = false;
+      if (mounted.current) setBusy(false);
+    }
+  }
 
   useEffect(() => {
     mounted.current = true;
@@ -300,6 +324,7 @@ export default function AuthForm() {
 
   useEffect(() => {
     if (authLoading || authError || user || linkRequired) return;
+    if (native) { setReady(true); return; }
 
     let cancelled = false;
     const controller = new AbortController();
@@ -385,7 +410,7 @@ export default function AuthForm() {
       controller.abort();
       clearTimeout(expiryTimer);
     };
-  }, [authLoading, authError, user, linkRequired, attempt]);
+  }, [authLoading, authError, user, linkRequired, attempt, native]);
 
   function restartGoogle() {
     if (submitting.current) return;
@@ -494,7 +519,10 @@ export default function AuthForm() {
 
           {!linkRequired && (
             <>
-              <div
+              {native ? <button className="native-google-signin" type="button" disabled={busy || authLoading} onClick={signInOnAndroid}>
+                <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285f4" d="M43.6 24.5c0-1.5-.1-3-.4-4.5H24v8.5h11a9.4 9.4 0 0 1-4.1 6.2v5.2h6.7c3.9-3.6 6-8.9 6-15.4Z"/><path fill="#34a853" d="M24 44c5.5 0 10.1-1.8 13.5-4.9l-6.7-5.2c-1.9 1.3-4.2 2-6.8 2-5.3 0-9.8-3.6-11.4-8.4H5.7v5.3A20.4 20.4 0 0 0 24 44Z"/><path fill="#fbbc05" d="M12.6 27.5a12.3 12.3 0 0 1 0-7V15H5.7a20 20 0 0 0 0 18l6.9-5.5Z"/><path fill="#ea4335" d="M24 12.1c3 0 5.7 1 7.8 3.1l5.9-5.9A19.6 19.6 0 0 0 24 4 20.4 20.4 0 0 0 5.7 15l6.9 5.5C14.2 15.7 18.7 12.1 24 12.1Z"/></svg>
+                {busy ? "Connecting…" : "Continue with Google"}
+              </button> : <div
                 ref={buttonRef}
                 style={{
                   width: "100%",
@@ -505,7 +533,7 @@ export default function AuthForm() {
                   visibility: busy ? "hidden" : "visible",
                 }}
                 inert={busy ? true : undefined}
-              />
+              />}
 
               {!ready && !error && !busy && (
                 <p className="muted" role="status">

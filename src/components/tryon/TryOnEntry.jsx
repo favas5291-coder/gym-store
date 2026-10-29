@@ -5,6 +5,7 @@ import {
 } from "react";
 
 import config from "../../../config/tryon-products.json";
+import "../../tryon.css";
 
 const TryOnStudio = lazy(
   () => import("./TryOnStudio.jsx"),

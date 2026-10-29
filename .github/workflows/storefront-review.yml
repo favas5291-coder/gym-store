@@ -38,6 +38,10 @@ jobs:
           npx playwright install --with-deps chromium webkit
       - name: Storefront interactions and responsive screenshots
         run: npm run test:storefront
+      - name: PWA install, offline recovery and update checks
+        run: node tests/pwa-browser.mjs
+      - name: Android UI and native-adapter contracts
+        run: node tests/native-browser.mjs
       - name: Mobile-sized WebKit moving-video checks
         run: node tests/hero-webkit-browser.mjs
       - name: Production preview LCP and CLS lab samples
@@ -48,4 +52,10 @@ jobs:
         with:
           name: storefront-review
           path: test-results/storefront
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pwa-review
+          path: test-results/pwa
           retention-days: 14

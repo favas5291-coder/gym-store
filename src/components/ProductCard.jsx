@@ -38,10 +38,20 @@ import useProductReviews from "../hooks/useProductReviews.js";
 
 export default function ProductCard({
   product,
+  priority = false,
   ...legacy
 }) {
   const item = product || legacy;
   const [cardColor, setCardColor] = useState(null);
+  const [previewAlternate, setPreviewAlternate] = useState(false);
+
+  function warmAlternate() {
+    // Touch layouts never display the hover photo. Keep its URL out of the
+    // DOM until a mouse or keyboard user actually approaches this card.
+    if (window.matchMedia("(hover: hover)").matches) {
+      setPreviewAlternate(true);
+    }
+  }
 
   const [quickColor, setQuickColor] =
     useState(null);
@@ -118,16 +128,18 @@ export default function ProductCard({
       : initialQuickColor;
 
   return (
-    <article className="gm-product-card">
+    <article className="gm-product-card" onMouseEnter={warmAlternate} onFocus={warmAlternate}>
       <div className="gm-product-visual">
         <Link
           className="gm-product-image"
           to={path}
           aria-label={`View ${item.name}`}
         >
-          <ProductImage product={{ ...item, selectedColor: cardColor || item.selectedColor }} />
+          <ProductImage product={{ ...item, selectedColor: cardColor || item.selectedColor }}
+            eager={priority} fetchPriority={priority ? "high" : "auto"}
+            sizes="(max-width: 600px) 50vw, (max-width: 1100px) 33vw, 300px" />
 
-          {alternateImage && (
+          {alternateImage && previewAlternate && (
             <ProductImage
               className="alternate-photo"
               product={{

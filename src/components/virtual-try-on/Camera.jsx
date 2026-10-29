@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { isNativeApp } from "../../native/platform.js";
 export default function Camera({ onPhoto, onClose }) {
   const video = useRef(null),
     stream = useRef(null),
@@ -38,7 +39,9 @@ export default function Camera({ onPhoto, onClose }) {
         if (active)
           setError(
             e.name === "NotAllowedError"
-              ? "Camera access was denied. Allow it in your browser settings, or upload a photo."
+              ? isNativeApp()
+                ? "Camera access was denied. Allow GymDrobe in your device’s app settings, or upload a photo."
+                : "Camera access was denied. Allow it in your browser settings, or upload a photo."
               : e.name === "NotFoundError"
                 ? "No camera was found. You can upload a photo instead."
                 : "We could not open the camera. Close other camera apps, or upload a photo.",
