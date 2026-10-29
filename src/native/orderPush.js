@@ -1,16 +1,23 @@
 import { Capacitor } from "@capacitor/core";
 import { createOrderPushSession } from "./orderPushSession.js";
 import { notificationApi } from "../services/notificationApi.js";
+import { captureOrderPushOptOut, finishOrderPushOptOut } from "./orderPushCleanup.js";
 
 export const orderPushEnabled = () => Capacitor.isNativePlatform() && import.meta.env?.VITE_PUSH_ENABLED === "true";
 let current = null, generation = 0, setup = Promise.resolve();
 let snapshot = { status: "off", optedIn: false, userId: null };
 const publish = value => { snapshot = value; globalThis.dispatchEvent?.(new CustomEvent("gymdrobe-order-push-status")); };
 export const orderPushStatus = () => snapshot;
-export function stopOrderPushSession() {
+export function stopOrderPushSession(userId, token) {
   generation++;
   const old = current; current = null;
-  const cleanup = old?.session.dispose();
+  let cleanup = old?.session.dispose();
+  if (!old && userId && token) {
+    try {
+      const storage = globalThis.localStorage, captured = captureOrderPushOptOut(userId, storage);
+      if (captured) cleanup = finishOrderPushOptOut(captured, notificationApi(token), storage).catch(() => {});
+    } catch { /* A notification failure must not hold the shopping session open. */ }
+  }
   setup = setup.catch(() => {}).then(() => cleanup).catch(() => {});
   publish({ status: "off", optedIn: false, userId: null });
   return setup;
