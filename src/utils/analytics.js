@@ -1,3 +1,4 @@
+import { isNativeApp } from "../native/platform.js";
 import { getDiscountedPrice } from "./productPricing.js";
 
 const ID = String(
@@ -18,7 +19,7 @@ let lastPath = "";
 let visit = 0;
 let consent = null;
 
-export const analyticsConfigured = /^G-[A-Z0-9]+$/.test(ID);
+export const analyticsConfigured = !isNativeApp() && /^G-[A-Z0-9]+$/.test(ID);
 
 function normalizeConsent(value) {
   return value === "granted" || value === "denied"

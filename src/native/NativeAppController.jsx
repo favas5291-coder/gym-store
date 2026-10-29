@@ -40,6 +40,9 @@ export default function NativeAppController() {
     document.addEventListener("click", externalLink);
 
     async function start() {
+      const { Keyboard } = await import("@capacitor/keyboard");
+      await listen(Keyboard, "keyboardWillShow", () => document.documentElement.classList.add("native-keyboard-open"));
+      await listen(Keyboard, "keyboardWillHide", () => document.documentElement.classList.remove("native-keyboard-open"));
       const { App } = await import("@capacitor/app");
       if (disposed) return;
       await listen(App, "appUrlOpen", openLink);

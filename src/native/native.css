@@ -12,3 +12,25 @@ html.gymdrobe-native {
 .native-google-signin { display:flex; gap:12px; justify-content:center; align-items:center; width:100%; min-height:48px; margin:24px 0 16px; border:1px solid #747775; border-radius:4px; background:#fff; color:#1f1f1f; font:500 14px Arial,sans-serif; cursor:pointer; }
 .native-google-signin:disabled { opacity:.6; cursor:default; }
 .native-google-signin:focus-visible { outline:2px solid #995526; outline-offset:4px; }
+.gymdrobe-native { --native-tab-height: 64px; }
+.gymdrobe-native .premium-storefront { padding-bottom: calc(var(--native-tab-height) + var(--app-safe-bottom)); }
+.native-tabs { position:fixed; z-index:105; bottom:0; left:0; right:0; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); min-height:var(--native-tab-height); padding:8px var(--app-safe-right) calc(6px + var(--app-safe-bottom)) var(--app-safe-left); background:rgba(255,255,255,.97); border-top:1px solid #dedee1; box-shadow:0 -4px 24px #11111106; }
+.native-tabs a { min-height:48px; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:5px; color:#65656d; text-decoration:none; font-size:10px; font-weight:600; }
+.native-tabs a.active { color:#111114; }
+.native-tabs a:focus-visible,.native-cart:focus-visible { outline:2px solid #111; outline-offset:-3px; }
+.native-cart { position:fixed; z-index:106; right:calc(18px + var(--app-safe-right)); bottom:calc(90px + var(--app-safe-bottom)); width:52px; height:52px; border-radius:50%; display:grid; place-items:center; color:#fff; background:#17171b; box-shadow:0 5px 22px #0003; }
+.native-cart span { position:absolute; right:-3px; top:-4px; min-width:21px; height:21px; border-radius:15px; background:#fff; border:1px solid #17171b; color:#17171b; display:grid; place-items:center; font-size:11px; font-weight:700; }
+.native-offline { position:sticky; z-index:104; top:var(--app-safe-top); padding:12px 18px; background:#242428; color:#fff; font-size:13px; line-height:1.5; }
+.native-discover { max-width:760px; min-height:70svh; padding-top:36px; }
+.native-discover h1 { font-size:clamp(28px,7vw,40px); letter-spacing:-.04em; line-height:1.13; margin-bottom:28px; }
+.native-collection { padding:24px 0; border-top:1px solid #dedee1; }
+.native-collection > a { display:flex; align-items:center; justify-content:space-between; color:#17171b; text-decoration:none; }
+.native-collection h2 { margin:0; font-size:24px; }
+.native-collection > div { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
+.native-collection > div a { display:flex; min-height:44px; padding:10px 15px; align-items:center; background:#f4f4f6; color:#36363c; border-radius:7px; text-decoration:none; font-size:14px; }
+.native-search-form { display:flex; border:1px solid #aaaab1; border-radius:10px; margin:28px 0; overflow:hidden; }
+.native-search-form input { min-width:0; flex:1; padding:17px; border:0; font-size:16px; background:#fff; color:#17171b; }
+.native-search-form button { min-width:54px; border:0; background:#17171b; color:#fff; display:grid; place-items:center; }
+.gymdrobe-native.native-keyboard-open .native-tabs,.gymdrobe-native.native-keyboard-open .native-cart { display:none; }
+.gymdrobe-native .storefront-checkout { padding-bottom:var(--app-safe-bottom); }
+@media (prefers-reduced-motion:reduce) { .gymdrobe-native * { scroll-behavior:auto !important; } }
