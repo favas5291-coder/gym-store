@@ -21,7 +21,8 @@ export function nativeRouteFromUrl(value) {
     for (const key of ["search", "category", "sort", "page"]) {
       if (url.searchParams.has(key)) query.set(key, url.searchParams.get(key).slice(0, 200));
     }
-    return path + (query.size ? `?${query}` : "");
+    const search = query.toString();
+    return path + (search ? `?${search}` : "");
   } catch {
     return null;
   }

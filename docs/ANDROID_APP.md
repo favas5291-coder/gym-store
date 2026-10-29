@@ -15,6 +15,8 @@ as the website. It is a development build for device testing.
   still pass through the existing signature-verification endpoint. A callback
   does not mark an order as paid.
 - Back-button handling, keyboard dismissal and external links in a browser tab.
+- Optional camera permission for existing virtual try-on photo capture, requested
+  only when the customer opens the camera. Photo upload remains available.
 - Allowlisted custom links such as `gymdrobe://app/product/PRODUCT_ID` and
   `gymdrobe://app/orders/ORDER_ID/track`. Links cannot supply login credentials,
   checkout success, staff routes or foreign destinations.
@@ -76,7 +78,7 @@ Google authentication or Razorpay transaction on a real device.
 Before release, configure the Android OAuth client and verify on a physical phone:
 Google login/logout, restored sessions, bag and wishlist, Android back/keyboard,
 UPI app switching, cancelled/interrupted payments, confirmed order recovery,
-tracking, slow/offline conditions and signed app updates. Use Razorpay test-mode
+tracking, virtual try-on camera permission/denial, slow/offline conditions and signed app updates. Use Razorpay test-mode
 keys on a staging backend for transaction tests. The default public config points
 at the existing production backend; this build script never makes a payment.
 
