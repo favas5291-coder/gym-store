@@ -53,7 +53,10 @@ for (let run = 1; run <= 3; run++) {
       await pause(200);
     }
     if (!page?.ready || !page.native || !(page.fcp > 0)) throw new Error('Native first paint was not observed');
-    adb('shell', 'input', 'keyevent', 'KEYCODE_HOME');
+    // Software video decoding can saturate this emulator. FCP is already
+    // captured; pause before the HOME transition, as backgrounding does in use.
+    await evaluate(`document.querySelector('video')?.pause(); true`);
+    adb('shell', 'am', 'start', '-W', '-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.HOME');
     const warm = adb('shell', 'am', 'start', '-W', '-n', 'com.gymdrobe.app/.MainActivity');
     const timing = value => Object.fromEntries([...value.matchAll(/^(ThisTime|TotalTime|WaitTime):\s*(\d+)/gm)].map(match => [match[1], Number(match[2])]));
     samples.push({ run, coldActivity: timing(cold), warmActivity: timing(warm), webview: page });

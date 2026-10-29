@@ -38,6 +38,7 @@ import useProductReviews from "../hooks/useProductReviews.js";
 
 export default function ProductCard({
   product,
+  priority = false,
   ...legacy
 }) {
   const item = product || legacy;
@@ -134,7 +135,9 @@ export default function ProductCard({
           to={path}
           aria-label={`View ${item.name}`}
         >
-          <ProductImage product={{ ...item, selectedColor: cardColor || item.selectedColor }} />
+          <ProductImage product={{ ...item, selectedColor: cardColor || item.selectedColor }}
+            eager={priority} fetchPriority={priority ? "high" : "auto"}
+            sizes="(max-width: 600px) 50vw, (max-width: 1100px) 33vw, 300px" />
 
           {alternateImage && previewAlternate && (
             <ProductImage

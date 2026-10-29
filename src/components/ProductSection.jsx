@@ -989,8 +989,9 @@ export default function ProductSection() {
                       (page - 1) * PAGE_SIZE,
                       page * PAGE_SIZE,
                     )
-                    .map((product) => (
+                    .map((product, index) => (
                       <ProductCard
+                        priority={index < 2}
                         key={
                           product.id ||
                           product._id

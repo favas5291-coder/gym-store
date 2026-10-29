@@ -30,9 +30,12 @@ try {
     const context = await browser.newContext({ viewport: { width, height: 960 }, isMobile: width === 390, hasTouch: width === 390 });
     const mock = await mockStorefront(context, products);
     await context.addInitScript(() => {
-      window.lab = { lcp: 0, cls: 0, longTasks: 0, longTaskMs: 0 };
+      window.lab = { lcp: 0, cls: 0, longTasks: 0, longTaskMs: 0, shifts: [] };
       new PerformanceObserver(list => { for (const entry of list.getEntries()) window.lab.lcp = entry.startTime; }).observe({ type: 'largest-contentful-paint', buffered: true });
-      new PerformanceObserver(list => { for (const entry of list.getEntries()) if (!entry.hadRecentInput) window.lab.cls += entry.value; }).observe({ type: 'layout-shift', buffered: true });
+      new PerformanceObserver(list => { for (const entry of list.getEntries()) if (!entry.hadRecentInput) {
+        window.lab.cls += entry.value;
+        window.lab.shifts.push({ value: entry.value, sources: entry.sources.map(s => ({ node: s.node?.className || s.node?.tagName, from: s.previousRect.toJSON(), to: s.currentRect.toJSON() })) });
+      } }).observe({ type: 'layout-shift', buffered: true });
       new PerformanceObserver(list => { for (const entry of list.getEntries()) { window.lab.longTasks++; window.lab.longTaskMs += entry.duration; } }).observe({ type: 'longtask', buffered: true });
     });
     const page = await context.newPage();
@@ -57,6 +60,7 @@ try {
     samples.push({ width, route, run, ...metrics, apiRequests: mock.requests.length });
     console.log('PERFORMANCE_SAMPLE', JSON.stringify({ width, route, run, lcp: metrics.lcp, cls: metrics.cls, bytes: metrics.bytes, imageBytes: metrics.imageBytes, jsBytes: metrics.jsBytes }));
     if (process.env.PERFORMANCE_ASSERT === '1' && route === '/shop') {
+      assert.ok(metrics.cls <= 0.1, `Shop layout shift exceeded target: ${JSON.stringify(metrics)}`);
       assert.equal(metrics.alternateImages, 0, 'Hidden alternate photos must not load without intent');
       if (width === 1440) {
         await page.locator('.gm-product-card').first().hover();
