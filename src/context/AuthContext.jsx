@@ -11,6 +11,7 @@ import {
 import {
   getCurrentUser,
   loginWithGoogle,
+  loginWithApple,
   updateUserProfile,
 } from "../services/authApi.js";
 import { isNativeApp } from "../native/platform.js";
@@ -104,7 +105,10 @@ export default function AuthProvider({ children }) {
         }
 
         if (error.status === 401 || error.status === 403) {
-          await sessionStorage().write(null);
+          try { await sessionStorage().write(null); } catch {
+            setAuthError("Unable to clear the expired secure session. Unlock your device and retry.");
+            return;
+          }
           sessionRevision.current += 1;
           tokenRef.current = null;
 
@@ -207,6 +211,18 @@ export default function AuthProvider({ children }) {
     [saveSession]
   );
 
+  const appleLogin = useCallback(async (credentials) => {
+    if (googleLoginBusy.current) throw new Error("A sign-in request is already in progress.");
+    const revision = sessionRevision.current;
+    googleLoginBusy.current = true;
+    try {
+      const data = await loginWithApple(credentials);
+      if (revision !== sessionRevision.current) throw new Error("Your session changed. Please sign in again.");
+      await saveSession(data);
+      return data;
+    } finally { googleLoginBusy.current = false; }
+  }, [saveSession]);
+
   const updateProfile = useCallback(
     async ({ name, phone } = {}) => {
       const currentToken = tokenRef.current;
@@ -300,6 +316,7 @@ export default function AuthProvider({ children }) {
       isAuthenticated: Boolean(user && token),
 
       googleLogin,
+      appleLogin,
       logout,
       updateProfile,
       refreshUser,
@@ -316,6 +333,7 @@ export default function AuthProvider({ children }) {
       authError,
       retrySession,
       googleLogin,
+      appleLogin,
       logout,
       updateProfile,
       refreshUser,

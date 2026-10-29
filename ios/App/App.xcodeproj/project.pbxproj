@@ -20,6 +20,7 @@
 		CC0000000000000000000012 /* GymDrobeCheckout.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000011; };
 		CC0000000000000000000022 /* GymDrobeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000021; };
 		CC1000000000000000000001 = {isa = PBXBuildFile; productRef = CC1000000000000000000002; };
+CC0000000000000000000032 = {isa = PBXBuildFile; fileRef = CC0000000000000000000031; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -37,6 +38,7 @@
 		CC0000000000000000000001 /* GymDrobeSecureSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GymDrobeSecureSession.swift; sourceTree = "<group>"; };
 		CC0000000000000000000011 /* GymDrobeCheckout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GymDrobeCheckout.swift; sourceTree = "<group>"; };
 		CC0000000000000000000021 /* GymDrobeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GymDrobeViewController.swift; sourceTree = "<group>"; };
+CC0000000000000000000031 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GymDrobeAppleSignIn.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -75,7 +77,8 @@
 				CC0000000000000000000001 /* GymDrobeSecureSession.swift */,
 				CC0000000000000000000011 /* GymDrobeCheckout.swift */,
 				CC0000000000000000000021 /* GymDrobeViewController.swift */,
-				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
+				CC0000000000000000000031,
+                9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -175,7 +178,8 @@
 				CC0000000000000000000002 /* GymDrobeSecureSession.swift in Sources */,
 				CC0000000000000000000012 /* GymDrobeCheckout.swift in Sources */,
 				CC0000000000000000000022 /* GymDrobeViewController.swift in Sources */,
-				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
+				CC0000000000000000000032,
+                9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

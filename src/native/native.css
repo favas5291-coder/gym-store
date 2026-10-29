@@ -34,3 +34,18 @@ html.gymdrobe-native {
 .gymdrobe-native.native-keyboard-open .native-tabs,.gymdrobe-native.native-keyboard-open .native-cart { display:none; }
 .gymdrobe-native .storefront-checkout { padding-bottom:var(--app-safe-bottom); }
 @media (prefers-reduced-motion:reduce) { .gymdrobe-native * { scroll-behavior:auto !important; } }
+
+.native-apple-signin { display:flex; align-items:center; justify-content:center; gap:10px; width:100%; min-height:50px; border-radius:6px; border:1px solid #000; background:#000; color:#fff; font:500 17px -apple-system,BlinkMacSystemFont,sans-serif; }
+.native-apple-signin span { font-size:24px; }
+.native-apple-signin:disabled { opacity:.6; }
+/* One compact app header; search, wishlist and account live in the tab bar. */
+.gymdrobe-native #app .premium-storefront .gd-nav .gn-bar { height:56px; grid-template-rows:56px; grid-template-columns:40px minmax(0,1fr) 48px; grid-template-areas:'menu brand actions'; padding:0 12px; }
+.gymdrobe-native #app .premium-storefront .gd-nav .gn-search { display:none; }
+.gymdrobe-native #app .premium-storefront .gd-nav .gn-actions { visibility:hidden; }
+.gymdrobe-native .native-cart { top:calc(var(--app-safe-top) + 6px); bottom:auto; right:calc(var(--app-safe-right) + 12px); width:44px; height:44px; color:#17171b; background:#fff; box-shadow:none; border-radius:8px; }
+.gymdrobe-native .native-cart span { top:0; right:-2px; }
+.gymdrobe-native .native-tabs { background:#fff; }
+@media(max-width:700px) {
+  .gymdrobe-native #app .premium-storefront .cinema-hero { height:calc(100svh - 56px - var(--native-tab-height) - var(--app-safe-top) - var(--app-safe-bottom)); min-height:390px; }
+  .gymdrobe-native #app .premium-storefront .cinema-content { padding-bottom:24px; }
+}

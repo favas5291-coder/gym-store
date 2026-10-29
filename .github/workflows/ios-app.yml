@@ -40,8 +40,9 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p test-results/ios
-          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/DerivedData CODE_SIGNING_ALLOWED=NO build 2>&1 | tee test-results/ios/build.log
+          xcodebuild -quiet -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/DerivedData CODE_SIGNING_ALLOWED=NO build 2>&1 | tee test-results/ios/build.log
       - name: Install and launch on an iPhone simulator
+        timeout-minutes: 8
         run: |
           python3 scripts/smoke-ios.py
       - name: Package simulator build (requires a Mac; not installable on a physical iPhone)

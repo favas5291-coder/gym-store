@@ -34,3 +34,6 @@ test-results/performance/
 
 dist-ios
 test-results/ios/
+
+test-results/ios-browser/
+scripts/__pycache__/
