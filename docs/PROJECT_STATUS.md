@@ -96,3 +96,9 @@ Backend health check and 120 unit tests pass; staging index/build/rollback still
 - Courier/notification/email/Meta integration ownership and test configuration. No supplier/customer messages, advertisements or publishing are authorized.
 - Confirmed business identity, tax/invoicing/retention and general privacy/terms; no assumed legal registrations.
 - Atlas/hosting read access and Search Console/Meta diagnostics for production claims.
+
+## Shared-shopping development update
+
+The initial table above records the initial audit. Task 13 is now **Implemented — verification pending**: 230 frontend tests, 133 backend tests/health checks and a feature-enabled Vite compilation pass. The prepared real React/JWT/router/service browser contract is pending CI; staging database and signed-device tests remain. Both flags default off. See [SHOPPING_SYNC.md](SHOPPING_SYNC.md) and the current machine-readable dimensions in [project-status.json](project-status.json).
+
+Native run 40945137170 on source d827f0a passes visible-content assertions. Home/Search captures were inspected; Categories was still loading and is QA material, not an approved store listing screenshot. No public release, production feature activation or transaction was performed.

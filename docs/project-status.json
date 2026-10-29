@@ -9,7 +9,9 @@
     "frontendUnit": 218,
     "backendBaselineUnit": 116,
     "backendAfterStartupFix": 120,
-    "nativeRun": 40918975665
+    "nativeRun": 40918975665,
+    "currentFrontendUnit": 230,
+    "currentBackendUnit": 133
   },
   "scope": "Initial evidence-based audit. A passing mocked test is not a real payment, supplier handoff or physical-device result. No spending, messages, production change or store submission performed.",
   "tasks": [
@@ -143,8 +145,8 @@
       "id": 8,
       "task": "iPhone application",
       "status": "Partially complete",
-      "evidence": "PR19 head154684c; native XCTest run40918975665 passes; exported screenshots are blank",
-      "remaining": "Fix/verify visible native rendering; real login/payment/lifecycle and signed-device QA",
+      "evidence": "Native XCTest d827f0a run40945137170 succeeds, including nonblank-content assertions; Home/Search captures inspected.",
+      "remaining": "Categories capture is still loading and is QA-only; signed-device/provider/payment checks and final store screenshots remain.",
       "priority": "P1",
       "dependency": "Mac CI available; signing/provider configuration and iPhone",
       "acceptance": "Visible, functional shopping journey on supported real iPhones",
@@ -232,16 +234,16 @@
     {
       "id": 13,
       "task": "Shared cart/wishlist",
-      "status": "Not implemented",
-      "evidence": "StoreContext.jsx and shopperStorage.js use local account-scoped storage; no shopping-state API/model",
-      "remaining": "Implement authenticated shared lists, guest merge, variant quantities and offline conflict handling",
+      "status": "Implemented — verification pending",
+      "evidence": "ShoppingState/ShoppingOperation; shoppingState.js; shoppingJournal.js; shoppingSync.js; 12 client regressions and backend JWT/HTTP/domain tests",
+      "remaining": "Run the prepared browser/API contract, staging replica-set races/TTL/deletion and signed-device recovery; both flags remain off.",
       "priority": "P1",
       "dependency": "Implementation available; staging verification later",
       "acceptance": "Two devices converge without losing another account's or concurrent edits",
       "verification": {
-        "code": "Not implemented",
-        "automated": "Not established for the complete work area",
-        "deployment": "Not deployed/released for this work area",
+        "code": "Implemented — verification pending",
+        "automated": "230 frontend / 133 backend tests pass; feature-enabled Vite compilation passes; new full UI/API contract pending CI.",
+        "deployment": "Default off; neither server nor client feature deployed/enabled.",
         "realDevice": "Not verified",
         "production": "No authenticated or transactional production verification",
         "publicRelease": "No public mobile or new audit release"
@@ -542,6 +544,12 @@
       "status": "Implemented — verification pending",
       "change": "Await User, Order and GuestCheckoutSession indexes before opening HTTP listener; four regressions fail before and pass after.",
       "verification": "Backend health check and 120 unit tests pass; staging index/build/rollback still required."
+    },
+    {
+      "area": 13,
+      "status": "Implemented — verification pending",
+      "change": "Gated shared cart/wishlist with atomic receipts, durable guest/offline journal, account isolation, deletion cleanup and explicit conflict review.",
+      "verification": "12 client synchronization tests; 133 backend total; 230 frontend total; feature-enabled Vite build. Browser/API and real database/device verification pending."
     }
   ],
   "nextThree": [

@@ -4,6 +4,7 @@ import { useStore } from "../context/StoreContext.jsx";
 import { filterProducts } from "../utils/catalog.js";
 import ProductCard from "../components/ProductCard.jsx";
 import EmptyState from "../components/EmptyState.jsx";
+import ShoppingSyncNotice from "../components/ShoppingSyncNotice.jsx";
 export default function WishlistPage() {
   const { wishlist } = useStore(),
     [search, setSearch] = useState(""),
@@ -11,9 +12,9 @@ export default function WishlistPage() {
     [available, setAvailable] = useState(false);
   if (!wishlist.length)
     return (
-      <EmptyState title="Your wishlist is waiting">
+      <><ShoppingSyncNotice standalone/><EmptyState title="Your wishlist is waiting">
         Save the gear you love using the heart on any product.
-      </EmptyState>
+      </EmptyState></>
     );
   const result = filterProducts(
     wishlist,
@@ -25,6 +26,7 @@ export default function WishlistPage() {
   );
   return (
     <div className="page">
+      <ShoppingSyncNotice />
       <div className="page-heading">
         <h1>
           My wishlist <span>{wishlist.length} items</span>
