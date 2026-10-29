@@ -40,15 +40,17 @@ await context.addInitScript(() => {
 const page = await context.newPage();
 const errors = [], results = [], expectedOfflineNetworkErrors = [];
 let offlineSimulation = false;
+let phase = "setup";
 page.on("pageerror", error => {
   // WebKit exposes a failed in-flight fetch as a page error while network is
   // deliberately disabled, even for a same-origin intercepted fixture request.
   if (offlineSimulation && /\/api\/auth\/me due to access control checks\.$/.test(error.message)) {
     expectedOfflineNetworkErrors.push(error.message);
-  } else errors.push(error.message);
+  } else { errors.push({ phase, message: error.message, stack: error.stack }); console.error("Unexpected WebKit page error", phase, error.stack); }
 });
 await fs.mkdir("test-results/ios-browser", { recursive: true });
 async function check(name, operation) {
+  phase = name;
   try { await operation(); results.push({ name, passed: true }); console.log("PASS", name); }
   catch (error) { results.push({ name, passed: false, error: error.stack }); console.error("FAIL", name, error.stack); }
 }
@@ -72,8 +74,10 @@ try {
     assert.deepEqual(authorization, { code: "single-use-fixture", name: "Preview Customer", challenge: "fixture-challenge" });
     assert.equal(await page.evaluate(() => localStorage.getItem("gymdrobe-auth-token")), null);
     assert.equal(await page.evaluate(() => sessionStorage.getItem("fixture-keychain")), "ios-session-fixture");
+    await page.waitForLoadState("networkidle");
     await page.reload();
     await page.getByRole("button", { name: "Sign out", exact: true }).waitFor();
+    await page.waitForLoadState("networkidle");
   });
   await check("offline messaging preserves the session and app links reject payment results", async () => {
     offlineSimulation = true;
@@ -86,6 +90,7 @@ try {
     await context.setOffline(false);
     await recovered;
     await page.getByRole("button", { name: "Sign out", exact: true }).waitFor();
+    await page.waitForLoadState("networkidle");
     offlineSimulation = false;
     const before = page.url();
     await page.waitForFunction(() => Boolean(window.__nativeListeners.appUrlOpen));
@@ -95,6 +100,7 @@ try {
     await page.waitForURL(/\/categories$/);
   });
   await check("logout removes the secure session", async () => {
+    await page.waitForLoadState("networkidle");
     await page.goto(f.url + "/account");
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
     await page.waitForURL(/\/login/);
@@ -108,6 +114,7 @@ try {
       if (route.request().method() === "DELETE") { deletions++; assert.equal(route.request().postDataJSON().confirmation, "DELETE"); }
       return route.fulfill({ json: { success: true, enabled: true, deleted: true, retentionNotice: "Fixture financial-record retention notice for testing only." } });
     });
+    await page.waitForLoadState("networkidle");
     await page.goto(f.url + "/account/security");
     await page.getByRole("button", { name: "Delete my account", exact: true }).click();
     await page.getByLabel("Type DELETE to confirm", { exact: true }).fill("DELETE");
