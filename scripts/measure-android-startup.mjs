@@ -7,7 +7,9 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const output = process.argv[2];
 if (!output) throw new Error('Pass an output JSON path');
 const samples = [];
-for (let run = 1; run <= 3; run++) {
+// Keep the paired sample short: software H.264 decoding in this emulator can
+// stop responding after repeated process launches. Retain every completed sample.
+for (let run = 1; run <= 2; run++) {
   adb('shell', 'am', 'force-stop', 'com.gymdrobe.app');
   const cold = adb('shell', 'am', 'start', '-W', '-n', 'com.gymdrobe.app/.MainActivity');
   let target;
@@ -61,6 +63,7 @@ for (let run = 1; run <= 3; run++) {
     const timing = value => Object.fromEntries([...value.matchAll(/^(ThisTime|TotalTime|WaitTime):\s*(\d+)/gm)].map(match => [match[1], Number(match[2])]));
     samples.push({ run, coldActivity: timing(cold), warmActivity: timing(warm), webview: page });
     console.log('ANDROID_STARTUP_SAMPLE', JSON.stringify(samples.at(-1)));
+    await fs.writeFile(output, JSON.stringify({ complete: samples.length === 2, conditions: 'API 35 x86_64 emulator; two force-stop process-cold launches and HOME/activity resumes. WebView FCP excludes native startup; am start timings exclude full web rendering. Internet catalog not awaited. Not a physical-phone benchmark.', samples }, null, 2));
+    await evaluate(`document.querySelector('video')?.pause(); true`);
   } finally { socket.close(); }
 }
-await fs.writeFile(output, JSON.stringify({ conditions: 'API 35 x86_64 emulator; three force-stop process-cold launches and HOME/activity resumes. WebView FCP excludes native startup; am start timings exclude full web rendering. Internet catalog not awaited. Not a physical-phone benchmark.', samples }, null, 2));
