@@ -5,52 +5,7 @@ import { useCatalog } from "../context/CatalogContext.jsx";
 import { getDiscountedPrice } from "../utils/productPricing.js";
 import { getTotalStock } from "../utils/cartUtils.js";
 import { returnPolicyMarkup } from "../utils/returnPolicy.js";
-
-const DEFAULT_DESCRIPTION =
-  "Discover training clothing, gym shoes and workout essentials at GymDrobe. Everything you need for every workout.";
-
-const DEFAULT_SHARE_IMAGE = "/gymdrobe-share-v1.png";
-
-const PAGES = {
-  "/install": {
-    title: "Install GymDrobe | Your Fitness Store",
-    description: "Add GymDrobe to your home screen for quick access to fitness essentials, your shopping bag and orders.",
-  },
-  "/": {
-    title: "GymDrobe | Everything for Every Workout",
-    description: DEFAULT_DESCRIPTION,
-  },
-
-  "/shop": {
-    title: "Shop Gym Clothing & Workout Essentials | GymDrobe",
-
-    description:
-      "Explore gym clothing, shoes, bags and workout essentials at GymDrobe. Browse products, compare options and find gear for your next workout.",
-  },
-
-  "/offers": {
-    title: "Offers & Coupons | GymDrobe",
-
-    description:
-      "Explore current GymDrobe offers on gym clothing and workout essentials.",
-  },
-
-  "/help": {
-    title: "Shopping Help | GymDrobe",
-
-    description:
-      "Find help with shopping, delivery, payments and orders at GymDrobe.",
-  },
-};
-
-function cleanText(value) {
-  return typeof value === "string"
-    ? value
-        .replace(/<[^>]*>/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-    : "";
-}
+import { DEFAULT_DESCRIPTION, DEFAULT_SHARE_IMAGE, PAGES, cleanText, getImages } from "../utils/seoMetadata.js";
 
 function setMeta(name, content, property = false) {
   const attribute = property ? "property" : "name";
@@ -102,37 +57,6 @@ function getSiteOrigin() {
   }
 
   return fallback;
-}
-
-function getImages(product, origin) {
-  const sources = [
-    product.image,
-
-    ...(Array.isArray(product.images)
-      ? product.images
-      : []),
-  ];
-
-  const images = sources.flatMap((source) => {
-    if (
-      typeof source !== "string" ||
-      !source.trim()
-    ) {
-      return [];
-    }
-
-    try {
-      const url = new URL(source.trim(), origin);
-
-      return ["https:", "http:"].includes(url.protocol)
-        ? [url.href]
-        : [];
-    } catch {
-      return [];
-    }
-  });
-
-  return [...new Set(images)];
 }
 
 function updateCanonical(url) {

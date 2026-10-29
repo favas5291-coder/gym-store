@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { publicCatalogueSnapshot, snapshotFile } from "./storefront-documents.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const root = path.resolve(path.dirname(scriptPath), "..");
@@ -230,6 +231,7 @@ export async function main() {
   }
 
   const xml = buildSitemap(origin, data.products);
+  const snapshot = publicCatalogueSnapshot(origin, data.products);
 
   const robots = [
     "User-agent: *",
@@ -243,6 +245,8 @@ export async function main() {
   await fs.mkdir(publicDirectory, { recursive: true });
   await writeAtomically("sitemap.xml", xml);
   await writeAtomically("robots.txt", robots);
+  await fs.mkdir(path.dirname(snapshotFile), { recursive: true });
+  await fs.writeFile(snapshotFile, JSON.stringify(snapshot), "utf8");
 
   console.log(
     "Generated public/sitemap.xml and public/robots.txt.",
