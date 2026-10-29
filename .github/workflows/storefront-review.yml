@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: favas5291-coder/gym-drobe-backend
-          ref: 53b4c483ab43ed667af768c4d65ef8252112a17a
+          ref: 02145e12c1acf91fe061b96f40c6d55b109364ac
           path: .qa-shopping-backend
       - name: Install isolated shopping API test dependencies
         run: npm ci --ignore-scripts --prefix .qa-shopping-backend
@@ -48,6 +48,10 @@ jobs:
         env:
           GYMDROBE_SHOPPING_BACKEND_DIR: .qa-shopping-backend
         run: node tests/shopping-sync-browser.mjs
+      - name: Opt-in native order notification UI and actual JWT API contract
+        env:
+          GYMDROBE_SHOPPING_BACKEND_DIR: .qa-shopping-backend
+        run: node tests/order-push-browser.mjs
       - name: Storefront interactions and responsive screenshots
         run: npm run test:storefront
       - name: PWA install, offline recovery and update checks
@@ -66,6 +70,12 @@ jobs:
         with:
           name: shared-shopping-review
           path: test-results/shopping-sync/
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: order-notification-review
+          path: test-results/notifications/
           retention-days: 14
       - uses: actions/upload-artifact@v4
         if: always()

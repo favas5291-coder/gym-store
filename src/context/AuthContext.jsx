@@ -17,6 +17,7 @@ import {
 import { isNativeApp } from "../native/platform.js";
 import { sessionStorage } from "../native/session.js";
 import { clearNativeGoogleSession } from "../native/google.js";
+import { stopOrderPushSession } from "../native/orderPush.js";
 import { shoppingSyncEnabled, initializeShoppingJournal, appendShopping, compactShopping, shoppingChanges } from "../utils/shoppingJournal.js";
 
 import {
@@ -290,6 +291,7 @@ export default function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     sessionRevision.current += 1;
+    void stopOrderPushSession();
     const removed = await sessionStorage().write(null);
 
     sessionRevision.current += 1;

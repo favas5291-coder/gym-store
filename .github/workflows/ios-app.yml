@@ -54,6 +54,14 @@ jobs:
         run: |
           ditto -c -k --sequesterRsrc --keepParent ios/DerivedData/Build/Products/Debug-iphonesimulator/App.app test-results/ios/GymDrobe-iPhone-Simulator.zip
           shasum -a 256 test-results/ios/GymDrobe-iPhone-Simulator.zip > test-results/ios/SHA256SUMS.txt
+      - name: Compile the opt-in push bridge without registering or sending
+        env:
+          VITE_PUSH_ENABLED: 'true'
+          VITE_APNS_ENVIRONMENT: sandbox
+        run: |
+          npm run ios:sync
+          set -o pipefail
+          xcodebuild -quiet -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/DerivedDataPush CODE_SIGNING_ALLOWED=NO build 2>&1 | tee test-results/ios/push-bridge-build.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
