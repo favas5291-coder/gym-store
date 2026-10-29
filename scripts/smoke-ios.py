@@ -26,9 +26,5 @@ launch = command("xcrun", "simctl", "launch", "--stdout=" + str((OUTPUT / "runti
 elapsed = round((time.monotonic() - start) * 1000)
 time.sleep(18)
 subprocess.run(["xcrun", "simctl", "io", udid, "screenshot", str(OUTPUT / "iphone-home.png")], check=True)
-# UI tests tap the actual tab controls. A custom-link open can display iOS's
-# confirmation alert, so a screenshot of that dialog does not verify routing.
-subprocess.run(["xcodebuild", "-quiet", "-project", "ios/App/App.xcodeproj", "-scheme", "App", "-configuration", "Debug", "-destination", f"platform=iOS Simulator,id={udid}", "-derivedDataPath", "ios/DerivedData", "-resultBundlePath", str(OUTPUT / "Shopping.xcresult"), "CODE_SIGNING_ALLOWED=NO", "test"], check=True, timeout=360)
-subprocess.run(["xcrun", "xcresulttool", "export", "attachments", "--path", str(OUTPUT / "Shopping.xcresult"), "--output-path", str(OUTPUT / "ui-screenshots")], check=True, timeout=60)
-(OUTPUT / "simulator.json").write_text(json.dumps({"device": phone["name"], "runtime": runtime, "launch": launch, "launchCommandMs": elapsed, "note": "Launch command timing is not WebView FCP/LCP. Screenshots require visual review; no real login or transaction performed."}, indent=2))
+(OUTPUT / "simulator.json").write_text(json.dumps({"udid": udid, "device": phone["name"], "runtime": runtime, "launch": launch, "launchCommandMs": elapsed, "note": "Launch command timing is not WebView FCP/LCP. Screenshot requires visual review; no real login or transaction performed. Native tab tests run in a separate step."}, indent=2))
 print("iPhone simulator application installed, launched and captured.")

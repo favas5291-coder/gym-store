@@ -9,6 +9,7 @@ export default function AccountDeletionSection() {
   const navigate = useNavigate();
   const [policy, setPolicy] = useState(null);
   const [confirmation, setConfirmation] = useState("");
+  const [deletedNotice, setDeletedNotice] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const locked = useRef(false);
@@ -29,12 +30,21 @@ export default function AccountDeletionSection() {
     try {
       const result = await deleteAccount(token, confirmation);
       if (result.deleted !== true) throw new Error("Deletion was not confirmed. Please retry.");
+      setDeletedNotice(result.retentionNotice || policy.retentionNotice);
       try { clearDeletedAccountData(user); } catch { /* Server deletion already succeeded. */ }
       await logout();
       navigate("/login", { replace: true });
     } catch (failure) { setError(failure.message); }
     finally { locked.current = false; setBusy(false); }
   }
+  if (deletedNotice !== null) return <section className="panel" style={{ marginTop: 20 }}>
+    <h3>Your GymDrobe account was deleted</h3><p>{deletedNotice}</p>
+    {error && <p role="alert">Your account is deleted. Unlock your device and retry signing out to clear this device’s session.</p>}
+    <button type="button" className="button secondary" disabled={busy} onClick={async () => {
+      setBusy(true);
+      try { await logout(); navigate("/login", { replace: true }); } catch { setError("Unable to clear this device’s session."); } finally { setBusy(false); }
+    }}>Clear session and continue</button>
+  </section>;
   return <section className="panel" style={{ marginTop: 20 }} aria-busy={busy}>
     <p className="eyebrow">ACCOUNT DELETION</p><h3>Delete your GymDrobe account</h3>
     <p className="muted">Permanently remove your profile, saved addresses, reviews and support conversations. Your sessions will stop working. This does not cancel an order or request a refund.</p>

@@ -12,7 +12,7 @@ Status: development milestone, not approved or ready for App Store submission. W
 | App navigation | Five customer tabs, compact header with persistent bag, dedicated categories/search, offline notice, safe-area handling, keyboard-hidden tabs and native navigation gestures. |
 | Login | Existing Google web audience retained. iOS now requires its own Google OAuth client and URL scheme. Apple native authorization and backend verification added behind configuration gates. Neither iPhone provider was tested with real credentials. |
 | Session | iOS JWT moves to device-only Keychain, accessible when unlocked; serialized writes prevent logout/write races. Web/Android keep existing storage. Keychain may survive an iOS reinstall. |
-| Payments | Official Razorpay iOS SDK 1.5.9 via SwiftPM, local bridge, duplicate-open guard, same gateway order validation, existing backend signature/status verification. No private Razorpay keys in client. Interrupted checkout retains existing recovery path. |
+| Payments | Official Razorpay iOS SDK 1.5.9 via SwiftPM, local bridge, duplicate-open guard, same gateway order validation, existing backend signature/status verification. No private Razorpay keys in client. The provider-documented UPI query schemes enable discovery of Google Pay, PhonePe, Paytm, CRED, BHIM and Amazon Pay; successful external-app return still needs signed-device testing. Interrupted checkout retains existing recovery path. |
 | Sharing/links | Native share uses public HTTPS product URLs. Custom URL handler accepts allowlisted customer paths and drops credentials/payment results. Universal-link entitlements added; domain association still requires the owner's real Team ID and deployment. |
 | Account deletion | In-app confirmation plus backend permanent profile/address/review/support deletion, recent-login check and Apple token revocation. Disabled until the business supplies an accurate retention notice and staging tests pass. Financial/order records are retained, not silently erased. |
 | Device shopping data | Cart/wishlist/watch/local support data currently live on each device/browser under customer-scoped keys. Signing into two devices does **not** currently synchronize those lists. Server-backed shopping-state synchronization is outstanding. |
@@ -112,6 +112,7 @@ Keep the existing Android Capacitor project. Reuse shared React/API/validation a
 - Xcode/SDK upload requirements: https://developer.apple.com/news/upcoming-requirements/
 - Capacitor iOS/tooling: https://capacitorjs.com/docs/ios and https://capacitorjs.com/docs/getting-started/environment-setup
 - Required third-party SDK privacy information: https://developer.apple.com/support/third-party-SDK-requirements/
+- Razorpay UPI integration requirements: https://tfs.np.razorpay.in/docs/payments/payment-methods/upi/upi-intent
 - Official Razorpay Swift package: https://github.com/razorpay/razorpay-pod/tree/1.5.9
 
 These are implementation/release gates, not a claim of Apple approval or complete compliance.

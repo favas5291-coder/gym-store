@@ -65,6 +65,7 @@
 	<true/>
   <key>NSCameraUsageDescription</key><string>Take a photo for virtual try-on when you choose to use the camera.</string>
   <key>NSPhotoLibraryUsageDescription</key><string>Choose your photo for virtual try-on.</string>
+  <key>LSApplicationQueriesSchemes</key><array><string>tez</string><string>phonepe</string><string>paytmmp</string><string>credpay</string><string>bhim</string><string>amazonpay</string></array>
   <!-- GYMDROBE_URLS_START -->
 <key>CFBundleURLTypes</key><array><dict><key>CFBundleURLSchemes</key><array><string>gymdrobe</string></array></dict></array>
 <!-- GYMDROBE_URLS_END -->

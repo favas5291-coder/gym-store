@@ -29,7 +29,7 @@ await context.addInitScript(() => {
       if (plugin === "GymDrobeSecureSession") {
         if (method === "read") return { token: sessionStorage.getItem("fixture-keychain") };
         if (method === "write") sessionStorage.setItem("fixture-keychain", options.token);
-        if (method === "clear") sessionStorage.removeItem("fixture-keychain");
+        if (method === "clear") { if (window.__lockedKeychain) throw new Error("Device locked"); sessionStorage.removeItem("fixture-keychain"); }
       }
       if (plugin === "GymDrobeAppleSignIn") return { code: "single-use-fixture", name: "Preview Customer" };
       return {};
@@ -81,6 +81,27 @@ try {
   await check("logout removes the secure session", async () => {
     await page.goto(f.url + "/account");
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
+    await page.waitForURL(/\/login/);
+    assert.equal(await page.evaluate(() => sessionStorage.getItem("fixture-keychain")), null);
+  });
+  await check("deleted-account confirmation survives a temporary Keychain logout failure", async () => {
+    await page.getByRole("button", { name: "Continue with Apple" }).click();
+    await page.waitForURL(/\/account$/);
+    let deletions = 0;
+    await context.route("**/api/auth/account-deletion", route => {
+      if (route.request().method() === "DELETE") { deletions++; assert.equal(route.request().postDataJSON().confirmation, "DELETE"); }
+      return route.fulfill({ json: { success: true, enabled: true, deleted: true, retentionNotice: "Fixture financial-record retention notice for testing only." } });
+    });
+    await page.goto(f.url + "/account/security");
+    await page.getByRole("button", { name: "Delete my account", exact: true }).click();
+    await page.getByLabel("Type DELETE to confirm", { exact: true }).fill("DELETE");
+    await page.evaluate(() => { window.__lockedKeychain = true; });
+    await page.getByRole("button", { name: "Permanently delete account", exact: true }).click();
+    await page.getByRole("heading", { name: "Your GymDrobe account was deleted" }).waitFor();
+    assert.equal(deletions, 1);
+    assert.equal(await page.getByRole("button", { name: "Permanently delete account", exact: true }).count(), 0);
+    await page.evaluate(() => { window.__lockedKeychain = false; });
+    await page.getByRole("button", { name: "Clear session and continue" }).click();
     await page.waitForURL(/\/login/);
     assert.equal(await page.evaluate(() => sessionStorage.getItem("fixture-keychain")), null);
   });

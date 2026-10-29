@@ -37,6 +37,7 @@ jobs:
       - run: npm run doctor && npm test
       - run: npm run ios:sync
       - name: Compile unsigned simulator application
+        id: compile
         run: |
           set -o pipefail
           mkdir -p test-results/ios
@@ -45,7 +46,11 @@ jobs:
         timeout-minutes: 8
         run: |
           python3 scripts/smoke-ios.py
+      - name: Native iPhone shopping tab tests
+        timeout-minutes: 10
+        run: python3 scripts/test-ios-ui.py
       - name: Package simulator build (requires a Mac; not installable on a physical iPhone)
+        if: always() && steps.compile.outcome == 'success'
         run: |
           ditto -c -k --sequesterRsrc --keepParent ios/DerivedData/Build/Products/Debug-iphonesimulator/App.app test-results/ios/GymDrobe-iPhone-Simulator.zip
           shasum -a 256 test-results/ios/GymDrobe-iPhone-Simulator.zip > test-results/ios/SHA256SUMS.txt
