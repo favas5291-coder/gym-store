@@ -61,11 +61,16 @@ try {
     headings: [...document.querySelectorAll('h1,h2')].map(el => el.textContent),
     nativeLoginVisible: [...document.querySelectorAll('.native-google-signin')].some(el => el.getClientRects().length > 0),
     appLinkSeen: window.__gymdrobeSmokeLink,
+    appLinkParsed: window.__gymdrobeSmokeParsed,
   })`);
   state = await snapshot();
   console.log("ANDROID_INITIAL", JSON.stringify(state));
   // Observe the real Android event as well as the resulting router navigation.
-  await evaluate(`window.Capacitor.Plugins.App.addListener('appUrlOpen', event => { window.__gymdrobeSmokeLink = event.url; }); true`);
+  await evaluate(`window.Capacitor.Plugins.App.addListener('appUrlOpen', event => {
+    window.__gymdrobeSmokeLink = event.url;
+    try { const url = new URL(event.url); window.__gymdrobeSmokeParsed = { protocol: url.protocol, hostname: url.hostname, pathname: url.pathname, port: url.port }; }
+    catch (error) { window.__gymdrobeSmokeParsed = { error: error.message }; }
+  }); true`);
   adb("shell", "am", "start", "-W", "-a", "android.intent.action.VIEW", "-d", "gymdrobe://app/login", "com.gymdrobe.app");
   for (let attempt = 0; attempt < 40; attempt++) {
     state = await snapshot();
@@ -76,6 +81,26 @@ try {
   assert.equal(state.native, true, "APK must use the native Capacitor bridge");
   assert.equal(new URL(state.href).pathname, "/login", "Android app link must navigate to login");
   assert.equal(state.nativeLoginVisible, true, "Native Google sign-in button must be visible");
+  adb("shell", "am", "start", "-W", "-a", "android.intent.action.VIEW", "-d", "gymdrobe://app/shop?search=shoes", "com.gymdrobe.app");
+  for (let attempt = 0; attempt < 20; attempt++) {
+    state = await snapshot();
+    if (new URL(state.href).pathname === "/shop") break;
+    await delay(500);
+  }
+  assert.equal(new URL(state.href).pathname, "/shop", "Android shop links must navigate");
+  assert.equal(new URL(state.href).searchParams.get("search"), "shoes", "Shop links must retain allowed filters");
+  adb("shell", "am", "start", "-W", "-a", "android.intent.action.VIEW", "-d", "gymdrobe://app/login", "com.gymdrobe.app");
+  for (let attempt = 0; attempt < 20; attempt++) {
+    state = await snapshot();
+    if (new URL(state.href).pathname === "/login" && state.nativeLoginVisible) break;
+    await delay(500);
+  }
+  assert.equal(new URL(state.href).pathname, "/login");
+  adb("shell", "am", "start", "-W", "-a", "android.intent.action.VIEW", "-d", "gymdrobe://app/order-success?paid=true", "com.gymdrobe.app");
+  await delay(500);
+  state = await snapshot();
+  assert.equal(new URL(state.href).pathname, "/login", "An app link cannot claim payment success");
+  console.log("ANDROID_LINKS_PASS", JSON.stringify({ route: new URL(state.href).pathname, nativeLoginVisible: state.nativeLoginVisible }));
 } finally {
   await fs.writeFile(`${output}/webview-state.json`, JSON.stringify({ state, messages }, null, 2));
   socket?.close();
