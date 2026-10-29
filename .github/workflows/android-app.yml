@@ -5,6 +5,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: android-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
@@ -44,6 +45,14 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+      - name: Download the previously installed test APK for comparison
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl --fail --location --silent --show-error -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" https://api.github.com/repos/favas5291-coder/gym-store/actions/artifacts/12874075689/zip -o /tmp/gymdrobe-baseline.zip
+          mkdir -p /tmp/gymdrobe-baseline
+          unzip -q /tmp/gymdrobe-baseline.zip GymDrobe-debug.apk -d /tmp/gymdrobe-baseline
       - name: Install and launch the Android APK
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -54,7 +63,9 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           script: |
+            if [ -f /tmp/gymdrobe-baseline/GymDrobe-debug.apk ]; then adb install -r /tmp/gymdrobe-baseline/GymDrobe-debug.apk && node scripts/measure-android-startup.mjs test-results/android/startup-before.json; else echo 'Baseline artifact unavailable; no before comparison can be claimed.' > test-results/android/baseline-unavailable.txt; fi
             adb install -r test-results/android/GymDrobe-debug.apk
+            node scripts/measure-android-startup.mjs test-results/android/startup-after.json
             adb logcat -c
             adb shell am start -W -n com.gymdrobe.app/.MainActivity
             sleep 8

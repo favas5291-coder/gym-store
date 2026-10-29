@@ -38,18 +38,6 @@ import {
 
 import { resolveCoupon } from "../utils/orderCalculations.js";
 
-import {
-  getFitnessKit,
-  quoteFitnessKit,
-} from "../services/kitApi.js";
-
-import {
-  prepareKitCart,
-  kitGroupSignature,
-} from "../utils/kitCart.js";
-
-import { inspectKitSelections } from "../utils/kitBuilder.js";
-
 const StoreContext = createContext(null);
 
 function readArray(key) {
@@ -849,22 +837,26 @@ function ScopedStoreProvider({
     const bagSignature = JSON.stringify(before);
     const replacing = Boolean(groupId);
 
-    if (
-      replacing &&
-      (
-        !expectedGroupSignature ||
-        kitGroupSignature(before, groupId) !==
-          expectedGroupSignature
-      )
-    ) {
-      throw new Error(
-        "This kit changed in your bag. Reopen it before saving edits.",
-      );
-    }
-
     kitSaveLock.current = true;
 
     try {
+      // Ordinary browsing and bag operations do not need the kit builder.
+      // Lock before importing so two quick saves cannot race during loading.
+      const [
+        { getFitnessKit, quoteFitnessKit },
+        { prepareKitCart, kitGroupSignature },
+        { inspectKitSelections },
+      ] = await Promise.all([
+        import("../services/kitApi.js"),
+        import("../utils/kitCart.js"),
+        import("../utils/kitBuilder.js"),
+      ]);
+
+      if (replacing && (!expectedGroupSignature ||
+          kitGroupSignature(before, groupId) !== expectedGroupSignature)) {
+        throw new Error("This kit changed in your bag. Reopen it before saving edits.");
+      }
+
       const data = await getFitnessKit(kitId);
 
       if (data.kit.version !== version) {

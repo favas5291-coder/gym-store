@@ -42,6 +42,15 @@ export default function ProductCard({
 }) {
   const item = product || legacy;
   const [cardColor, setCardColor] = useState(null);
+  const [previewAlternate, setPreviewAlternate] = useState(false);
+
+  function warmAlternate() {
+    // Touch layouts never display the hover photo. Keep its URL out of the
+    // DOM until a mouse or keyboard user actually approaches this card.
+    if (window.matchMedia("(hover: hover)").matches) {
+      setPreviewAlternate(true);
+    }
+  }
 
   const [quickColor, setQuickColor] =
     useState(null);
@@ -118,7 +127,7 @@ export default function ProductCard({
       : initialQuickColor;
 
   return (
-    <article className="gm-product-card">
+    <article className="gm-product-card" onMouseEnter={warmAlternate} onFocus={warmAlternate}>
       <div className="gm-product-visual">
         <Link
           className="gm-product-image"
@@ -127,7 +136,7 @@ export default function ProductCard({
         >
           <ProductImage product={{ ...item, selectedColor: cardColor || item.selectedColor }} />
 
-          {alternateImage && (
+          {alternateImage && previewAlternate && (
             <ProductImage
               className="alternate-photo"
               product={{

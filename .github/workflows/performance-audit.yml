@@ -1,0 +1,43 @@
+name: Before and after performance audit
+on:
+  pull_request:
+    paths: ['src/**', 'index.html', 'vite.config.js', 'tests/performance-audit.mjs', '.github/workflows/performance-audit.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VITE_API_URL: https://gym-drobe-backend.onrender.com/api
+      VITE_SITE_URL: https://www.gymdrobe.com
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm install --no-save --package-lock=false playwright@1.62.1
+      - run: npx playwright install --with-deps chromium
+      - name: Measure installed APK source baseline
+        run: |
+          git worktree add --detach /tmp/gymdrobe-before 6546ec5a063a193b56198b56b82528c80a7bb9df
+          cp tests/performance-audit.mjs /tmp/gymdrobe-before/tests/performance-audit.mjs
+          cd /tmp/gymdrobe-before
+          npm ci --ignore-scripts
+          npm run build
+          GYMDROBE_PLAYWRIGHT_MODULE="$GITHUB_WORKSPACE/node_modules/playwright/index.mjs" PERFORMANCE_OUTPUT="$GITHUB_WORKSPACE/test-results/performance/before" node tests/performance-audit.mjs
+      - name: Measure candidate with the same fixtures and browser
+        run: |
+          npm run build
+          PERFORMANCE_ASSERT=1 PERFORMANCE_OUTPUT=test-results/performance/after node tests/performance-audit.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-comparison
+          path: test-results/performance
+          retention-days: 30

@@ -5,7 +5,6 @@ import AuthProvider from "./context/AuthContext.jsx";
 import App from "./App.jsx";
 import PwaProvider from "./context/PwaContext.jsx";
 
-import "./tryon.css";
 import "./style.css";
 import "./features.css";
 import "./mobile-commerce.css";
