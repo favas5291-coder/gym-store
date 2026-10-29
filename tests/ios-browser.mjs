@@ -40,11 +40,13 @@ await context.addInitScript(() => {
 const page = await context.newPage();
 const errors = [], results = [], expectedOfflineNetworkErrors = [];
 let offlineSimulation = false;
+let keychainFailureInjected = false;
 let phase = "setup";
 page.on("pageerror", error => {
   // WebKit exposes a failed in-flight fetch as a page error while network is
-  // deliberately disabled, even for a same-origin intercepted fixture request.
-  if (offlineSimulation && /\/api\/auth\/me due to access control checks\.$/.test(error.message)) {
+  // deliberately disabled or a secure-session reset is interrupted. Track that
+  // exact request separately while the corresponding fault is being injected.
+  if ((offlineSimulation || keychainFailureInjected) && /\/api\/auth\/me due to access control checks\.$/.test(error.message)) {
     expectedOfflineNetworkErrors.push(error.message);
   } else { errors.push({ phase, message: error.message, stack: error.stack }); console.error("Unexpected WebKit page error", phase, error.stack); }
 });
@@ -118,6 +120,7 @@ try {
     await page.goto(f.url + "/account/security");
     await page.getByRole("button", { name: "Delete my account", exact: true }).click();
     await page.getByLabel("Type DELETE to confirm", { exact: true }).fill("DELETE");
+    keychainFailureInjected = true;
     await page.evaluate(() => { window.__lockedKeychain = true; });
     await page.getByRole("button", { name: "Permanently delete account", exact: true }).click();
     await page.getByRole("heading", { name: "Your GymDrobe account was deleted" }).waitFor();
@@ -127,6 +130,7 @@ try {
     await page.getByRole("button", { name: "Clear session and continue" }).click();
     await page.waitForURL(/\/login/);
     assert.equal(await page.evaluate(() => sessionStorage.getItem("fixture-keychain")), null);
+    keychainFailureInjected = false;
   });
   assert.deepEqual(errors, []);
 } finally {
