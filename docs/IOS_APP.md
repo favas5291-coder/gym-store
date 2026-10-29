@@ -55,6 +55,12 @@ The simulator ZIP contains a `.app` for macOS Simulator. It is **not** an IPA or
 | App layout/React feature/native SDK/permissions/icon | Rebuild, device-test and distribute a new store app version. Website deployment alone does not update bundled apps. |
 | Store description/screenshots | Update App Store Connect under the owner's release process; some metadata needs review. |
 
+## Observed SDK privacy declarations
+
+Inspection of the first actual simulator `.app` found privacy manifests in Capacitor/Cordova, Google sign-in and its dependencies, and RazorpayStandard. The Google manifest declares name/email/phone/user/device identifiers, coarse location and usage categories; Razorpay declares contact/address/payment/device/interaction/crash/diagnostic categories. These are SDK declarations, not a determination that every optional category is used by GymDrobe. Reconcile them against the exact enabled features and provider documentation before completing App Store privacy answers.
+
+The bundled RazorpayStandard 1.5.9 manifest includes a collected-data entry spelled `Email address` rather than Apple's `NSPrivacyCollectedDataTypeEmailAddress` identifier. Treat this as an archive validation/vendor follow-up blocker. Do not silently edit a signed vendor framework or claim the final archive passes privacy validation. Obtain a supported corrected SDK/vendor guidance and validate a signed archive before upload.
+
 ## Release gates
 
 - [ ] Owner's active Apple Developer membership, Team ID, App Store Connect app and matching identifier.
