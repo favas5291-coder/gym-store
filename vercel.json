@@ -1,6 +1,21 @@
 {
   "routes": [
     {
+      "src": "/(product/[^/]+|shop|offers|help)/$",
+      "headers": { "Location": "/$1" },
+      "status": 308
+    },
+    {
+      "src": "/(?:product/[^/]+|shop|offers|help)$",
+      "headers": { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=0, must-revalidate" },
+      "continue": true
+    },
+    {
+      "src": "/(?:account|cart|wishlist|checkout|login|orders|addresses|saved|compare|notifications|admin|supplier|dev)(?:/.*)?$",
+      "headers": { "X-Robots-Tag": "noindex, follow" },
+      "continue": true
+    },
+    {
       "src": "/(?:sw\\.js|offline\\.(?:html|js)|site\\.webmanifest)",
       "headers": {
         "Cache-Control": "public, max-age=0, must-revalidate"
