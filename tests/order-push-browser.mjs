@@ -13,7 +13,7 @@ const { startNotificationFixture } = require("./tests/helpers/notificationFixtur
 const { chromium } = await import(process.env.GYMDROBE_PLAYWRIGHT_MODULE || "playwright");
 const output = path.resolve("test-results/notifications"), results = [], errors = [];
 await fs.mkdir(output, { recursive: true });
-let backend, fixture, browser;
+let backend, fixture, browser, rollback;
 const check = async (name, work) => { try { await work(); results.push({ name, passed: true }); console.log("PASS", name); } catch (error) { results.push({ name, passed: false, error: error.stack }); throw error; } };
 try {
   backend = await startNotificationFixture(); fixture = await startStorefrontFixture(4234);
@@ -90,7 +90,43 @@ try {
   await check("notification controls cause no payment request or uncaught UI error", async () => {
     assert.equal(mock.requests.some(request => request.path.startsWith("/api/payments/")), false); assert.deepEqual(errors, []);
   });
+  await check("a build with push disabled still clears an older binding on sign-out", async () => {
+    const claimAt = Date.now() + 1000;
+    async function bind(name) {
+      const input = { installationId: crypto.randomUUID(), binding: crypto.randomUUID(), claimAt, refresh: false,
+        platform: "android", environment: "production", orderUpdates: true, token: `${name}_rollback_FCM_token_012345678901234567890123456789` };
+      const response = await fetch(backend.url + "/api/notifications/devices", { method: "POST", headers: { Authorization: `Bearer ${backend.tokens[name]}`, "Content-Type": "application/json" }, body: JSON.stringify(input) });
+      assert.equal(response.status, 200);
+      return { owner: backend.ids[name], installationId: input.installationId, binding: input.binding, claimAt, registered: true, optedIn: true, device: (await response.json()).device };
+    }
+    const saved = await bind("alice"), other = await bind("bob");
+    process.env.VITE_PUSH_ENABLED = "false";
+    rollback = await startStorefrontFixture(4236);
+    const disabled = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    await mockStorefront(disabled, rollback.products);
+    await disabled.route("**/api/notifications/**", async route => {
+      const req = route.request(), response = await fetch(backend.url + new URL(req.url()).pathname, { method: req.method(), headers: { Authorization: req.headers().authorization || "", "Content-Type": "application/json" }, body: req.postData() || undefined });
+      await route.fulfill({ status: response.status, contentType: "application/json", body: await response.text() });
+    });
+    await disabled.addInitScript(({ token, saved }) => {
+      localStorage.setItem("gymdrobe-auth-token", token); localStorage.setItem(`gymdrobe-order-push:${saved.owner}`, JSON.stringify(saved));
+      window.androidBridge = {}; window.__disabledCalls = [];
+      window.Capacitor = {
+        PluginHeaders: ["App", "Browser", "Keyboard", "SplashScreen", "SocialLogin"].map(name => ({ name, methods: [{ name: "addListener", rtype: "callback" }, ...["getLaunchUrl", "hide", "open", "logout", "removeListener"].map(name => ({ name, rtype: "promise" }))] })),
+        nativeCallback(_plugin, _method, options) { return Promise.resolve(options.eventName); },
+        async nativePromise(plugin, method) { window.__disabledCalls.push({ plugin, method }); return {}; },
+      };
+    }, { token: backend.tokens.alice, saved });
+    const phone = await disabled.newPage(); phone.on("pageerror", error => errors.push(error.message));
+    await phone.goto(rollback.url + "/account"); await phone.getByRole("button", { name: "Sign out", exact: true }).click(); await phone.waitForURL(/\/login/);
+    for (let i = 0; i < 50 && backend.devices(backend.ids.alice).some(row => row._id === saved.device && row.enabled); i++) await new Promise(resolve => setTimeout(resolve, 100));
+    assert.equal(backend.devices(backend.ids.alice).find(row => row._id === saved.device).enabled, false);
+    assert.equal(backend.devices(backend.ids.bob).find(row => row._id === other.device).enabled, true);
+    assert.equal(await phone.evaluate(() => window.__disabledCalls.some(call => call.plugin === "PushNotifications")), false);
+    assert.equal(await phone.evaluate(id => JSON.parse(localStorage.getItem(`gymdrobe-order-push:${id}`)).optedIn, backend.ids.alice), false);
+    assert.deepEqual(errors, []); await disabled.close();
+  });
 } finally {
   await fs.writeFile(path.join(output, "report.json"), JSON.stringify({ results, errors, note: "Actual React/JWT/router/domain with isolated repository and native bridge. No Mongo/provider/physical-device delivery claim." }, null, 2));
-  await browser?.close(); await fixture?.server.close(); await backend?.close();
+  await browser?.close(); await fixture?.server.close(); await rollback?.server.close(); await backend?.close();
 }

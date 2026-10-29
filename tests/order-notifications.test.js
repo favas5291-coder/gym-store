@@ -4,8 +4,37 @@ import crypto from "node:crypto";
 import { createOrderPushSession } from "../src/native/orderPushSession.js";
 import { notificationApi } from "../src/services/notificationApi.js";
 import { nativePushConfig, defaultPlugins } from "../scripts/native-push-config.mjs";
+import { captureOrderPushOptOut, finishOrderPushOptOut } from "../src/native/orderPushCleanup.js";
 
 const userId = "6ad2351ed8f991271e3d1a8b", now = 1793318400000;
+test("logout can disable a previously enabled binding when the native push feature is rolled back", async () => {
+  const rows = new Map(), storage = { getItem: key => rows.get(key), setItem: (key, value) => rows.set(key, value) };
+  const original = { owner: userId, device: "a".repeat(64), binding: crypto.randomUUID(), optedIn: true };
+  rows.set(`gymdrobe-order-push:${userId}`, JSON.stringify(original)); rows.set("gymdrobe-order-push:other", "untouched");
+  const captured = captureOrderPushOptOut(userId, storage);
+  assert.equal(JSON.parse(rows.get(`gymdrobe-order-push:${userId}`)).optedIn, false);
+  const calls = []; await finishOrderPushOptOut(captured, { disable: async value => calls.push(value) }, storage);
+  assert.deepEqual(calls, [{ device: original.device, binding: original.binding }]);
+  assert.equal(JSON.parse(rows.get(`gymdrobe-order-push:${userId}`)).pendingDisable, false);
+  assert.equal(rows.get("gymdrobe-order-push:other"), "untouched");
+});
+test("a rollback-build cleanup does not overwrite a newer opt-in or another account", async () => {
+  const rows = new Map(), storage = { getItem: key => rows.get(key), setItem: (key, value) => rows.set(key, value) };
+  const first = { owner: userId, device: "a".repeat(64), binding: crypto.randomUUID(), optedIn: true };
+  rows.set(`gymdrobe-order-push:${userId}`, JSON.stringify(first));
+  assert.equal(captureOrderPushOptOut("another-account", storage), null);
+  const captured = captureOrderPushOptOut(userId, storage), next = { ...first, binding: crypto.randomUUID(), optedIn: true };
+  rows.set(`gymdrobe-order-push:${userId}`, JSON.stringify(next));
+  await finishOrderPushOptOut(captured, { disable: async () => {} }, storage);
+  assert.deepEqual(JSON.parse(rows.get(`gymdrobe-order-push:${userId}`)), next);
+});
+test("failed rollback-build server cleanup leaves the opt-out and retry marker intact", async () => {
+  const rows = new Map(), storage = { getItem: key => rows.get(key), setItem: (key, value) => rows.set(key, value) };
+  rows.set(`gymdrobe-order-push:${userId}`, JSON.stringify({ owner: userId, device: "a".repeat(64), binding: crypto.randomUUID(), optedIn: true }));
+  const captured = captureOrderPushOptOut(userId, storage);
+  await assert.rejects(finishOrderPushOptOut(captured, { disable: async () => { throw new Error("offline"); } }, storage));
+  const saved = JSON.parse(rows.get(`gymdrobe-order-push:${userId}`)); assert.equal(saved.optedIn, false); assert.equal(saved.pendingDisable, true);
+});
 function fixture({ available = true, permission = "prompt", storage: shared, saved, delay } = {}) {
   const memory = shared || new Map(), calls = [], handlers = {}, states = [], opened = [];
   const storage = { getItem: k => memory.get(k) || null, setItem: (k, v) => memory.set(k, v) };

@@ -291,7 +291,7 @@ export default function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     sessionRevision.current += 1;
-    void stopOrderPushSession();
+    void stopOrderPushSession(user?.id || user?._id, tokenRef.current);
     const removed = await sessionStorage().write(null);
 
     sessionRevision.current += 1;
@@ -307,7 +307,7 @@ export default function AuthProvider({ children }) {
     if (isNativeApp()) await clearNativeGoogleSession();
 
     return removed;
-  }, []);
+  }, [user?.id, user?._id]);
 
   // Retained until the old account-security page is replaced.
   const changePassword = useCallback(async () => {
