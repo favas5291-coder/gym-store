@@ -18,6 +18,17 @@ try:
 finally:
     # Keep native failure captures too, without replacing the test's exit status.
     if (output / "Shopping.xcresult").exists():
+        for report in ("summary", "tests"):
+            try:
+                with (output / f"native-test-{report}.json").open("w") as destination:
+                    result = subprocess.run([
+                        "xcrun", "xcresulttool", "get", "test-results", report,
+                        "--path", str(output / "Shopping.xcresult"),
+                    ], stdout=destination, check=False, timeout=30)
+                if result.returncode:
+                    print(f"XCTest {report} export failed; inspect the result bundle.")
+            except subprocess.TimeoutExpired:
+                print(f"XCTest {report} export timed out; inspect the result bundle.")
         try:
             export = subprocess.run([
                 "xcrun", "xcresulttool", "export", "attachments", "--path", str(output / "Shopping.xcresult"),
