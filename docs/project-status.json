@@ -20,7 +20,9 @@
     "nativeReadinessRun": 41008175520,
     "androidVerifiedRun": 40960900667,
     "browserVerifiedRun": 40960900664,
-    "backendMongoRun": 40956567656
+    "backendMongoRun": 40956567656,
+    "nativeReadinessAttempt1": "Failed: Categories link absent within45s; visual wait not reached.",
+    "nativeReadinessRetryReason": "Single isolated retry to investigate unusually slow WebKit startup; not a proven infrastructure-only root cause."
   },
   "scope": "Updated 29-area audit of dependent draft branches. New code is prepared, not merged/deployed. Unit, actual browser/API and disposable Mongo results are separate from provider, physical-device, production and store-release evidence. No real charge/refund/shipment, spending, customer/supplier message or store submission performed.",
   "tasks": [
@@ -154,14 +156,14 @@
       "id": 8,
       "task": "iPhone application",
       "status": "Partially complete",
-      "evidence": "Source 4ff7dc7 iPhone run40959817521 passed loaded-category navigation and optional push compilation. Latest runtime 15bd2a3 run40960900670 failed the nonblank Home assertion (zero content pixels). PR25 keeps the threshold, waits up to15s for visible presentation and exports stronger failure diagnostics; new run41008175520 pending.",
+      "evidence": "Source4ff7dc7 iPhone run40959817521 passed loaded-category navigation and optional push compilation. Runtime15bd2a3 run40960900670 failed the nonblank Home assertion. PR25 sourceef7e1f7 run41008175520 attempt1 failed earlier at the45s Categories-existence check, so the new visual wait was not reached; logs show17–19s WebKit process startup and no completed initial navigation. One isolated retry is in progress; neither simulator delay nor app root cause is established.",
       "remaining": "Resolve/verify the latest native rendering failure; signed physical-iPhone shopping/provider/payment/deletion tests and final store screenshots.",
       "priority": "P1",
       "dependency": "Mac CI result; Apple Team/signing/provider configuration and physical iPhone",
       "acceptance": "Visible, functional shopping journey on supported real iPhones",
       "verification": {
         "code": "Partially complete",
-        "automated": "Prior4ff native pass; latest15bd blank-Home failure. PR25 timing/diagnostic CI41008175520 pending; failure remains unresolved until new evidence.",
+        "automated": "Prior4ff native pass;15bd blank-Home failure;ef7 attempt1 missing-controls failure before visual check. One isolated retry of run41008175520 is in progress; iPhone readiness remains unverified.",
         "deployment": "Existing main only; new draft audit features not merged or deployed.",
         "realDevice": "Not verified in this audit.",
         "production": "No new authenticated, transactional or provider production verification.",
@@ -582,7 +584,7 @@
       "area": 8,
       "status": "Implemented — verification pending",
       "change": "Bounded visible-frame wait retains the existing nonblank assertion and exports iPhone failure diagnostics.",
-      "verification": "249 local tests pass; native CI pending;15bd blank screenshot remains a documented failure."
+      "verification": "249 local tests and current browser/Android CI pass. Native ef7 attempt1 failed before controls appeared; visual wait not reached. One isolated retry pending;15bd white capture remains documented."
     }
   ],
   "nextThree": [
