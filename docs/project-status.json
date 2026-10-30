@@ -10,531 +10,540 @@
     "backendBaselineUnit": 116,
     "backendAfterStartupFix": 120,
     "nativeRun": 40918975665,
-    "currentFrontendUnit": 230,
-    "currentBackendUnit": 133
+    "currentFrontendUnit": 249,
+    "currentBackendUnit": 147,
+    "frontendReviewHead": "ef7e1f73a1fee95cce49afb4c659e3cb856809ce",
+    "frontendRuntimeHead": "15bd2a362b27d1697562ee6552a056b5c07fe22f",
+    "backendReviewHead": "f48c8964dcd18418da6025aee12c698f7f20fcc6",
+    "realMongoScenarios": 8,
+    "nativeFailureRun": 40960900670,
+    "nativeReadinessRun": 41008175520,
+    "androidVerifiedRun": 40960900667,
+    "browserVerifiedRun": 40960900664,
+    "backendMongoRun": 40956567656
   },
-  "scope": "Initial evidence-based audit. A passing mocked test is not a real payment, supplier handoff or physical-device result. No spending, messages, production change or store submission performed.",
+  "scope": "Updated 29-area audit of dependent draft branches. New code is prepared, not merged/deployed. Unit, actual browser/API and disposable Mongo results are separate from provider, physical-device, production and store-release evidence. No real charge/refund/shipment, spending, customer/supplier message or store submission performed.",
   "tasks": [
     {
       "id": 1,
       "task": "Payments",
       "status": "Partially complete",
-      "evidence": "razorpayController.js; paymentWebhookController.js; guest-payment-start.test.js",
-      "remaining": "Staging provider success/failure/cancellation/refund/webhook replay; database concurrency",
+      "evidence": "Existing Razorpay controllers/webhook tests; PR4 awaits User/Order/GuestCheckoutSession indexes before listening. Latest backend suite: 147 tests.",
+      "remaining": "Razorpay test/staging success/failure/cancellation/refund and webhook replay; payment/stock race proof with the real staging provider.",
       "priority": "P0",
-      "dependency": "Staging replica set and Razorpay test keys",
+      "dependency": "Separate staging replica set and privately configured Razorpay test keys/webhook",
       "acceptance": "No duplicate charge/order; verified provider status and recoverable uncertainty",
       "verification": {
         "code": "Partially complete",
-        "automated": "Passing fixture/unit or CI evidence; coverage limits remain in acceptance criteria",
-        "deployment": "Existing main implementation only; new audit changes not deployed",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Relevant regression tests pass in current 147-backend/249-frontend suites; external-provider and operational acceptance remains unverified.",
+        "deployment": "Existing main only; new draft audit features not merged or deployed.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 2,
       "task": "Checkout/pricing",
       "status": "Partially complete",
-      "evidence": "order-journey.test.js; checkout-shipping-boundary.test.js; kitCheckoutPricing.js",
-      "remaining": "Tax/invoice decisions; staging stock races and recovery",
+      "evidence": "Server-owned pricing/stock, checkout and kit shipping boundary tests pass in the current backend suite.",
+      "remaining": "Confirm actual invoice/tax basis and verify staging concurrent stock/checkout recovery.",
       "priority": "P0",
-      "dependency": "Confirmed tax rules; staging database",
+      "dependency": "Confirmed tax/revenue basis and staging database",
       "acceptance": "Server prices, discounts, shipping, variants and stock stay authoritative",
       "verification": {
         "code": "Partially complete",
-        "automated": "Passing fixture/unit or CI evidence; coverage limits remain in acceptance criteria",
-        "deployment": "Existing main implementation only; new audit changes not deployed",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Relevant regression tests pass in current 147-backend/249-frontend suites; external-provider and operational acceptance remains unverified.",
+        "deployment": "Existing main only; new draft audit features not merged or deployed.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 3,
       "task": "Order journey",
       "status": "Partially complete",
-      "evidence": "orderController.js; kitFulfillmentProgress.js; returnCompletionController.js",
-      "remaining": "Controlled order through actual supplier dispatch, delivery and support",
+      "evidence": "Existing order, parcel, purchased-policy return/refund controllers and regression tests. No actual supplier/courier journey completed.",
+      "remaining": "Controlled end-to-end order through supplier acceptance, actual dispatch/delivery/support and eligible return/refund.",
       "priority": "P0",
-      "dependency": "Test supplier and staging order",
+      "dependency": "Approved test plan, staging provider and a confirmed test supplier",
       "acceptance": "Traceable order, parcel, support and refund state with no lost handoff",
       "verification": {
         "code": "Partially complete",
-        "automated": "Passing fixture/unit or CI evidence; coverage limits remain in acceptance criteria",
-        "deployment": "Existing main implementation only; new audit changes not deployed",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Relevant regression tests pass in current 147-backend/249-frontend suites; external-provider and operational acceptance remains unverified.",
+        "deployment": "Existing main only; new draft audit features not merged or deployed.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 4,
       "task": "Performance",
       "status": "Partially complete",
-      "evidence": "Merged frontend PR18/backend PR2; live Server-Timing products 1031.2ms/reviews 236.6ms",
-      "remaining": "Database explain/pool/region/tier inspection and physical-device field measurements",
+      "evidence": "Performance improvements merged earlier; current runtime performance CI 40960900760 passes. Prior public Server-Timing observations are a dated sample, not a hosting diagnosis.",
+      "remaining": "Atlas explain/pool/region/tier inspection and comparable physical-device/field measurements.",
       "priority": "P1",
-      "dependency": "Hosting/Atlas read access; devices",
+      "dependency": "Read access to hosting/Atlas and physical devices",
       "acceptance": "Comparable before/after measurements; no guessed hosting cause",
       "verification": {
         "code": "Partially complete",
-        "automated": "Passing fixture/unit or CI evidence; coverage limits remain in acceptance criteria",
-        "deployment": "Existing main implementation only; new audit changes not deployed",
-        "realDevice": "Not verified",
-        "production": "Read-only public HTTP/catalogue evidence only",
-        "publicRelease": "Website main exists; no new audit release"
+        "automated": "Runtime15bd2a3 browser/Android/performance CI passes within its documented scope; physical-device verification not performed.",
+        "deployment": "Existing main only; new draft audit features not merged or deployed.",
+        "realDevice": "Not verified in this audit.",
+        "production": "Read-only public catalogue/HTTP observations only.",
+        "publicRelease": "Existing website available; no new public mobile/audit release."
       }
     },
     {
       "id": 5,
       "task": "Website/mobile experience",
       "status": "Partially complete",
-      "evidence": "Storefront/PWA/WebKit CI; live home/robots/sitemap HTTP200",
-      "remaining": "Physical-phone low-power/video/accessibility and general policy navigation",
+      "evidence": "Current runtime Storefront CI 40960900664 passes responsive/PWA/Android-adapter/iPhone-WebKit/video checks; 249 unit tests. Native iPhone is tracked separately.",
+      "remaining": "Physical-phone low-power/video/accessibility checks and approved policy navigation.",
       "priority": "P1",
       "dependency": "Physical phones; approved policies",
       "acceptance": "Responsive purchasing with safe fallback, useful loading/errors and keyboard access",
       "verification": {
         "code": "Partially complete",
-        "automated": "Passing fixture/unit or CI evidence; coverage limits remain in acceptance criteria",
-        "deployment": "Existing main implementation only; new audit changes not deployed",
-        "realDevice": "Not verified",
-        "production": "Read-only public HTTP/catalogue evidence only",
-        "publicRelease": "Website main exists; no new audit release"
+        "automated": "Runtime15bd2a3 browser/Android/performance CI passes within its documented scope; physical-device verification not performed.",
+        "deployment": "Existing main only; new draft audit features not merged or deployed.",
+        "realDevice": "Not verified in this audit.",
+        "production": "Read-only public catalogue/HTTP observations only.",
+        "publicRelease": "Existing website available; no new public mobile/audit release."
       }
     },
     {
       "id": 6,
       "task": "Supplier agreements",
       "status": "Partially complete",
-      "evidence": "SupplierPortal.js; supplierTerms.js; supplierPortalService.js; gated portal",
-      "remaining": "Confirm resale/image rights, costs, dispatch, settlements and returns",
+      "evidence": "Gated versioned supplier portal/terms code exists. Confirmation checklist and unsigned terms outline prepared in Operations and Release Guide.",
+      "remaining": "Actual signed identity/rights/model/cost/trial/dispatch/return/settlement terms for each supplier.",
       "priority": "P0",
       "dependency": "Supplier acceptance and business terms",
       "acceptance": "Versioned accepted agreement with clear commercial/fulfilment ownership",
       "verification": {
         "code": "Partially complete",
-        "automated": "Not established for the complete work area",
-        "deployment": "Existing main implementation only; new audit changes not deployed",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Draft/code inspection only for full-area acceptance; actual supplier/provider/business/creative acceptance not established.",
+        "deployment": "Existing main only; new draft audit features not merged or deployed.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 7,
       "task": "Five launch products",
       "status": "Blocked",
-      "evidence": "Live public catalogue contains 25 products; supplier/cost fields are not public",
-      "remaining": "Confirm costs, stock freshness, shipping payer and contribution before selecting lead products",
+      "evidence": "Five exact public catalogue IDs and discounted selling-price snapshot compared in the formula-driven economics workbook; all unknown supplier/cost inputs left blank.",
+      "remaining": "Confirm legal suppliers, actual variant stock, all cost payers, dispatch/return terms and contribution before selecting advertising leads.",
       "priority": "P0",
       "dependency": "Actual supplier commercial and fulfilment data",
       "acceptance": "Five confirmed comparisons; one/two leads have positive verified contribution",
       "verification": {
         "code": "Blocked",
-        "automated": "Not established for the complete work area",
-        "deployment": "Not deployed/released for this work area",
-        "realDevice": "Not verified",
-        "production": "Read-only public HTTP/catalogue evidence only",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Draft/code inspection only for full-area acceptance; actual supplier/provider/business/creative acceptance not established.",
+        "deployment": "Not activated/released for this work area.",
+        "realDevice": "Not verified in this audit.",
+        "production": "Read-only public catalogue/HTTP observations only.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 8,
       "task": "iPhone application",
       "status": "Partially complete",
-      "evidence": "Native XCTest d827f0a run40945137170 succeeds, including nonblank-content assertions; Home/Search captures inspected.",
-      "remaining": "Categories capture is still loading and is QA-only; signed-device/provider/payment checks and final store screenshots remain.",
+      "evidence": "Source 4ff7dc7 iPhone run40959817521 passed loaded-category navigation and optional push compilation. Latest runtime 15bd2a3 run40960900670 failed the nonblank Home assertion (zero content pixels). PR25 keeps the threshold, waits up to15s for visible presentation and exports stronger failure diagnostics; new run41008175520 pending.",
+      "remaining": "Resolve/verify the latest native rendering failure; signed physical-iPhone shopping/provider/payment/deletion tests and final store screenshots.",
       "priority": "P1",
-      "dependency": "Mac CI available; signing/provider configuration and iPhone",
+      "dependency": "Mac CI result; Apple Team/signing/provider configuration and physical iPhone",
       "acceptance": "Visible, functional shopping journey on supported real iPhones",
       "verification": {
         "code": "Partially complete",
-        "automated": "Passing fixture/unit or CI evidence; coverage limits remain in acceptance criteria",
-        "deployment": "Not deployed/released for this work area",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Prior4ff native pass; latest15bd blank-Home failure. PR25 timing/diagnostic CI41008175520 pending; failure remains unresolved until new evidence.",
+        "deployment": "Existing main only; new draft audit features not merged or deployed.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 9,
       "task": "Apple login/deletion",
       "status": "Implemented — verification pending",
-      "evidence": "Backend PR3; appleIdentity.js; appleAuthController.js; accountDeletionController.js; crypto/fixture tests",
-      "remaining": "Actual provider/revocation, transactional deletion and approved retention tests",
+      "evidence": "Backend PR3 Apple crypto/revocation/deletion implementation; current unit suite and real Mongo deletion-versus-registration race pass, removing owned shopping/device/outbox data while retaining financial Orders.",
+      "remaining": "Real Apple code exchange/revocation on configured devices; approved financial/personal-data retention policy and staging checks.",
       "priority": "P0",
-      "dependency": "Apple team/key configuration; retention decision; staging replica set",
+      "dependency": "Apple Team/key configuration, approved retention and staging setup",
       "acceptance": "Verified provider claims, no silent account linking, correct revocation/deletion",
       "verification": {
         "code": "Implemented — verification pending",
-        "automated": "Passing fixture/unit or CI evidence; coverage limits remain in acceptance criteria",
-        "deployment": "Not deployed/released for this work area",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Current unit/JWT tests, actual React→backend browser tests and eight disposable Mongo8 replica-set scenarios pass; no real provider sends/auth performed.",
+        "deployment": "Existing main only; new draft audit features not merged or deployed.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 10,
       "task": "App Store release",
       "status": "Blocked",
-      "evidence": "docs/IOS_APP.md; unsigned simulator only; Razorpay1.5.9 privacy declaration issue",
-      "remaining": "Signing, supported SDK correction, privacy review, TestFlight, device QA and approval",
+      "evidence": "Unsigned simulator builds only; observed Razorpay1.5.9 privacy-manifest enum concern remains. No claimed Apple rejection or store approval.",
+      "remaining": "Supported vendor correction/guidance, signed archive validation, approved privacy/listing, TestFlight/device QA and explicit submission/release approval.",
       "priority": "P1",
       "dependency": "Apple membership/Team; vendor guidance; founder approval",
       "acceptance": "Validated signed archive and reviewed listing before explicit submission/release",
       "verification": {
         "code": "Blocked",
-        "automated": "Not established for the complete work area",
-        "deployment": "Not deployed/released for this work area",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Current unit/fixture checks exist; complete-area acceptance is not established.",
+        "deployment": "Not activated/released for this work area.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 11,
       "task": "Android test application",
       "status": "Partially complete",
-      "evidence": "Current-head Android CI passes; docs/ANDROID_APP.md",
-      "remaining": "Fresh APK delivery and current physical-phone auth/payment/permission tests",
+      "evidence": "Runtime15bd2a3 Android CI40960900667 passed emulator smoke. Android1.1.2/code3 development-signed APK prepared; SHA256 1df80c35e8f1957fb561b25b40ec8acfa571b2a53368388e4bfb7728dafa5ef5.",
+      "remaining": "Install this test update on a physical Android phone and verify login, shopping, payment recovery and permissions. Not a Play production build.",
       "priority": "P1",
       "dependency": "Android device; staging/test credentials",
       "acceptance": "In-place signed test update with working shopping, recovery and permissions",
       "verification": {
         "code": "Partially complete",
-        "automated": "Passing fixture/unit or CI evidence; coverage limits remain in acceptance criteria",
-        "deployment": "Not deployed/released for this work area",
-        "realDevice": "Historical owner login confirmation only; current full flow unverified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Runtime15bd2a3 browser/Android/performance CI passes within its documented scope; physical-device verification not performed.",
+        "deployment": "Existing main only; new draft audit features not merged or deployed.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 12,
       "task": "Google Play release",
       "status": "Deferred",
-      "evidence": "Existing Android project; public debug signer is unsuitable for release",
-      "remaining": "Private release signing, AAB, Play tests/listing/Data safety after iPhone",
+      "evidence": "Release order remains iPhone App Store first. Development Android build is separate from Google Play approval.",
+      "remaining": "After iOS milestone: production signing/AAB, required policy/data declarations, closed testing as applicable and explicit release approval.",
       "priority": "P2",
       "dependency": "iPhone release milestone; Play account/signing and approval",
       "acceptance": "Approved tested production-signed app published after iPhone",
       "verification": {
         "code": "Deferred",
-        "automated": "Not established for the complete work area",
-        "deployment": "Not deployed/released for this work area",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Deferred public release; development Android CI only.",
+        "deployment": "Not activated/released for this work area.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 13,
       "task": "Shared cart/wishlist",
       "status": "Implemented — verification pending",
-      "evidence": "ShoppingState/ShoppingOperation; shoppingState.js; shoppingJournal.js; shoppingSync.js; 12 client regressions and backend JWT/HTTP/domain tests",
-      "remaining": "Run the prepared browser/API contract, staging replica-set races/TTL/deletion and signed-device recovery; both flags remain off.",
+      "evidence": "FrontendPR21/backendPR5: account-owned shared lists, durable per-account journal, guest transfer, revision rebasing and atomic operation receipts. Actual React→JWT/API integration and real Mongo atomicity, replay, concurrent-device and rollback tests pass.",
+      "remaining": "Staging deployed configuration and physical two-device/offline/account-switch QA; both feature flags remain disabled by default.",
       "priority": "P1",
       "dependency": "Implementation available; staging verification later",
       "acceptance": "Two devices converge without losing another account's or concurrent edits",
       "verification": {
         "code": "Implemented — verification pending",
-        "automated": "230 frontend / 133 backend tests pass; feature-enabled Vite compilation passes; new full UI/API contract pending CI.",
-        "deployment": "Default off; neither server nor client feature deployed/enabled.",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Current unit/JWT tests, actual React→backend browser tests and eight disposable Mongo8 replica-set scenarios pass; no real provider sends/auth performed.",
+        "deployment": "Existing main only; new draft audit features not merged or deployed.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 14,
       "task": "Push notifications",
-      "status": "Not implemented",
-      "evidence": "No APNs/FCM registration or delivery implementation found in audited source",
-      "remaining": "Device ownership/preferences, outbox, retries, invalidation and native registration",
+      "status": "Implemented — verification pending",
+      "evidence": "FrontendPR22/backendPR6: encrypted owned device bindings, opt-in native controls, APNs/FCM adapters, durable bounded outbox, manual uncertain-send handling and admin stop. 147 backend/249 frontend tests; real browser/JWT and Mongo concurrency/rotation/deletion/projector cases pass; source4ff optional iOS push compile passed.",
+      "remaining": "Privately configure provider credentials; approve retention/alert recipient; verify real opt-in/denial/rotation/sign-out/deep links and phone receipt before activation. Sending remains off.",
       "priority": "P1",
-      "dependency": "Implementation available; APNs/Android provider keys for delivery",
+      "dependency": "APNs/FCM owner configuration, staging, physical devices and approved delivery/retention/alert setup",
       "acceptance": "Opt-in transactional delivery once per event/device with safe retry/logout cleanup",
       "verification": {
-        "code": "Not implemented",
-        "automated": "Not established for the complete work area",
-        "deployment": "Not deployed/released for this work area",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "code": "Implemented — verification pending",
+        "automated": "Current unit/JWT tests, actual React→backend browser tests and eight disposable Mongo8 replica-set scenarios pass; no real provider sends/auth performed.",
+        "deployment": "Existing main only; new draft audit features not merged or deployed.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 15,
       "task": "Courier/live tracking",
       "status": "Partially complete",
-      "evidence": "trackingUpdates.js; courierTracking.js normalizes URLs; admin parcel events",
-      "remaining": "Approved courier serviceability/label/event API and reconciliation",
+      "evidence": "Existing normalized courier URLs and admin-recorded parcel events. No actual courier API integration verified.",
+      "remaining": "Choose and configure serviceability/label/event API, signed hooks, duplicate/out-of-order handling and operational reconciliation.",
       "priority": "P1",
       "dependency": "Chosen courier account/API/webhook contract",
       "acceptance": "Provider-backed parcel events with duplicate/out-of-order protection",
       "verification": {
         "code": "Partially complete",
-        "automated": "Not established for the complete work area",
-        "deployment": "Existing main implementation only; new audit changes not deployed",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Current unit/fixture checks exist; complete-area acceptance is not established.",
+        "deployment": "Existing main only; new draft audit features not merged or deployed.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 16,
       "task": "Returns/refunds",
       "status": "Partially complete",
-      "evidence": "returnPolicy.js; orderRefundAllocation.js; returnCompletionController.js; refund webhook handling",
-      "remaining": "Approved supplier/product policy, staging refund and damaged-product operations",
+      "evidence": "Purchased-policy, refund allocation and return-completion code/regressions pass. No actual test-provider refund completed in this audit.",
+      "remaining": "Approve product/supplier policies and verify controlled refund/inspection/stock operations.",
       "priority": "P0",
       "dependency": "Supplier policy and Razorpay test/staging setup",
       "acceptance": "Purchased policy and refundable amounts retained; stock/refunds never duplicated",
       "verification": {
         "code": "Partially complete",
-        "automated": "Passing fixture/unit or CI evidence; coverage limits remain in acceptance criteria",
-        "deployment": "Existing main implementation only; new audit changes not deployed",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Relevant regression tests pass in current 147-backend/249-frontend suites; external-provider and operational acceptance remains unverified.",
+        "deployment": "Existing main only; new draft audit features not merged or deployed.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 17,
       "task": "Kits/bundles/add-ons",
       "status": "Partially complete",
-      "evidence": "kitPublication.js; kitShipping.js; purchasedShipping.js; readiness/price/parcel tests",
-      "remaining": "Confirm actual package plans, component stock and fulfilment before activation",
+      "evidence": "Kit readiness, pricing, purchased-shipping and immutable parcel allocation tests pass; kit checkout remains disabled.",
+      "remaining": "Confirm measured package plans, component stock, packing/courier responsibilities and controlled fulfilment before activation.",
       "priority": "P1",
       "dependency": "Measured packages and confirmed supplier/packing/courier arrangements",
       "acceptance": "Incomplete kits stay unavailable; purchased prices/parcels remain immutable",
       "verification": {
         "code": "Partially complete",
-        "automated": "Passing fixture/unit or CI evidence; coverage limits remain in acceptance criteria",
-        "deployment": "Existing main implementation only; new audit changes not deployed",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Relevant regression tests pass in current 147-backend/249-frontend suites; external-provider and operational acceptance remains unverified.",
+        "deployment": "Existing main only; new draft audit features not merged or deployed.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 18,
       "task": "Business/branding",
       "status": "Partially complete",
-      "evidence": "GymDrobe wordmark/icon assets; support links; shipping/try-on policy pages",
-      "remaining": "General privacy/terms, registration/GST/invoice/trademark and contract confirmation",
+      "evidence": "Existing approved app icon and GymDrobe branding; Instagram text-only rule retained. Business/policy inputs and draft terms checklist prepared.",
+      "remaining": "Confirm operator, registration/tax/invoice/trademark facts, actual processor/retention flows and approved privacy/general terms/support policies.",
       "priority": "P0",
       "dependency": "Founder facts and appropriate professional policy review",
       "acceptance": "Accurate approved policies/identity with no fabricated registration claims",
       "verification": {
         "code": "Partially complete",
-        "automated": "Not established for the complete work area",
-        "deployment": "Not deployed/released for this work area",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Draft/code inspection only for full-area acceptance; actual supplier/provider/business/creative acceptance not established.",
+        "deployment": "Existing main only; new draft audit features not merged or deployed.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 19,
       "task": "Supplier routing",
       "status": "Not implemented",
-      "evidence": "Order sourcing/procurement records exist; supplier portal explicitly gates fulfilment",
-      "remaining": "Approved routing records, acceptance, deadlines, bounded retry and exception queue",
+      "evidence": "Existing sourcing/procurement records and gated supplier portal; automatic routing is not implemented. Proposed routing contract documented.",
+      "remaining": "Approved supplier eligibility/agreement/channel, unique per-parcel assignment, acceptance/deadline/exception controls and observed test.",
       "priority": "P1",
       "dependency": "Approved supplier channel/agreement; implementation available",
       "acceptance": "One auditable handoff per eligible order/parcel; manual override and stop control",
       "verification": {
         "code": "Not implemented",
-        "automated": "Not established for the complete work area",
-        "deployment": "Not deployed/released for this work area",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Draft/code inspection only for full-area acceptance; actual supplier/provider/business/creative acceptance not established.",
+        "deployment": "Not activated/released for this work area.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 20,
       "task": "Supplier inventory sync",
       "status": "Partially complete",
-      "evidence": "Product/admin inventory exists; no approved external feed adapter found",
-      "remaining": "Approved CSV/API mapping, stock freshness, audit and failed-update controls",
+      "evidence": "Existing product/admin inventory; no approved supplier feed adapter. Reservation-safe feed/mapping/freshness requirements documented.",
+      "remaining": "Actual supplier CSV/API contract, SKU/variant mapping, sequence/freshness checks, dry run, reservation-safe updates and audit/recovery.",
       "priority": "P1",
       "dependency": "Supplier feed contract or approved CSV specification",
       "acceptance": "Validated variant stock updates without overselling or silent stale inventory",
       "verification": {
         "code": "Partially complete",
-        "automated": "Not established for the complete work area",
-        "deployment": "Existing main implementation only; new audit changes not deployed",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Draft/code inspection only for full-area acceptance; actual supplier/provider/business/creative acceptance not established.",
+        "deployment": "Existing main only; new draft audit features not merged or deployed.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 21,
       "task": "Commission/settlement ledger",
       "status": "Not implemented",
-      "evidence": "Agreement commissionBps exists; supplier workspace states settlements unavailable",
-      "remaining": "Auditable charges/refunds/adjustments, contribution and settlement reconciliation",
+      "evidence": "Agreement commissionBps exists but supplier settlements are unavailable. Ledger/reconciliation requirements documented; no accepted15% assumption.",
+      "remaining": "Accepted economics and an immutable paise ledger covering collections/refunds/adjustments/payables/approved payouts with reconciliation.",
       "priority": "P1",
       "dependency": "Confirmed commercial terms and cost ownership",
       "acceptance": "No double settlement; gross/revenue/cost/commission and corrections reconcile",
       "verification": {
         "code": "Not implemented",
-        "automated": "Not established for the complete work area",
-        "deployment": "Not deployed/released for this work area",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Draft/code inspection only for full-area acceptance; actual supplier/provider/business/creative acceptance not established.",
+        "deployment": "Not activated/released for this work area.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 22,
       "task": "Admin reports",
       "status": "Partially complete",
-      "evidence": "AdminDashboardPage.jsx; adminController.js; customer/order management",
-      "remaining": "Reconciled costs, contribution, supplier service/stock and settlement views",
+      "evidence": "Existing admin order/customer dashboard and collections/refund fields; no confirmed full cost/contribution/settlement ledger.",
+      "remaining": "Add reconciled cost, contribution and supplier service/stock/settlement views using actual data. Do not label collections as profit.",
       "priority": "P1",
       "dependency": "Real cost/settlement data and ledger implementation",
       "acceptance": "Actual figures with revenue separated from contribution/profit",
       "verification": {
         "code": "Partially complete",
-        "automated": "Not established for the complete work area",
-        "deployment": "Existing main implementation only; new audit changes not deployed",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Draft/code inspection only for full-area acceptance; actual supplier/provider/business/creative acceptance not established.",
+        "deployment": "Existing main only; new draft audit features not merged or deployed.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 23,
       "task": "Customer messages",
       "status": "Partially complete",
-      "evidence": "SupportTicket/supportController.js; sendEmail.js; local price/stock watches",
-      "remaining": "Transactional templates/outbox/preferences/delivery logs/retries/failure alerts",
+      "evidence": "Existing support/email helpers; draft server-sourced transactional templates and recovery controls prepared. Push has its own disabled implementation.",
+      "remaining": "Approved email sender/provider, preferences, durable transactional outbox, bounded retries, delivery logs, received failure alerts and controlled sends.",
       "priority": "P1",
       "dependency": "Approved sender/provider and message templates; no sending authorized",
       "acceptance": "No duplicate messages; audited failures and manual recovery",
       "verification": {
         "code": "Partially complete",
-        "automated": "Not established for the complete work area",
-        "deployment": "Existing main implementation only; new audit changes not deployed",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Draft/code inspection only for full-area acceptance; actual supplier/provider/business/creative acceptance not established.",
+        "deployment": "Existing main only; new draft audit features not merged or deployed.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 24,
       "task": "SEO/sharing",
       "status": "Partially complete",
-      "evidence": "SEOController.jsx; generate-sitemap.mjs; live robots/sitemap200; canonical www.gymdrobe.com",
-      "remaining": "Validate live category/product metadata, Open Graph crawler output and Search Console",
+      "evidence": "PR23 generates54 descriptive public HTML docs (including50 product ID/slug docs), canonical metadata and ProductJSONLD without stale price/stock. Seven metadata regressions and actual build verifier pass; source4ff full CI passed.",
+      "remaining": "Verify actual Vercel preview HTML routing/Content-Type/headers/OG output and Search Console before deployment; dedicated category SEO and unknown-product soft404 remain separate work.",
       "priority": "P1",
-      "dependency": "Search Console access; approved social image",
+      "dependency": "Review deployment/preview access, Search Console and approved social assets",
       "acceptance": "Accurate canonical/product prices/availability and indexable public URLs",
       "verification": {
         "code": "Partially complete",
-        "automated": "Not established for the complete work area",
-        "deployment": "Existing main implementation only; new audit changes not deployed",
-        "realDevice": "Not verified",
-        "production": "Read-only public HTTP/catalogue evidence only",
-        "publicRelease": "Website main exists; no new audit release"
+        "automated": "Metadata/security/file regressions and production54-document build verification pass. Hosting-preview crawler behavior pending.",
+        "deployment": "Existing main only; new draft audit features not merged or deployed.",
+        "realDevice": "Not verified in this audit.",
+        "production": "Read-only public catalogue/HTTP observations only.",
+        "publicRelease": "Existing website available; no new public mobile/audit release."
       }
     },
     {
       "id": 25,
       "task": "Analytics/Meta",
       "status": "Partially complete",
-      "evidence": "MarketingStore.js; routes/marketingRoutes.js; consent/event/worker code; native analytics disabled",
-      "remaining": "Confirm actual dataset/token/consent configuration, test events and Pixel/CAPI dedup",
+      "evidence": "Existing marketing consent/event/worker/feed code and tests. Actual Meta dataset/configuration/delivery/dedup not verified; native analytics disabled.",
+      "remaining": "Approved policies/configuration and Events Manager test delivery; verify consent and Pixel/CAPI event-ID dedup against real test orders.",
       "priority": "P1",
       "dependency": "Meta Events Manager access; reviewed policies/configuration",
       "acceptance": "One reconciled purchase conversion per eligible order; consent respected",
       "verification": {
         "code": "Partially complete",
-        "automated": "Not established for the complete work area",
-        "deployment": "Existing main implementation only; new audit changes not deployed",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Draft/code inspection only for full-area acceptance; actual supplier/provider/business/creative acceptance not established.",
+        "deployment": "Existing main only; new draft audit features not merged or deployed.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 26,
       "task": "Instagram preparation",
-      "status": "Not implemented",
-      "evidence": "Requested full 30-day calendar is absent from audited repository",
-      "remaining": "Prepare review-only calendar, hooks/scripts/captions/CTAs and asset requirements",
+      "status": "Partially complete",
+      "evidence": "30 distinct draft hooks, formats, shot/slide sequences, captions, CTAs and asset checks prepared. GymDrobe text-only branding; no fabricated claims or publication.",
+      "remaining": "Obtain licensed actual product/model/location/audio assets; create final creatives one at a time on request, review and separately approve publication.",
       "priority": "P2",
       "dependency": "Actual supplied product photos for product promotions",
       "acceptance": "30 distinct professional concepts; GymDrobe text only; no invented claims or publishing",
       "verification": {
-        "code": "Not implemented",
-        "automated": "Not established for the complete work area",
-        "deployment": "Not deployed/released for this work area",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "code": "Partially complete",
+        "automated": "Draft/code inspection only for full-area acceptance; actual supplier/provider/business/creative acceptance not established.",
+        "deployment": "Not activated/released for this work area.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 27,
       "task": "Advertising test",
       "status": "Blocked",
-      "evidence": "Prompt authorizes planning only; budget assumptions Rs3000 initial/Rs10000 maximum",
-      "remaining": "Lead economics, audiences, creative/landing pages, attribution and stop criteria",
+      "evidence": "Review-only ad test plan prepared: ₹3000 initial / ₹10000 maximum planning assumptions, one lead after economics approval, two creative hypotheses, attribution and stop criteria.",
+      "remaining": "Verified lead contribution/stock/fulfilment/landing page/tracking, actual platform controls and explicit specific spending approval. No spend authorized.",
       "priority": "P2",
       "dependency": "Verified checkout/fulfilment/tracking; explicit spending approval",
       "acceptance": "Controlled measurable test with defined loss limits and no unapproved spend",
       "verification": {
         "code": "Blocked",
-        "automated": "Not established for the complete work area",
-        "deployment": "Not deployed/released for this work area",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Draft/code inspection only for full-area acceptance; actual supplier/provider/business/creative acceptance not established.",
+        "deployment": "Not activated/released for this work area.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 28,
       "task": "Referrals/rewards",
       "status": "Not implemented",
-      "evidence": "No backend referral/reward ledger found",
-      "remaining": "Define approved terms, completed-order eligibility, abuse checks and reversal rules",
+      "evidence": "No referral/reward ledger implemented. Required funding, eligibility, abuse and cancellation/refund reversal decisions documented.",
+      "remaining": "Approve rules/economics before building or enabling reward UI and ledger.",
       "priority": "P2",
       "dependency": "Founder-approved reward economics/rules",
       "acceptance": "Auditable one-time rewards reversed on cancellation/refund; incomplete UI disabled",
       "verification": {
         "code": "Not implemented",
-        "automated": "Not established for the complete work area",
-        "deployment": "Not deployed/released for this work area",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Draft/code inspection only for full-area acceptance; actual supplier/provider/business/creative acceptance not established.",
+        "deployment": "Not activated/released for this work area.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     },
     {
       "id": 29,
       "task": "Virtual try-on/future marketplace",
       "status": "Partially complete",
-      "evidence": "FASHN adapter and privacy/budget/idempotency tests; config product images unapproved",
-      "remaining": "Approve actual eligible product photos/provider costs and staging privacy/deletion QA",
+      "evidence": "FASHN adapter and privacy/budget/idempotency tests pass; eligible product-image approvals and provider validation remain incomplete. Feature stays disabled.",
+      "remaining": "Approve licensed eligible photos/provider cost and retention; verify staging consent/generation/deletion/budget controls before activation.",
       "priority": "P2",
       "dependency": "Approved assets, provider configuration and generation budget",
       "acceptance": "Unavailable service remains disabled; image consent/deletion/budget controls verified",
       "verification": {
         "code": "Partially complete",
-        "automated": "Passing fixture/unit or CI evidence; coverage limits remain in acceptance criteria",
-        "deployment": "Existing main implementation only; new audit changes not deployed",
-        "realDevice": "Not verified",
-        "production": "No authenticated or transactional production verification",
-        "publicRelease": "No public mobile or new audit release"
+        "automated": "Relevant regression tests pass in current 147-backend/249-frontend suites; external-provider and operational acceptance remains unverified.",
+        "deployment": "Existing main only; new draft audit features not merged or deployed.",
+        "realDevice": "Not verified in this audit.",
+        "production": "No new authenticated, transactional or provider production verification.",
+        "publicRelease": "Not publicly released by this work."
       }
     }
   ],
@@ -542,19 +551,43 @@
     {
       "area": 1,
       "status": "Implemented — verification pending",
-      "change": "Await User, Order and GuestCheckoutSession indexes before opening HTTP listener; four regressions fail before and pass after.",
-      "verification": "Backend health check and 120 unit tests pass; staging index/build/rollback still required."
+      "change": "Await commerce and enabled-feature indexes before accepting HTTP traffic.",
+      "verification": "Regression checks pass; staging deployment/index validation pending."
     },
     {
       "area": 13,
       "status": "Implemented — verification pending",
-      "change": "Gated shared cart/wishlist with atomic receipts, durable guest/offline journal, account isolation, deletion cleanup and explicit conflict review.",
-      "verification": "12 client synchronization tests; 133 backend total; 230 frontend total; feature-enabled Vite build. Browser/API and real database/device verification pending."
+      "change": "Shared bag/wishlist with account isolation, durable offline journal, guest transfer and transactional receipts.",
+      "verification": "Actual browser/API plus real Mongo replay/concurrency/rollback tests pass; flags off."
+    },
+    {
+      "area": 14,
+      "status": "Implemented — verification pending",
+      "change": "Native opt-in push, encrypted bindings and durable APNs/FCM outbox with uncertain-send recovery and stop switch.",
+      "verification": "Browser/JWT and real Mongo tests pass; no actual sends; flags off."
+    },
+    {
+      "area": 24,
+      "status": "Implemented — verification pending",
+      "change": "Crawler-readable product HTML, canonical metadata and descriptive structured data.",
+      "verification": "54-document build passes; actual Vercel preview/deployment not verified."
+    },
+    {
+      "area": 14,
+      "status": "Implemented — verification pending",
+      "change": "Sign-out disables the captured owned push binding even in a rollback build that excludes the plugin.",
+      "verification": "Three unit regressions and actual disabled-build browser/JWT scenario pass."
+    },
+    {
+      "area": 8,
+      "status": "Implemented — verification pending",
+      "change": "Bounded visible-frame wait retains the existing nonblank assertion and exports iPhone failure diagnostics.",
+      "verification": "249 local tests pass; native CI pending;15bd blank screenshot remains a documented failure."
     }
   ],
   "nextThree": [
-    "Publish and review the commerce startup readiness fix; staging index validation requires a replica set.",
-    "Fix native visible-rendering/screenshot verification and retain the passing navigation coverage.",
-    "Implement secure shared cart/wishlist with guest merge and concurrency handling."
+    "Finish native visual-readiness CI and inspect its actual Home/Categories/Search screenshots; investigate any persistent white screen before an iPhone-ready claim.",
+    "Configure private staging Razorpay test credentials/webhook and replica set; run and document the controlled payment→order→return/refund acceptance plan.",
+    "Obtain actual five-product supplier agreements/rights/stock/costs/dispatch/return terms, complete the economics worksheet and approve a specific controlled fulfilment test."
   ]
 }
