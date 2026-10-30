@@ -6,10 +6,8 @@
     "backendMain": "0a33e10576a68f9ec8f5f8f1fea9157176375095",
     "frontendAuditBase": "154684ca7fcfee3ba543e9aa761d2dff22a79e2b",
     "backendAuditBase": "117aa6ab933b77c9214270c04a0490d18552c3af",
-    "frontendUnit": 218,
     "backendBaselineUnit": 116,
     "backendAfterStartupFix": 120,
-    "nativeRun": 40918975665,
     "currentFrontendUnit": 249,
     "currentBackendUnit": 147,
     "frontendReviewHead": "ef7e1f73a1fee95cce49afb4c659e3cb856809ce",
@@ -22,7 +20,16 @@
     "browserVerifiedRun": 40960900664,
     "backendMongoRun": 40956567656,
     "nativeReadinessAttempt1": "Failed: Categories link absent within45s; visual wait not reached.",
-    "nativeReadinessRetryReason": "Single isolated retry to investigate unusually slow WebKit startup; not a proven infrastructure-only root cause."
+    "nativeReadinessRetryReason": "Single isolated retry to investigate unusually slow WebKit startup; not a proven infrastructure-only root cause.",
+    "baselineNativeRun": 40918975665,
+    "baselineFrontendUnit": 218,
+    "nativeReadinessAttempt2": "Passed: default/optional unsigned compilation, native tab navigation and nonblank captures; physical-device checks remain pending.",
+    "nativeReadinessArtifact": {
+      "id": 12956529743,
+      "sha256": "644a2419b73f9ac350f91412fa14e4824a992790e478df663a97a16e84437530",
+      "visualReview": "Home, loaded Categories and Search inspected; simulator QA only."
+    },
+    "mainHeadsRechecked": "2026-10-30; both main branch SHAs unchanged from the source fields."
   },
   "scope": "Updated 29-area audit of dependent draft branches. New code is prepared, not merged/deployed. Unit, actual browser/API and disposable Mongo results are separate from provider, physical-device, production and store-release evidence. No real charge/refund/shipment, spending, customer/supplier message or store submission performed.",
   "tasks": [
@@ -138,7 +145,7 @@
       "id": 7,
       "task": "Five launch products",
       "status": "Blocked",
-      "evidence": "Five exact public catalogue IDs and discounted selling-price snapshot compared in the formula-driven economics workbook; all unknown supplier/cost inputs left blank.",
+      "evidence": "Five exact public catalogue IDs and discounted selling-price snapshot compared in the formula-driven commission-economics workbook; all unknown supplier/rate/cost inputs left blank or Unconfirmed. The planned supplier-direct model is not supplier acceptance.",
       "remaining": "Confirm legal suppliers, actual variant stock, all cost payers, dispatch/return terms and contribution before selecting advertising leads.",
       "priority": "P0",
       "dependency": "Actual supplier commercial and fulfilment data",
@@ -156,14 +163,14 @@
       "id": 8,
       "task": "iPhone application",
       "status": "Partially complete",
-      "evidence": "Source4ff7dc7 iPhone run40959817521 passed loaded-category navigation and optional push compilation. Runtime15bd2a3 run40960900670 failed the nonblank Home assertion. PR25 sourceef7e1f7 run41008175520 attempt1 failed earlier at the45s Categories-existence check, so the new visual wait was not reached; logs show17–19s WebKit process startup and no completed initial navigation. One isolated retry is in progress; neither simulator delay nor app root cause is established.",
-      "remaining": "Resolve/verify the latest native rendering failure; signed physical-iPhone shopping/provider/payment/deletion tests and final store screenshots.",
+      "evidence": "Current test sourceef7e1f7 run41008175520 attempt2 passes native navigation, nonblank-content assertions, loaded Categories and optional unsigned push compilation. Home/Categories/Search screenshots visually inspected; artifact12956529743 SHA256644a2419b73f9ac350f91412fa14e4824a992790e478df663a97a16e84437530 verified. Preserve earlier15bd blank-Home failure and ef7 attempt1 missing-controls failure. One retry pass does not establish the startup root cause or physical-device reliability.",
+      "remaining": "Investigate the intermittent startup/rendering history during controlled Mac and physical-iPhone QA; complete signed login/payment/recovery/deletion, safe-area/keyboard checks and final store screenshots.",
       "priority": "P1",
-      "dependency": "Mac CI result; Apple Team/signing/provider configuration and physical iPhone",
+      "dependency": "Apple Team/signing/provider configuration, controlled Mac inspection and a physical iPhone",
       "acceptance": "Visible, functional shopping journey on supported real iPhones",
       "verification": {
         "code": "Partially complete",
-        "automated": "Prior4ff native pass;15bd blank-Home failure;ef7 attempt1 missing-controls failure before visual check. One isolated retry of run41008175520 is in progress; iPhone readiness remains unverified.",
+        "automated": "ef7 attempt2 passes visible Home, loaded Categories, Search and Wishlist navigation plus optional push compilation; captures inspected.15bd blank-Home and ef7 attempt1 missing-controls failures remain documented; root cause and physical reliability unverified.",
         "deployment": "Existing main only; new draft audit features not merged or deployed.",
         "realDevice": "Not verified in this audit.",
         "production": "No new authenticated, transactional or provider production verification.",
@@ -584,12 +591,12 @@
       "area": 8,
       "status": "Implemented — verification pending",
       "change": "Bounded visible-frame wait retains the existing nonblank assertion and exports iPhone failure diagnostics.",
-      "verification": "249 local tests and current browser/Android CI pass. Native ef7 attempt1 failed before controls appeared; visual wait not reached. One isolated retry pending;15bd white capture remains documented."
+      "verification": "249 local frontend tests, current browser/Android workflows and ef7 native attempt2 pass, including optional push compile and inspected nonblank captures. Preserve the earlier blank-Home and missing-controls failures; no proven runtime root-cause fix or physical-device signoff."
     }
   ],
   "nextThree": [
-    "Finish native visual-readiness CI and inspect its actual Home/Categories/Search screenshots; investigate any persistent white screen before an iPhone-ready claim.",
-    "Configure private staging Razorpay test credentials/webhook and replica set; run and document the controlled payment→order→return/refund acceptance plan.",
-    "Obtain actual five-product supplier agreements/rights/stock/costs/dispatch/return terms, complete the economics worksheet and approve a specific controlled fulfilment test."
+    "Configure private staging Razorpay test credentials/webhook and a separate replica set; run the controlled payment→order→return/refund acceptance plan and retain provider/recovery evidence.",
+    "Obtain actual five-product supplier agreements/rights/stock/costs/dispatch/return terms, complete the commission-economics worksheet and approve a specific controlled fulfilment test.",
+    "Provide Apple Team/signing/OAuth configuration and physical phones; investigate intermittent startup with controlled Mac/device tests, then verify auth, payments, recovery/deletion and SDK privacy before TestFlight/release review."
   ]
 }
