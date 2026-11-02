@@ -1,6 +1,6 @@
 {
   "source": {
-    "date": "2026-10-30",
+    "date": "2026-11-02",
     "timezone": "Asia/Calcutta",
     "frontendMain": "935e09add8383cfa104379f83e002ed3b0834b8f",
     "backendMain": "0a33e10576a68f9ec8f5f8f1fea9157176375095",
@@ -9,16 +9,16 @@
     "backendBaselineUnit": 116,
     "backendAfterStartupFix": 120,
     "currentFrontendUnit": 249,
-    "currentBackendUnit": 147,
+    "currentBackendUnit": 158,
     "frontendReviewHead": "ef7e1f73a1fee95cce49afb4c659e3cb856809ce",
     "frontendRuntimeHead": "15bd2a362b27d1697562ee6552a056b5c07fe22f",
-    "backendReviewHead": "f48c8964dcd18418da6025aee12c698f7f20fcc6",
+    "backendReviewHead": "9f082b56c87d9621566c22e6d365402c10816a09",
     "realMongoScenarios": 8,
     "nativeFailureRun": 40960900670,
     "nativeReadinessRun": 41008175520,
     "androidVerifiedRun": 40960900667,
     "browserVerifiedRun": 40960900664,
-    "backendMongoRun": 40956567656,
+    "backendMongoRun": 41470389107,
     "nativeReadinessAttempt1": "Failed: Categories link absent within45s; visual wait not reached.",
     "nativeReadinessRetryReason": "Single isolated retry to investigate unusually slow WebKit startup; not a proven infrastructure-only root cause.",
     "baselineNativeRun": 40918975665,
@@ -29,7 +29,11 @@
       "sha256": "644a2419b73f9ac350f91412fa14e4824a992790e478df663a97a16e84437530",
       "visualReview": "Home, loaded Categories and Search inspected; simulator QA only."
     },
-    "mainHeadsRechecked": "2026-10-30; both main branch SHAs unchanged from the source fields."
+    "mainHeadsRechecked": "2026-11-02; frontend and backend main SHAs unchanged; no new merge/deployment performed.",
+    "previousBackendReviewHead": "f48c8964dcd18418da6025aee12c698f7f20fcc6",
+    "previousBackendMongoRun": 40956567656,
+    "frontendEvidenceAsOf": "2026-10-30",
+    "paymentStagingPR": 7
   },
   "scope": "Updated 29-area audit of dependent draft branches. New code is prepared, not merged/deployed. Unit, actual browser/API and disposable Mongo results are separate from provider, physical-device, production and store-release evidence. No real charge/refund/shipment, spending, customer/supplier message or store submission performed.",
   "tasks": [
@@ -37,14 +41,14 @@
       "id": 1,
       "task": "Payments",
       "status": "Partially complete",
-      "evidence": "Existing Razorpay controllers/webhook tests; PR4 awaits User/Order/GuestCheckoutSession indexes before listening. Latest backend suite: 147 tests.",
+      "evidence": "Existing Razorpay controllers/webhook tests; PR4 awaits User/Order/GuestCheckoutSession indexes before listening. Latest backend suite: 158 tests. Backend PR7 adds an offline staging configuration check and an opt-in startup guard before database access, indexes, HTTP and outbound workers; known live-key/database/origin/messaging misconfigurations are blocked. Source `9f082b5` passes 158 tests and eight disposable Mongo integrations; the workspace preflight remains blocked by missing private staging configuration.",
       "remaining": "Razorpay test/staging success/failure/cancellation/refund and webhook replay; payment/stock race proof with the real staging provider.",
       "priority": "P0",
       "dependency": "Separate staging replica set and privately configured Razorpay test keys/webhook",
       "acceptance": "No duplicate charge/order; verified provider status and recoverable uncertainty",
       "verification": {
         "code": "Partially complete",
-        "automated": "Relevant regression tests pass in current 147-backend/249-frontend suites; external-provider and operational acceptance remains unverified.",
+        "automated": "Relevant regression tests pass in current 158-backend/249-frontend suites; external-provider and operational acceptance remains unverified.",
         "deployment": "Existing main only; new draft audit features not merged or deployed.",
         "realDevice": "Not verified in this audit.",
         "production": "No new authenticated, transactional or provider production verification.",
@@ -62,7 +66,7 @@
       "acceptance": "Server prices, discounts, shipping, variants and stock stay authoritative",
       "verification": {
         "code": "Partially complete",
-        "automated": "Relevant regression tests pass in current 147-backend/249-frontend suites; external-provider and operational acceptance remains unverified.",
+        "automated": "Relevant regression tests pass in current 158-backend/249-frontend suites; external-provider and operational acceptance remains unverified.",
         "deployment": "Existing main only; new draft audit features not merged or deployed.",
         "realDevice": "Not verified in this audit.",
         "production": "No new authenticated, transactional or provider production verification.",
@@ -80,7 +84,7 @@
       "acceptance": "Traceable order, parcel, support and refund state with no lost handoff",
       "verification": {
         "code": "Partially complete",
-        "automated": "Relevant regression tests pass in current 147-backend/249-frontend suites; external-provider and operational acceptance remains unverified.",
+        "automated": "Relevant regression tests pass in current 158-backend/249-frontend suites; external-provider and operational acceptance remains unverified.",
         "deployment": "Existing main only; new draft audit features not merged or deployed.",
         "realDevice": "Not verified in this audit.",
         "production": "No new authenticated, transactional or provider production verification.",
@@ -271,7 +275,7 @@
       "id": 14,
       "task": "Push notifications",
       "status": "Implemented — verification pending",
-      "evidence": "FrontendPR22/backendPR6: encrypted owned device bindings, opt-in native controls, APNs/FCM adapters, durable bounded outbox, manual uncertain-send handling and admin stop. 147 backend/249 frontend tests; real browser/JWT and Mongo concurrency/rotation/deletion/projector cases pass; source4ff optional iOS push compile passed.",
+      "evidence": "FrontendPR22/backendPR6: encrypted owned device bindings, opt-in native controls, APNs/FCM adapters, durable bounded outbox, manual uncertain-send handling and admin stop. 158 backend/249 frontend tests; real browser/JWT and Mongo concurrency/rotation/deletion/projector cases pass; source4ff optional iOS push compile passed.",
       "remaining": "Privately configure provider credentials; approve retention/alert recipient; verify real opt-in/denial/rotation/sign-out/deep links and phone receipt before activation. Sending remains off.",
       "priority": "P1",
       "dependency": "APNs/FCM owner configuration, staging, physical devices and approved delivery/retention/alert setup",
@@ -314,7 +318,7 @@
       "acceptance": "Purchased policy and refundable amounts retained; stock/refunds never duplicated",
       "verification": {
         "code": "Partially complete",
-        "automated": "Relevant regression tests pass in current 147-backend/249-frontend suites; external-provider and operational acceptance remains unverified.",
+        "automated": "Relevant regression tests pass in current 158-backend/249-frontend suites; external-provider and operational acceptance remains unverified.",
         "deployment": "Existing main only; new draft audit features not merged or deployed.",
         "realDevice": "Not verified in this audit.",
         "production": "No new authenticated, transactional or provider production verification.",
@@ -332,7 +336,7 @@
       "acceptance": "Incomplete kits stay unavailable; purchased prices/parcels remain immutable",
       "verification": {
         "code": "Partially complete",
-        "automated": "Relevant regression tests pass in current 147-backend/249-frontend suites; external-provider and operational acceptance remains unverified.",
+        "automated": "Relevant regression tests pass in current 158-backend/249-frontend suites; external-provider and operational acceptance remains unverified.",
         "deployment": "Existing main only; new draft audit features not merged or deployed.",
         "realDevice": "Not verified in this audit.",
         "production": "No new authenticated, transactional or provider production verification.",
@@ -548,7 +552,7 @@
       "acceptance": "Unavailable service remains disabled; image consent/deletion/budget controls verified",
       "verification": {
         "code": "Partially complete",
-        "automated": "Relevant regression tests pass in current 147-backend/249-frontend suites; external-provider and operational acceptance remains unverified.",
+        "automated": "Relevant regression tests pass in current 158-backend/249-frontend suites; external-provider and operational acceptance remains unverified.",
         "deployment": "Existing main only; new draft audit features not merged or deployed.",
         "realDevice": "Not verified in this audit.",
         "production": "No new authenticated, transactional or provider production verification.",
@@ -592,10 +596,16 @@
       "status": "Implemented — verification pending",
       "change": "Bounded visible-frame wait retains the existing nonblank assertion and exports iPhone failure diagnostics.",
       "verification": "249 local frontend tests, current browser/Android workflows and ef7 native attempt2 pass, including optional push compile and inspected nonblank captures. Preserve the earlier blank-Home and missing-controls failures; no proven runtime root-cause fix or physical-device signoff."
+    },
+    {
+      "area": 1,
+      "status": "Implemented — verification pending",
+      "change": "Offline payment-staging preflight and opt-in bootstrap isolation guard; private template and controlled acceptance guide. No production flag/configuration changed.",
+      "verification": "Source 9f082b5: 158 unit/CLI/bootstrap tests and eight disposable Mongo cases pass; actual test-provider authentication/order/refund/webhook/device staging remains unverified."
     }
   ],
   "nextThree": [
-    "Configure private staging Razorpay test credentials/webhook and a separate replica set; run the controlled payment→order→return/refund acceptance plan and retain provider/recovery evidence.",
+    "Review backend PR7 and privately configure the isolated staging database, Razorpay test key pair/webhook secret, dedicated JWT secret and staging origin; run the preflight, then the approved controlled payment/order/refund test plan. Do not paste credentials into chat.",
     "Obtain actual five-product supplier agreements/rights/stock/costs/dispatch/return terms, complete the commission-economics worksheet and approve a specific controlled fulfilment test.",
     "Provide Apple Team/signing/OAuth configuration and physical phones; investigate intermittent startup with controlled Mac/device tests, then verify auth, payments, recovery/deletion and SDK privacy before TestFlight/release review."
   ]
