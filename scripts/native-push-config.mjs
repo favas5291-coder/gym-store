@@ -1,4 +1,4 @@
-export const defaultPlugins = ["@capacitor/app", "@capacitor/browser", "@capacitor/keyboard", "@capacitor/share", "@capacitor/splash-screen", "@capgo/capacitor-social-login"];
+export const defaultPlugins = ["@capacitor/app", "@capacitor/camera", "@capacitor/browser", "@capacitor/keyboard", "@capacitor/share", "@capacitor/splash-screen", "@capgo/capacitor-social-login"];
 export function nativePushConfig(config, env, platform, firebase) {
   const enabled = env.VITE_PUSH_ENABLED === "true", result = structuredClone(config);
   result.includePlugins = [...defaultPlugins, ...(enabled ? ["@capacitor/push-notifications"] : [])];

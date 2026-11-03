@@ -24,6 +24,7 @@ import { useCatalog } from "../context/CatalogContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 import "./GymDrobeStorefront.css";
+import PhotoSearchButton from "./PhotoSearchButton.jsx";
 import { Search, Clock3, ArrowRight, X } from "lucide-react";
 
 const RECENT_SEARCH_KEY =
@@ -553,6 +554,7 @@ function SearchBox({
           onKeyDown={handleKey}
         />
 
+        <PhotoSearchButton restoreCamera />
         {value && (
           <button
             className="gn-icon-button"

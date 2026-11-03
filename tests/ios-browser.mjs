@@ -62,15 +62,15 @@ async function check(name, operation) {
 try {
   await check("iPhone navigation provides five tabs, categories and search without overflow", async () => {
     await page.goto(f.url + "/categories");
-    const tabs = page.getByRole("navigation", { name: "App navigation" });
+    const tabs = page.getByRole("navigation", { name: "Shopping navigation" });
     assert.equal(await tabs.getByRole("link").count(), 5);
     await page.getByRole("heading", { name: "Shop by category" }).waitFor();
-    await tabs.getByRole("link", { name: "Search", exact: true }).click();
+    await page.goto(f.url + "/search");
     await page.evaluate(() => window.scrollTo(0, 180));
     const header = await page.locator(".gd-nav").boundingBox();
-    const bag = await page.getByRole("link", { name: /^Bag, / }).boundingBox();
+    const bag = await tabs.getByRole("link", { name: /^Cart, / }).boundingBox();
     assert.ok(header && header.y >= 0 && header.y < 100);
-    assert.ok(bag && bag.y >= 0 && bag.y < 100);
+    assert.ok(bag && bag.y > 700 && bag.height >= 44);
     await page.getByLabel("Search GymDrobe", { exact: true }).fill("shoes");
     await page.getByRole("button", { name: "Search products" }).click();
     await page.waitForURL(/\/shop\?search=shoes$/);

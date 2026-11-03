@@ -61,8 +61,8 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-  <key>NSCameraUsageDescription</key><string>Take a photo for virtual try-on when you choose to use the camera.</string>
-  <key>NSPhotoLibraryUsageDescription</key><string>Choose your photo for virtual try-on.</string>
+  <key>NSCameraUsageDescription</key><string>Take a product photo to search GymDrobe or choose a photo for virtual try-on.</string>
+  <key>NSPhotoLibraryUsageDescription</key><string>Choose a product photo to find similar GymDrobe products or a photo for virtual try-on.</string>
   <key>LSApplicationQueriesSchemes</key><array><string>tez</string><string>phonepe</string><string>paytmmp</string><string>credpay</string><string>bhim</string><string>amazonpay</string></array>
   <!-- GYMDROBE_URLS_START -->
 <key>CFBundleURLTypes</key><array><dict><key>CFBundleURLSchemes</key><array><string>gymdrobe</string></array></dict></array>
