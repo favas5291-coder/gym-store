@@ -30,7 +30,7 @@ test("untrusted product copy and JSON-LD cannot close the head or execute markup
 test("unsafe image URLs are excluded and a missing image uses the approved wordmark", () => {
   const value = { ...product, image: "javascript:alert(1)", images: ["https://user:password@images.example.test/secret", "data:image/png;base64,abc", "https://images.example.test/tee.jpg", "https://images.example.test/tee.jpg"] };
   assert.deepEqual(getImages(value, origin), ["https://images.example.test/tee.jpg"]);
-  assert.equal(productMetadata({ ...value, images: [] }, origin).image, origin + "/gymdrobe-share-v1.png");
+  assert.equal(productMetadata({ ...value, images: [] }, origin).image, origin + "/gymdrobe-share-v2.png");
 });
 test("catalogue export requires safe unique IDs and unambiguous product aliases", () => {
   const snapshot = publicCatalogueSnapshot(origin, [product, { ...product, id: "inactive", slug: "inactive", isActive: false }]);

@@ -519,7 +519,7 @@ function Layout() {
 
           {internal && <StoreUtilityBar />}
 
-          {user?.role === "admin" && (
+          {internal && user?.role === "admin" && (
             <details className="admin-shortcuts" open={internal || undefined}>
             <summary>Admin tools</summary>
             <nav
@@ -631,6 +631,8 @@ function Layout() {
               {[
                 ["/install", InstallAppPage],
                 ["/shop", Shop],
+                ["/categories", NativeCategoriesPage],
+                ["/search", NativeSearchPage],
                 [
                   "/product/:id",
                   ProductPage,
@@ -908,6 +910,7 @@ function StorefrontApplication() {
     >
       <ShoppingToolsProvider>
         <Layout />
+        <NativeShoppingNavigation />
       </ShoppingToolsProvider>
     </StoreProvider>
   );

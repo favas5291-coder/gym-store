@@ -1,5 +1,5 @@
 export const DEFAULT_DESCRIPTION = "Discover training clothing, gym shoes and workout essentials at GymDrobe. Everything you need for every workout.";
-export const DEFAULT_SHARE_IMAGE = "/gymdrobe-share-v1.png";
+export const DEFAULT_SHARE_IMAGE = "/gymdrobe-share-v2.png";
 export const PAGES = {
   "/": { title: "GymDrobe | Everything for Every Workout", description: DEFAULT_DESCRIPTION },
   "/shop": { title: "Shop Gym Clothing & Workout Essentials | GymDrobe", description: "Explore gym clothing, shoes, bags and workout essentials at GymDrobe. Browse products, compare options and find gear for your next workout." },

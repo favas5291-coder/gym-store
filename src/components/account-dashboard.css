@@ -1,0 +1,107 @@
+/* Account-owned tokens and layout. Do not inherit the legacy wrapping tab rail. */
+#app .premium-storefront .gd-account-page{--account-ink:#252c27;--account-muted:#626a64;--account-line:#e2e5de;--account-surface:#fff;--account-tint:#f2f4ee;max-width:1120px;margin:0 auto;padding:32px 24px 40px;color:var(--account-ink)}
+#app .premium-storefront .gd-account-page *{box-sizing:border-box}
+#app .premium-storefront .gd-account-header{display:flex;align-items:center;gap:16px;padding-bottom:28px;border-bottom:1px solid var(--account-line);margin-bottom:24px}
+#app .premium-storefront .gd-account-avatar{width:56px;height:56px;flex:none;border-radius:50%;display:grid;place-items:center;background:#e9eee5;color:#354337;font-size:19px;font-weight:600}
+#app .premium-storefront .gd-account-identity{min-width:0;flex:1}
+#app .premium-storefront .gd-account-identity p{margin:0 0 5px;font-size:13px;color:var(--account-muted);line-height:1.5;overflow-wrap:anywhere}
+#app .premium-storefront .gd-account-identity h1{margin:0;font-size:clamp(22px,3vw,30px);font-weight:600;letter-spacing:-.035em;line-height:1.25;overflow-wrap:anywhere}
+#app .premium-storefront .gd-account-identity .gd-account-contact{margin:6px 0 0;font-size:13px}
+#app .premium-storefront .gd-account-edit{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 14px;border:1px solid #cdd4ca;border-radius:8px;font-size:13px;font-weight:600;white-space:nowrap;text-decoration:none}
+#app .premium-storefront .gd-account-content{min-width:0}
+#app .premium-storefront .gd-account-content h2{margin:0 0 16px;font-size:18px;line-height:1.4;font-weight:600;letter-spacing:-.025em}
+#app .premium-storefront .gd-account-quick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 28px}
+#app .premium-storefront .gd-account-quick>a{min-height:84px;display:flex;align-items:center;gap:12px;border:1px solid var(--account-line);background:var(--account-surface);border-radius:10px;padding:16px;font-size:14px;font-weight:500;text-decoration:none}
+#app .premium-storefront .gd-account-quick>a>svg:first-child{color:#53664e;flex:none}
+#app .premium-storefront .gd-account-quick>a>span{flex:1;min-width:0;overflow-wrap:anywhere}
+#app .premium-storefront .gd-account-quick>a>svg:last-child{color:#7d857c;flex:none}
+#app .premium-storefront .gd-account-summary,#app .premium-storefront .gd-account-recent{margin-bottom:28px;min-width:0}
+#app .premium-storefront .gd-account-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+#app .premium-storefront .gd-account-stats>a{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:20px;border-radius:10px;background:var(--account-tint);text-decoration:none;min-width:0}
+#app .premium-storefront .gd-account-stats span{font-size:13px;color:var(--account-muted)}
+#app .premium-storefront .gd-account-stats strong{font-size:28px;font-weight:600;line-height:1.2;font-variant-numeric:tabular-nums}
+#app .premium-storefront .gd-account-stats small{font-size:12px;line-height:1.5;color:var(--account-muted)}
+#app .premium-storefront .gd-account-section-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px}
+#app .premium-storefront .gd-account-section-heading h2{margin:0}
+#app .premium-storefront .gd-account-section-heading>a{display:inline-flex;align-items:center;gap:4px;min-height:44px;font-size:13px;white-space:nowrap}
+#app .premium-storefront .gd-account-order-list{border:1px solid var(--account-line);border-radius:10px;overflow:hidden}
+#app .premium-storefront .gd-account-order{display:flex;align-items:center;gap:12px;padding:16px;min-height:72px;background:var(--account-surface);text-decoration:none}
+#app .premium-storefront .gd-account-order+.gd-account-order{border-top:1px solid var(--account-line)}
+#app .premium-storefront .gd-account-order>svg{flex:none;color:#697967}
+#app .premium-storefront .gd-account-order>span{flex:1;min-width:0}
+#app .premium-storefront .gd-account-order strong{display:block;font-size:13px;font-weight:500;overflow-wrap:anywhere}
+#app .premium-storefront .gd-account-order small{display:block;margin-top:4px;font-size:12px;color:var(--account-muted)}
+#app .premium-storefront .gd-account-order em{font-style:normal;font-size:11px;line-height:1.4;padding:4px 8px;background:#edf2e9;color:#3c5838;border-radius:4px;overflow-wrap:anywhere;max-width:35%}
+#app .premium-storefront .gd-account-menu{display:grid;gap:24px;margin:0 0 28px;min-width:0;align-content:start}
+#app .premium-storefront .gd-account-menu h2{margin:0 0 6px;padding:0 14px;font-size:11px;line-height:1.5;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--account-muted)}
+#app .premium-storefront .gd-account-row{display:flex;align-items:center;gap:12px;min-height:56px;padding:12px 14px;border-bottom:1px solid var(--account-line);font-size:14px;line-height:1.5;text-decoration:none}
+#app .premium-storefront .gd-account-row>svg{flex:none;color:#657262}
+#app .premium-storefront .gd-account-row>span{flex:1;min-width:0;overflow-wrap:anywhere}
+#app .premium-storefront .gd-account-row.active{background:#f6eee8;border-radius:6px;color:#8b422b}
+#app .premium-storefront .gd-account-row.active>svg{color:inherit}
+#app .premium-storefront .gd-account-profile{align-self:start;border:1px solid var(--account-line);border-radius:10px;padding:0 20px;margin:0 0 28px;background:var(--account-surface);scroll-margin-top:130px;min-width:0}
+#app .premium-storefront .gd-account-profile>summary{cursor:pointer;padding:20px 0;min-height:44px;font-size:16px;font-weight:500;line-height:1.5}
+#app .premium-storefront .gd-account-profile>summary>span{display:block;margin-top:4px;font-size:12px;font-weight:400;color:var(--account-muted)}
+#app .premium-storefront .gd-account-profile .profile-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;max-width:650px;margin:0 0 24px!important}
+#app .premium-storefront .gd-account-profile .field{display:flex;flex-direction:column;gap:8px;min-width:0}
+#app .premium-storefront .gd-account-profile label{font-size:13px;font-weight:500}
+#app .premium-storefront .gd-account-profile input{width:100%;min-width:0;min-height:46px;padding:10px 12px;border:1px solid #cdd4ca;border-radius:6px;font-size:16px;color:var(--account-ink);background:#fff}
+#app .premium-storefront .gd-account-profile input[readonly]{background:#f4f5f1;color:#626a64}
+#app .premium-storefront .gd-account-profile small{font-size:12px;line-height:1.5}
+#app .premium-storefront .gd-account-profile .field-error{grid-column:1/-1}
+#app .premium-storefront .gd-account-profile button{min-height:44px;grid-column:1/-1}
+#app .premium-storefront .gd-account-signout{display:flex;align-items:center;gap:16px;flex-wrap:wrap;border-top:1px solid var(--account-line);padding-top:24px;margin-top:4px}
+#app .premium-storefront .gd-account-signout button,#app .premium-storefront .gd-account-notice button{cursor:pointer;min-height:44px;padding:10px 16px;border:1px solid #cdd4ca;border-radius:6px;background:#fff;font-size:13px;color:var(--account-ink)}
+#app .premium-storefront .gd-account-signout p{margin:0;font-size:12px;color:var(--account-muted)}
+#app .premium-storefront .gd-account-admin{display:flex;align-items:center;gap:12px;padding-top:24px;margin-top:28px;border-top:1px solid var(--account-line);font-size:13px}
+#app .premium-storefront .gd-account-admin>div{flex:1;min-width:0}
+#app .premium-storefront .gd-account-admin strong{font-weight:500}
+#app .premium-storefront .gd-account-admin p{margin:4px 0 0;font-size:12px;color:var(--account-muted)}
+#app .premium-storefront .gd-account-admin>a{min-height:44px;display:inline-flex;align-items:center;gap:8px;padding:8px}
+#app .premium-storefront .gd-account-notice{padding:16px;border:1px solid #d9b9a5;border-radius:8px;background:#fbf6f0;margin:0 0 24px;font-size:14px}
+#app .premium-storefront .gd-account-notice p{font-size:13px;line-height:1.5}
+#app .premium-storefront .gd-account-empty{border:1px solid var(--account-line);border-radius:10px;padding:24px;background:var(--account-surface)}
+#app .premium-storefront .gd-account-empty h3{margin:12px 0 6px;font-size:16px;font-weight:500}
+#app .premium-storefront .gd-account-empty p,#app .premium-storefront .gd-account-muted{font-size:13px;line-height:1.6;color:var(--account-muted)}
+#app .premium-storefront .gd-account-empty>a{display:inline-flex;align-items:center;gap:4px;min-height:44px;font-size:13px}
+#app .premium-storefront .gd-account-skeleton{padding:24px 16px;background:var(--account-tint);border-radius:10px;font-size:13px;color:var(--account-muted)}
+#app .premium-storefront .gd-account-page :is(a,button,summary,input):focus-visible{outline:2px solid #95482e;outline-offset:3px}
+#app .premium-storefront .gd-account-page :is(a,button,summary){-webkit-tap-highlight-color:transparent;transition:background-color .15s}
+#app .premium-storefront .gd-account-page :is(.gd-account-row,.gd-account-quick>a,.gd-account-edit):active{background:#e8eee3}
+#app .premium-storefront .gd-account-with-menu{display:grid;grid-template-columns:230px minmax(0,1fr);gap:32px}
+#app .premium-storefront .gd-account-sidebar{min-width:0}
+#app .premium-storefront .gd-account-sidebar>a{display:inline-flex;align-items:center;min-height:44px;font-size:13px;margin-bottom:16px}
+@media(min-width:960px){
+ #app .premium-storefront .gd-account-dashboard .gd-account-content{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:32px;align-items:start}
+ #app .premium-storefront .gd-account-dashboard :is(.gd-account-quick,.gd-account-notice,.gd-account-signout,.gd-account-menu,.gd-account-profile){grid-column:1/-1}
+ #app .premium-storefront .gd-account-dashboard .gd-account-menu{grid-template-columns:repeat(3,minmax(0,1fr))}
+ #app .premium-storefront .gd-account-dashboard .gd-account-summary>h2{display:flex;align-items:center;min-height:44px;margin-bottom:8px}
+}
+@media(max-width:959px){
+ #app .premium-storefront .gd-account-quick{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #app .premium-storefront .gd-account-with-menu{grid-template-columns:minmax(0,1fr);gap:8px}
+ #app .premium-storefront .gd-account-sidebar .gd-account-menu{display:none}
+}
+@media(max-width:600px){
+ #app .premium-storefront .gd-account-page{padding:24px 16px 32px}
+ #app .premium-storefront .gd-account-header{flex-wrap:wrap;gap:12px;padding-bottom:20px;margin-bottom:20px}
+ #app .premium-storefront .gd-account-avatar{width:44px;height:44px;font-size:16px}
+ #app .premium-storefront .gd-account-identity{flex-basis:calc(100% - 56px)}
+ #app .premium-storefront .gd-account-identity h1{font-size:23px}
+ #app .premium-storefront .gd-account-edit{margin-left:56px}
+ #app .premium-storefront .gd-account-quick{gap:10px;margin-bottom:24px}
+ #app .premium-storefront .gd-account-quick>a{min-height:76px;padding:12px;gap:10px;font-size:13px}
+ #app .premium-storefront .gd-account-quick>a>svg:last-child{display:none}
+ #app .premium-storefront .gd-account-stats{gap:10px}
+ #app .premium-storefront .gd-account-stats>a{padding:16px 12px}
+ #app .premium-storefront .gd-account-stats strong{font-size:25px}
+ #app .premium-storefront .gd-account-profile{padding:0 16px}
+ #app .premium-storefront .gd-account-profile .profile-form{grid-template-columns:minmax(0,1fr)}
+ #app .premium-storefront .gd-account-order{gap:8px;padding:14px 12px}
+ #app .premium-storefront .gd-account-admin{flex-wrap:wrap}
+}
+@media(max-width:1023px){
+ #app .premium-storefront:has(.gd-account-page) .gd-nav .gn-bar{grid-template-rows:32px 44px;padding-top:4px;padding-bottom:8px;gap:4px}
+ #app .premium-storefront:has(.gd-account-page) .gd-nav .gn-wordmark{font-size:24px}
+}
+@media(prefers-reduced-motion:reduce){#app .premium-storefront .gd-account-page :is(a,button,summary){transition:none}#app .premium-storefront .gd-account-page *{scroll-behavior:auto}}

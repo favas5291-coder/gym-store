@@ -40,3 +40,4 @@ scripts/__pycache__/
 .qa-shopping-backend/
 android/app/google-services.json
 test-results/notifications/
+test-results/account-dashboard/

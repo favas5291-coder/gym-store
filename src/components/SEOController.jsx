@@ -247,7 +247,7 @@ export default function SEOController() {
       "summary_large_image",
     );
 
-    // These dimensions describe the existing GymDrobe wordmark.
+    // These dimensions describe the 1200x630 branded homepage preview.
     // Product photos can have different dimensions.
     if (!images.length) {
       setMeta(
@@ -264,13 +264,13 @@ export default function SEOController() {
 
       setMeta(
         "og:image:width",
-        "1942",
+        "1200",
         true,
       );
 
       setMeta(
         "og:image:height",
-        "809",
+        "630",
         true,
       );
     }

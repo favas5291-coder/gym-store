@@ -250,9 +250,8 @@ function Icon({ name, size = 22 }) {
 }
 
 function Brand() {
-  // The original image reference was missing from the bundled assets.
-  // Render the same live wordmark consistently on desktop and mobile.
-  return <span className="gn-wordmark">GymDrobe</span>;
+  // Restore the established in-store wordmark; the premium square icon is external-only.
+  return <span className="gn-wordmark">GYMDROBE</span>;
 }
 
 function Thumbnail({ src }) {

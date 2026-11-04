@@ -51,12 +51,31 @@ export default function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    window.addEventListener("online", retrySession);
-
+    function syncSavedSession(event) {
+      if (event.type === "storage" && event.key !== TOKEN_KEY && event.key !== null) return;
+      if (document.visibilityState === "hidden") return;
+      let savedToken;
+      try { savedToken = localStorage.getItem(TOKEN_KEY) || null; }
+      catch { return; } // A temporary storage restriction is not a logout.
+      if (savedToken !== tokenRef.current) {
+        sessionRevision.current += 1;
+        tokenRef.current = savedToken;
+        setUser(null);
+        setAuthError(null);
+        setLoading(Boolean(savedToken));
+        setToken(savedToken);
+      } else if (savedToken && (authError || (event.type === "pageshow" && event.persisted))) {
+        // Retry verification on reconnect/return, never trust a cached user alone.
+        retrySession();
+      }
+    }
+    for (const type of ["online", "focus", "pageshow", "storage"]) window.addEventListener(type, syncSavedSession);
+    document.addEventListener("visibilitychange", syncSavedSession);
     return () => {
-      window.removeEventListener("online", retrySession);
+      for (const type of ["online", "focus", "pageshow", "storage"]) window.removeEventListener(type, syncSavedSession);
+      document.removeEventListener("visibilitychange", syncSavedSession);
     };
-  }, [retrySession]);
+  }, [retrySession, authError]);
 
   useEffect(() => {
     let cancelled = false;

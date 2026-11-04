@@ -105,7 +105,11 @@ function InboxWorkspace({ token, admin, revision }) {
       }
     }
 
-    loadList();
+    // Let a cancelled effect (including a StrictMode remount) finish before
+    // starting network work. A fresh effect still starts in the same turn.
+    queueMicrotask(() => {
+      if (!controller.signal.aborted) loadList();
+    });
 
     return () => controller.abort();
   }, [

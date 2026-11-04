@@ -13,6 +13,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -42,7 +44,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: favas5291-coder/gym-drobe-backend
-          ref: 02145e12c1acf91fe061b96f40c6d55b109364ac
+          ref: 651aee066db8a85e06b692527829ffed167c89ac
           path: .qa-shopping-backend
       - name: Install isolated shopping API test dependencies
         run: npm ci --ignore-scripts --prefix .qa-shopping-backend
@@ -56,6 +58,14 @@ jobs:
         run: node tests/order-push-browser.mjs
       - name: Shared navigation and photo-search UX contracts
         run: node tests/photo-search-browser.mjs
+      - name: Account dashboard before and after, responsive and account regression checks
+        run: |
+          node tests/account-dashboard-browser.mjs --before
+          node tests/account-dashboard-browser.mjs
+      - name: Mobile saved-session recovery checks
+        run: node tests/mobile-session-browser.mjs
+      - name: Free mobile navigation and hidden photo-search checks
+        run: node tests/free-navigation-browser.mjs
       - name: Storefront interactions and responsive screenshots
         run: npm run test:storefront
       - name: PWA install, offline recovery and update checks
@@ -104,4 +114,10 @@ jobs:
         with:
           name: photo-search-review
           path: test-results/photo-search/
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: account-dashboard-review
+          path: test-results/account-dashboard
           retention-days: 14

@@ -3,11 +3,6 @@ on:
   pull_request:
     paths: ['android/**', 'capacitor.config.json', '.env.android', 'src/**', 'scripts/**', 'public/**', 'tests/**', 'package*.json', 'index.html', 'vite.config.js', '.github/workflows/android-app.yml']
   workflow_dispatch:
-    inputs:
-      measure_startup:
-        description: 'Run the optional paired emulator startup benchmark'
-        type: boolean
-        default: false
 permissions:
   contents: read
   actions: read
@@ -51,7 +46,6 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Download the previously installed test APK for comparison
-        if: github.event_name == 'workflow_dispatch' && inputs.measure_startup
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
@@ -60,8 +54,6 @@ jobs:
           mkdir -p /tmp/gymdrobe-baseline
           unzip -q /tmp/gymdrobe-baseline.zip GymDrobe-debug.apk -d /tmp/gymdrobe-baseline
       - name: Install and launch the Android APK
-        env:
-          MEASURE_STARTUP: ${{ github.event_name == 'workflow_dispatch' && inputs.measure_startup }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -70,14 +62,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
-          script: |
-            if [ "$MEASURE_STARTUP" = "true" ] && [ -f /tmp/gymdrobe-baseline/GymDrobe-debug.apk ]; then adb install -r /tmp/gymdrobe-baseline/GymDrobe-debug.apk && node scripts/measure-android-startup.mjs test-results/android/startup-before.json; fi
-            adb install -r test-results/android/GymDrobe-debug.apk
-            if [ "$MEASURE_STARTUP" = "true" ]; then node scripts/measure-android-startup.mjs test-results/android/startup-after.json; fi
-            adb logcat -c
-            adb shell am start -W -n com.gymdrobe.app/.MainActivity
-            sleep 8
-            bash scripts/smoke-android.sh
+          script: bash scripts/verify-android-emulator.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
