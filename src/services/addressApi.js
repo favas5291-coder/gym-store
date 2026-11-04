@@ -1,5 +1,5 @@
 const API_URL =
-  import.meta.env.VITE_API_URL ||
+  import.meta.env?.VITE_API_URL ||
   "http://localhost:5000/api";
 
 
@@ -93,11 +93,10 @@ export async function getAddresses(
     );
 
 
-  return Array.isArray(
-    data.addresses
-  )
-    ? data.addresses
-    : [];
+  if (!Array.isArray(data.addresses)) {
+    throw new Error("Saved addresses could not be loaded. Please try again.");
+  }
+  return data.addresses;
 }
 
 

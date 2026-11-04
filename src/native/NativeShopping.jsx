@@ -29,7 +29,7 @@ export function NativeShoppingNavigation() {
   }, []);
   if (/^\/(admin|supplier|dev)(\/|$)/.test(pathname)) return null;
   const count = cart.reduce((sum, item) => sum + Math.max(0, Math.floor(Number(item.quantity) || 0)), 0);
-  const account = /^\/(account|orders|addresses|help|support|track|login|register)(\/|$)/.test(pathname);
+  const account = /^\/(account|orders|addresses|saved|notifications|help|support|track|login|register)(\/|$)/.test(pathname);
   const tabs = [["/", "Home", House], ["/categories", "Categories", Grid2X2], ["/wishlist", "Wishlist", Heart], ["/cart", "Cart", ShoppingBag], ["/account", "Account", UserRound]];
   return <>
     {isNativeApp() && offline && <div className="native-offline" role="status">You’re offline. Your saved bag is kept on this device. Reconnect to check stock or pay.</div>}
