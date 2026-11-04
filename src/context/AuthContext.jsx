@@ -15,7 +15,7 @@ import {
   updateUserProfile,
 } from "../services/authApi.js";
 import { isNativeApp } from "../native/platform.js";
-import { sessionStorage } from "../native/session.js";
+import { sessionStorage, TOKEN_KEY } from "../native/session.js";
 import { clearNativeGoogleSession } from "../native/google.js";
 import { stopOrderPushSession } from "../native/orderPush.js";
 import { shoppingSyncEnabled, initializeShoppingJournal, appendShopping, compactShopping, shoppingChanges } from "../utils/shoppingJournal.js";
@@ -51,12 +51,19 @@ export default function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    function syncSavedSession(event) {
+    let active = true;
+    async function syncSavedSession(event) {
       if (event.type === "storage" && event.key !== TOKEN_KEY && event.key !== null) return;
       if (document.visibilityState === "hidden") return;
+      const revision = sessionRevision.current;
       let savedToken;
-      try { savedToken = localStorage.getItem(TOKEN_KEY) || null; }
+      try {
+        savedToken = isNativeApp()
+          ? await sessionStorage().read()
+          : localStorage.getItem(TOKEN_KEY) || null;
+      }
       catch { return; } // A temporary storage restriction is not a logout.
+      if (!active || revision !== sessionRevision.current) return;
       if (savedToken !== tokenRef.current) {
         sessionRevision.current += 1;
         tokenRef.current = savedToken;
@@ -72,6 +79,7 @@ export default function AuthProvider({ children }) {
     for (const type of ["online", "focus", "pageshow", "storage"]) window.addEventListener(type, syncSavedSession);
     document.addEventListener("visibilitychange", syncSavedSession);
     return () => {
+      active = false;
       for (const type of ["online", "focus", "pageshow", "storage"]) window.removeEventListener(type, syncSavedSession);
       document.removeEventListener("visibilitychange", syncSavedSession);
     };
