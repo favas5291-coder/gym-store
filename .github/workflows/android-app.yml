@@ -63,6 +63,8 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           script: |
+            # Keep emulator diagnostics when the current app fails a mandatory check.
+            trap 'adb logcat -d -t 1000 > test-results/android/emulator-logcat.txt 2>/dev/null || true' EXIT
             # Historical performance data is optional: if the old APK has a
             # stalled WebView, record the missing baseline but still test the NEW APK.
             if [ -f /tmp/gymdrobe-baseline/GymDrobe-debug.apk ]; then
