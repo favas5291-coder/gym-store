@@ -26,9 +26,9 @@ test("previous internal wordmarks are restored; external icon is separate", () =
   assert.doesNotMatch(style, /\.gn-branded-lockup|\.footer-branded-lockup/);
   assert.doesNotMatch(offline, /gymdrobe-app-icon\.svg/);
   assert.match(install, /gymdrobe-app-icon\.svg/);
-  assert.match(html, /android-chrome-192x192\\.png/);
-  assert.match(html, /brand\\/external\\/gymdrobe-app-icon-1024\\.png/);
-  assert.doesNotMatch(html, /rel="icon"[^>]*type="image\\/svg\\+xml"/);
+  assert.ok(html.includes('href="/android-chrome-192x192.png?v=3"'));
+  assert.ok(html.includes('https://www.gymdrobe.com/brand/external/gymdrobe-app-icon-1024.png'));
+  assert.ok(!html.includes('type="image/svg+xml"'), "Search favicon must use supported PNG/ICO formats");
 });
 
 test("external share/PWA images and Android launcher assets have expected pixel dimensions", () => {
