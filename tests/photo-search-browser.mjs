@@ -5,6 +5,18 @@ import fs from 'node:fs/promises';
 import {startStorefrontFixture,mockStorefront,fixtureProductId} from './storefront-fixture.mjs';
 const {chromium,webkit}=await import(process.env.GYMDROBE_PLAYWRIGHT_MODULE||'playwright');
 process.env.VITE_API_URL='http://127.0.0.1:4236/api';
+// Free release defaults to no camera entry point, on both browser engines.
+process.env.VITE_PHOTO_SEARCH_ENABLED='false';
+const disabled=await startStorefrontFixture(4237);
+try{
+ for(const engine of [chromium,webkit]){
+  const browser=await engine.launch({headless:true});
+  try{const context=await browser.newContext();await mockStorefront(context,disabled.products);const page=await context.newPage();
+   for(const width of [390,1280]){await page.setViewportSize({width,height:844});await page.goto(disabled.url+'/search');await page.getByRole('heading').first().waitFor();assert.equal(await page.getByRole('button',{name:'Search by photo',exact:true}).count(),0);}
+  }finally{await browser.close();}
+ }
+}finally{await disabled.server.close();}
+process.env.VITE_PHOTO_SEARCH_ENABLED='true';
 const f=await startStorefrontFixture(4236),results=[];
 await fs.mkdir('test-results/photo-search',{recursive:true});
 try{

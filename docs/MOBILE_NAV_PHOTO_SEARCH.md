@@ -21,3 +21,7 @@ Run `npm ci --ignore-scripts`, `npm test`, then a normal `npm run build` using t
 - Staging visual search: real model/index, stock/price changes, archived products, new/changed variant images, relevance threshold, empty/error/slow cases. Cropped catalogue tests do not establish camera-photo accuracy.
 
 No production deployment, App Store/Play Store submission, paid provider setup or customer-photo processing is part of this review branch.
+
+## Free release
+
+Photo search is deferred because the existing free API cannot run the measured model memory footprint. `VITE_PHOTO_SEARCH_ENABLED` defaults off: the shared button returns no UI and registers no camera-restoration listener. Do not set it to `true` in website, Android or iPhone builds until a working backend and catalogue index are available. Text search and all five navigation tabs remain enabled. The retained opt-in browser flow is tested using explicit test-only environment configuration. No paid resources are required or provisioned for this release.

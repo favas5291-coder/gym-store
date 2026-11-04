@@ -14,12 +14,7 @@ final class GymDrobeUITests: XCTestCase {
         XCTAssertTrue(app.webViews.staticTexts["Shop by category"].firstMatch.waitForExistence(timeout: 15))
         XCTAssertTrue(app.webViews.staticTexts["Workout clothing"].firstMatch.waitForExistence(timeout: 60), "Capture a loaded collection, not the catalogue loading state")
         capture("iPhone-categories", app: app)
-        app.buttons["Search by photo"].firstMatch.tap()
-        XCTAssertTrue(app.buttons["Take a photo"].firstMatch.waitForExistence(timeout: 15))
-        XCTAssertTrue(app.buttons["Take a photo"].firstMatch.isHittable)
-        XCTAssertTrue(app.buttons["Upload from gallery"].firstMatch.isHittable)
-        capture("iPhone-photo-search", app: app)
-        app.buttons["Close dialog"].firstMatch.tap()
+        XCTAssertFalse(app.buttons["Search by photo"].firstMatch.exists, "Free release must hide deferred photo search")
         app.links["Wishlist"].firstMatch.tap()
         XCTAssertTrue(app.webViews.staticTexts["Your wishlist is waiting"].firstMatch.waitForExistence(timeout: 15))
     }
