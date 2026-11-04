@@ -9,15 +9,8 @@ import argparse
 import base64
 from io import BytesIO
 from pathlib import Path
-import subprocess
-import sys
 from PIL import Image, ImageDraw
-
-try:
-    import cairosvg
-except ModuleNotFoundError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "cairosvg"])
-    import cairosvg
+import cairosvg
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "public"
