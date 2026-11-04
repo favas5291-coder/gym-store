@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {startStorefrontFixture,mockStorefront} from './storefront-fixture.mjs';
+import {startStorefrontFixture,mockStorefront,fixtureProductId} from './storefront-fixture.mjs';
 const {chromium,webkit}=await import(process.env.GYMDROBE_PLAYWRIGHT_MODULE||'playwright');
 process.env.VITE_API_URL='http://127.0.0.1:4238/api';
 const f=await startStorefrontFixture(4238);
@@ -14,6 +14,13 @@ try{for(const engine of [chromium,webkit]){
  }
  await page.setViewportSize({width:390,height:844});
  for(const label of ['Home','Categories','Wishlist','Cart, 0 items','Account']){await page.getByRole('navigation',{name:'Shopping navigation'}).getByRole('link',{name:label,exact:true}).click();await page.reload();assert.equal(await page.getByRole('navigation',{name:'Shopping navigation'}).getByRole('link',{name:label,exact:true}).getAttribute('aria-current'),'page');}
+ await page.goto(f.url+`/product/${fixtureProductId}`);
+ await page.getByRole('button',{name:'Colour Black',exact:true}).first().click();await page.getByRole('button',{name:'Size M',exact:true}).first().click();
+ await page.getByRole('button',{name:/Add to (Cart|Bag)/i}).first().click();
+ await page.getByRole('navigation',{name:'Shopping navigation'}).getByRole('link',{name:'Cart, 1 items',exact:true}).waitFor();
+ await page.goto(f.url+'/cart');await page.getByRole('combobox',{name:'Quantity for Gym Training T-Shirt'}).selectOption('2');
+ await page.getByRole('navigation',{name:'Shopping navigation'}).getByRole('link',{name:'Cart, 2 items',exact:true}).waitFor();
+ await page.reload();await page.getByRole('navigation',{name:'Shopping navigation'}).getByRole('link',{name:'Cart, 2 items',exact:true}).waitFor();
  console.log(engine.name()+' free navigation passed');
  }finally{await browser.close();}
 }}finally{await f.server.close();}
