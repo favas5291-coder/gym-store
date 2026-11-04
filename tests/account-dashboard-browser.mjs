@@ -77,10 +77,12 @@ try {
       }
       if (!baseline) {
         const {c,p,mock}=await setup();
+        const profileUser={...mock.user};
+        await c.route('**/api/auth/me', route=>route.fulfill({json:{success:true,user:profileUser}}));
         await c.route('**/api/auth/profile', async route=>{
           assert.equal(route.request().method(),'PUT');
-          Object.assign(mock.user,route.request().postDataJSON());
-          await route.fulfill({json:{success:true,user:mock.user,message:'Profile updated successfully.'}});
+          Object.assign(profileUser,route.request().postDataJSON());
+          await route.fulfill({json:{success:true,user:profileUser,message:'Profile updated successfully.'}});
         });
         await visit(p);
         await p.getByRole('link',{name:'Edit profile',exact:true}).click();
@@ -123,7 +125,8 @@ try {
         results.push(`${engine.name()}: partial failure keeps valid address data, honest counts, retry and empty state`);
         await failure.c.close();
 
-        const admin=await setup();admin.mock.user.role='admin';
+        const admin=await setup();
+        await admin.c.route('**/api/auth/me',route=>route.fulfill({json:{success:true,user:{...admin.mock.user,role:'admin'}}}));
         await visit(admin.p);
         assert.equal(await admin.p.locator('.admin-shortcuts').count(),0);
         assert.equal(await admin.p.locator('.gd-account-admin').count(),1);
