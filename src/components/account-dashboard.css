@@ -73,7 +73,9 @@
 #app .premium-storefront .gd-account-sidebar>a{display:inline-flex;align-items:center;min-height:44px;font-size:13px;margin-bottom:16px}
 @media(min-width:960px){
  #app .premium-storefront .gd-account-dashboard .gd-account-content{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:32px;align-items:start}
- #app .premium-storefront .gd-account-dashboard :is(.gd-account-quick,.gd-account-notice,.gd-account-signout){grid-column:1/-1}
+ #app .premium-storefront .gd-account-dashboard :is(.gd-account-quick,.gd-account-notice,.gd-account-signout,.gd-account-menu,.gd-account-profile){grid-column:1/-1}
+ #app .premium-storefront .gd-account-dashboard .gd-account-menu{grid-template-columns:repeat(3,minmax(0,1fr))}
+ #app .premium-storefront .gd-account-dashboard .gd-account-summary>h2{display:flex;align-items:center;min-height:44px;margin-bottom:8px}
 }
 @media(max-width:959px){
  #app .premium-storefront .gd-account-quick{grid-template-columns:repeat(2,minmax(0,1fr))}

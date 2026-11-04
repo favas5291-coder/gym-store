@@ -92,6 +92,7 @@ try {
         await p.reload();await p.getByRole('heading',{name:'Updated Preview',exact:true}).waitFor();
         for(const route of ['/orders','/addresses','/saved','/notifications','/help','/account/security']) {
           await p.goto(fixture.url+route);
+          if(route==='/help')await p.getByText('No requests in this view.',{exact:true}).waitFor();
           await p.getByRole('navigation',{name:'Shopping navigation'}).getByRole('link',{name:'Account',exact:true}).waitFor();
           assert.equal(await p.getByRole('navigation',{name:'Shopping navigation'}).getByRole('link',{name:'Account',exact:true}).getAttribute('aria-current'),'page',route);
           assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,route);
