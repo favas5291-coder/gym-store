@@ -80,16 +80,16 @@ const sizes=[
   ["android-chrome-512x512.png",512],
 ];
 for(const [name,size] of sizes) {
-  test(name+" contains correctly centered genuine transparency",()=>{
+  test(name+" is the official opaque external brand icon",()=>{
     const icon=pngInfo(read("public/"+name));
     assert.equal(icon.width,size);
     assert.equal(icon.height,size);
-    assert.deepEqual(icon.cornerAlpha,[0,0,0,0],"Any background square is prohibited");
-    assert.ok(icon.alphaZero>size*size*.2,"Canvas must have significant transparency");
-    assert.ok(icon.coverage>=.82&&icon.coverage<=.94,JSON.stringify(icon));
+    assert.deepEqual(icon.cornerAlpha,[255,255,255,255],"External square icon must have a solid background");
+    assert.equal(icon.alphaZero,0,"External app icon must have an opaque background");
+    assert.equal(icon.coverage,1,"External icon should fill its square canvas");
   });
 }
-test("ICO carries three 16/32/48 alpha-capable PNG images",()=>{
+test("ICO carries three 16/32/48 opaque PNG images",()=>{
   const ico=read("public/favicon.ico");
   assert.equal(ico.readUInt16LE(0),0);
   assert.equal(ico.readUInt16LE(2),1);
@@ -103,21 +103,22 @@ test("ICO carries three 16/32/48 alpha-capable PNG images",()=>{
     const png=ico.subarray(offset,offset+length);
     const info=pngInfo(png);
     assert.equal(info.width,size);
-    assert.ok(info.alphaZero>0);
+    assert.equal(info.alphaZero,0);
     return size;
   });
   assert.deepEqual(list,[16,32,48]);
 });
-test("browser favicons stay transparent and PWA also offers a separate maskable icon",()=>{
+test("browser favicons and PWA use only approved external icons",()=>{
   const index=read("index.html").toString();
   const manifest=JSON.parse(read("public/site.webmanifest").toString());
   assert.doesNotMatch(index,/href="\/favicon\.jpeg"/);
   for(const name of ["favicon-16x16.png","favicon-32x32.png","favicon-48x48.png","favicon.ico","apple-touch-icon.png","site.webmanifest"]){
-    assert.ok(index.includes("/"+name+"?v=2"),name);
+    assert.ok(index.includes("/"+name+"?v=3"),name);
   }
-  const transparent = manifest.icons.filter(i=>i.purpose==="any");
-  assert.deepEqual(transparent.map(i=>i.sizes),["192x192","512x512"]);
-  assert.ok(transparent.every(i=>i.src.endsWith("?v=2")));
+  const launcher = manifest.icons.filter(i=>i.purpose==="any");
+  assert.deepEqual(launcher.map(i=>i.sizes),["192x192","512x512"]);
+  assert.ok(launcher.every(i=>i.src.endsWith("?v=3")));
   assert.equal(manifest.icons.filter(i=>i.purpose==="maskable").length,1);
+  assert.match(manifest.icons.find(i=>i.purpose==="maskable").src,/^\/brand\/external\/gymdrobe-maskable-512\.png\?v=3$/);
   assert.ok(manifest.icons.every(i=>existsSync(new URL("public/"+i.src.slice(1).split("?")[0],root))));
 });
