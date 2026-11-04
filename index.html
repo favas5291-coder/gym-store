@@ -52,15 +52,14 @@
       GymDrobe | Everything for Every Workout
     </title>
 
-    <!-- Approved premium external identity for browser tabs, bookmarks and app installation.
-         The internal storefront keeps its previous typography and design. -->
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=3" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=3" />
-    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png?v=3" />
+    <!-- External brand identity only. Google Search favicon candidates must use supported
+         image formats (PNG/ICO); the in-store navigation/footer remain unchanged. -->
     <link rel="shortcut icon" href="/favicon.ico?v=3" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=3" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=3" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png?v=3" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png?v=3" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=3" />
-    <!-- SVG fallback uses the same approved external identity as the PNG and ICO icons. -->
-    <link rel="icon" type="image/svg+xml" href="/brand/gymdrobe-app-icon.svg?v=3" />
     <link rel="manifest" href="/site.webmanifest?v=3" />
 
     <meta
@@ -164,12 +163,17 @@
             }
           },
           {
-            "@type": "Organization",
+            "@type": "OnlineStore",
             "@id": "https://www.gymdrobe.com/#organization",
             "url": "https://www.gymdrobe.com/",
             "name": "GymDrobe",
             "alternateName": "Gym Drobe",
-            "logo": "https://www.gymdrobe.com/brand/external/gymdrobe-app-icon-1024.png",
+            "logo": {
+              "@type": "ImageObject",
+              "contentUrl": "https://www.gymdrobe.com/brand/external/gymdrobe-app-icon-1024.png",
+              "width": 1024,
+              "height": 1024
+            },
             "description": "GymDrobe brings products from different fitness brands and suppliers together in one shopping experience.",
             "slogan": "Everything You Need for Every Workout."
           }
