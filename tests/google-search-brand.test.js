@@ -68,7 +68,7 @@ test("fix does not change established internal UI branding", () => {
 });
 
 test("homepage primary image and Organization logo are the same approved square artwork", () => {
-  const block = html.match(/<script\\s+id="gymdrobe-site-schema"[^>]*>([\\s\\S]*?)<\\/script>/);
+  const block = html.match(/<script[^>]*id="gymdrobe-site-schema"[^>]*>([\s\S]*?)<\/script>/);
   assert.ok(block, "Homepage JSON-LD should be present in source HTML");
   const graph = JSON.parse(block[1])["@graph"];
   const website = graph.find(entry => entry["@id"] === "https://www.gymdrobe.com/#website");
