@@ -16,7 +16,8 @@ test('Android verification tolerates unavailable history but preserves every cur
     writeFileSync(file,`#!/bin/sh
 printf '%s\\n' '${command} '"$*" >> "$TRACE_PATH"
 case "$TEST_MODE:${command}:$*" in
- baseline-install:adb:*baseline.apk*) exit 4;;
+ baseline-install:adb:*baseline.apk*|baseline-cleanup:adb:*baseline.apk*) exit 4;;
+ baseline-cleanup:adb:*force-stop*) exit 9;;
  baseline-startup:node:*startup-before.json*) exit 5;;
  current-install:adb:*GymDrobe-debug.apk*) exit 6;;
  current-startup:node:*startup-after.json*) exit 7;;
@@ -28,14 +29,18 @@ exit 0
   const timeout=path.join(bin,'timeout');
   writeFileSync(timeout,'#!/bin/sh\nshift\nexec "$@"\n');chmodSync(timeout,0o755);
   try {
-    for(const [mode,expected] of [['ok',0],['baseline-install',0],['baseline-startup',0],['missing-history',0],['current-install',6],['current-startup',7],['current-smoke',8]]) {
+    for(const [mode,expected] of [['ok',0],['baseline-install',0],['baseline-startup',0],['baseline-cleanup',0],['missing-history',0],['current-install',6],['current-startup',7],['current-smoke',8]]) {
       writeFileSync(trace,'');
+      rmSync(path.join(results,'baseline-unavailable.txt'),{force:true});
       const run=spawnSync('/bin/bash',['scripts/verify-android-emulator.sh'],{encoding:'utf8',env:{...process.env,PATH:bin+path.delimiter+process.env.PATH,TEST_MODE:mode,TRACE_PATH:trace,GYMDROBE_ANDROID_RESULTS:results,GYMDROBE_ANDROID_BASELINE_APK:mode==='missing-history'?path.join(dir,'missing.apk'):baseline,GYMDROBE_ANDROID_SETTLE_SECONDS:'0'}});
       assert.equal(run.status,expected,mode+': '+run.stderr);
       const calls=readFileSync(trace,'utf8');
       assert.match(calls,/adb install -r .*GymDrobe-debug.apk/,mode);
       assert.match(calls,/adb logcat -d -t 1000/,mode+' must retain diagnostics');
-      if(expected===0)assert.match(calls,/bash scripts\/smoke-android.sh/,mode+' must reach current smoke test');
+      if(expected===0) {
+        assert.match(calls,/bash scripts\/smoke-android.sh/,mode+' must reach current smoke test');
+        if (mode!=='missing-history') assert.ok(calls.indexOf('bash scripts/smoke-android.sh') < calls.indexOf('adb install -r '+baseline), 'current smoke must precede legacy software');
+      }
       if(mode.startsWith('baseline-')||mode==='missing-history')assert.ok(existsSync(path.join(results,'baseline-unavailable.txt')));
     }
   } finally {rmSync(dir,{recursive:true,force:true});}

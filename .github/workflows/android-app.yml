@@ -45,14 +45,9 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Download the previously installed test APK for comparison
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          curl --fail --location --silent --show-error -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" https://api.github.com/repos/favas5291-coder/gym-store/actions/artifacts/12874075689/zip -o /tmp/gymdrobe-baseline.zip
-          mkdir -p /tmp/gymdrobe-baseline
-          unzip -q /tmp/gymdrobe-baseline.zip GymDrobe-debug.apk -d /tmp/gymdrobe-baseline
+      # Historical APK startup failed and invalidated the shared emulator in
+      # run 41921256178. Current acceptance must not execute legacy software first.
+      # A historical comparison needs a separate controlled emulator run.
       - name: Install and launch the Android APK
         uses: reactivecircus/android-emulator-runner@v2
         with:
