@@ -249,11 +249,8 @@ function Icon({ name, size = 22 }) {
 }
 
 function Brand() {
-  return (
-    <span className="gn-branded-lockup">
-      <img src="/brand/gymdrobe-lockup.svg" alt="GymDrobe" width="150" height="54" />
-    </span>
-  );
+  // Restore the established in-store wordmark; the premium square icon is external-only.
+  return <span className="gn-wordmark">GYMDROBE</span>;
 }
 
 function Thumbnail({ src }) {
