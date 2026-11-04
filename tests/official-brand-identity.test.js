@@ -26,7 +26,9 @@ test("previous internal wordmarks are restored; external icon is separate", () =
   assert.doesNotMatch(style, /\.gn-branded-lockup|\.footer-branded-lockup/);
   assert.doesNotMatch(offline, /gymdrobe-app-icon\.svg/);
   assert.match(install, /gymdrobe-app-icon\.svg/);
-  assert.match(html, /gymdrobe-app-icon\.svg/);
+  assert.match(html, /android-chrome-192x192\\.png/);
+  assert.match(html, /brand\\/external\\/gymdrobe-app-icon-1024\\.png/);
+  assert.doesNotMatch(html, /rel="icon"[^>]*type="image\\/svg\\+xml"/);
 });
 
 test("external share/PWA images and Android launcher assets have expected pixel dimensions", () => {
