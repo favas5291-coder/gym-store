@@ -63,7 +63,22 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           script: |
-            if [ -f /tmp/gymdrobe-baseline/GymDrobe-debug.apk ]; then adb install -r /tmp/gymdrobe-baseline/GymDrobe-debug.apk && node scripts/measure-android-startup.mjs test-results/android/startup-before.json; else echo 'Baseline artifact unavailable; no before comparison can be claimed.' > test-results/android/baseline-unavailable.txt; fi
+            # Historical performance data is optional: if the old APK has a
+            # stalled WebView, record the missing baseline but still test the NEW APK.
+            if [ -f /tmp/gymdrobe-baseline/GymDrobe-debug.apk ]; then
+              if adb install -r /tmp/gymdrobe-baseline/GymDrobe-debug.apk; then
+                if ! node scripts/measure-android-startup.mjs test-results/android/startup-before.json; then
+                  echo 'Previous APK WebView benchmark failed; no before comparison can be claimed.' > test-results/android/baseline-unavailable.txt
+                  adb logcat -d -t 600 > test-results/android/baseline-emulator-logcat.txt || true
+                fi
+              else
+                echo 'Previous APK cannot be installed; no before comparison can be claimed.' > test-results/android/baseline-unavailable.txt
+              fi
+            else
+              echo 'Baseline artifact unavailable; no before comparison can be claimed.' > test-results/android/baseline-unavailable.txt
+            fi
+            # The current APK is mandatory: do not suppress installation,
+            # startup timing, activity launch or smoke-test failures.
             adb install -r test-results/android/GymDrobe-debug.apk
             node scripts/measure-android-startup.mjs test-results/android/startup-after.json
             adb logcat -c
