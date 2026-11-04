@@ -17,7 +17,7 @@ try{for(const engine of [chromium,webkit]){
   await page.reload();await page.getByRole('button',{name:/sign out|log out/i}).waitFor();assert.ok(calls>=2);
   mode='outage';await page.reload();await page.getByRole('heading',{name:'Unable to verify your account',exact:true}).waitFor();assert.equal(await page.evaluate(()=>localStorage.getItem('gymdrobe-auth-token')),'fixture-session');
   mode='ok';await page.evaluate(()=>window.dispatchEvent(new Event('online')));await page.getByRole('button',{name:/sign out|log out/i}).waitFor();
-  const before=calls;await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})));await page.getByRole('button',{name:/sign out|log out/i}).waitFor();assert.ok(calls>before);
+  const before=calls;const resumed=page.waitForResponse(r=>r.url().endsWith('/api/auth/me'));await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})));await resumed;await page.getByRole('button',{name:/sign out|log out/i}).waitFor();assert.ok(calls>before);
   // Cross-tab logout must clear the visible verified account, not reselect Google.
   await other.evaluate(()=>localStorage.removeItem('gymdrobe-auth-token'));await page.bringToFront();await page.getByText('Your favourites. All together.',{exact:true}).waitFor();
   mode='expired';await other.evaluate(()=>localStorage.setItem('gymdrobe-auth-token','expired-fixture'));await page.bringToFront();
