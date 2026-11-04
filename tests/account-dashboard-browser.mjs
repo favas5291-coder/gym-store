@@ -27,11 +27,12 @@ try {
       const c = await browser.newContext({viewport:{width,height:844},reducedMotion:'reduce'});
       const mock = await mockStorefront(c, fixture.products, {signedIn:true,...options});
       const p = await c.newPage(); p.setDefaultTimeout(10000);
-      p.on('pageerror', error => errors.push(error.message));
+      p.on('pageerror', error => errors.push({message:error.message,stack:error.stack,url:p.url()}));
       return {c,p,mock};
     }
     async function visit(p, route='/account') {
       await p.goto(fixture.url + route);
+      await p.waitForLoadState('networkidle');
       await p.getByRole('heading', {name:baseline ? 'Account' : 'Preview Customer',exact:true}).waitFor();
       if(!baseline) await p.locator('.gd-account-stats[aria-busy="false"]').waitFor();
     }
@@ -89,19 +90,19 @@ try {
         await p.getByLabel('Full name',{exact:true}).fill('Updated Preview');
         await p.getByRole('button',{name:'Save changes',exact:true}).click();
         await p.getByRole('heading',{name:'Updated Preview',exact:true}).waitFor();
-        await p.reload();await p.getByRole('heading',{name:'Updated Preview',exact:true}).waitFor();
+        await p.waitForLoadState('networkidle');await p.reload();await p.waitForLoadState('networkidle');await p.getByRole('heading',{name:'Updated Preview',exact:true}).waitFor();
         for(const route of ['/orders','/addresses','/saved','/notifications','/help','/account/security']) {
-          await p.goto(fixture.url+route);
+          await p.goto(fixture.url+route);await p.waitForLoadState('networkidle');
           if(route==='/help')await p.getByText('No requests in this view.',{exact:true}).waitFor();
           await p.getByRole('navigation',{name:'Shopping navigation'}).getByRole('link',{name:'Account',exact:true}).waitFor();
           assert.equal(await p.getByRole('navigation',{name:'Shopping navigation'}).getByRole('link',{name:'Account',exact:true}).getAttribute('aria-current'),'page',route);
           assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,route);
         }
-        await p.goto(fixture.url+'/wishlist');
+        await p.goto(fixture.url+'/wishlist');await p.waitForLoadState('networkidle');
         assert.equal(await p.getByRole('navigation',{name:'Shopping navigation'}).getByRole('link',{name:'Wishlist',exact:true}).getAttribute('aria-current'),'page');
-        await p.goto(fixture.url+'/account');await p.locator('.gd-account-stats[aria-busy="false"]').waitFor();
-        await p.locator('.gd-account-order').first().click();await p.waitForURL(`**/orders/${fixtureOrderId}`);
-        await p.goto(fixture.url+'/account#profile-details');await p.getByLabel('Full name',{exact:true}).waitFor();
+        await p.goto(fixture.url+'/account');await p.waitForLoadState('networkidle');await p.locator('.gd-account-stats[aria-busy="false"]').waitFor();
+        await p.locator('.gd-account-order').first().click();await p.waitForURL(`**/orders/${fixtureOrderId}`);await p.waitForLoadState('networkidle');
+        await p.goto(fixture.url+'/account#profile-details');await p.waitForLoadState('networkidle');await p.getByLabel('Full name',{exact:true}).waitFor();
         await p.getByLabel('Full name',{exact:true}).focus();
         await p.evaluate(()=>{
           Object.defineProperty(visualViewport,'height',{configurable:true,value:350});
@@ -109,7 +110,7 @@ try {
         });
         await p.waitForTimeout(200);
         assert.equal(await p.getByRole('navigation',{name:'Shopping navigation'}).isVisible(),false,'Keyboard hides bottom navigation');
-        await p.reload();await p.getByRole('button',{name:'Sign out',exact:true}).click();await p.waitForURL('**/login');
+        await p.waitForLoadState('networkidle');await p.reload();await p.waitForLoadState('networkidle');await p.getByRole('button',{name:'Sign out',exact:true}).click();await p.waitForURL('**/login');await p.waitForLoadState('networkidle');
         assert.equal(await p.evaluate(()=>localStorage.getItem('gymdrobe-auth-token')),null);
         results.push(`${engine.name()}: profile save and refresh, account routes, order detail, deep link, keyboard, logout`);
         await c.close();
@@ -132,7 +133,7 @@ try {
         assert.equal(await admin.p.locator('.admin-shortcuts').count(),0);
         assert.equal(await admin.p.locator('.gd-account-admin').count(),1);
         await admin.p.locator('.gd-account-admin').getByRole('link',{name:'Open admin'}).click();
-        await admin.p.locator('.admin-shortcuts').waitFor();
+        await admin.p.locator('.admin-shortcuts').waitFor();await admin.p.waitForLoadState('networkidle');
         await admin.c.close();
         results.push(`${engine.name()}: authorized admin gets one separate entry; workspace controls remain`);
         assert.deepEqual(errors,[],'No uncaught browser errors');
