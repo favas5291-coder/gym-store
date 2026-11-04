@@ -70,8 +70,9 @@ export default function AuthProvider({ children }) {
         setUser(null);
         setAuthError(null);
         setLoading(Boolean(savedToken));
+        setStorageReady(true);
         setToken(savedToken);
-      } else if (savedToken && (authError || (event.type === "pageshow" && event.persisted))) {
+      } else if (savedToken && (authError || ["online", "focus", "visibilitychange"].includes(event.type) || (event.type === "pageshow" && event.persisted))) {
         // Retry verification on reconnect/return, never trust a cached user alone.
         retrySession();
       }

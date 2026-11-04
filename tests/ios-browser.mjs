@@ -101,6 +101,11 @@ try {
     await recovered;
     await page.getByRole("button", { name: "Sign out", exact: true }).waitFor();
     await page.waitForLoadState("networkidle");
+    const foreground = page.waitForResponse(response => response.url().endsWith("/api/auth/me") && response.status() === 200);
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await foreground;
+    await page.getByRole("button", { name: "Sign out", exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => localStorage.getItem("gymdrobe-auth-token")), null, "Foreground recovery must keep the native token in Keychain");
     offlineSimulation = false;
     const before = page.url();
     await page.waitForFunction(() => Boolean(window.__nativeListeners.appUrlOpen));
