@@ -16,7 +16,7 @@ try {
   let target;
   for (let attempt = 0; attempt < 30 && !target; attempt++) {
     try {
-      const tabs = await (await fetch("http://127.0.0.1:9222/json")).json();
+      const tabs = await (await fetch("http://127.0.0.1:9222/json", { signal: AbortSignal.timeout(3000) })).json();
       target = tabs.find((tab) => tab.type === "page" && tab.webSocketDebuggerUrl);
     } catch { /* WebView debug server can start after the Activity. */ }
     if (!target) await delay(1000);

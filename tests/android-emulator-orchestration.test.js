@@ -25,6 +25,8 @@ esac
 exit 0
 `);chmodSync(file,0o755);
   }
+  const timeout=path.join(bin,'timeout');
+  writeFileSync(timeout,'#!/bin/sh\nshift\nexec "$@"\n');chmodSync(timeout,0o755);
   try {
     for(const [mode,expected] of [['ok',0],['baseline-install',0],['baseline-startup',0],['missing-history',0],['current-install',6],['current-startup',7],['current-smoke',8]]) {
       writeFileSync(trace,'');
