@@ -16,10 +16,25 @@ phones = [(runtime, device) for runtime, rows in devices["devices"].items()
           for device in rows if "iPhone" in device["name"]]
 if not phones:
     raise SystemExit("No iPhone simulator runtime is installed.")
-runtime, phone = sorted(phones, key=lambda pair: (pair[0], "Pro Max" in pair[1]["name"], pair[1]["name"]), reverse=True)[0]
-udid = phone["udid"]
-subprocess.run(["xcrun", "simctl", "boot", udid], check=phone["state"] != "Booted", timeout=90)
-subprocess.run(["xcrun", "simctl", "bootstatus", udid, "-b"], check=True, timeout=240)
+# Use a regular phone rather than the largest Pro Max on shared CI hosts.
+# Create our own device: recovery must never erase a developer's simulator.
+runtime, phone = sorted(phones, key=lambda pair: (pair[0], not any(size in pair[1]["name"] for size in ("Max", "Plus", "Pro")), pair[1]["name"]), reverse=True)[0]
+types = json.loads(command("xcrun", "simctl", "list", "devicetypes", "--json"))["devicetypes"]
+device_type = next(row["identifier"] for row in types if row["name"] == phone["name"])
+udid = command("xcrun", "simctl", "create", "GymDrobe shopping tests", device_type, runtime)
+for attempt in range(2):
+    try:
+        subprocess.run(["xcrun", "simctl", "boot", udid], check=True, timeout=90)
+        subprocess.run(["xcrun", "simctl", "bootstatus", udid, "-b"], check=True, timeout=240)
+        break
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+        with (OUTPUT / f"simulator-boot-{attempt + 1}.json").open("w") as report:
+            subprocess.run(["xcrun", "simctl", "list", "devices", "--json"], stdout=report, timeout=30, check=False)
+        if attempt:
+            raise
+        print("Simulator boot failed; retrying once with a clean test-owned device.", flush=True)
+        subprocess.run(["xcrun", "simctl", "shutdown", udid], check=False, timeout=30)
+        subprocess.run(["xcrun", "simctl", "erase", udid], check=True, timeout=60)
 app = "ios/DerivedData/Build/Products/Debug-iphonesimulator/App.app"
 subprocess.run(["xcrun", "simctl", "install", udid, app], check=True, timeout=120)
 metadata = {"udid": udid, "device": phone["name"], "runtime": runtime}

@@ -43,7 +43,7 @@ jobs:
           mkdir -p test-results/ios
           xcodebuild -quiet -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/DerivedData CODE_SIGNING_ALLOWED=NO build 2>&1 | tee test-results/ios/build.log
       - name: Prepare iPhone simulator for native launch and navigation tests
-        timeout-minutes: 8
+        timeout-minutes: 14
         run: |
           python3 scripts/smoke-ios.py --prepare-only
       - name: Native iPhone shopping tab tests
