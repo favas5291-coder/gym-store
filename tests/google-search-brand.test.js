@@ -66,3 +66,35 @@ test("fix does not change established internal UI branding", () => {
   assert.match(footer, /aria-label="GymDrobe home">GYMDROBE<\/Link>/);
   assert.doesNotMatch(navbar + footer, /\/brand\/gymdrobe-lockup\.svg/);
 });
+
+test("homepage primary image and Organization logo are the same approved square artwork", () => {
+  const block = html.match(/<script\\s+id="gymdrobe-site-schema"[^>]*>([\\s\\S]*?)<\\/script>/);
+  assert.ok(block, "Homepage JSON-LD should be present in source HTML");
+  const graph = JSON.parse(block[1])["@graph"];
+  const website = graph.find(entry => entry["@id"] === "https://www.gymdrobe.com/#website");
+  const webpage = graph.find(entry => entry["@id"] === "https://www.gymdrobe.com/#webpage");
+  const shop = graph.find(entry => entry["@id"] === "https://www.gymdrobe.com/#organization");
+  assert.ok(website && webpage && shop, "Expected WebSite, WebPage and OnlineStore");
+  assert.equal(webpage["@type"], "WebPage");
+  assert.equal(webpage.isPartOf["@id"], website["@id"]);
+  assert.equal(webpage.about["@id"], shop["@id"]);
+  assert.equal(webpage.primaryImageOfPage.contentUrl, shop.logo.contentUrl);
+  assert.deepEqual(pngDimensions("public/brand/external/gymdrobe-app-icon-1024.png"), [1024, 1024]);
+});
+
+test("retired Google-visible logo URLs redirect before serving static legacy assets", () => {
+  const config = JSON.parse(read("vercel.json").toString("utf8"));
+  const redirects = [
+    ["^/gymdrobe-share-v1\\.png$", "/gymdrobe-share-v2.png"],
+    ["^/favicon\\.jpeg$", "/favicon.ico?v=3"],
+    ["^/favicon-64-v1\\.png$", "/favicon-48x48.png?v=3"],
+  ];
+  const filesystem = config.routes.findIndex(route => route.handle === "filesystem");
+  assert.ok(filesystem >= 0, "Existing SPA filesystem routing must be retained");
+  for (const [source, target] of redirects) {
+    const index = config.routes.findIndex(route => route.src === source);
+    assert.ok(index >= 0 && index < filesystem, "Redirect must precede filesystem for " + source);
+    assert.equal(config.routes[index].status, 308);
+    assert.equal(config.routes[index].headers.Location, target);
+  }
+});
