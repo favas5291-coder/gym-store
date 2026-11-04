@@ -18,7 +18,7 @@ for (let run = 1; run <= 2; run++) {
       const pid = adb('shell', 'pidof', '-s', 'com.gymdrobe.app');
       if (/^\d+$/.test(pid)) {
         adb('forward', 'tcp:9222', `localabstract:webview_devtools_remote_${pid}`);
-        const pages = await (await fetch('http://127.0.0.1:9222/json')).json();
+        const pages = await (await fetch('http://127.0.0.1:9222/json', { signal: AbortSignal.timeout(3000) })).json();
         target = pages.find(page => page.type === 'page' && page.webSocketDebuggerUrl);
       }
     } catch { /* WebView starts after Activity creation. */ }

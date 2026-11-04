@@ -9,15 +9,42 @@ const output = path.resolve('test-results/account-dashboard');
 await fs.mkdir(output, {recursive:true});
 process.env.VITE_API_URL = 'http://127.0.0.1:4242/api';
 const baseline = process.argv.includes('--before');
+// The historical account UI predates some newer source files. Treat missing
+// baseline paths as an unavailable comparison, not as a failure of today's UI.
+const baselineCommit = '16099b56eb4601f66af8e5f322bad468b40c7283';
+const baselineFiles = [
+  'src/components/AccountLayout.jsx',
+  'src/pages/AccountPage.jsx',
+  'src/App.jsx',
+  'src/native/NativeShopping.jsx',
+  'src/native/shopping-navigation.css',
+];
+if (baseline) {
+  const missing = baselineFiles.filter(file => {
+    try {
+      execFileSync('git', ['cat-file', '-e', `${baselineCommit}:${file}`], {stdio:'ignore'});
+      return false;
+    } catch {
+      return true;
+    }
+  });
+  if (missing.length) {
+    const reason = `Historical account baseline unavailable at ${baselineCommit}: ${missing.join(', ')}. Skipping only before screenshots; current account regression checks must still run.`;
+    console.warn(reason);
+    await fs.writeFile(path.join(output, 'baseline-unavailable.json'),
+      JSON.stringify({baselineCommit, missing, reason}, null, 2));
+    process.exit(0);
+  }
+}
 const restore = new Map();
 let fixture;
 const results = [];
 // Capture the exact pre-change source with the same account fixture and browser.
 // Only used in isolated CI. Always restore checkout files, including after failures.
 try {
-  if (baseline) for (const file of ['src/components/AccountLayout.jsx','src/pages/AccountPage.jsx','src/App.jsx','src/native/NativeShopping.jsx','src/native/shopping-navigation.css']) {
+  if (baseline) for (const file of baselineFiles) {
     restore.set(file, await fs.readFile(file));
-    await fs.writeFile(file, execFileSync('git', ['show', `16099b56eb4601f66af8e5f322bad468b40c7283:${file}`]));
+    await fs.writeFile(file, execFileSync('git', ['show', `${baselineCommit}:${file}`]));
   }
   fixture = await startStorefrontFixture(4242);
   for (const engine of baseline ? [chromium] : [chromium, webkit]) {
