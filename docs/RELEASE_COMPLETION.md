@@ -24,3 +24,7 @@ Additional service budget: ₹0. Existing approved UI, customer data and authent
 - Use an authorized Search Console property to inspect the deployed homepage and request indexing after publication; Google controls recrawl and displayed appearance.
 
 A check passing in a fixture is not a real provider transaction, a simulator is not a signed iPhone build, and prepared code is not a deployed feature. This source checkpoint records the audit while release checks run. The final verification handover and PR descriptions record the resulting run/deployment IDs; older PROJECT_STATUS.md evidence remains historical.
+
+## Build-tool maintenance
+
+The audit also found development-tool advisories. Vite is patched within the existing8.2 line to8.2.4; allowed transitive updates use rimraf6.1.4, glob14.0.3, minimatch11.0.4 and source-map-js1.2.2. The candidate audit reports zero known vulnerabilities and its216-file source check,260 tests and production build pass. No force update or major framework/native upgrade was used. The full web workflow gets30 minutes because observed package installation consumed most of the previous15-minute limit; all assertions remain mandatory and FFmpeg installation omits optional recommended packages.
