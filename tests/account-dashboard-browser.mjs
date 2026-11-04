@@ -61,7 +61,7 @@ try {
           }
           await p.getByRole('link',{name:'Edit profile',exact:true}).click();
           assert.equal(await p.locator('#profile-details').getAttribute('open'),'');
-          assert.equal(await p.getByLabel('Full name',{exact:true}).evaluate(el=>document.activeElement===el),true);
+          await p.waitForFunction(()=>document.activeElement?.id==='profile-name');
           assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'Expanded form must fit');
           assert.ok(await p.getByLabel('Full name',{exact:true}).evaluate(el=>parseFloat(getComputedStyle(el).fontSize)>=16),'Prevent iOS input zoom');
           await p.locator('#profile-details>summary').click();

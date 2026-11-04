@@ -15,7 +15,7 @@ export function openProfile(event) {
   event?.preventDefault();
   panel.open = true;
   panel.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
-  requestAnimationFrame(() => document.getElementById("profile-name")?.focus({ preventScroll: true }));
+  document.getElementById("profile-name")?.focus({ preventScroll: true });
 }
 
 export function AccountMenu({ compact = false }) {
