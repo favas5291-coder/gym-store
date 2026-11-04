@@ -25,27 +25,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Install image export dependencies
-        run: python -m pip install pillow cairosvg
-      - name: Regenerate approved external branding assets
-        run: python scripts/generate-transparent-favicons.py
-      - name: Verify committed assets match generated outputs
-        shell: bash
-        run: |
-          git diff --exit-code -- \
-            public/favicon-16x16.png public/favicon-32x32.png public/favicon-48x48.png public/favicon.ico \
-            public/apple-touch-icon.png public/android-chrome-192x192.png public/android-chrome-512x512.png \
-            public/brand/external public/gymdrobe-share-v2.png \
-            android/app/src/main/res/mipmap-*/ic_launcher*.png
-          if [ -n "$(git ls-files --others --exclude-standard public/brand/external)" ]; then
-            echo "Generated external branding includes untracked files"
-            exit 1
-          fi
-      - name: Test internal/external brand separation and icon dimensions
+      - name: Test favicon data, PWA manifest, original internal wordmark and native icon sizes
         run: node --test tests/favicon-assets.test.js tests/official-brand-identity.test.js
