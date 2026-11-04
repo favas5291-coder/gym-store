@@ -2984,3 +2984,39 @@
     line-height: 1.35;
   }
 }
+/* Approved GymDrobe logo. The artwork is shared with the app icon: white
+   traced lettering + orange sweep. Dark panel maintains contrast on white UI. */
+.gd-nav .gn-branded-lockup {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(112px, 12vw, 158px);
+  height: 48px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  background: #101114;
+  border-radius: 8px;
+}
+.gd-nav .gn-brand .gn-branded-lockup img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.gd-footer .footer-branded-lockup {
+  display: inline-flex;
+  background: #101114;
+  border-radius: 8px;
+  padding: 0 8px;
+  max-width: min(100%, 260px);
+}
+.gd-footer .footer-branded-lockup img {
+  display: block;
+  width: min(100%, 250px);
+  height: auto;
+  max-height: 85px;
+  object-fit: contain;
+}
+@media (max-width: 600px) {
+  .gd-nav .gn-branded-lockup { width: clamp(112px, 35vw, 145px); height: 43px; }
+}
