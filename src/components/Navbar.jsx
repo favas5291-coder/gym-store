@@ -249,9 +249,11 @@ function Icon({ name, size = 22 }) {
 }
 
 function Brand() {
-  // The original image reference was missing from the bundled assets.
-  // Render the same live wordmark consistently on desktop and mobile.
-  return <span className="gn-wordmark">GYMDROBE</span>;
+  return (
+    <span className="gn-branded-lockup">
+      <img src="/brand/gymdrobe-lockup.svg" alt="GymDrobe" width="150" height="54" />
+    </span>
+  );
 }
 
 function Thumbnail({ src }) {
