@@ -128,7 +128,9 @@ try {
   await check("only public offline assets enter the service worker cache", async () => {
     // Exercise API GET/POST and HTML navigation through the active worker.
     await mobile.page.evaluate(async () => {
-      await fetch("/api/orders");
+      for (const endpoint of ["auth/me", "orders", "addresses", "payments/status"]) {
+        await fetch(`/api/${endpoint}`, { headers: { Authorization: "Bearer fixture-not-a-real-token" } });
+      }
       await fetch("/api/payments/pwa-test", { method: "POST", body: "{}" });
     });
     const entries = await mobile.page.evaluate(async () => {

@@ -62,31 +62,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
-          script: |
-            # Keep emulator diagnostics when the current app fails a mandatory check.
-            trap 'adb logcat -d -t 1000 > test-results/android/emulator-logcat.txt 2>/dev/null || true' EXIT
-            # Historical performance data is optional: if the old APK has a
-            # stalled WebView, record the missing baseline but still test the NEW APK.
-            if [ -f /tmp/gymdrobe-baseline/GymDrobe-debug.apk ]; then
-              if adb install -r /tmp/gymdrobe-baseline/GymDrobe-debug.apk; then
-                if ! node scripts/measure-android-startup.mjs test-results/android/startup-before.json; then
-                  echo 'Previous APK WebView benchmark failed; no before comparison can be claimed.' > test-results/android/baseline-unavailable.txt
-                  adb logcat -d -t 600 > test-results/android/baseline-emulator-logcat.txt || true
-                fi
-              else
-                echo 'Previous APK cannot be installed; no before comparison can be claimed.' > test-results/android/baseline-unavailable.txt
-              fi
-            else
-              echo 'Baseline artifact unavailable; no before comparison can be claimed.' > test-results/android/baseline-unavailable.txt
-            fi
-            # The current APK is mandatory: do not suppress installation,
-            # startup timing, activity launch or smoke-test failures.
-            adb install -r test-results/android/GymDrobe-debug.apk
-            node scripts/measure-android-startup.mjs test-results/android/startup-after.json
-            adb logcat -c
-            adb shell am start -W -n com.gymdrobe.app/.MainActivity
-            sleep 8
-            bash scripts/smoke-android.sh
+          script: bash scripts/verify-android-emulator.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
