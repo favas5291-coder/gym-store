@@ -36,6 +36,8 @@ jobs:
         run: |
           npm install --no-save --package-lock=false playwright@1.62.1
           npx playwright install --with-deps chromium webkit
+      - name: Free mobile navigation and hidden photo-search checks
+        run: node tests/free-navigation-browser.mjs
       - name: Storefront interactions and responsive screenshots
         run: npm run test:storefront
       - name: PWA install, offline recovery and update checks

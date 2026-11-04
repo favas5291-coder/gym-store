@@ -41,6 +41,7 @@ import DeferredFitnessGuide from "./components/DeferredFitnessGuide.jsx";
 
 import Home from "./pages/Home.jsx";
 import { installRoutePrefetch } from "./utils/routePrefetch.js";
+import { NativeShoppingNavigation, NativeCategoriesPage, NativeSearchPage } from "./native/NativeShopping.jsx";
 import NativeAppController from "./native/NativeAppController.jsx";
 
 const Shop = lazy(
@@ -627,6 +628,8 @@ function Layout() {
               {[
                 ["/install", InstallAppPage],
                 ["/shop", Shop],
+                ["/categories", NativeCategoriesPage],
+                ["/search", NativeSearchPage],
                 [
                   "/product/:id",
                   ProductPage,
@@ -903,6 +906,7 @@ function StorefrontApplication() {
     >
       <ShoppingToolsProvider>
         <Layout />
+        <NativeShoppingNavigation />
       </ShoppingToolsProvider>
     </StoreProvider>
   );
