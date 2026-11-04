@@ -54,6 +54,8 @@ jobs:
         env:
           GYMDROBE_SHOPPING_BACKEND_DIR: .qa-shopping-backend
         run: node tests/order-push-browser.mjs
+      - name: Shared navigation and photo-search UX contracts
+        run: node tests/photo-search-browser.mjs
       - name: Storefront interactions and responsive screenshots
         run: npm run test:storefront
       - name: PWA install, offline recovery and update checks
@@ -96,4 +98,10 @@ jobs:
         with:
           name: iPhone-browser-review
           path: test-results/ios-browser/
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: photo-search-review
+          path: test-results/photo-search/
           retention-days: 14

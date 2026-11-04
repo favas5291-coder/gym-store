@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
-import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { House, Grid2X2, Search, Heart, UserRound, ShoppingBag, ArrowUpRight } from "lucide-react";
 import { useStore } from "../context/StoreContext.jsx";
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { SHOP_DEPARTMENTS, catalogOptions, productDepartment } from "../utils/catalog.js";
 import { isNativeApp } from "./platform.js";
+import PhotoSearchButton from "../components/PhotoSearchButton.jsx";
 
 export function NativeShoppingNavigation() {
-  const { cart, wishlist } = useStore();
+  const { cart } = useStore();
   const { pathname } = useLocation();
   const [offline, setOffline] = useState(() => navigator.onLine === false);
   useEffect(() => {
@@ -16,18 +17,29 @@ export function NativeShoppingNavigation() {
     window.addEventListener("offline", update);
     return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
   }, []);
-  if (!isNativeApp() || /^\/(admin|supplier|dev)(\/|$)/.test(pathname)) return null;
-  const count = cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
-  const checkout = pathname === "/checkout";
-  const tabs = [["/", "Home", House], ["/categories", "Categories", Grid2X2], ["/search", "Search", Search], ["/wishlist", "Wishlist", Heart], ["/account", "Account", UserRound]];
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const update = () => {
+      const focused = document.activeElement?.matches('input,textarea,select,[contenteditable="true"]');
+      const keyboard = Boolean(focused && viewport && window.innerHeight - viewport.height > 150);
+      document.documentElement.classList.toggle('shopping-keyboard-open', keyboard);
+      if (keyboard) requestAnimationFrame(() => document.activeElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+    };
+    viewport?.addEventListener('resize', update); document.addEventListener('focusin', update); document.addEventListener('focusout', update);
+    return () => { viewport?.removeEventListener('resize', update); document.removeEventListener('focusin', update); document.removeEventListener('focusout', update); document.documentElement.classList.remove('shopping-keyboard-open'); };
+  }, []);
+  if (/^\/(admin|supplier|dev)(\/|$)/.test(pathname)) return null;
+  const count = cart.reduce((sum, item) => sum + Math.max(0, Math.floor(Number(item.quantity) || 0)), 0);
+  const account = /^\/(account|orders|addresses|help|support|track|login|register)(\/|$)/.test(pathname);
+  const tabs = [["/", "Home", House], ["/categories", "Categories", Grid2X2], ["/wishlist", "Wishlist", Heart], ["/cart", "Cart", ShoppingBag], ["/account", "Account", UserRound]];
   return <>
-    {offline && <div className="native-offline" role="status">You’re offline. Your saved bag is kept on this device. Reconnect to check stock or pay.</div>}
-    {!checkout && <>
-      <Link className="native-cart" to="/cart" aria-label={`Bag, ${count} items`}><ShoppingBag size={22}/>{count > 0 && <span>{count > 99 ? "99+" : count}</span>}</Link>
-      <nav className="native-tabs" aria-label="App navigation">
-        {tabs.map(([to, label, Icon]) => <NavLink key={to} to={to} end={to === "/"}><Icon size={21} strokeWidth={1.65}/><span>{label}{label === "Wishlist" && wishlist.length > 0 ? ` (${wishlist.length})` : ""}</span></NavLink>)}
-      </nav>
-    </>}
+    {isNativeApp() && offline && <div className="native-offline" role="status">You’re offline. Your saved bag is kept on this device. Reconnect to check stock or pay.</div>}
+    <nav className="shopping-bottom-nav" aria-label="Shopping navigation">
+      {tabs.map(([to, label, Icon]) => {
+        const active = to === '/account' ? account : to === '/' ? pathname === '/' : pathname === to || (to === '/categories' && pathname === '/shop') || (to === '/cart' && pathname === '/checkout');
+        return <Link key={to} to={to} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined} aria-label={label === 'Cart' ? `Cart, ${count} items` : label}><span className="shopping-tab-icon"><Icon size={22} strokeWidth={active ? 2 : 1.65} aria-hidden="true"/>{label === 'Cart' && count > 0 && <span className="shopping-cart-badge" aria-hidden="true">{count > 99 ? '99+' : count}</span>}</span><span>{label}</span></Link>;
+      })}
+    </nav>
   </>;
 }
 
@@ -55,7 +67,7 @@ export function NativeSearchPage() {
   return <div className="page native-discover"><p className="eyebrow">MADE FOR YOUR WORKOUT</p><h1>What’s in your next session?</h1>
     <form className="native-search-form" role="search" onSubmit={(event) => { event.preventDefault(); const term = query.trim(); if (term) navigate(`/shop?${new URLSearchParams({ search: term })}`); }}>
       <label className="sr-only" htmlFor="app-search">Search GymDrobe</label><input id="app-search" type="search" enterKeyHint="search" placeholder="Shoes, tees, shakers…" value={query} onChange={(event) => setQuery(event.target.value)} maxLength={200}/>
-      <button type="submit" aria-label="Search products" disabled={!query.trim()}><Search size={24}/></button>
+      <PhotoSearchButton/><button type="submit" aria-label="Search products" disabled={!query.trim()}><Search size={24}/></button>
     </form>
     <Link className="text-link" to="/categories">Browse categories</Link>
   </div>;

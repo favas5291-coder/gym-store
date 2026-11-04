@@ -37,3 +37,5 @@ createRoot(root).render(
     ),
   ),
 );
+
+import "./native/shopping-navigation.css";

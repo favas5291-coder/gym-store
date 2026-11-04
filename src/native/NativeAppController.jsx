@@ -65,6 +65,10 @@ export default function NativeAppController() {
         else await App.minimizeApp();
       });
       await listen(App, "appRestoredResult", (result) => {
+        if (result.pluginId === "Camera") {
+          // Do not retain restored image bytes; select again after OS termination.
+          window.dispatchEvent(new Event("gymdrobe-camera-interrupted"));
+        }
         if (result.pluginId === "GymDrobeCheckout") {
           clearInterruptedNativePayment();
           go("/checkout", { replace: true });
