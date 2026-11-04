@@ -910,7 +910,6 @@ function StorefrontApplication() {
     >
       <ShoppingToolsProvider>
         <Layout />
-        <NativeShoppingNavigation />
       </ShoppingToolsProvider>
     </StoreProvider>
   );
