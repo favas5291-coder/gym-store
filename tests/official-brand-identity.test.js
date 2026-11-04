@@ -28,3 +28,27 @@ test("previous internal wordmarks are restored; external icon is separate", () =
   assert.match(install, /gymdrobe-app-icon\.svg/);
   assert.match(html, /gymdrobe-app-icon\.svg/);
 });
+
+test("external share/PWA images and Android launcher assets have expected pixel dimensions", () => {
+  const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  const expectPng = (path, width, height) => {
+    const bytes = readFileSync(new URL("../" + path, import.meta.url));
+    assert.ok(bytes.subarray(0, 8).equals(pngSignature), path + " must be a real PNG");
+    assert.ok(bytes.length > 32, path + " must not be empty");
+    assert.equal(bytes.readUInt32BE(16), width, path + " width");
+    assert.equal(bytes.readUInt32BE(20), height, path + " height");
+  };
+  expectPng("public/brand/external/gymdrobe-app-icon-1024.png", 1024, 1024);
+  expectPng("public/brand/external/gymdrobe-profile-1024.png", 1024, 1024);
+  expectPng("public/brand/external/gymdrobe-maskable-512.png", 512, 512);
+  expectPng("public/gymdrobe-share-v2.png", 1200, 630);
+  for (const [density, ratio] of [["mdpi", 1], ["hdpi", 1.5], ["xhdpi", 2], ["xxhdpi", 3], ["xxxhdpi", 4]]) {
+    const prefix = "android/app/src/main/res/mipmap-" + density + "/";
+    for (const icon of ["ic_launcher.png", "ic_launcher_round.png"]) {
+      const dimension = Math.round(48 * ratio);
+      expectPng(prefix + icon, dimension, dimension);
+    }
+    const foregroundSize = Math.round(108 * ratio);
+    expectPng(prefix + "ic_launcher_foreground.png", foregroundSize, foregroundSize);
+  }
+});
