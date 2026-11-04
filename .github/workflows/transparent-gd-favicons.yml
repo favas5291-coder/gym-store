@@ -1,38 +1,51 @@
-name: GymDrobe external brand assets
+name: Verify GymDrobe external brand assets
 on:
   pull_request:
     paths:
-      - scripts/generate-transparent-favicons.py
       - .github/workflows/transparent-gd-favicons.yml
-      - public/brand/gymdrobe-app-icon.svg
-      - public/brand/gymdrobe-lockup.svg
+      - scripts/generate-transparent-favicons.py
+      - scripts/generate-android-icons.py
+      - public/brand/**
+      - public/favicon*
+      - public/apple-touch-icon.png
+      - public/android-chrome-192x192.png
+      - public/android-chrome-512x512.png
+      - public/gymdrobe-share-v2.png
+      - android/app/src/main/res/mipmap-*/ic_launcher*.png
+      - tests/favicon-assets.test.js
+      - tests/official-brand-identity.test.js
   workflow_dispatch:
+
 permissions:
-  contents: write
+  contents: read
+
 jobs:
-  generate:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+  verify:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install pillow cairosvg
-      - name: Generate approved external browser, PWA, social, and native Android icons
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install image export dependencies
+        run: python -m pip install pillow cairosvg
+      - name: Regenerate approved external branding assets
         run: python scripts/generate-transparent-favicons.py
-      - name: Commit reproducible icon binaries to the feature branch
-        if: github.event_name == 'pull_request'
+      - name: Verify committed assets match generated outputs
+        shell: bash
         run: |
-          git add public/favicon-16x16.png public/favicon-32x32.png public/favicon-48x48.png public/favicon.ico \
+          git diff --exit-code -- \
+            public/favicon-16x16.png public/favicon-32x32.png public/favicon-48x48.png public/favicon.ico \
             public/apple-touch-icon.png public/android-chrome-192x192.png public/android-chrome-512x512.png \
-            public/brand/external public/gymdrobe-share-v2.png android/app/src/main/res/mipmap-*/ic_launcher*.png
-          if ! git diff --cached --quiet; then
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git commit -m 'Build approved external GymDrobe icon assets'
-            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+            public/brand/external public/gymdrobe-share-v2.png \
+            android/app/src/main/res/mipmap-*/ic_launcher*.png
+          if [ -n "$(git ls-files --others --exclude-standard public/brand/external)" ]; then
+            echo "Generated external branding includes untracked files"
+            exit 1
           fi
+      - name: Test internal/external brand separation and icon dimensions
+        run: node --test tests/favicon-assets.test.js tests/official-brand-identity.test.js
