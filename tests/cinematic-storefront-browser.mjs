@@ -267,7 +267,7 @@ try{
  });await reviewer.c.close();
  const buy=await context(390);
  await check('Mobile menu, filter drawer, pincode and Buy Now',async()=>{
-  await visit(buy.p,'/');await buy.p.getByRole('button',{name:'Open menu',exact:true}).click();await buy.p.getByRole('button',{name:'Close menu',exact:true}).waitFor();await buy.p.keyboard.press('Escape');
+  await visit(buy.p,'/');await buy.p.getByRole('navigation',{name:'Shopping navigation'}).getByRole('link',{name:'Categories',exact:true}).click();await buy.p.getByRole('heading',{name:'Shop by category',exact:true}).waitFor();
   await visit(buy.p,'/shop');await buy.p.getByRole('button',{name:'Filters',exact:true}).click();await buy.p.getByRole('dialog').waitFor();await buy.p.keyboard.press('Escape');
   await visit(buy.p,`/product/${fixtureProductId}`);await choose(buy.p);
   const pin=buy.p.locator('.delivery-pincode input');if(await pin.count()){await pin.fill('12');await pin.press('Enter');assert.ok(await buy.p.locator('.delivery-pincode [aria-invalid="true"]').count());await pin.fill('673001');await pin.press('Enter');}
@@ -309,7 +309,7 @@ try{
     assert.ok(m.stage.width>=width-1 && m.hero.width>=width-1,'Mobile footage must fill viewport without letterbox');
     assert.ok(m.hero.height>=450 && m.content.bottom<=m.hero.bottom+1,'Copy overlaid inside full-screen mobile hero');
     assert.ok(m.shop.bottom<=m.hero.bottom+1 && m.explore.bottom<=m.hero.bottom+1,'Mobile CTAs remain visible');
-    assert.ok(await v.p.getByRole('button',{name:'Open menu'}).isVisible());
+    assert.ok(await v.p.getByRole('navigation',{name:'Shopping navigation'}).isVisible());
     assert.ok(await v.p.getByRole('combobox',{name:'Search products'}).isVisible());
    }else{
     assert.ok(m.stage.left>m.hero.left+m.hero.width*.35,'Desktop split retains film on the right');

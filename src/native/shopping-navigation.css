@@ -1,0 +1,29 @@
+:root{--shopping-safe-bottom:env(safe-area-inset-bottom,0px);--shopping-safe-left:env(safe-area-inset-left,0px);--shopping-safe-right:env(safe-area-inset-right,0px);--shopping-nav-height:0px}
+html.gymdrobe-native{--shopping-safe-bottom:var(--app-safe-bottom,0px);--shopping-safe-left:var(--app-safe-left,0px);--shopping-safe-right:var(--app-safe-right,0px);--shopping-nav-height:calc(66px + var(--shopping-safe-bottom))}
+.shopping-bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:105;grid-template-columns:repeat(5,minmax(0,1fr));box-sizing:border-box;height:var(--shopping-nav-height);padding:5px var(--shopping-safe-right) calc(5px + var(--shopping-safe-bottom)) var(--shopping-safe-left);background:#fcfcf9;border-top:1px solid #dedfd9;box-shadow:0 -4px 20px #20232106}
+.shopping-bottom-nav>a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:44px;min-width:44px;color:#686b66;font-size:10px;font-weight:600;line-height:1.2;text-decoration:none;-webkit-tap-highlight-color:transparent}
+.shopping-tab-icon{position:relative;display:grid;place-items:center;width:48px;height:30px;border-radius:18px;transition:background-color .15s,color .15s}.shopping-bottom-nav>a.active{color:#95482e}.shopping-bottom-nav>a.active .shopping-tab-icon{background:#f2e7df}.shopping-bottom-nav>a:focus-visible{outline:2px solid #95482e;outline-offset:-2px;border-radius:8px}.shopping-cart-badge{position:absolute;top:-3px;right:0;min-width:17px;padding:2px 4px;border-radius:12px;box-sizing:border-box;background:#95482e;color:white;border:2px solid #fcfcf9;font-size:9px;line-height:12px;text-align:center}
+@media(max-width:1023px){
+ html:has(.shopping-bottom-nav){--shopping-nav-height:calc(66px + var(--shopping-safe-bottom));scroll-padding-bottom:calc(var(--shopping-nav-height) + 90px)}
+ #app .premium-storefront{padding-bottom:var(--shopping-nav-height)}.shopping-bottom-nav{display:grid}
+ #app .premium-storefront .gd-nav .gn-actions,#app .premium-storefront .gd-nav .gn-menu-toggle,#app .premium-storefront .gd-nav .gn-quick-nav{display:none}
+ #app .premium-storefront .gd-nav .gn-bar{grid-template-columns:minmax(0,1fr);grid-template-areas:'brand' 'search';grid-template-rows:40px 44px;height:auto;padding:6px max(14px,var(--shopping-safe-right)) 10px max(14px,var(--shopping-safe-left));gap:4px}
+ #app .premium-storefront .gd-nav .gn-brand{justify-self:center}
+ #app .premium-storefront .product-primary-actions.is-floating{bottom:var(--shopping-nav-height);padding:10px 16px}
+ #app .premium-storefront:has(.product-page) .premium-footer{padding-bottom:96px}
+ #app .gd-guide-reopen{bottom:calc(var(--shopping-nav-height) + 16px)}#app .premium-storefront:has(.product-page) .gd-guide-reopen{bottom:calc(var(--shopping-nav-height) + 96px)}
+ #app .toast{bottom:calc(var(--shopping-nav-height) + 16px);max-width:calc(100vw - 32px)}#app .premium-storefront:has(.product-page) .toast{bottom:calc(var(--shopping-nav-height) + 88px)}
+ input,textarea,select,[contenteditable=true]{scroll-margin-block:130px}
+}
+/* A shared control owns the bottom inset once; native body does not repeat it. */
+.gymdrobe-native body{padding-bottom:0}.gymdrobe-native .shopping-bottom-nav{display:grid}.gymdrobe-native #app .premium-storefront{padding-bottom:var(--shopping-nav-height)}
+.gymdrobe-native #app .premium-storefront .gd-nav .gn-search{display:block}.gymdrobe-native #app .premium-storefront .gd-nav .gn-actions{display:none}.gymdrobe-native #app .premium-storefront .gd-nav .gn-menu-toggle{display:none}
+.gymdrobe-native #app .premium-storefront .gd-nav .gn-bar{grid-template-columns:minmax(0,1fr);grid-template-areas:'brand' 'search';grid-template-rows:40px 44px;height:auto;padding:6px 14px 10px;gap:4px}
+.gymdrobe-native #app .premium-storefront:not(.storefront-checkout){padding-top:106px}.gymdrobe-native .native-cart{display:none}
+.gymdrobe-native #app .premium-storefront .product-primary-actions.is-floating{bottom:var(--shopping-nav-height);padding:10px 16px}
+html.shopping-keyboard-open,html.gymdrobe-native.native-keyboard-open{--shopping-nav-height:0px!important}
+.shopping-keyboard-open .shopping-bottom-nav,.native-keyboard-open .shopping-bottom-nav,.shopping-keyboard-open .product-primary-actions.is-floating,.native-keyboard-open .product-primary-actions.is-floating{display:none!important}
+@media(max-width:700px){#app .premium-storefront .cinema-hero{height:max(390px,calc(100svh - 106px - var(--shopping-nav-height)));min-height:390px}#app .premium-storefront .gd-nav .gn-form{min-height:44px;height:44px}.gymdrobe-native #app .premium-storefront .cinema-hero{height:max(390px,calc(100svh - 106px - var(--shopping-nav-height) - var(--app-safe-top)))}}
+@media(prefers-reduced-motion:reduce){.shopping-tab-icon{transition:none}}
+
+.native-discover{max-width:1000px;margin:auto;padding:32px 20px}.native-collection{padding:20px 0;border-bottom:1px solid #dedfd9}.native-collection>a{display:flex;justify-content:space-between;align-items:center}.native-collection>div{display:flex;gap:12px;flex-wrap:wrap}.native-collection>div>a{padding:12px 16px;border:1px solid #dedfd9;border-radius:24px;min-height:44px;box-sizing:border-box}.native-search-form{display:flex;gap:10px;margin:24px 0}.native-search-form input{flex:1;min-width:0;padding:14px;border:1px solid #dedfd9;border-radius:8px}.native-search-form button{min-width:48px}
