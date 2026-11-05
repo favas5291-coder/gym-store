@@ -6,7 +6,10 @@ let flowActive = false;
 const RECOVERY_KEY = "gymdrobe-native-payment-pending";
 
 export const nativePaymentActive = () => active || flowActive;
-export const setNativePaymentFlowActive = (value) => { flowActive = Boolean(value); };
+export const setNativePaymentFlowActive = (value) => {
+  flowActive = Boolean(value);
+  if (!flowActive && !active) clearInterruptedNativePayment();
+};
 
 export function interruptedNativePayment() {
   try { return localStorage.getItem(RECOVERY_KEY) === "1"; } catch { return false; }
@@ -34,6 +37,6 @@ export async function openNativePayment(options) {
     return verifiedNativePaymentShape(response, options.order_id);
   } finally {
     active = false;
-    clearInterruptedNativePayment();
+    if (!flowActive) clearInterruptedNativePayment();
   }
 }

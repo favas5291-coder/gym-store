@@ -55,7 +55,8 @@ test("brand image applies to homepage while product social shares retain product
   assert.match(html, /https:\/\/www\.gymdrobe\.com\/gymdrobe-share-v2\.png/);
   assert.deepEqual(pngDimensions("public/gymdrobe-share-v2.png"), [1200, 630]);
   const seo = read("src/components/SEOController.jsx").toString("utf8");
-  assert.match(seo, /const DEFAULT_SHARE_IMAGE = "\/gymdrobe-share-v2\.png"/);
+  const metadata = read("src/utils/seoMetadata.js").toString("utf8");
+  assert.match(metadata, /export const DEFAULT_SHARE_IMAGE = "\/gymdrobe-share-v2\.png"/);
   assert.match(seo, /const shareImage\s*=\s*images\[0\]\s*\|\|\s*new URL\(DEFAULT_SHARE_IMAGE, origin\)\.href/);
 });
 

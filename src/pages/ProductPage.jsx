@@ -1,3 +1,4 @@
+import { isNativeApp } from "../native/platform.js";
 import { ArrowRight } from "lucide-react";
 import {
   useCallback,
@@ -373,14 +374,18 @@ function ProductDetail({
 
   async function share() {
     try {
-      if (navigator.share) {
+      const url = `https://www.gymdrobe.com/product/${encodeURIComponent(product.id || product._id)}`;
+      if (isNativeApp()) {
+        const { Share } = await import("@capacitor/share");
+        await Share.share({ title: product.name, url, dialogTitle: "Share product" });
+      } else if (navigator.share) {
         await navigator.share({
           title: product.name,
-          url: window.location.href,
+          url,
         });
       } else {
         await navigator.clipboard.writeText(
-          window.location.href,
+          url,
         );
 
         notify("Product link copied.");

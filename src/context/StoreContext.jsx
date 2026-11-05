@@ -37,6 +37,7 @@ import {
 } from "../utils/shopperStorage.js";
 
 import { resolveCoupon } from "../utils/orderCalculations.js";
+import { shoppingSyncEnabled, compactShopping, recordShoppingChange, initializeShoppingJournal, appendShopping, shoppingChanges, journalPrefix } from "../utils/shoppingJournal.js";
 
 const StoreContext = createContext(null);
 
@@ -190,7 +191,7 @@ function trackShopping(name, rows) {
 }
 
 export default function StoreProvider({ children }) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, token, loading: authLoading } = useAuth();
   const memoryByScope = useRef(new Map());
 
   const keys = {
@@ -215,6 +216,7 @@ export default function StoreProvider({ children }) {
     <ScopedStoreProvider
       key={scope}
       user={user}
+      token={token}
       authLoading={Boolean(authLoading)}
       keys={keys}
       memory={memoryByScope.current.get(scope)}
@@ -227,6 +229,7 @@ export default function StoreProvider({ children }) {
 function ScopedStoreProvider({
   children,
   user,
+  token,
   authLoading,
   keys,
   memory,
@@ -252,6 +255,9 @@ function ScopedStoreProvider({
 
   const mounted = useRef(true);
   const kitSaveLock = useRef(false);
+  const syncEngine = useRef(null);
+  const syncCallbacks = useRef({});
+  const [shoppingSyncStatus, setShoppingSyncStatus] = useState("local");
   const authLoadingRef = useRef(authLoading);
   authLoadingRef.current = authLoading;
 
@@ -316,6 +322,18 @@ function ScopedStoreProvider({
       mounted.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    const deleted = event => {
+      if (String(event.detail?.userId) !== String(user?.id)) return;
+      syncEngine.current?.dispose();
+      Object.assign(memory, makeMemory());
+      setCartState([]); setWishlistState([]); setCouponState(null); setBuyNowItem(null);
+      setShoppingSyncStatus("local");
+    };
+    window.addEventListener("gymdrobe-account-deleted", deleted);
+    return () => window.removeEventListener("gymdrobe-account-deleted", deleted);
+  }, [user?.id, memory]);
 
   useEffect(() => {
     if (!toast) return;
@@ -389,8 +407,81 @@ function ScopedStoreProvider({
     return rows;
   }, [rawCart, catalogReady, latestProducts]);
 
+  const rawWishlist = useCallback(() => memory.wishlistMemory
+    ? memory.wishlist : wishlistIds(readArray(wishlistKey)), [memory, wishlistKey]);
+
+  const recordForSync = useCallback((beforeCart, beforeWishlist, nextCart, nextWishlist) => {
+    if (!shoppingSyncEnabled() || !user?.id) return;
+    try {
+      const pending = recordShoppingChange(user, compactShopping(beforeCart, beforeWishlist), compactShopping(nextCart, nextWishlist));
+      if (pending) setShoppingSyncStatus(navigator.onLine === false ? "offline" : "syncing");
+    } catch {
+      syncEngine.current?.pause();
+      setShoppingSyncStatus("storage");
+      notify("Your changes are kept for this visit. Review account saving before syncing.", "warning");
+    }
+  }, [user?.id, notify]);
+
+  syncCallbacks.current = {
+    snapshot: () => compactShopping(rawCart(), rawWishlist()),
+    publish: state => {
+      if (!mounted.current || authLoadingRef.current) return;
+      const catalogue = latestProducts();
+      if (!Array.isArray(catalogue)) return;
+      const rows = state.cart.flatMap(row => {
+        const product = findProduct(catalogue, row.productId);
+        if (!product) return [];
+        if (row.kitGroup && !getKitGroup({ kitGroup: row.kitGroup })) throw new Error("The saved kit choices need review.");
+        return [normalizeCartItem(product, row.quantity, row.selectedSize, row.selectedColor, row.kitGroup)];
+      });
+      const checked = revalidateCart(rows, catalogue);
+      const corrections = shoppingChanges({ cart: state.cart, wishlist: state.wishlist }, compactShopping(checked.cart, state.wishlist));
+      if (corrections.length) appendShopping(user, corrections);
+      memory.cart = checked.cart;
+      memory.cartMemory = !writeStorage(cartKey, checked.cart);
+      memory.wishlist = [...state.wishlist];
+      memory.wishlistMemory = !writeStorage(wishlistKey, state.wishlist);
+      setCartState(checked.cart);
+      setWishlistState(state.wishlist);
+      if (checked.changes.length) notify("Your bag was updated to current prices and available stock.", "info");
+    },
+  };
+
+  useEffect(() => {
+    if (!shoppingSyncEnabled() || !user?.id || !token || authLoading || !catalogReady) return;
+    let disposed = false, engine;
+    const run = () => { if (!disposed && document.visibilityState !== "hidden" && navigator.onLine !== false) void engine?.flush(); };
+    const storageChanged = event => { if (!event.key || event.key.startsWith(journalPrefix(user))) run(); };
+    Promise.all([import("../utils/shoppingSync.js"), import("../services/shoppingApi.js")]).then(([{ createShoppingSync }, { shoppingApi }]) => {
+      if (disposed) return;
+      engine = createShoppingSync({ user, api: shoppingApi(token),
+        snapshot: () => syncCallbacks.current.snapshot(),
+        publish: state => { if (!disposed) syncCallbacks.current.publish(state); },
+        status: status => { if (!disposed) setShoppingSyncStatus(status); },
+      });
+      syncEngine.current = engine;
+      run();
+    }).catch(() => { if (!disposed) setShoppingSyncStatus("storage"); });
+    for (const event of ["online", "focus", "gymdrobe-shopping-change"]) window.addEventListener(event, run);
+    window.addEventListener("storage", storageChanged);
+    document.addEventListener("visibilitychange", run);
+    const timer = setInterval(run, 30000);
+    return () => {
+      disposed = true;
+      engine?.dispose();
+      if (syncEngine.current === engine) syncEngine.current = null;
+      clearInterval(timer);
+      for (const event of ["online", "focus", "gymdrobe-shopping-change"]) window.removeEventListener(event, run);
+      window.removeEventListener("storage", storageChanged);
+      document.removeEventListener("visibilitychange", run);
+    };
+  }, [user?.id, token, authLoading, catalogReady]);
+
   const commitCart = useCallback((next) => {
     if (!accountAvailable()) return false;
+
+    const wishes = rawWishlist();
+    recordForSync(rawCart(), wishes, next, wishes);
 
     const saved = writeStorage(cartKey, next);
 
@@ -406,7 +497,7 @@ function ScopedStoreProvider({
     }
 
     return saved;
-  }, [accountAvailable, cartKey, memory, notify]);
+  }, [accountAvailable, cartKey, memory, notify, rawCart, rawWishlist, recordForSync]);
 
   const refreshBuyNow = useCallback((item) => {
     if (!accountAvailable()) return false;
@@ -1020,6 +1111,9 @@ function ScopedStoreProvider({
       ? rows.filter((id) => !ids.has(id))
       : [...rows, idsFor(canonical)[0]];
 
+    const bag = rawCart();
+    recordForSync(bag, rows, bag, next);
+
     const saved = writeStorage(wishlistKey, next);
 
     memory.wishlist = next;
@@ -1133,6 +1227,10 @@ function ScopedStoreProvider({
 
         latestCart,
         catalogReady,
+        shoppingSyncStatus,
+        retryShoppingSync: () => syncEngine.current?.flush(),
+        useAccountShopping: () => syncEngine.current?.useAccount(),
+        keepDeviceShopping: () => syncEngine.current?.keepDevice(),
       }}
     >
       {children}

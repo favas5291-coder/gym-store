@@ -1,3 +1,4 @@
+import { isNativeApp } from "../native/platform.js";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 
@@ -21,7 +22,7 @@ export default function DeferredFitnessGuide() {
 
   const [Guide, setGuide] = useState(null);
 
-  const eligible =
+  const eligible = !isNativeApp() &&
     /^(?:\/|\/shop|\/offers|\/product\/[^/]+|\/kits(?:\/[^/]+)?)\/?$/.test(
       pathname,
     );

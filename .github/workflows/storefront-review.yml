@@ -1,7 +1,7 @@
 name: Storefront review
 on:
   pull_request:
-    paths: ['index.html', 'src/**', 'public/**', 'tests/**', 'package*.json', '.github/workflows/storefront-review.yml']
+    paths: ['index.html', 'src/**', 'scripts/**', 'vercel.json', 'public/**', 'tests/**', 'package*.json', '.github/workflows/storefront-review.yml']
 concurrency:
   group: storefront-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
@@ -28,6 +28,8 @@ jobs:
         run: npm run build
       - name: Verify transparent favicon assets in Vite dist
         run: node scripts/verify-favicon-build.mjs
+      - name: Verify built product HTML metadata and canonical aliases
+        run: node scripts/verify-storefront-documents.mjs
       - name: Verify actual H.264 pixel format, MP4 build assets and live range support
         run: |
           if ! command -v ffprobe >/dev/null 2>&1; then
@@ -38,6 +40,24 @@ jobs:
         run: |
           npm install --no-save --package-lock=false playwright@1.62.1
           npx playwright install --with-deps chromium webkit
+      - name: Checkout the paired shopping API contract fixture
+        uses: actions/checkout@v4
+        with:
+          repository: favas5291-coder/gym-drobe-backend
+          ref: 651aee066db8a85e06b692527829ffed167c89ac
+          path: .qa-shopping-backend
+      - name: Install isolated shopping API test dependencies
+        run: npm ci --ignore-scripts --prefix .qa-shopping-backend
+      - name: Shared shopping lists through React and the actual API contract
+        env:
+          GYMDROBE_SHOPPING_BACKEND_DIR: .qa-shopping-backend
+        run: node tests/shopping-sync-browser.mjs
+      - name: Opt-in native order notification UI and actual JWT API contract
+        env:
+          GYMDROBE_SHOPPING_BACKEND_DIR: .qa-shopping-backend
+        run: node tests/order-push-browser.mjs
+      - name: Shared navigation and photo-search UX contracts
+        run: node tests/photo-search-browser.mjs
       - name: Account dashboard before and after, responsive and account regression checks
         run: |
           node tests/account-dashboard-browser.mjs --before
@@ -52,11 +72,25 @@ jobs:
         run: node tests/pwa-browser.mjs
       - name: Android UI and native-adapter contracts
         run: node tests/native-browser.mjs
+      - name: iPhone WebKit navigation, Apple adapter and secure-session contracts
+        run: node tests/ios-browser.mjs
       - name: Mobile-sized WebKit moving-video checks
         run: node tests/hero-webkit-browser.mjs
       - name: Production preview LCP and CLS lab samples
         if: always()
         run: node tests/storefront-performance.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shared-shopping-review
+          path: test-results/shopping-sync/
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: order-notification-review
+          path: test-results/notifications/
+          retention-days: 14
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -68,6 +102,18 @@ jobs:
         with:
           name: pwa-review
           path: test-results/pwa
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: iPhone-browser-review
+          path: test-results/ios-browser/
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: photo-search-review
+          path: test-results/photo-search/
           retention-days: 14
       - uses: actions/upload-artifact@v4
         if: always()

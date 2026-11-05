@@ -8,10 +8,22 @@ export const fixtureOrderId = '507f1f77bcf86cd799439022';
 const user = { id:'507f1f77bcf86cd799439011', _id:'507f1f77bcf86cd799439011', name:'Preview Customer', email:'preview@example.test', role:'customer', phone:'9876543210' };
 const address = { id:'507f1f77bcf86cd799439033', label:'Home', fullName:user.name, email:user.email, phone:user.phone, addressLine:'12 Preview Street', landmark:'', city:'Kozhikode', state:'Kerala', pincode:'673001', isDefault:true };
 export async function startStorefrontFixture(port = 4210) {
-  const server = await createServer({root, server:{host:'127.0.0.1',port,strictPort:true},logLevel:'error'});
+  const state = { products: null };
+  const server = await createServer({root, server:{host:'127.0.0.1',port,strictPort:true},logLevel:'error',plugins:[{
+    name:'isolated-catalogue-http-fixture',
+    configureServer(vite) {
+      vite.middlewares.use((req,res,next)=>{
+        if(req.method !== 'GET' || req.url?.split('?')[0] !== '/api/products' || !state.products)return next();
+        res.setHeader('Content-Type','application/json');
+        res.setHeader('Cache-Control','no-store');
+        res.end(JSON.stringify({success:true,products:state.products,total:state.products.length}));
+      });
+    },
+  }]});
   await server.listen();
   const { default: seeds } = await server.ssrLoadModule('/src/data/products.js');
   const products = seeds.map(p => ({...p, id:String(p.id).padStart(24,'0'), _id:String(p.id).padStart(24,'0'), colorImages:(p.colors || []).map((color,index)=>({color,images:[p.images[index % p.images.length]]})), reviews:[], reviewCount:0, rating:0}));
+  state.products = products;
   return {server, products, url:`http://127.0.0.1:${port}`};
 }
 function quoteFor(body, products) {
@@ -35,7 +47,7 @@ function quoteFor(body, products) {
     deliveryReview:{ready, validUntil, pincode:body.pincode, items:[]},
     shippingReview:{ready, validUntil, shippingPaise:shipping*100, packageCount:1, shipments:[{key:'fixture-package', carrier:'Preview carrier', contents:items.map((item,itemIndex)=>({itemIndex,quantity:item.quantity})), shipping, amountDueOnDelivery:Math.round((finalTotal-now)*100)/100}]}};
 }
-export async function mockStorefront(context, products, {signedIn=false, catalogFailure=false, empty=false} = {}) {
+export async function mockStorefront(context, products, {signedIn=false, catalogFailure=false, empty=false, catalogueHttp=false} = {}) {
   await context.addInitScript(({signedIn}) => {
     sessionStorage.setItem('gymdrobe-fitness-guide-seen-v1','1');
     if(signedIn) localStorage.setItem('gymdrobe-auth-token','fixture-token-not-a-real-credential');
@@ -62,6 +74,9 @@ export async function mockStorefront(context, products, {signedIn=false, catalog
     let data={success:true}, status=200;
     const body=req.postDataJSON();
     if(u.pathname==='/api/products') {
+      // Opt-in same-origin HTTP avoids WebKit synthetic-route failures when a
+      // test immediately navigates documents. Error/empty fixtures stay routed.
+      if(catalogueHttp && req.method()==='GET' && !catalogFailure && !empty)return route.continue();
       data={success:true,products:empty?[]:products,total:empty?0:products.length};
       if(catalogFailure){status=503;data={success:false,message:'Preview: catalog temporarily unavailable'};}
     } else if(/\/products\/[^/]+\/reviews$/.test(u.pathname)) data={success:true,reviews:[],rating:0,reviewCount:0};

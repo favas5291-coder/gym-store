@@ -43,6 +43,7 @@ import Home from "./pages/Home.jsx";
 import { installRoutePrefetch } from "./utils/routePrefetch.js";
 import { NativeShoppingNavigation, NativeCategoriesPage, NativeSearchPage } from "./native/NativeShopping.jsx";
 import NativeAppController from "./native/NativeAppController.jsx";
+import OrderPushController from "./native/OrderPushController.jsx";
 
 const Shop = lazy(
   () => import("./pages/Shop.jsx"),
@@ -620,6 +621,8 @@ function Layout() {
             fallback={<PageLoading />}
           >
             <Routes>
+              <Route path="/categories" element={<NativeCategoriesPage />} />
+              <Route path="/search" element={<NativeSearchPage />} />
               <Route
                 path="/"
                 element={<Home />}
@@ -884,6 +887,7 @@ function Layout() {
         <AnalyticsController />
       )}
 
+      <NativeShoppingNavigation />
       <Toast
         message={toast?.message}
         type={toast?.type}
@@ -906,7 +910,6 @@ function StorefrontApplication() {
     >
       <ShoppingToolsProvider>
         <Layout />
-        <NativeShoppingNavigation />
       </ShoppingToolsProvider>
     </StoreProvider>
   );
@@ -916,6 +919,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <NativeAppController />
+      <OrderPushController />
       <CatalogProvider>
         <StorefrontApplication />
       </CatalogProvider>

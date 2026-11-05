@@ -15,7 +15,7 @@ export function nativeRouteFromUrl(value) {
     const website = url.protocol === "https:" && ["gymdrobe.com", "www.gymdrobe.com"].includes(url.hostname) && !url.port;
     if (!website || url.username || url.password || /%2f|%5c|\\/i.test(url.pathname)) return null;
     const path = url.pathname.replace(/\/+$/, "") || "/";
-    if (!/^\/(?:shop|product\/[^/]+|kits(?:\/[^/]+)?|cart|wishlist|orders(?:\/[^/]+(?:\/track)?)?|account(?:\/security)?|addresses|login|offers|help|install)?$/.test(path)) return null;
+    if (!/^\/(?:categories|search|shop|product\/[^/]+|kits(?:\/[^/]+)?|cart|wishlist|orders(?:\/[^/]+(?:\/track)?)?|account(?:\/security)?|addresses|login|offers|help|install)?$/.test(path)) return null;
     if (path !== "/shop") return path;
     const query = new URLSearchParams();
     for (const key of ["search", "category", "sort", "page"]) {

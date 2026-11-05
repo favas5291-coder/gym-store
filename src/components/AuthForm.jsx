@@ -1,3 +1,5 @@
+import { appleSignInEnabled, nativeAppleAuthorization } from "../native/apple.js";
+import { getAppleChallenge } from "../services/authApi.js";
 import { useEffect, useRef, useState } from "react";
 import {
   Link,
@@ -228,6 +230,7 @@ export default function AuthForm() {
     authError,
     retrySession,
     googleLogin,
+    appleLogin,
   } = useAuth();
 
   const navigate = useNavigate();
@@ -249,6 +252,24 @@ export default function AuthForm() {
   const [visible, setVisible] = useState(false);
   const native = isNativeApp();
   const nativeSignInBusy = useRef(false);
+
+  async function signInWithApple() {
+    if (nativeSignInBusy.current || busy) return;
+    nativeSignInBusy.current = true;
+    setBusy(true); setError(null);
+    try {
+      const attempt = await getAppleChallenge();
+      const authorization = await nativeAppleAuthorization(attempt.nonce);
+      if (!mounted.current) return;
+      await appleLogin({ ...authorization, challenge: attempt.challenge });
+      if (mounted.current) navigate(next, { replace: true });
+    } catch (failure) {
+      if (mounted.current) setError({ title: failure.code === "APPLE_CANCELLED" ? "Sign-in cancelled" : "Apple sign-in could not complete", message: failure.message });
+    } finally {
+      nativeSignInBusy.current = false;
+      if (mounted.current) setBusy(false);
+    }
+  }
 
   async function signInOnAndroid() {
     if (nativeSignInBusy.current || busy) return;
@@ -513,7 +534,7 @@ export default function AuthForm() {
           </h2>
 
           <p className="muted">
-            Sign in with Google to access your orders, saved addresses
+            Sign in to access your orders, saved addresses
             and favourites. New here? Your account is created automatically.
           </p>
 
@@ -535,6 +556,7 @@ export default function AuthForm() {
                 inert={busy ? true : undefined}
               />}
 
+              {appleSignInEnabled() && <button type="button" className="native-apple-signin" disabled={busy} onClick={signInWithApple}><span aria-hidden="true"></span> Continue with Apple</button>}
               {!ready && !error && !busy && (
                 <p className="muted" role="status">
                   Preparing Google sign-in…

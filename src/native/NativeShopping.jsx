@@ -5,6 +5,7 @@ import { useStore } from "../context/StoreContext.jsx";
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { SHOP_DEPARTMENTS, catalogOptions, productDepartment } from "../utils/catalog.js";
 import { isNativeApp } from "./platform.js";
+import PhotoSearchButton from "../components/PhotoSearchButton.jsx";
 
 export function NativeShoppingNavigation() {
   const { cart } = useStore();
@@ -66,7 +67,7 @@ export function NativeSearchPage() {
   return <div className="page native-discover"><p className="eyebrow">MADE FOR YOUR WORKOUT</p><h1>What’s in your next session?</h1>
     <form className="native-search-form" role="search" onSubmit={(event) => { event.preventDefault(); const term = query.trim(); if (term) navigate(`/shop?${new URLSearchParams({ search: term })}`); }}>
       <label className="sr-only" htmlFor="app-search">Search GymDrobe</label><input id="app-search" type="search" enterKeyHint="search" placeholder="Shoes, tees, shakers…" value={query} onChange={(event) => setQuery(event.target.value)} maxLength={200}/>
-      <button type="submit" aria-label="Search products" disabled={!query.trim()}><Search size={24}/></button>
+      <PhotoSearchButton/><button type="submit" aria-label="Search products" disabled={!query.trim()}><Search size={24}/></button>
     </form>
     <Link className="text-link" to="/categories">Browse categories</Link>
   </div>;

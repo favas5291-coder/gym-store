@@ -1,3 +1,4 @@
+import AccountDeletionSection from "../components/AccountDeletionSection.jsx";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -21,6 +22,8 @@ const privateFields = new Set([
   "passwordResetRequestedAt",
   "authVersion",
   "googleId",
+  "appleId",
+  "appleRefreshToken",
   "token",
   "accessToken",
   "refreshToken",
@@ -204,10 +207,10 @@ export default function SecurityPage() {
   return (
     <AccountLayout title="Account security & data">
       <div className="notice">
-        <strong>Sign in to GymDrobe with Google.</strong>
+        <strong>Manage your GymDrobe sign-in.</strong>
 
         <p className="muted" style={{ marginBottom: 0 }}>
-          Use your Google account to access your GymDrobe profile,
+          Use your sign-in provider to access your GymDrobe profile,
           saved addresses and account orders.
         </p>
       </div>
@@ -215,12 +218,11 @@ export default function SecurityPage() {
       <section className="panel" style={{ marginTop: 20 }}>
         <p className="eyebrow">SIGN-IN & SECURITY</p>
 
-        <h3>Manage your Google account</h3>
+        <h3>Manage your sign-in provider</h3>
 
         <p className="muted">
-          Manage your Google password, recovery options and
-          two-step verification in your Google Account settings.
-          GymDrobe does not receive your Google password.
+          Manage your password, recovery options and two-step verification
+          with Google or Apple. GymDrobe does not receive your provider password.
         </p>
 
         <a
@@ -233,8 +235,10 @@ export default function SecurityPage() {
           <span className="sr-only"> (opens in a new tab)</span>
         </a>
 
+        <a href="https://account.apple.com/" target="_blank" rel="noopener noreferrer" className="button secondary" style={{ marginLeft: 12 }}>Open Apple account settings</a>
+
         <p className="muted" style={{ marginTop: 16 }}>
-          Make sure you select the Google account you use to
+          Make sure you select the provider account you use to
           sign in to GymDrobe.
         </p>
       </section>
@@ -358,6 +362,7 @@ export default function SecurityPage() {
           </Link>
         </div>
       </section>
+      <AccountDeletionSection />
     </AccountLayout>
   );
 }

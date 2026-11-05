@@ -264,3 +264,7 @@ export async function requestPasswordReset() {
 export async function resetUserPassword() {
   return googleOnly();
 }
+export function getAppleChallenge() { return request("/auth/apple/challenge"); }
+export function loginWithApple(credentials) { return request("/auth/apple", { method: "POST", body: credentials }); }
+export function getDeletionPolicy(token) { requireToken(token); return request("/auth/account-deletion", { token }); }
+export function deleteAccount(token, confirmation) { requireToken(token); return request("/auth/account-deletion", { method: "DELETE", token, body: { confirmation } }); }

@@ -11,10 +11,14 @@ import {
 import {
   getCurrentUser,
   loginWithGoogle,
+  loginWithApple,
   updateUserProfile,
 } from "../services/authApi.js";
 import { isNativeApp } from "../native/platform.js";
+import { sessionStorage, TOKEN_KEY } from "../native/session.js";
 import { clearNativeGoogleSession } from "../native/google.js";
+import { stopOrderPushSession } from "../native/orderPush.js";
+import { shoppingSyncEnabled, initializeShoppingJournal, appendShopping, compactShopping, shoppingChanges } from "../utils/shoppingJournal.js";
 
 import {
   importGuestShopping,
@@ -24,30 +28,6 @@ import {
 } from "../utils/shopperStorage.js";
 
 const AuthContext = createContext(null);
-const TOKEN_KEY = "gymdrobe-auth-token";
-
-function readStoredToken() {
-  try {
-    return localStorage.getItem(TOKEN_KEY) || null;
-  } catch {
-    return null;
-  }
-}
-
-function storeToken(value) {
-  try {
-    if (value) {
-      localStorage.setItem(TOKEN_KEY, value);
-    } else {
-      localStorage.removeItem(TOKEN_KEY);
-    }
-
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 async function googleOnly() {
   throw new Error(
     "Please use Continue with Google to access your GymDrobe account."
@@ -56,11 +36,12 @@ async function googleOnly() {
 
 export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(readStoredToken);
+  const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
   const [restoreAttempt, setRestoreAttempt] = useState(0);
 
+  const [storageReady, setStorageReady] = useState(false);
   const tokenRef = useRef(token);
   const sessionRevision = useRef(0);
   const googleLoginBusy = useRef(false);
@@ -70,20 +51,28 @@ export default function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    function syncSavedSession(event) {
+    let active = true;
+    async function syncSavedSession(event) {
       if (event.type === "storage" && event.key !== TOKEN_KEY && event.key !== null) return;
       if (document.visibilityState === "hidden") return;
+      const revision = sessionRevision.current;
       let savedToken;
-      try { savedToken = localStorage.getItem(TOKEN_KEY) || null; }
+      try {
+        savedToken = isNativeApp()
+          ? await sessionStorage().read()
+          : localStorage.getItem(TOKEN_KEY) || null;
+      }
       catch { return; } // A temporary storage restriction is not a logout.
+      if (!active || revision !== sessionRevision.current) return;
       if (savedToken !== tokenRef.current) {
         sessionRevision.current += 1;
         tokenRef.current = savedToken;
         setUser(null);
         setAuthError(null);
         setLoading(Boolean(savedToken));
+        setStorageReady(true);
         setToken(savedToken);
-      } else if (savedToken && (authError || (event.type === "pageshow" && event.persisted))) {
+      } else if (savedToken && (authError || ["online", "focus", "visibilitychange"].includes(event.type) || (event.type === "pageshow" && event.persisted))) {
         // Retry verification on reconnect/return, never trust a cached user alone.
         retrySession();
       }
@@ -91,12 +80,30 @@ export default function AuthProvider({ children }) {
     for (const type of ["online", "focus", "pageshow", "storage"]) window.addEventListener(type, syncSavedSession);
     document.addEventListener("visibilitychange", syncSavedSession);
     return () => {
+      active = false;
       for (const type of ["online", "focus", "pageshow", "storage"]) window.removeEventListener(type, syncSavedSession);
       document.removeEventListener("visibilitychange", syncSavedSession);
     };
   }, [retrySession, authError]);
 
   useEffect(() => {
+    let cancelled = false;
+    const revision = sessionRevision.current;
+    sessionStorage().read().then((stored) => {
+      if (cancelled || revision !== sessionRevision.current) return;
+      tokenRef.current = stored;
+      setToken(stored);
+      setStorageReady(true);
+    }).catch(() => {
+      if (cancelled) return;
+      setAuthError("Unable to read your saved session. Unlock your device and retry.");
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [restoreAttempt]);
+
+  useEffect(() => {
+    if (!storageReady) return;
     let cancelled = false;
 
     async function restoreUser() {
@@ -128,7 +135,10 @@ export default function AuthProvider({ children }) {
         }
 
         if (error.status === 401 || error.status === 403) {
-          storeToken(null);
+          try { await sessionStorage().write(null); } catch {
+            setAuthError("Unable to clear the expired secure session. Unlock your device and retry.");
+            return;
+          }
           sessionRevision.current += 1;
           tokenRef.current = null;
 
@@ -153,9 +163,9 @@ export default function AuthProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [token, restoreAttempt]);
+  }, [token, restoreAttempt, storageReady]);
 
-  const saveSession = useCallback((data, migrateGuest = true) => {
+  const saveSession = useCallback(async (data, migrateGuest = true) => {
     if (
       typeof data?.token !== "string" ||
       !data.token ||
@@ -164,17 +174,28 @@ export default function AuthProvider({ children }) {
       throw new Error("Invalid authentication response.");
     }
 
-    if (!storeToken(data.token)) {
-      throw new Error(
-        "Unable to save your login session. Allow browser storage and retry."
-      );
+    const revision = sessionRevision.current;
+    try {
+      await sessionStorage().write(data.token);
+    } catch {
+      throw new Error("Unable to save your login securely. Unlock your device and retry.");
     }
+    if (revision !== sessionRevision.current) throw new Error("Your session changed. Please sign in again.");
 
     if (migrateGuest) {
       // Storage helpers preserve the existing guest shopping behavior.
       // A migration failure must not undo a successful login.
       try {
-        importGuestShopping(data.user);
+        if (shoppingSyncEnabled()) initializeShoppingJournal(data.user);
+        importGuestShopping(data.user, {
+          onTransfer: shoppingSyncEnabled() ? ({ base, before, after, id, issuedAt }) => {
+            const cart = base === "gymdrobe-cart";
+            appendShopping(data.user, shoppingChanges(
+              compactShopping(cart ? before : [], cart ? [] : before),
+              compactShopping(cart ? after : [], cart ? [] : after),
+            ), { id, issuedAt });
+          } : undefined,
+        });
 
         const guestBuyNow = readSession("gymdrobe-buy-now", []);
 
@@ -220,7 +241,7 @@ export default function AuthProvider({ children }) {
           throw new Error("Your session changed. Please sign in again.");
         }
 
-        saveSession(data);
+        await saveSession(data);
         return data;
       } finally {
         googleLoginBusy.current = false;
@@ -228,6 +249,18 @@ export default function AuthProvider({ children }) {
     },
     [saveSession]
   );
+
+  const appleLogin = useCallback(async (credentials) => {
+    if (googleLoginBusy.current) throw new Error("A sign-in request is already in progress.");
+    const revision = sessionRevision.current;
+    googleLoginBusy.current = true;
+    try {
+      const data = await loginWithApple(credentials);
+      if (revision !== sessionRevision.current) throw new Error("Your session changed. Please sign in again.");
+      await saveSession(data);
+      return data;
+    } finally { googleLoginBusy.current = false; }
+  }, [saveSession]);
 
   const updateProfile = useCallback(
     async ({ name, phone } = {}) => {
@@ -285,7 +318,9 @@ export default function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(async () => {
-    const removed = storeToken(null);
+    sessionRevision.current += 1;
+    void stopOrderPushSession(user?.id || user?._id, tokenRef.current);
+    const removed = await sessionStorage().write(null);
 
     sessionRevision.current += 1;
     tokenRef.current = null;
@@ -300,7 +335,7 @@ export default function AuthProvider({ children }) {
     if (isNativeApp()) await clearNativeGoogleSession();
 
     return removed;
-  }, []);
+  }, [user?.id, user?._id]);
 
   // Retained until the old account-security page is replaced.
   const changePassword = useCallback(async () => {
@@ -321,6 +356,7 @@ export default function AuthProvider({ children }) {
       isAuthenticated: Boolean(user && token),
 
       googleLogin,
+      appleLogin,
       logout,
       updateProfile,
       refreshUser,
@@ -337,6 +373,7 @@ export default function AuthProvider({ children }) {
       authError,
       retrySession,
       googleLogin,
+      appleLogin,
       logout,
       updateProfile,
       refreshUser,
