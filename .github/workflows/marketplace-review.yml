@@ -38,7 +38,7 @@ jobs:
           # Use Ubuntu's official archive; signed package verification stays enabled.
           sudo python3 - <<'PYMIRROR'
           from pathlib import Path
-          paths = [Path('/etc/apt/sources.list'), *Path('/etc/apt/sources.list.d').glob('*.list'), *Path('/etc/apt/sources.list.d').glob('*.sources')]
+          paths = [Path('/etc/apt/sources.list'), *Path('/etc/apt/sources.list.d').glob('*.list'), *Path('/etc/apt/sources.list.d').glob('*.sources'), *Path('/etc/apt').glob('*mirrors*.txt')]
           for path in paths:
               if not path.exists():
                   continue
