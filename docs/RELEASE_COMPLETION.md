@@ -1,34 +1,41 @@
-# GymDrobe release completion — 5 November 2026
+# GymDrobe task tracker — 5 November 2026
 
-Additional service budget: ₹0. Existing approved UI, customer data and authentication remain in place. No real charge, refund, shipment, message, store submission or paid resource is authorized by this work.
+₹0 additional services. Tested frontend source29e668e, production mergef00f4560. Production backendda509135. The table separates implementation evidence from real provider and physical-device acceptance.
 
-| Priority | Work | Status | Evidence / dependency | Next action |
-|---|---|---|---|---|
-| P0 | CI/PWA/Android orchestration | Merged and deployed in PR35 | Full current web/PWA suite passed run41921256162. External Bash entry point and bounded probes preserve candidate failures. Legacy APK failed startup and invalidated the emulator in run41921256178; default current acceptance is isolated from that comparison. Shell contract covers history, cleanup, install, startup and smoke failures. | PR35 main59420fe is deployed. Current web41925099674 and Android41925099536 attempt2 passed; retain attempt1 WebView timeout as a reliability limitation. |
-| P0 | Google Search identity | Merged and deployed in PR34 | Main f1d61a7 deployed successfully. Live PNG/ICO/logo/share URLs return 200 and correct dimensions/content types. Homepage metadata, robots, manifest and apex canonical checked. | Owner: Search Console live inspection and indexing request; Google controls recrawl/appearance. |
-| P0 | Login and shopping | Prior release delivered; re-verification running | Account/nav/session work preserved. Real Google and physical-device acceptance are separate from fixtures. | Run current suites and retain screenshots. |
-| P0 | Payment/order acceptance | 167 tests and disposable database integrations passed; provider acceptance blocked | Backend review8e61075: local167 passed; commerce41927217939, identity41927217998 and catalogue41927218091 passed. Isolated payment staging/provider configuration is missing. Prepared startup indexes also need production-data compatibility review. Do not test against production customer data. | Audit backend/test coverage and staging validation; document missing private configuration. |
-| P1 | Shared shopping, push and iPhone stack | Reconciled in existing PR26; release verification running | Latest account/brand/CI merged into candidate; duplicate navigation and session merge defects corrected. 260 unit tests pass. Shared shopping/push/photo browser fixtures passed. Flags remain off. Backend aggregate is existing PR6, not deployed. | Complete current web/native CI; release only compatible frontend code with unfinished provider features off. |
-| P1 | Mobile builds | Android b94ae25 passed; iPhone runner reliability under verification | iPhone1b2353f run41925113122 passed UI and push-bridge compilation. Later b94ae25 run41927206217 had a runner bootstrap kill before assertions. Compile tests before simulator boot and retain launch/resource diagnostics; no missing assertions are waived. Physical Android/iPhone, Apple signing/OAuth, provider acceptance and Razorpay privacy declaration remain external dependencies. | Produce current artifacts and separate simulator, emulator and physical evidence. |
-| P0 | Supplier and policies | Business inputs required | Supplier identity/rights, accepted costs, stock, dispatch/returns, operator/tax/retention facts cannot be fabricated. | Use docs/OPERATIONS_ACCEPTANCE.md in PR26 for the five-variant evidence register, unsigned supplier terms outline, policy inputs and routing/settlement contracts. |
-| P1 | Operational automation | Incomplete; depends on actual contracts | Supplier feeds, courier API, routing rules, commission and settlement costs need approved inputs. | Prepare validated contracts, configuration gates and reviewable operator drafts; do not activate unverified outbound actions. |
-| Deferred | Photo search / virtual try-on | Disabled | Existing visual search is not suitable for the current free backend memory limit; try-on requires approved provider/assets/budget. | Keep unavailable honestly; no random search results or paid activation. |
-| Deferred | Rewards / advertising / store publication | Not enabled | Rules/economics, release accounts and specific publication/spending authorization remain separate. | No paid or public activation in this release. |
+| Priority | Task | Status | Evidence | Dependency | Next action |
+|---|---|---|---|---|---|
+| P0 | CI, Android shell and public PWA cache | Merged/deployed PR35; current candidate also passes | Current web41975539273; Android41975539267; exact cache allowlist/private API tests | None for released fix | Preserve historical comparison limitations and earlier failed attempt |
+| P0 | API cache and dependency security | Merged/deployed PR9/PR10 | 112/113 tests; Render deploydep-dblr7ghsrm7s7386v1mg; read-only health/private401 no-store | None for released fix | Monitor through existing resources |
+| P0 | Login/session recovery | Implemented; browser/emulator pass; merged/deployed PR26 (f00f4560) | TOKEN_KEY/native storage/stale-read/reconnect fixes; current full web run | Real Google authorization and physical phones | Owner verifies sign-in/cancel/reopen/switch/logout with isolated accounts |
+| P0 | Account/nav/cart/checkout UI | Preserved; fixture matrix passes; merged/deployed PR26 (f00f4560) | Eight required widths in Chromium/WebKit; 98 storefront and22 Account checks | Physical keyboard/safe-area acceptance | Install supplied development APK and test mobile website |
+| P0 | Google branding and product metadata | Approved branding PR34/PR36 deployed; crawler metadata merged/deployed PR26 (f00f4560) | HTTP image/type/dimension/redirect checks;50 product/alias documents | Authorized Search Console property | Owner tests live homepage and requests indexing; Google controls appearance |
+| P0 | Payment/order correctness | Prepared backend tests pass; provider acceptance blocked; PR6 draft | 167 tests plus disposable transaction/index/identity integrations | Isolated staging replica set/user/JWT/origin and Razorpay Test Mode pair/webhook | Configure privately, run staging preflight then success/failure/cancel/duplicate/retry/refund cases |
+| P1 | Shared cart/wishlist | Implemented and isolated tests pass; disabled pending backend release | React plus actual paired JWT/API contract, guest journal/concurrent/offline/account tests | Staging/index/provider compatibility acceptance | Keep VITE_SHOPPING_SYNC_ENABLED off until paired release verified |
+| P1 | Transactional push | UI/native bridge/backend tests prepared; delivery disabled | Actual paired API ownership tests and adapter cleanup/retries; optional native bridge compilation | APNs/FCM setup and physical receipt tests | Owner configures privately; verify opt-in/rotation/logout/deletion before sending |
+| P1 | Apple secure login/deletion | Implemented and fixtures pass; provider/signing not accepted | Keychain/nonce/deletion/logout isolated checks; PR6 draft | Apple Team, OAuth, production-data/index compatibility, retention facts | Follow iOS setup; validate signed build/provider/device before enabling |
+| P1 | Android test build | Current emulator acceptance passed | Source29e668e/run41975539267; supplied APK hash | Physical Android | Install/update compatible development signature; website does not replace bundled code |
+| P1 | iPhone build | Current simulator and optional push compilation passed; unsigned artifact available | Run41975539376; app/UI runner compiled before simulator boot | Physical iPhone/Mac/signing/provider access and vendor privacy declaration | Owner validates supported SDK privacy declaration, signed archive and real device/provider flows before distribution |
+| P0 | Five launch products and suppliers | Business facts missing; drafts prepared | Operations-Acceptance.md | Owner/suppliers: IDs, variant stock, identity/rights, costs, accepted terms | Complete evidence register; do not invent acceptance or margins |
+| P0 | Dispatch/returns/refunds/policies | Draft inputs prepared, not published | Operations worksheet and unsigned terms outline | Owner/supplier decisions and professional review where needed | Approve operator/support/retention/dispatch/courier/cost payer/return responsibilities |
+| P1 | Inventory/courier/routing/settlement | Software contracts prepared; live automation incomplete | Feed/routing/reporting requirements; collections separated from profit | Actual supplier/courier API/channel, commercial model, commissions and costs | Supply verified contracts before implementation/activation of outbound integrations |
+| Deferred | Photo Search | Disabled | Local CLIP pipeline tested in isolation;345MB model plus runtime exceeds safe512MB host capacity | Existing-budget capacity, relevance, privacy and indexing acceptance | Leave unavailable; no paid upgrade or fabricated/random matches |
+| Deferred | Virtual Try-On | Disabled/unconfigured | No production acceptance | Approved assets/provider/capacity/privacy/budget | Keep disabled |
+| Deferred | Rewards/referrals/ads/stores | Deferred | No activation/spend/submission | Approved rules/economics, accounts and specific publication/spending instruction | No action in this release |
 
-## External owner actions
+No real customer order, charge, refund, shipment or provider/customer/supplier message was used for testing. Staging tests and simulator/device tests are separate gates.
 
-- Test the provided current APK and the mobile website on physical phones, including Google sign-in, reopen, account switching, keyboard/safe areas and interrupted checkout with staging credentials.
-- Configure isolated staging database/JWT/Razorpay test secrets/webhooks privately; never paste secrets in chat or source control.
-- Supply Apple Team/signing and iOS OAuth configuration, approved retention/privacy facts and device access before signed iPhone acceptance.
-- Confirm actual supplier terms, five launch products/variant stock, costs and fulfilment/return responsibilities.
-- Use an authorized Search Console property to inspect the deployed homepage and request indexing after publication; Google controls recrawl and displayed appearance.
+## Current release evidence
 
-A check passing in a fixture is not a real provider transaction, a simulator is not a signed iPhone build, and prepared code is not a deployed feature. This source checkpoint records the audit while release checks run. The final verification handover and PR descriptions record the resulting run/deployment IDs; older PROJECT_STATUS.md evidence remains historical.
+- Frontend PR26: https://github.com/favas5291-coder/gym-store/pull/26
+- Production application merge: f00f4560e2898ca0bc44c07cca416f98c77aba6f; tested source29e668e7671bc57ae88cbd92ddf2a85d53ad2fc6.
+- Successful production Vercel deployment: https://vercel.com/favaasz/gym-store/6CnL31Kkxj36bQ8LM7ePw7iFqu6e
+- Current full web/PWA/Account/session/contract checks: https://github.com/favas5291-coder/gym-store/actions/runs/41975539273
+- Current Android APK/emulator: https://github.com/favas5291-coder/gym-store/actions/runs/41975539267
+- Current iPhone simulator/UI/push-bridge compile: https://github.com/favas5291-coder/gym-store/actions/runs/41975539376
+- Current controlled performance comparison: https://github.com/favas5291-coder/gym-store/actions/runs/41975539278
+- All262 frontend unit tests pass. Backend production dependency/API releases passed112/113 tests; prepared backend aggregate passed167 tests and disposable database/model checks but remains draft.
+- Read-only live homepage/shop/Account/product-ID/product-slug HTTP checks passed; private pages have noindex headers and actual product photographs remain in sharing previews. Live public Chromium loaded25 catalogue records and an empty guest cart. No real authorization or transaction was performed.
 
-## Build-tool maintenance
+Older PROJECT_STATUS reports and intermediate run IDs are historical. The final downloadable handover supplies screenshots, exact changed paths, configuration templates, test reports, development APK checksum and remaining external dependencies.
 
-The audit also found development-tool advisories. Vite is patched within the existing 8.2 line to 8.2.4; allowed transitive updates use rimraf6.1.4, glob14.0.3, minimatch11.0.4 and source-map-js1.2.2. The candidate audit reports zero known vulnerabilities and its 216-file source check, 260 tests and production build pass. No force update or major framework/native upgrade was used. The full web workflow gets 30 minutes because observed package installation consumed most of the previous 15-minute limit; all assertions remain mandatory and FFmpeg installation omits optional recommended packages.
-
-## Production backend follow-up
-
-Separate production PR9 (dependency patches,112 tests) and PR10 (API no-store policy,113 tests) passed their CI and deployed to the existing free Render service. Main is da509135; the staged Apple/shopping/push/index/visual-search aggregate remains a draft. The aggregate incorporates both production fixes and passes167 tests with zero known dependency advisories.
+Operational worksheet: [OPERATIONS_ACCEPTANCE.md](OPERATIONS_ACCEPTANCE.md). iPhone setup: [IOS_APP.md](IOS_APP.md). Backend staging instructions remain in backend PR6; do not activate its unfinished features on production.
