@@ -1,18 +1,46 @@
 {
   "routes": [
     {
+      "src": "^/gymdrobe-share-v1\\.png$",
+      "headers": {
+        "Location": "/gymdrobe-share-v2.png"
+      },
+      "status": 308
+    },
+    {
+      "src": "^/favicon\\.jpeg$",
+      "headers": {
+        "Location": "/favicon.ico?v=3"
+      },
+      "status": 308
+    },
+    {
+      "src": "^/favicon-64-v1\\.png$",
+      "headers": {
+        "Location": "/favicon-48x48.png?v=3"
+      },
+      "status": 308
+    },
+    {
       "src": "/(product/[^/]+|shop|offers|help)/$",
-      "headers": { "Location": "/$1" },
+      "headers": {
+        "Location": "/$1"
+      },
       "status": 308
     },
     {
       "src": "/(?:product/[^/]+|shop|offers|help)$",
-      "headers": { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=0, must-revalidate" },
+      "headers": {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "public, max-age=0, must-revalidate"
+      },
       "continue": true
     },
     {
       "src": "/(?:account|cart|wishlist|checkout|login|orders|addresses|saved|compare|notifications|admin|supplier|dev)(?:/.*)?$",
-      "headers": { "X-Robots-Tag": "noindex, follow" },
+      "headers": {
+        "X-Robots-Tag": "noindex, follow"
+      },
       "continue": true
     },
     {
