@@ -10,6 +10,8 @@ export default function Hero() {
   const diagnosticsRef = useRef({ playAttempts: 0, lastPlayError: null, lastEvent: "mounted" });
   const debugEnabledRef = useRef(new URLSearchParams(window.location.search).get("heroDebug") === "1");
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const [loadVideo, setLoadVideo] = useState(false);
+  const posterRef = useRef(null);
 
   if (!mediaRef.current) {
     mediaRef.current = window.matchMedia("(max-width: 700px)").matches
@@ -18,7 +20,48 @@ export default function Hero() {
   }
   const media = mediaRef.current;
 
+  // Let the preloaded, responsive poster paint before requesting the film.
+  // A video download must not compete with the first useful mobile frame.
   useEffect(() => {
+    const poster = posterRef.current;
+    if (!poster || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    let disposed = false;
+    let idleId;
+    let timerId;
+    let scheduled = false;
+
+    const scheduleVideo = () => {
+      if (disposed || scheduled) return;
+      scheduled = true;
+      if (typeof window.requestIdleCallback === "function") {
+        idleId = window.requestIdleCallback(() => {
+          if (!disposed) setLoadVideo(true);
+        }, { timeout: 1800 });
+      } else {
+        timerId = window.setTimeout(() => {
+          if (!disposed) setLoadVideo(true);
+        }, 600);
+      }
+    };
+
+    if (poster.complete) scheduleVideo();
+    else {
+      poster.addEventListener("load", scheduleVideo);
+      poster.addEventListener("error", scheduleVideo);
+    }
+
+    return () => {
+      disposed = true;
+      poster.removeEventListener("load", scheduleVideo);
+      poster.removeEventListener("error", scheduleVideo);
+      if (idleId !== undefined) window.cancelIdleCallback(idleId);
+      if (timerId !== undefined) window.clearTimeout(timerId);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!loadVideo) return;
     const video = videoRef.current;
     if (!video) return;
 
@@ -31,7 +74,7 @@ export default function Hero() {
     video.setAttribute("webkit-playsinline", "");
     video.autoplay = true;
     video.loop = true;
-    video.preload = "auto";
+    video.preload = "metadata";
 
     let disposed = false;
     let playingPromise = null;
@@ -123,7 +166,7 @@ export default function Hero() {
       document.removeEventListener("visibilitychange", onPageVisibility);
       window.removeEventListener("pageshow", onPageVisibility);
     };
-  }, []);
+  }, [loadVideo]);
 
   return (
     <section className="cinema-hero" aria-labelledby="cinema-title">
@@ -140,9 +183,9 @@ export default function Hero() {
       <div className="cinema-stage">
         <picture className="cinema-poster">
           <source media="(max-width: 700px)" srcSet={heroMedia.mobile.poster} width="900" height="1600" />
-          <img src={heroMedia.desktop.poster} alt="" width="1920" height="1080" fetchPriority="high" decoding="async" />
+          <img ref={posterRef} src={heroMedia.desktop.poster} alt="" width="1920" height="1080" fetchPriority="high" decoding="async" />
         </picture>
-        <video
+        {loadVideo && <video
           ref={videoRef}
           className={`cinema-film${autoplayBlocked ? " is-autoplay-blocked" : ""}`}
           poster={media.poster}
@@ -150,7 +193,7 @@ export default function Hero() {
           muted
           loop
           playsInline
-          preload="auto"
+          preload="metadata"
           controls={false}
           disablePictureInPicture
           disableRemotePlayback
@@ -167,7 +210,7 @@ export default function Hero() {
           }}
         >
           <source src={media.video} type="video/mp4" />
-        </video>
+        </video>}
         <div className="cinema-caption"><span>MAKE TIME FOR YOURSELF.</span></div>
       </div>
       {debugEnabledRef.current && (

@@ -318,7 +318,7 @@ try{
   });await v.c.close();
  }
  for(const width of [390,1440]){
-  const v=await context(width);const media=[];v.p.on('request',r=>{if(r.url().includes('/media/campaign/'))media.push(r.url());});
+  const v=await context(width,{browser:{reducedMotion:'no-preference'}});const media=[];v.p.on('request',r=>{if(r.url().includes('/media/campaign/'))media.push(r.url());});
   await check(width+'px native autoplay is not disabled by application preference heuristics',async()=>{
    await visit(v.p,'/');
    assert.ok(await v.p.locator('.cinema-poster img').evaluate(i=>i.complete&&i.naturalWidth>0));
@@ -326,7 +326,7 @@ try{
    await waitForMovingVideo(v.p);
    const state=await v.p.locator('.cinema-film').evaluate(v=>({autoplay:v.autoplay,muted:v.muted,defaultMuted:v.defaultMuted,inline:v.playsInline,loop:v.loop,preload:v.preload,paused:v.paused}));
    assert.ok(state.autoplay&&state.muted&&state.defaultMuted&&state.inline&&state.loop&&!state.paused,JSON.stringify(state));
-   assert.equal(state.preload,'auto');
+   assert.equal(state.preload,'metadata');
    assert.equal(await v.p.locator('.cinema-play-fallback,.cinema-control').count(),0);
   });await v.c.close();
   const motion=await context(width,{browser:{reducedMotion:'no-preference'}});const requests=[];
@@ -397,7 +397,7 @@ try{
   const video=iphone.p.locator('.cinema-film');
   await waitForMovingVideo(iphone.p);
   assert.ok(await video.evaluate(v=>!v.paused&&v.autoplay&&v.muted&&v.loop&&v.playsInline&&!v.controls));
-  assert.equal(await video.getAttribute('preload'),'auto');
+  assert.equal(await video.getAttribute('preload'),'metadata');
   assert.ok(await video.evaluate(v=>v.hasAttribute('playsinline')&&v.hasAttribute('webkit-playsinline')));
   assert.equal(await iphone.p.locator('.cinema-play-fallback,.cinema-control').count(),0);
   assert.equal(await iphone.p.getByRole('button',{name:/Play cinematic|Pause hero|Replay/i}).count(),0);
@@ -415,7 +415,7 @@ try{
   await waitForMovingVideo(save.p);
   const video=save.p.locator('.cinema-film');
   assert.equal(await video.count(),1);
-  assert.equal(await video.getAttribute('preload'),'auto');
+  assert.equal(await video.getAttribute('preload'),'metadata');
   assert.ok(await video.evaluate(v=>v.autoplay&&v.loop&&v.muted&&!v.paused));
   assert.equal(await save.p.locator('.cinema-play-fallback,.cinema-control').count(),0);
   assert.ok(await save.p.getByRole('link',{name:/Shop Now/}).isVisible());
