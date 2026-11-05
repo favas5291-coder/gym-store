@@ -12,7 +12,7 @@ const browser = await webkit.launch({ headless: true });
 let authorization;
 async function createFixtureContext() {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: "reduce" });
-  const fixture = await mockStorefront(context, f.products);
+  const fixture = await mockStorefront(context, f.products, {catalogueHttp:true});
   await context.route("**/api/auth/apple/challenge", route => route.fulfill({ json: { success: true, nonce: "a".repeat(64), challenge: "fixture-challenge" } }));
   await context.route("**/api/auth/apple", route => {
     authorization = route.request().postDataJSON();

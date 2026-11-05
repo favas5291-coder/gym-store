@@ -39,6 +39,7 @@ if (baseline) {
 const restore = new Map();
 let fixture;
 const results = [];
+const requestFailures = [];
 // Capture the exact pre-change source with the same account fixture and browser.
 // Only used in isolated CI. Always restore checkout files, including after failures.
 try {
@@ -52,9 +53,10 @@ try {
     const errors = [];
     async function setup(width=390, options={}) {
       const c = await browser.newContext({viewport:{width,height:844},reducedMotion:'reduce'});
-      const mock = await mockStorefront(c, fixture.products, {signedIn:true,...options});
+      const mock = await mockStorefront(c, fixture.products, {signedIn:true,catalogueHttp:true,...options});
       const p = await c.newPage(); p.setDefaultTimeout(10000);
       p.on('pageerror', error => errors.push({message:error.message,stack:error.stack,url:p.url()}));
+      p.on('requestfailed', request => requestFailures.push({engine:engine.name(),url:request.url(),error:request.failure()?.errorText,route:p.url()}));
       return {c,p,mock};
     }
     async function visit(p, route='/account') {
@@ -170,6 +172,6 @@ try {
 } finally {
   if(fixture)await fixture.server.close();
   for(const [file,contents] of restore)await fs.writeFile(file,contents);
-  await fs.writeFile(path.join(output,baseline?'before-results.json':'results.json'),JSON.stringify({baseline,results},null,2));
+  await fs.writeFile(path.join(output,baseline?'before-results.json':'results.json'),JSON.stringify({baseline,results,requestFailures},null,2));
 }
 console.log(results.join('\n') || 'Before screenshots captured.');
