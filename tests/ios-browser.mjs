@@ -43,12 +43,14 @@ async function createFixtureContext() {
 let { context, fixture } = await createFixtureContext();
 let page = await context.newPage();
 const errors = [], results = [], expectedOfflineNetworkErrors = [];
-let offlineSimulation = false;
+const offlinePages = new WeakSet();
 let phase = "setup";
 function observePage(target) { target.on("pageerror", error => {
-  // WebKit exposes a failed in-flight fetch as a page error while network is
-  // deliberately disabled. Only that exact injected failure is tracked separately.
-  if (offlineSimulation && /\/api\/auth\/me due to access control checks\.$/.test(error.message)) {
+  // WebKit reports handled transport failures as page errors, sometimes after
+  // reconnect. Scope these two known injected GET failures to the exact page
+  // whose network was deliberately disabled, never subsequent test contexts.
+  const injectedGet = ["auth/me", "products"].some(route => error.message.endsWith(`${new URL(f.url).host}/api/${route} due to access control checks.`));
+  if (offlinePages.has(target) && injectedGet) {
     expectedOfflineNetworkErrors.push(error.message);
   } else { errors.push({ phase, message: error.message, stack: error.stack }); console.error("Unexpected WebKit page error", phase, error.stack); }
 }); }
@@ -90,7 +92,7 @@ try {
     await page.waitForLoadState("networkidle");
   });
   await check("offline messaging preserves the session and app links reject payment results", async () => {
-    offlineSimulation = true;
+    offlinePages.add(page);
     await context.setOffline(true);
     await page.getByText(/You’re offline/).waitFor();
     assert.equal(await page.locator(".native-offline").evaluate(element => {
@@ -106,17 +108,23 @@ try {
     await foreground;
     await page.getByRole("button", { name: "Sign out", exact: true }).waitFor();
     assert.equal(await page.evaluate(() => localStorage.getItem("gymdrobe-auth-token")), null, "Foreground recovery must keep the native token in Keychain");
-    offlineSimulation = false;
     const before = page.url();
     await page.waitForFunction(() => Boolean(window.__nativeListeners.appUrlOpen));
     await page.evaluate(() => window.__nativeListeners.appUrlOpen({ url: "gymdrobe://app/order-success?paid=true" }));
     assert.equal(page.url(), before);
     await page.evaluate(() => window.__nativeListeners.appUrlOpen({ url: "gymdrobe://app/categories" }));
     await page.waitForURL(/\/categories$/);
+    await page.getByRole("heading", { name: "Shop by category" }).waitFor();
+    await page.waitForLoadState("networkidle");
+    await context.close();
   });
   await check("logout removes the secure session", async () => {
-    await page.waitForLoadState("networkidle");
-    await page.goto(f.url + "/account");
+    ({ context, fixture } = await createFixtureContext());
+    page = await context.newPage();
+    observePage(page);
+    await page.goto(f.url + "/login");
+    await page.getByRole("button", { name: "Continue with Apple" }).click();
+    await page.waitForURL(/\/account$/);
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
     await page.waitForURL(/\/login/);
     assert.equal(await page.evaluate(() => sessionStorage.getItem("fixture-keychain")), null);

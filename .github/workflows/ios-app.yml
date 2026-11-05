@@ -36,12 +36,12 @@ jobs:
       - run: npm ci
       - run: npm run doctor && npm test
       - run: npm run ios:sync
-      - name: Compile unsigned simulator application
+      - name: Compile unsigned application and UI test runner before booting the simulator
         id: compile
         run: |
           set -o pipefail
           mkdir -p test-results/ios
-          xcodebuild -quiet -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/DerivedData CODE_SIGNING_ALLOWED=NO build 2>&1 | tee test-results/ios/build.log
+          xcodebuild -quiet -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/DerivedData CODE_SIGNING_ALLOWED=NO build-for-testing 2>&1 | tee test-results/ios/build.log
       - name: Prepare iPhone simulator for native launch and navigation tests
         timeout-minutes: 14
         run: |

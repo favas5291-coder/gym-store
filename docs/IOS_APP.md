@@ -116,3 +116,9 @@ Keep the existing Android Capacitor project. Reuse shared React/API/validation a
 - Official Razorpay Swift package: https://github.com/razorpay/razorpay-pod/tree/1.5.9
 
 These are implementation/release gates, not a claim of Apple approval or complete compliance.
+
+## Current CI execution and failure evidence
+
+The workflow compiles both the unsigned application and UI runner with `build-for-testing` before booting its test-owned simulator. `scripts/test-ios-ui.py` requires the single generated `.xctestrun` manifest and uses `test-without-building`. This avoids overlapping compilation with simulator/test-runner bootstrap. All shopping controls and nonblank-screen assertions remain mandatory. The original failure must remain visible if a later run passes.
+
+On failure, preserve XCTest results/attachments plus bounded host-memory/process and simulator launch logs. These diagnostics do not authenticate, call payment providers or register/send notifications. A simulator pass does not establish physical-device reliability, signed archive privacy validation, TestFlight or store approval.

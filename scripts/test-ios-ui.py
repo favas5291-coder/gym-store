@@ -5,17 +5,32 @@ import subprocess
 
 output = Path("test-results/ios")
 device = json.loads((output / "simulator.json").read_text())
+test_runs = list(Path("ios/DerivedData/Build/Products").glob("*.xctestrun"))
+if len(test_runs) != 1:
+    raise SystemExit(f"Expected one precompiled XCTest manifest, found {len(test_runs)}. Run build-for-testing first.")
 test_command = [
-    "xcodebuild", "-quiet", "-project", "ios/App/App.xcodeproj", "-scheme", "App",
-    "-configuration", "Debug", "-sdk", "iphonesimulator",
+    "xcodebuild", "-quiet", "-xctestrun", str(test_runs[0]),
     "-destination", f"platform=iOS Simulator,id={device['udid']}",
     "-parallel-testing-enabled", "NO", "-maximum-concurrent-test-simulator-destinations", "1",
-    "-derivedDataPath", "ios/DerivedData", "-resultBundlePath", str(output / "Shopping.xcresult"),
-    "CODE_SIGNING_ALLOWED=NO", "test",
+    "-resultBundlePath", str(output / "Shopping.xcresult"),
+    "test-without-building",
 ]
 try:
     subprocess.run(test_command, check=True, timeout=480)
 finally:
+    # Capture resource/launch failures too. Diagnostics never replace the real
+    # XCTest exit code and do not start the app or any provider interaction.
+    diagnostics = {
+        "host-memory.txt": ["vm_stat"],
+        "host-processes.txt": ["ps", "-axo", "pid,ppid,%cpu,%mem,comm"],
+        "simulator-launch.log": ["xcrun", "simctl", "spawn", device["udid"], "log", "show", "--last", "10m", "--style", "compact", "--predicate", 'process == "runningboardd" OR process == "SpringBoard" OR eventMessage CONTAINS[c] "com.gymdrobe"'],
+    }
+    for name, command in diagnostics.items():
+        try:
+            with (output / name).open("w") as destination:
+                subprocess.run(command, stdout=destination, stderr=subprocess.STDOUT, check=False, timeout=20)
+        except (subprocess.TimeoutExpired, OSError) as error:
+            print(f"Diagnostic {name} unavailable: {type(error).__name__}")
     # Keep native failure captures too, without replacing the test's exit status.
     if (output / "Shopping.xcresult").exists():
         for report in ("summary", "tests"):
