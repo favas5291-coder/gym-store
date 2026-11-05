@@ -9,7 +9,7 @@ import {
 } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext.jsx";
-import { getGoogleChallenge } from "../services/authApi.js";
+import { getGoogleChallenge, loginWithGoogle, loginWithApple } from "../services/authApi.js";
 import { safeNext } from "../utils/storage.js";
 import { isNativeApp } from "../native/platform.js";
 import { nativeGoogleCredential } from "../native/google.js";
@@ -261,7 +261,7 @@ export default function AuthForm({ reauthenticate = false, onAuthenticated } = {
       const attempt = await getAppleChallenge();
       const authorization = await nativeAppleAuthorization(attempt.nonce);
       if (!mounted.current) return;
-      const data = await appleLogin({ ...authorization, challenge: attempt.challenge });
+      const data = await (reauthenticate?loginWithApple:appleLogin)({ ...authorization, challenge: attempt.challenge });
       if (mounted.current) { if (reauthenticate) onAuthenticated?.(data); else navigate(next, { replace: true }); }
     } catch (failure) {
       if (mounted.current) setError({ title: failure.code === "APPLE_CANCELLED" ? "Sign-in cancelled" : "Apple sign-in could not complete", message: failure.message });
@@ -308,7 +308,7 @@ export default function AuthForm({ reauthenticate = false, onAuthenticated } = {
     setError(null);
 
     try {
-      const data = await googleLogin(credentials);
+      const data = await (reauthenticate?loginWithGoogle:googleLogin)(credentials);
 
       if (mounted.current) {
         pendingCredentials.current = null;
@@ -556,7 +556,7 @@ export default function AuthForm({ reauthenticate = false, onAuthenticated } = {
                 inert={busy ? true : undefined}
               />}
 
-              {appleSignInEnabled() && <button type="button" className="native-apple-signin" disabled={busy} onClick={signInWithApple}><span aria-hidden="true"></span> Continue with Apple</button>}
+              {!reauthenticate && appleSignInEnabled() && <button type="button" className="native-apple-signin" disabled={busy} onClick={signInWithApple}><span aria-hidden="true"></span> Continue with Apple</button>}
               {!ready && !error && !busy && (
                 <p className="muted" role="status">
                   Preparing Google sign-in…

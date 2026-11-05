@@ -1,3 +1,4 @@
+import {SupplierShipmentDetails} from "../components/OrderPaymentDetails.jsx";
 import {
   Link,
   useParams,
@@ -148,6 +149,7 @@ export default function OrderTrackingPage() {
 
   return (
     <div className="page narrow tracking-page">
+      <SupplierShipmentDetails order={order}/>
       <Link
         className="text-link"
         to={detailsPath}

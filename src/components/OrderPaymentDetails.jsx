@@ -235,6 +235,7 @@ export default function OrderPaymentDetails({
         ))}
       </dl>
 
+      {order.marketplaceResolutions?.length>0&&<section aria-label="Item resolutions"><h3>Item cancellations and returns</h3><p className="muted">Original purchased totals are preserved. Recorded credits, refunds and the remaining balance are shown separately.</p><ul>{order.marketplaceResolutions.map(r=><li key={r.key}>{order.items?.[r.itemIndex]?.name||"Purchased item"} · {r.quantity} unit(s) · {r.kind} · credit {money((r.customerCreditPaise??r.customerRefundPaise)/100)} · refund {money(r.customerRefundPaise/100)} · {r.status.replaceAll("-"," ")}{r.reference&&` · ${r.reference}`}</li>)}</ul><p>Contact support to resolve any remaining items individually.</p></section>}
       {isAdvance && (
         <p className="muted">
           The 10% advance is calculated on the product
@@ -310,3 +311,4 @@ export default function OrderPaymentDetails({
     </section>
   );
 }
+export function SupplierShipmentDetails({order={}}){if(!order.supplierShipments?.length)return null;return <section className="panel" aria-label="Separate shipments"><h2>Separate shipments</h2><p>Your items may arrive in separate shipments. Tracking is recorded separately for each group.</p>{order.supplierShipments.map(s=><article key={s.key}><h3>{s.itemIndices.map(i=>order.items?.[i]?.name||"Purchased item").join(", ")}</h3><p>{formatOrderStatus(s.status)}</p>{s.trackingNumber&&<p>{s.carrier} · {s.trackingNumber}</p>}{s.trackingUrl&&/^https:\/\//i.test(s.trackingUrl)&&<a href={s.trackingUrl} target="_blank" rel="noopener noreferrer">Track this shipment</a>}{s.deliveredAt&&<p>Recorded delivery: {formatOrderDate(s.deliveredAt)}</p>}</article>)}</section>;}

@@ -1,3 +1,5 @@
+import {createPortal} from "react-dom";
+import Modal from "../Modal.jsx";
 import { useEffect, useRef, useState, useId, cloneElement } from "react";
 import { marketplaceRequest as request, parsePaise, rupees } from "../../services/marketplaceApi.js";
 import { useAuth } from "../../context/AuthContext.jsx";
@@ -18,7 +20,7 @@ export function useMutation(){const [state,set]=useState({busy:false,error:"",me
 export function ReauthFields({onChange}){
   const {user}=useAuth();const [password,setPassword]=useState(""),[proof,setProof]=useState(""),[google,setGoogle]=useState(false),[error,setError]=useState("");
   useEffect(()=>{onChange({currentPassword:password,reauthToken:proof});},[password,proof,onChange]);
-  return <section className="mp-reauth"><h3>Confirm your identity</h3><p className="muted">Use your supplier password, or complete a fresh Google sign-in using this same account.</p><Field label="Current supplier password" type="password" autoComplete="current-password" value={password} onChange={e=>{setPassword(e.target.value);setProof("");}}/>{proof&&<p role="status">Recent sign-in received. Submit within two minutes.</p>}<button className="button secondary" type="button" onClick={()=>setGoogle(v=>!v)}>Confirm with Google</button>{google&&<AuthForm reauthenticate onAuthenticated={data=>{if(data.user.id!==user.id){setError("Use the same account for verification.");return;}setProof(data.token);setGoogle(false);}}/>}<Notice error={error}/></section>;
+  return <section className="mp-reauth"><h3>Confirm your identity</h3><p className="muted">Use your supplier password, or complete a fresh Google sign-in using this same account.</p><Field label="Current supplier password" type="password" autoComplete="current-password" value={password} onChange={e=>{setPassword(e.target.value);setProof("");}}/>{proof&&<p role="status">Recent sign-in received. Submit within two minutes.</p>}<button className="button secondary" type="button" onClick={()=>setGoogle(v=>!v)}>Confirm with Google</button>{google&&createPortal(<div onSubmit={e=>e.stopPropagation()}><Modal title="Confirm the same Google account" onClose={()=>setGoogle(false)}><AuthForm reauthenticate onAuthenticated={data=>{if(data.user.id!==user.id){setError("Use the same account for verification.");setGoogle(false);return;}setProof(data.token);setGoogle(false);}}/></Modal></div>,document.body)}<Notice error={error}/></section>;
 }
 const blankAddress={addressLine:"",city:"",state:"",pincode:"",country:"IN"};
 export const blankBusiness=()=>({legalName:"",contactName:"",phone:"",businessAddress:{...blankAddress},pickupAddress:{...blankAddress},returnAddress:{...blankAddress},brands:[],categories:[],gstin:"",taxNotes:""});
