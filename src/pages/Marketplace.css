@@ -4,3 +4,5 @@
 @media(prefers-reduced-motion:reduce){.mp-workspace *,.mp-auth *{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
 
 .mp-legacy-items{min-width:0;overflow-wrap:anywhere}.mp-legacy-resolution>summary,.mp-legacy-items details>summary{box-sizing:border-box;min-height:44px;padding:10px 0;cursor:pointer;line-height:1.5}.mp-legacy-items .mp-panel{padding:clamp(12px,3vw,24px)}.mp-legacy-items .button{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+
+.mp-legacy-choice{min-inline-size:0;grid-column:1/-1}.mp-legacy-choice legend{font-size:13px;font-weight:600}.mp-legacy-choice .mp-check{box-sizing:border-box;min-height:44px;margin:8px 0;padding:10px 12px;border:1px solid #dce1d9;border-radius:8px;background:#f5f6f0}.mp-legacy-choice small{display:block;margin-top:4px;color:#657064;overflow-wrap:anywhere}
