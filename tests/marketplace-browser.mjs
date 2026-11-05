@@ -6,9 +6,16 @@ import {startMarketplaceFixture} from "./marketplace-fixture.mjs";
 const out=path.resolve("test-results/marketplace");fs.mkdirSync(out,{recursive:true});const passed=[],errors=[];let fixture,browser,adminPage,supplierPage;
 const check=async(name,fn)=>{await fn();passed.push(name);console.log("PASS",name);};
 const fill=(page,label,value)=>page.getByLabel(label,{exact:true}).fill(String(value));
-const go=async(page,url)=>{await page.goto(fixture.url+url);await page.locator('.page-loading').waitFor({state:'hidden'});await page.evaluate(()=>scrollTo(0,0));};
+async function go(page, url) {
+ await page.goto(fixture.url + url);
+ await page.locator('.page-loading').waitFor({state: 'hidden'});
+ await page.evaluate(() => scrollTo(0, 0));
+ if (page.context().browser()?.browserType().name() === 'webkit') {
+  await page.waitForLoadState('networkidle', {timeout: 15000});
+ }
+}
 const observe=page=>page.on("pageerror",e=>errors.push(e.message));
-async function loginToken(page,user){await page.goto(fixture.url);await page.evaluate(t=>{localStorage.clear();localStorage.setItem("gymdrobe-auth-token",t);},fixture.token(user));}
+async function loginToken(page,user){await go(page,"/");await page.evaluate(t=>{localStorage.clear();localStorage.setItem("gymdrobe-auth-token",t);},fixture.token(user));}
 async function noOverflow(page,label){
  const details=await page.evaluate(()=>({viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,offenders:[...document.querySelectorAll("body *")].map(el=>{const r=el.getBoundingClientRect(),css=getComputedStyle(el);return {tag:el.tagName,className:String(el.className),left:r.left,right:r.right,width:r.width,scrollWidth:el.scrollWidth,clientWidth:el.clientWidth,minWidth:css.minWidth,maxWidth:css.maxWidth,whiteSpace:css.whiteSpace,display:css.display};}).filter(r=>r.width>0&&(r.right>innerWidth+1||r.left< -1||r.scrollWidth>r.clientWidth+2)).slice(0,40)}));
  if(details.scrollWidth>details.viewport+1){fs.writeFileSync(path.join(out,"overflow.json"),JSON.stringify({label,...details},null,2));await page.screenshot({path:path.join(out,"overflow.png"),fullPage:true});}
@@ -51,7 +58,16 @@ try{
   await panel.getByText("Resolve purchased items and customer refund obligations",{exact:true}).click();await panel.getByRole("radio",{name:/Fixture unassigned training shirt/}).check();await fill(panel,"Customer request / receipt and inspection evidence","Synthetic WebKit customer request to cancel an unassigned purchased item.");
   for(const width of [320,390,480,768,1440]){await page.setViewportSize({width,height:900});await noOverflow(page,`WebKit admin legacy form at ${width}`);}
   const [response]=await Promise.all([page.waitForResponse(r=>r.url().endsWith(`/admin/orders/${mixed._id}/items/1/resolutions`)&&r.request().method()==="POST"),panel.getByRole("button",{name:"Calculate and record item resolution",exact:true}).click()]);const result=await response.json();assert.equal(response.status(),200,JSON.stringify(result));assert.equal(result.resolution.customerCreditPaise,Math.round(mixed.items[1].price*100));assert.equal(result.resolution.supplierReversalPaise,0);
+  // The mutation reloads the order and its auth context. Let those requests
+  // settle, then verify the saved result through the same admin view.
+  await page.waitForLoadState('networkidle', {timeout: 15000});
+  const details = group.locator('.mp-legacy-resolution');
+  await details.waitFor();
+  if (!(await details.evaluate(node => node.open))) await details.locator('summary').first().click();
+  await panel.getByText(/^cancellation.*refund pending$/).waitFor();
+  await page.waitForLoadState('networkidle', {timeout: 15000});
  });
+ await ctx.close();
  }finally{await wb.close();}
  assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,"report.json"),JSON.stringify({passed,errors,payment:"Synthetic SDK boundary; actual HTTP order, catalogue, JWT and MongoDB transactions. No real provider verification or transfer.",hold:"Eight days simulated in disposable database only.",backend:process.env.GYMDROBE_MARKETPLACE_BACKEND_SHA||"Paired feature branch"},null,2));
 }catch(error){console.error(error);if(adminPage)await adminPage.screenshot({path:path.join(out,"admin-failure.png"),fullPage:true}).catch(()=>{});if(supplierPage)await supplierPage.screenshot({path:path.join(out,"supplier-failure.png"),fullPage:true}).catch(()=>{});fs.writeFileSync(path.join(out,"failure.json"),JSON.stringify({passed,errors,error:error.stack},null,2));process.exitCode=1;}finally{await browser?.close();await fixture?.close();}
