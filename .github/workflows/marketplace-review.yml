@@ -34,6 +34,21 @@ jobs:
         run: |
           mkdir -p test-results/marketplace
           set -o pipefail
+          # The hosted runner's Azure Ubuntu mirror can stall package downloads.
+          # Use Ubuntu's official archive; signed package verification stays enabled.
+          sudo python3 - <<'PYMIRROR'
+          from pathlib import Path
+          paths = [Path('/etc/apt/sources.list'), *Path('/etc/apt/sources.list.d').glob('*.list'), *Path('/etc/apt/sources.list.d').glob('*.sources')]
+          for path in paths:
+              if not path.exists():
+                  continue
+              original = path.read_text()
+              updated = original.replace('http://azure.archive.ubuntu.com/ubuntu', 'https://archive.ubuntu.com/ubuntu').replace('https://azure.archive.ubuntu.com/ubuntu', 'https://archive.ubuntu.com/ubuntu')
+              if updated != original:
+                  path.write_text(updated)
+                  print('Using official Ubuntu archive:', path)
+          Path('/etc/apt/apt.conf.d/99gymdrobe-ci').write_text('Acquire::Retries "1";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n')
+          PYMIRROR
           npm install --ignore-scripts --no-audit --no-fund --no-save --package-lock=false playwright@1.62.1 2>&1 | tee test-results/marketplace/tooling.log
           npx playwright install --with-deps chromium webkit 2>&1 | tee -a test-results/marketplace/tooling.log
       - name: Start disposable replica set
