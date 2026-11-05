@@ -103,6 +103,7 @@ try {
           await p.screenshot({path:path.join(output,`${prefix}-${engine.name()}-${width}.png`),fullPage:true});
           if(width===390 || width===1440)await p.screenshot({path:path.join(output,`${prefix}-${engine.name()}-${width}-viewport.png`)});
         }
+        await p.waitForLoadState('networkidle');
         await c.close();
       }
       if (!baseline) {
@@ -130,7 +131,16 @@ try {
         await p.goto(fixture.url+'/wishlist');await p.waitForLoadState('networkidle');
         assert.equal(await p.getByRole('navigation',{name:'Shopping navigation'}).getByRole('link',{name:'Wishlist',exact:true}).getAttribute('aria-current'),'page');
         await p.goto(fixture.url+'/account');await p.waitForLoadState('networkidle');await p.locator('.gd-account-stats[aria-busy="false"]').waitFor();
-        await p.locator('.gd-account-order').first().click();await p.waitForURL(`**/orders/${fixtureOrderId}`);await p.waitForLoadState('networkidle');
+        const [catalogueResponse] = await Promise.all([
+          p.waitForResponse(response =>
+            new URL(response.url()).pathname === '/api/products' && response.request().method() === 'GET',
+          ),
+          p.waitForURL(`**/orders/${fixtureOrderId}`),
+          p.locator('.gd-account-order').first().click(),
+        ]);
+        assert.ok(catalogueResponse.ok(), 'Order navigation refreshes the catalogue successfully');
+        assert.equal(await catalogueResponse.finished(), null);
+        await p.waitForLoadState('networkidle');
         await p.goto(fixture.url+'/account#profile-details');await p.waitForLoadState('networkidle');await p.getByLabel('Full name',{exact:true}).waitFor();
         await p.getByLabel('Full name',{exact:true}).focus();
         await p.evaluate(()=>{
@@ -154,6 +164,7 @@ try {
         await failure.p.getByText("You haven't placed an order yet.",{exact:true}).waitFor();
         assert.deepEqual(await failure.p.locator('.gd-account-stats strong').allTextContents(),['0','1']);
         results.push(`${engine.name()}: partial failure keeps valid address data, honest counts, retry and empty state`);
+        await failure.p.waitForLoadState('networkidle');
         await failure.c.close();
 
         const admin=await setup();
