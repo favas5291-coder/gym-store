@@ -131,7 +131,7 @@ function AdminMenu() {
     ["/admin/customers", "Customers"],
     ["/admin/returns", "Returns"],
     ["/admin/support", "Support"],
-    ["/admin/suppliers", "Suppliers"],
+    [import.meta.env.VITE_MARKETPLACE_ENABLED === "true" ? "/admin/marketplace" : "/admin/suppliers", "Suppliers"],
     ...(import.meta.env.VITE_SUPPLIER_PORTAL_ENABLED === "true" ? [["/admin/supplier-onboarding", "Supplier onboarding"]] : []),
     ["/admin/kits", "Fitness Kits"],
     ["/admin/packing-locations", "Packing locations"],

@@ -162,6 +162,9 @@ const AdminSuppliersPage = lazy(
 const SupplierPortalPage = lazy(() => import("./pages/SupplierPortalPage.jsx"));
 const AdminSupplierOnboardingPage = lazy(() => import("./pages/AdminSupplierOnboardingPage.jsx"));
 const supplierPortalEnabled = import.meta.env.VITE_SUPPLIER_PORTAL_ENABLED === "true";
+const marketplaceEnabled = import.meta.env.VITE_MARKETPLACE_ENABLED === "true";
+const MarketplaceSupplierPage = lazy(() => import("./pages/MarketplaceSupplierPage.jsx"));
+const MarketplaceAdminPage = lazy(() => import("./pages/MarketplaceAdminPage.jsx"));
 
 const AdminKitsPage = lazy(
   () => import("./pages/AdminKitsPage.jsx"),
@@ -548,7 +551,7 @@ function Layout() {
 
               <Link
                 className="text-link"
-                to="/admin/suppliers"
+                to={marketplaceEnabled ? "/admin/marketplace" : "/admin/suppliers"}
               >
                 Suppliers
               </Link>
@@ -742,8 +745,10 @@ function Layout() {
                 />
               ))}
 
+              {marketplaceEnabled && <Route path="/supplier/*" element={<MarketplaceSupplierPage key={accountKey} />} />}
+
               {[
-                ...(supplierPortalEnabled ? [["/supplier", SupplierPortalPage]] : []),
+                ...(supplierPortalEnabled && !marketplaceEnabled ? [["/supplier", SupplierPortalPage]] : []),
                 [
                   "/account",
                   AccountPage,
@@ -772,6 +777,7 @@ function Layout() {
 
               {[
                 ...(supplierPortalEnabled ? [["/admin/supplier-onboarding", AdminSupplierOnboardingPage]] : []),
+                ...(marketplaceEnabled ? [["/admin/marketplace/*", MarketplaceAdminPage]] : []),
                 [
                   "/admin",
                   AdminDashboardPage,
