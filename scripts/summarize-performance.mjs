@@ -19,7 +19,7 @@ function median(numbers) {
 }
 
 function sampleMetrics(sample) {
-  const video = (sample.resources || []).filter((entry) => /\\.mp4(?:$|\\?)/i.test(entry.url || ""));
+  const video = (sample.resources || []).filter((entry) => /\.mp4(?:$|\?)/i.test(entry.url || ""));
   return {
     lcp: sample.lcp,
     cls: sample.cls,
