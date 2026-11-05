@@ -23,9 +23,12 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm install --no-save --package-lock=false playwright@1.62.1
       - run: npx playwright install --with-deps chromium
-      - name: Measure installed APK source baseline
+      - name: Measure the actual pull request base
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          git worktree add --detach /tmp/gymdrobe-before 6546ec5a063a193b56198b56b82528c80a7bb9df
+          if [ -z "$BASE_SHA" ]; then BASE_SHA="$(git rev-parse origin/main)"; fi
+          git worktree add --detach /tmp/gymdrobe-before "$BASE_SHA"
           cp tests/performance-audit.mjs /tmp/gymdrobe-before/tests/performance-audit.mjs
           cd /tmp/gymdrobe-before
           npm ci --ignore-scripts
@@ -35,6 +38,14 @@ jobs:
         run: |
           npm run build
           PERFORMANCE_ASSERT=1 PERFORMANCE_OUTPUT=test-results/performance/after node tests/performance-audit.mjs
+      - name: Summarize comparable lab samples
+        if: always()
+        run: |
+          if [ -f test-results/performance/before/audit.json ] && [ -f test-results/performance/after/audit.json ]; then
+            node scripts/summarize-performance.mjs
+          else
+            echo "One or both audit files missing; no comparison will be claimed."
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:

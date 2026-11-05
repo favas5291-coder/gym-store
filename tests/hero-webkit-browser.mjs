@@ -82,7 +82,28 @@ try {
   await assertAdvancing("after navigating home");
 
   assert.equal(await page.locator(".cinema-play-fallback,.cinema-control").count(), 0);
-  console.log("PASS WebKit mobile-sized test; real iPhone low-power testing remains manual");
+
+  // Motion-sensitive customers get the same poster and working navigation
+  // without an autoplay video request.
+  const reduced = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    reducedMotion: "reduce",
+  });
+  await mockStorefront(reduced, fixture.products);
+  const reducedPage = await reduced.newPage();
+  const mediaRequests = [];
+  reducedPage.on("request", request => {
+    if (/hero-(?:mobile|desktop)\.mp4/.test(request.url())) mediaRequests.push(request.url());
+  });
+  await reducedPage.goto(fixture.url + "/", { waitUntil: "domcontentloaded" });
+  await reducedPage.locator(".cinema-poster img").waitFor({ state: "visible" });
+  await reducedPage.waitForTimeout(2200);
+  assert.equal(await reducedPage.locator(".cinema-film").count(), 0, "Reduced motion must not mount the video");
+  assert.deepEqual(mediaRequests, [], "Reduced motion must not download campaign video");
+  assert.equal(await reducedPage.getByRole("link", { name: /Shop Now/ }).count(), 1);
+  await reduced.close();
+
+  console.log("PASS WebKit mobile-sized and reduced-motion tests; real iPhone low-power testing remains manual");
   await context.close();
 } finally {
   await browser?.close();
