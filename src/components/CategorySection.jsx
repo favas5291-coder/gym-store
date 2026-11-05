@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { TextLink } from "./PremiumControls.jsx";
 
@@ -143,17 +144,31 @@ export function categoryCards(products = []) {
 
 export default function CategorySection() {
   const { products, loading, error } = useCatalog();
-  const cards = categoryCards(products);
-  const ordered = [...cards].sort((a,b) => {
-    const stock = name => products.filter(p => p.category === name).reduce((sum,p) => sum + Number(p.stock || 0),0);
-    return stock(b.name) - stock(a.name);
-  });
-  const picks = [];
-  for (const department of ['workout','workout','shoes','accessories','hydration','supplements']) {
-    const next = ordered.find(c => !picks.includes(c) && productDepartment({category:c.name}) === department);
-    if (next) picks.push(next);
-  }
-  for (const card of ordered) if (picks.length < 6 && !picks.includes(card)) picks.push(card);
+  const { cards, picks } = useMemo(() => {
+    const cards = categoryCards(products);
+    const stockByCategory = new Map();
+    for (const product of products) {
+      if (typeof product?.category !== "string") continue;
+      const name = product.category;
+      stockByCategory.set(name, (stockByCategory.get(name) || 0) + (Number(product.stock) || 0));
+    }
+
+    const ordered = [...cards].sort(
+      (a, b) => (stockByCategory.get(b.name) || 0) - (stockByCategory.get(a.name) || 0),
+    );
+    const picks = [];
+    for (const department of ["workout", "workout", "shoes", "accessories", "hydration", "supplements"]) {
+      const next = ordered.find(
+        (card) => !picks.includes(card) && productDepartment({ category: card.name }) === department,
+      );
+      if (next) picks.push(next);
+    }
+    for (const card of ordered) {
+      if (picks.length >= 6) break;
+      if (!picks.includes(card)) picks.push(card);
+    }
+    return { cards, picks };
+  }, [products]);
   if (!cards.length && !loading && !error) return null;
   return <section className="gm-section gm-categories" id="categories" aria-labelledby="gm-category-title">
     <div className="gm-section-head"><h2 id="gm-category-title">Shop by category</h2><TextLink to="/shop">Shop all</TextLink></div>
