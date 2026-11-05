@@ -1,0 +1,57 @@
+name: Supplier marketplace browser acceptance
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: marketplace-browser-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  marketplace-browser:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - uses: actions/checkout@v4
+        with:
+          repository: favas5291-coder/gym-drobe-backend
+          ref: ae3a8179a2081840ea7ad558785b7206971040b5
+          path: .qa-marketplace-backend
+      - run: npm ci --prefix .qa-marketplace-backend
+      - name: Isolated browser tooling
+        run: |
+          npm install --no-save --package-lock=false playwright@1.62.1
+          npx playwright install --with-deps chromium webkit
+      - name: Start disposable replica set
+        run: |
+          docker run --detach --name gymdrobe-marketplace-browser -p 127.0.0.1:27018:27017 mongo:8.0 --replSet rs0 --bind_ip_all
+          for attempt in $(seq 1 30); do
+            if docker exec gymdrobe-marketplace-browser mongosh --quiet --eval 'db.adminCommand({ping:1})' >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          docker exec gymdrobe-marketplace-browser mongosh --quiet --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"localhost:27017"}]})'
+          docker exec gymdrobe-marketplace-browser mongosh --quiet --eval 'for(let i=0;i<60;i++){if(db.hello().isWritablePrimary)quit(0);sleep(500)}quit(1)'
+      - name: Real dashboards, JWT APIs and database with synthetic payment boundary
+        env:
+          GYMDROBE_TEST_MONGO_URI: mongodb://127.0.0.1:27018/gymdrobe_fixture_marketplace_browser_ci?replicaSet=rs0&directConnection=true
+          GYMDROBE_MARKETPLACE_BACKEND_DIR: .qa-marketplace-backend
+          GYMDROBE_MARKETPLACE_BACKEND_SHA: ae3a8179a2081840ea7ad558785b7206971040b5
+        run: node tests/marketplace-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: marketplace-browser-review
+          path: test-results/marketplace/
+          retention-days: 14
+      - name: Stop disposable database
+        if: always()
+        run: |
+          docker logs gymdrobe-marketplace-browser || true
+          docker rm --force gymdrobe-marketplace-browser || true

@@ -247,9 +247,9 @@ function ProductOptionsContent({
   );
 
   const totalStock = getTotalStock(product);
-  const sellingPrice = getDiscountedPrice(product);
-  const originalPrice = getOriginalPrice(product);
-  const discount = getDiscountPercentage(product);
+  const sellingPrice = getDiscountedPrice(product, size, color);
+  const originalPrice = getOriginalPrice(product, size, color);
+  const discount = getDiscountPercentage(product, size, color);
 
   const productId = String(
     productReference(product),
@@ -487,7 +487,7 @@ function ProductOptionsContent({
 
     if (
       !productPriceAvailable(product) ||
-      getDiscountedPrice(latest) !== sellingPrice
+      getDiscountedPrice(latest, size, color) !== sellingPrice
     ) {
       setError(
         "The price changed. Check the updated product price before trying again.",

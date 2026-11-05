@@ -477,10 +477,10 @@ export function normalizeCartItem(
     ),
 
     originalPrice:
-      getOriginalPrice(product),
+      getOriginalPrice(product, size, color),
 
     price:
-      getDiscountedPrice(product),
+      getDiscountedPrice(product, size, color),
 
     quantity:
       Number.isSafeInteger(parsed) &&
@@ -580,7 +580,7 @@ export function validateCartItem(
   );
 
   const sellingPrice =
-    getDiscountedPrice(product);
+    getDiscountedPrice(product,size,color);
 
   if (
     rawPrice == null ||

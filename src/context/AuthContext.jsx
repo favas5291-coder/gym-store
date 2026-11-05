@@ -262,6 +262,14 @@ export default function AuthProvider({ children }) {
     } finally { googleLoginBusy.current = false; }
   }, [saveSession]);
 
+  const supplierSession = useCallback(async (path, credentials) => {
+    const startingRevision = sessionRevision.current;
+    const { marketplaceRequest } = await import("../services/marketplaceApi.js");
+    const data = await marketplaceRequest(path, { token: path === "/activate" || path === "/password" ? tokenRef.current : undefined, method: "POST", body: credentials });
+    if (startingRevision !== sessionRevision.current) throw new Error("Your session changed. Retry using the current account.");
+    await saveSession(data); return data;
+  }, [saveSession]);
+
   const updateProfile = useCallback(
     async ({ name, phone } = {}) => {
       const currentToken = tokenRef.current;
@@ -357,6 +365,7 @@ export default function AuthProvider({ children }) {
 
       googleLogin,
       appleLogin,
+      supplierSession,
       logout,
       updateProfile,
       refreshUser,
@@ -374,6 +383,7 @@ export default function AuthProvider({ children }) {
       retrySession,
       googleLogin,
       appleLogin,
+      supplierSession,
       logout,
       updateProfile,
       refreshUser,

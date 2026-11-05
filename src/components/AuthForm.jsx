@@ -9,7 +9,7 @@ import {
 } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext.jsx";
-import { getGoogleChallenge } from "../services/authApi.js";
+import { getGoogleChallenge, loginWithGoogle, loginWithApple } from "../services/authApi.js";
 import { safeNext } from "../utils/storage.js";
 import { isNativeApp } from "../native/platform.js";
 import { nativeGoogleCredential } from "../native/google.js";
@@ -223,7 +223,7 @@ function ErrorNotice({ error }) {
   );
 }
 
-export default function AuthForm() {
+export default function AuthForm({ reauthenticate = false, onAuthenticated } = {}) {
   const {
     user,
     loading: authLoading,
@@ -261,8 +261,8 @@ export default function AuthForm() {
       const attempt = await getAppleChallenge();
       const authorization = await nativeAppleAuthorization(attempt.nonce);
       if (!mounted.current) return;
-      await appleLogin({ ...authorization, challenge: attempt.challenge });
-      if (mounted.current) navigate(next, { replace: true });
+      const data = await (reauthenticate?loginWithApple:appleLogin)({ ...authorization, challenge: attempt.challenge });
+      if (mounted.current) { if (reauthenticate) onAuthenticated?.(data); else navigate(next, { replace: true }); }
     } catch (failure) {
       if (mounted.current) setError({ title: failure.code === "APPLE_CANCELLED" ? "Sign-in cancelled" : "Apple sign-in could not complete", message: failure.message });
     } finally {
@@ -308,12 +308,12 @@ export default function AuthForm() {
     setError(null);
 
     try {
-      await googleLogin(credentials);
+      const data = await (reauthenticate?loginWithGoogle:googleLogin)(credentials);
 
       if (mounted.current) {
         pendingCredentials.current = null;
         setPassword("");
-        navigate(next, { replace: true });
+        if (reauthenticate) onAuthenticated?.(data); else navigate(next, { replace: true });
       }
     } catch (loginError) {
       if (!mounted.current) return;
@@ -344,7 +344,7 @@ export default function AuthForm() {
   callbackRef.current = completeLogin;
 
   useEffect(() => {
-    if (authLoading || authError || user || linkRequired) return;
+    if (authLoading || authError || (user && !reauthenticate) || linkRequired) return;
     if (native) { setReady(true); return; }
 
     let cancelled = false;
@@ -431,7 +431,7 @@ export default function AuthForm() {
       controller.abort();
       clearTimeout(expiryTimer);
     };
-  }, [authLoading, authError, user, linkRequired, attempt, native]);
+  }, [authLoading, authError, user, linkRequired, attempt, native, reauthenticate]);
 
   function restartGoogle() {
     if (submitting.current) return;
@@ -517,7 +517,7 @@ export default function AuthForm() {
     );
   }
 
-  if (user) return <Navigate to={next} replace />;
+  if (user && !reauthenticate) return <Navigate to={next} replace />;
 
   return (
     <div className="auth-page">
@@ -556,7 +556,7 @@ export default function AuthForm() {
                 inert={busy ? true : undefined}
               />}
 
-              {appleSignInEnabled() && <button type="button" className="native-apple-signin" disabled={busy} onClick={signInWithApple}><span aria-hidden="true"></span> Continue with Apple</button>}
+              {!reauthenticate && appleSignInEnabled() && <button type="button" className="native-apple-signin" disabled={busy} onClick={signInWithApple}><span aria-hidden="true"></span> Continue with Apple</button>}
               {!ready && !error && !busy && (
                 <p className="muted" role="status">
                   Preparing Google sign-in…

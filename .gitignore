@@ -41,3 +41,5 @@ scripts/__pycache__/
 android/app/google-services.json
 test-results/notifications/
 test-results/account-dashboard/
+.qa-marketplace-backend/
+test-results/marketplace/
