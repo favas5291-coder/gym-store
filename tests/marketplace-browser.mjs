@@ -9,7 +9,11 @@ const fill=(page,label,value)=>page.getByLabel(label,{exact:true}).fill(String(v
 const go=async(page,url)=>{await page.goto(fixture.url+url);await page.locator('.page-loading').waitFor({state:'hidden'});await page.evaluate(()=>scrollTo(0,0));};
 const observe=page=>page.on("pageerror",e=>errors.push(e.message));
 async function loginToken(page,user){await page.goto(fixture.url);await page.evaluate(t=>{localStorage.clear();localStorage.setItem("gymdrobe-auth-token",t);},fixture.token(user));}
-async function noOverflow(page,label){assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,label);}
+async function noOverflow(page,label){
+ const details=await page.evaluate(()=>({viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,offenders:[...document.querySelectorAll("body *")].map(el=>{const r=el.getBoundingClientRect(),css=getComputedStyle(el);return {tag:el.tagName,className:String(el.className),left:r.left,right:r.right,width:r.width,scrollWidth:el.scrollWidth,clientWidth:el.clientWidth,minWidth:css.minWidth,maxWidth:css.maxWidth,whiteSpace:css.whiteSpace,display:css.display};}).filter(r=>r.width>0&&(r.right>innerWidth+1||r.left< -1)).slice(0,40)}));
+ if(details.scrollWidth>details.viewport+1){fs.writeFileSync(path.join(out,"overflow.json"),JSON.stringify({label,...details},null,2));await page.screenshot({path:path.join(out,"overflow.png"),fullPage:true});}
+ assert.equal(details.scrollWidth>details.viewport+1,false,label);
+}
 try{
  fixture=await startMarketplaceFixture();browser=await chromium.launch({headless:true});const adminContext=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:"reduce"}),supplierContext=await browser.newContext({viewport:{width:390,height:844},reducedMotion:"reduce"});
  for(const context of [adminContext,supplierContext])await context.route("https://images.example.test/**",r=>r.fulfill({contentType:"image/svg+xml",body:'<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="#eceee5"/><path d="M110 80h55l35 30 35-30h55l50 80-60 35-20-30v170H140V165l-20 30-60-35z" fill="#354b3d"/></svg>'}));
