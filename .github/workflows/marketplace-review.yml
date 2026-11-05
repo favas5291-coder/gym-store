@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: favas5291-coder/gym-drobe-backend
-          ref: e7ac0857ea7e657a35eced43d64bd0a83c43fc3a
+          ref: 015a45ce2cfc7c1230b1b9c20f590f1cf615d4c6
           path: .qa-marketplace-backend
       - run: npm ci --prefix .qa-marketplace-backend
       - name: Isolated browser tooling
@@ -42,7 +42,7 @@ jobs:
         env:
           GYMDROBE_TEST_MONGO_URI: mongodb://127.0.0.1:27018/gymdrobe_fixture_marketplace_browser_ci?replicaSet=rs0&directConnection=true
           GYMDROBE_MARKETPLACE_BACKEND_DIR: .qa-marketplace-backend
-          GYMDROBE_MARKETPLACE_BACKEND_SHA: e7ac0857ea7e657a35eced43d64bd0a83c43fc3a
+          GYMDROBE_MARKETPLACE_BACKEND_SHA: 015a45ce2cfc7c1230b1b9c20f590f1cf615d4c6
         run: node tests/marketplace-browser.mjs
       - uses: actions/upload-artifact@v4
         if: always()
