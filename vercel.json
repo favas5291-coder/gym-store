@@ -1,6 +1,27 @@
 {
   "routes": [
     {
+      "src": "^/gymdrobe-share-v1\\.png$",
+      "headers": {
+        "Location": "/gymdrobe-share-v2.png"
+      },
+      "status": 308
+    },
+    {
+      "src": "^/favicon\\.jpeg$",
+      "headers": {
+        "Location": "/favicon.ico?v=3"
+      },
+      "status": 308
+    },
+    {
+      "src": "^/favicon-64-v1\\.png$",
+      "headers": {
+        "Location": "/favicon-48x48.png?v=3"
+      },
+      "status": 308
+    },
+    {
       "src": "/(?:sw\\.js|offline\\.(?:html|js)|site\\.webmanifest)",
       "headers": {
         "Cache-Control": "public, max-age=0, must-revalidate"
