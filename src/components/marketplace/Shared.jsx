@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useId, cloneElement } from "react";
 import { marketplaceRequest as request, parsePaise, rupees } from "../../services/marketplaceApi.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import AuthForm from "../AuthForm.jsx";
 export { request, parsePaise, rupees };
 export const amount=value=>Number.isSafeInteger(value)?new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR"}).format(value/100):"—";
-export function Field({label,children,...props}){return <label className="mp-field"><span>{label}</span>{children||<input {...props} value={props.value??""}/>}</label>;}
+export function Field({label,children,...props}){const id=useId();return <div className="mp-field"><label htmlFor={id}>{label}</label>{children?cloneElement(children,{id}):<input {...props} id={id} value={props.value??""}/>}</div>;}
 export function Notice({error,message}){return <>{error&&<p className="mp-error" role="alert">{error}</p>}{message&&<p className="mp-success" role="status">{message}</p>}</>;}
 export function Empty({children}){return <div className="mp-empty">{children}</div>;}
 export function Status({children}){return <span className="mp-status">{String(children||"Awaiting review").replaceAll("-"," ")}</span>;}

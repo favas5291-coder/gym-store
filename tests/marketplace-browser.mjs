@@ -6,7 +6,7 @@ import {startMarketplaceFixture} from "./marketplace-fixture.mjs";
 const out=path.resolve("test-results/marketplace");fs.mkdirSync(out,{recursive:true});const passed=[],errors=[];let fixture,browser,adminPage,supplierPage;
 const check=async(name,fn)=>{await fn();passed.push(name);console.log("PASS",name);};
 const fill=(page,label,value)=>page.getByLabel(label,{exact:true}).fill(String(value));
-const go=async(page,url)=>{await page.goto(fixture.url+url);await page.locator('.page-loading').waitFor({state:'hidden'});};
+const go=async(page,url)=>{await page.goto(fixture.url+url);await page.locator('.page-loading').waitFor({state:'hidden'});await page.evaluate(()=>scrollTo(0,0));};
 const observe=page=>page.on("pageerror",e=>errors.push(e.message));
 async function loginToken(page,user){await page.goto(fixture.url);await page.evaluate(t=>{localStorage.clear();localStorage.setItem("gymdrobe-auth-token",t);},fixture.token(user));}
 async function noOverflow(page,label){assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,label);}
