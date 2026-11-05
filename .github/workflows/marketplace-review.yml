@@ -26,9 +26,16 @@ jobs:
           path: .qa-marketplace-backend
       - run: npm ci --prefix .qa-marketplace-backend
       - name: Isolated browser tooling
+        timeout-minutes: 7
+        env:
+          npm_config_fetch_retries: '1'
+          npm_config_fetch_timeout: '60000'
+          PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: '60000'
         run: |
-          npm install --no-save --package-lock=false playwright@1.62.1
-          npx playwright install --with-deps chromium webkit
+          mkdir -p test-results/marketplace
+          set -o pipefail
+          npm install --ignore-scripts --no-audit --no-fund --no-save --package-lock=false playwright@1.62.1 2>&1 | tee test-results/marketplace/tooling.log
+          npx playwright install --with-deps chromium webkit 2>&1 | tee -a test-results/marketplace/tooling.log
       - name: Start disposable replica set
         run: |
           docker run --detach --name gymdrobe-marketplace-browser -p 127.0.0.1:27018:27017 mongo:8.0 --replSet rs0 --bind_ip_all
