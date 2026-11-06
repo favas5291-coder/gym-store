@@ -10,7 +10,7 @@ const output = process.env.PERFORMANCE_OUTPUT || 'test-results/performance';
 await fs.mkdir(output, { recursive: true });
 const fixture = await startStorefrontFixture(4220);
 const server = await preview({ preview: { host: '127.0.0.1', port: 4221, strictPort: true } });
-const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'], ...(process.env.GYMDROBE_CHROMIUM_PATH ? { executablePath: process.env.GYMDROBE_CHROMIUM_PATH } : {}) });
 const files = await fs.readdir('dist/assets');
 function built(value) {
   if (Array.isArray(value)) return value.map(built);
@@ -59,6 +59,9 @@ try {
     });
     samples.push({ width, route, run, ...metrics, apiRequests: mock.requests.length });
     console.log('PERFORMANCE_SAMPLE', JSON.stringify({ width, route, run, lcp: metrics.lcp, cls: metrics.cls, bytes: metrics.bytes, imageBytes: metrics.imageBytes, jsBytes: metrics.jsBytes }));
+    if (process.env.PERFORMANCE_ASSERT === '1') {
+      assert.equal(mock.requests.filter(({ path, method }) => path === '/api/products' && method === 'GET').length, 1, 'Catalogue startup and React must share a single request');
+    }
     if (process.env.PERFORMANCE_ASSERT === '1' && route === '/shop') {
       assert.ok(metrics.cls <= 0.1, `Shop layout shift exceeded target: ${JSON.stringify(metrics)}`);
       assert.equal(metrics.alternateImages, 0, 'Hidden alternate photos must not load without intent');
