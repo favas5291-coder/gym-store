@@ -832,7 +832,7 @@ export default function ProductSection({ storefrontCollection }) {
         )}
 
       {!storefrontCollection && !query.size && !loading && !loadError && (
-        <nav className="collection-links" aria-label="Shop by category">
+        <nav className="shop-category-links" aria-label="Shop by category">
           {Object.entries(STOREFRONT_COLLECTIONS)
             .filter(([, group]) => products.some(product => collectionMatchesProduct(group, product)))
             .map(([path, group]) => <Link key={path} to={path}>{group.heading}</Link>)}

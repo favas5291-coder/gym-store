@@ -4,6 +4,7 @@ import { House, Grid2X2, Search, Heart, UserRound, ShoppingBag, ArrowUpRight } f
 import { useStore } from "../context/StoreContext.jsx";
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { SHOP_DEPARTMENTS, catalogOptions, productDepartment } from "../utils/catalog.js";
+import { collectionPathForCategory } from "../utils/storefrontCollections.js";
 import { isNativeApp } from "./platform.js";
 import PhotoSearchButton from "../components/PhotoSearchButton.jsx";
 
@@ -54,7 +55,7 @@ export function NativeCategoriesPage() {
       if (!scoped.length) return null;
       return <section className="native-collection" key={department.id}>
         <Link to={`/shop?department=${department.id}`}><h2>{department.title}</h2><ArrowUpRight aria-hidden="true" size={24}/></Link>
-        <div>{catalogOptions(scoped, "category").map((category) => <Link key={category} to={`/shop?${new URLSearchParams({ department: department.id, category })}`}>{category}</Link>)}</div>
+        <div>{catalogOptions(scoped, "category").map((category) => <Link key={category} to={collectionPathForCategory(category) || `/shop?${new URLSearchParams({ department: department.id, category })}`}>{category}</Link>)}</div>
       </section>;
     })}
     <Link className="button secondary" to="/shop">Explore all products</Link>
