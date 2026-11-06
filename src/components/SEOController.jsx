@@ -7,6 +7,8 @@ import { getTotalStock } from "../utils/cartUtils.js";
 import { returnPolicyMarkup } from "../utils/returnPolicy.js";
 import { DEFAULT_DESCRIPTION, DEFAULT_SHARE_IMAGE, PAGES, cleanText, getImages } from "../utils/seoMetadata.js";
 
+import { STOREFRONT_COLLECTIONS, collectionBreadcrumbs, collectionMatchesProduct, collectionPathForCategory } from "../utils/storefrontCollections.js";
+
 function setMeta(name, content, property = false) {
   const attribute = property ? "property" : "name";
 
@@ -85,7 +87,7 @@ function updateCanonical(url) {
 }
 
 export default function SEOController() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
 
   const {
     products,
@@ -136,7 +138,16 @@ export default function SEOController() {
         )
       : null;
 
-    const page = PAGES[path];
+    const query = new URLSearchParams(search);
+    const filters = [...query.keys()].filter(key => !/^(utm_.+|gclid|fbclid)$/i.test(key));
+    const categoryAlias = path === "/shop" && filters.length === 1 && filters[0] === "category"
+      ? collectionPathForCategory(query.get("category"))
+      : undefined;
+    const collection = Object.hasOwn(STOREFRONT_COLLECTIONS, path) ? STOREFRONT_COLLECTIONS[path] : undefined;
+    const emptyCollection = collection && loaded && !loading && !error &&
+      !catalog.some(product => collectionMatchesProduct(collection, product));
+    const page = collection || (Object.hasOwn(PAGES, path) ? PAGES[path] : undefined);
+    const filteredListing = (path === "/shop" || collection) && filters.length > 0 && !categoryAlias;
 
     const isPublicPage = Boolean(page || match);
 
@@ -171,7 +182,7 @@ export default function SEOController() {
       ? `/product/${encodeURIComponent(
           product.id ?? product._id ?? identifier,
         )}`
-      : path;
+      : categoryAlias || path;
 
     // Keep canonical URLs on the configured website origin.
     const canonicalUrl = new URL(
@@ -184,7 +195,7 @@ export default function SEOController() {
 
     setMeta(
       "robots",
-      isPublicPage && !missingProduct
+      isPublicPage && !missingProduct && !emptyCollection && !filteredListing
         ? "index, follow"
         : "noindex, follow",
     );
@@ -209,6 +220,15 @@ export default function SEOController() {
         ? canonicalUrl
         : null,
     );
+
+    document.getElementById("gymdrobe-collection-schema")?.remove();
+    if (collection && !filteredListing && !emptyCollection) {
+      const breadcrumb = document.createElement("script");
+      breadcrumb.id = "gymdrobe-collection-schema";
+      breadcrumb.type = "application/ld+json";
+      breadcrumb.textContent = JSON.stringify(collectionBreadcrumbs(origin, path, collection));
+      document.head.appendChild(breadcrumb);
+    }
 
     document
       .getElementById("gymdrobe-product-schema")
@@ -349,6 +369,7 @@ export default function SEOController() {
     document.head.appendChild(script);
   }, [
     pathname,
+    search,
     products,
     loading,
     loaded,

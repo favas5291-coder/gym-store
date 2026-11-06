@@ -5,6 +5,7 @@ import { verifiedNativePaymentShape } from "../src/native/payment.js";
 
 test("native links accept customer pages and retain allowed shop filters", () => {
   assert.equal(nativeRouteFromUrl("gymdrobe://app/product/item-1"), "/product/item-1");
+  assert.equal(nativeRouteFromUrl("https://www.gymdrobe.com/collections/gym-bags?token=secret"), "/collections/gym-bags");
   assert.equal(nativeRouteFromUrl("https://www.gymdrobe.com/orders/order-1/track"), "/orders/order-1/track");
   assert.equal(nativeRouteFromUrl("https://gymdrobe.com/shop?search=shoes&category=Footwear&token=secret&next=https://evil.test"), "/shop?search=shoes&category=Footwear");
   assert.equal(nativeRouteFromUrl("gymdrobe://app/account?token=secret#credentials"), "/account");

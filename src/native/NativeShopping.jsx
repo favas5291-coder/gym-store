@@ -4,6 +4,7 @@ import { House, Grid2X2, Search, Heart, UserRound, ShoppingBag, ArrowUpRight } f
 import { useStore } from "../context/StoreContext.jsx";
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { SHOP_DEPARTMENTS, catalogOptions, productDepartment } from "../utils/catalog.js";
+import { collectionPathForCategory } from "../utils/storefrontCollections.js";
 import { isNativeApp } from "./platform.js";
 import PhotoSearchButton from "../components/PhotoSearchButton.jsx";
 
@@ -36,7 +37,7 @@ export function NativeShoppingNavigation() {
     {isNativeApp() && offline && <div className="native-offline" role="status">You’re offline. Your saved bag is kept on this device. Reconnect to check stock or pay.</div>}
     <nav className="shopping-bottom-nav" aria-label="Shopping navigation">
       {tabs.map(([to, label, Icon]) => {
-        const active = to === '/account' ? account : to === '/' ? pathname === '/' : pathname === to || (to === '/categories' && pathname === '/shop') || (to === '/cart' && pathname === '/checkout');
+        const active = to === '/account' ? account : to === '/' ? pathname === '/' : pathname === to || (to === '/categories' && (pathname === '/shop' || pathname.startsWith('/collections/'))) || (to === '/cart' && pathname === '/checkout');
         return <Link key={to} to={to} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined} aria-label={label === 'Cart' ? `Cart, ${count} items` : label}><span className="shopping-tab-icon"><Icon size={22} strokeWidth={active ? 2 : 1.65} aria-hidden="true"/>{label === 'Cart' && count > 0 && <span className="shopping-cart-badge" aria-hidden="true">{count > 99 ? '99+' : count}</span>}</span><span>{label}</span></Link>;
       })}
     </nav>
@@ -54,7 +55,7 @@ export function NativeCategoriesPage() {
       if (!scoped.length) return null;
       return <section className="native-collection" key={department.id}>
         <Link to={`/shop?department=${department.id}`}><h2>{department.title}</h2><ArrowUpRight aria-hidden="true" size={24}/></Link>
-        <div>{catalogOptions(scoped, "category").map((category) => <Link key={category} to={`/shop?${new URLSearchParams({ department: department.id, category })}`}>{category}</Link>)}</div>
+        <div>{catalogOptions(scoped, "category").map((category) => <Link key={category} to={collectionPathForCategory(category) || `/shop?${new URLSearchParams({ department: department.id, category })}`}>{category}</Link>)}</div>
       </section>;
     })}
     <Link className="button secondary" to="/shop">Explore all products</Link>

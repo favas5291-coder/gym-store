@@ -1,7 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { PAGES, DEFAULT_SHARE_IMAGE, productMetadata } from "../src/utils/seoMetadata.js";
+import { PAGES, DEFAULT_SHARE_IMAGE, cleanText, productMetadata } from "../src/utils/seoMetadata.js";
+import { STOREFRONT_COLLECTIONS, collectionBreadcrumbs, collectionMatchesProduct } from "../src/utils/storefrontCollections.js";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const snapshotFile = path.join(root, "node_modules/.cache/gymdrobe-public-catalogue.json");
 const escape = value => String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -20,9 +21,16 @@ export function metadataHtml(template, metadata) {
       "og:url": metadata.canonical, "og:image": metadata.image, "og:image:alt": metadata.imageAlt }).map(([name, value]) => meta(name, value, true)),
     ...Object.entries({ "twitter:card": "summary_large_image", "twitter:title": metadata.title, "twitter:description": metadata.description,
       "twitter:image": metadata.image, "twitter:image:alt": metadata.imageAlt }).map(([name,value]) => meta(name,value)),
-    ...(metadata.schema ? [`<script id="gymdrobe-product-schema" type="application/ld+json">${JSON.stringify(metadata.schema).replace(/</g, "\\u003c").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029")}</script>`] : []),
+    ...(metadata.schema ? [`<script id="${metadata.schema["@type"] === "BreadcrumbList" ? "gymdrobe-collection-schema" : "gymdrobe-product-schema"}" type="application/ld+json">${JSON.stringify(metadata.schema).replace(/</g, "\\u003c").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029")}</script>`] : []),
   ];
-  return head + tags.join("\n") + "\n" + body;
+  const fallback = metadata.fallback ? `<noscript>${metadata.fallback}</noscript>` : "";
+  return head + tags.join("\n") + "\n" + body.replace('<div id="app"></div>', () => `<div id="app"></div>${fallback}`);
+}
+
+function collectionLinks(collections) {
+  return `<ul>${collections.map(({ route, heading }) =>
+    `<li><a href="${escape(route)}">${escape(heading)}</a></li>`,
+  ).join("")}</ul>`;
 }
 export function publicCatalogueSnapshot(origin, products) {
   const site = new URL(origin);
@@ -42,17 +50,45 @@ export function publicCatalogueSnapshot(origin, products) {
       aliases.set(route, id); entries.push({ route: `/product/${route}`, metadata });
     }
   }
-  return { version: 1, origin, observedAt: new Date().toISOString(), entries };
+  const collections = Object.entries(STOREFRONT_COLLECTIONS).flatMap(([route, collection]) => {
+    const links = products.filter(product => collectionMatchesProduct(collection, product)).map(product => ({
+      route: `/product/${encodeURIComponent(String(product.id ?? product._id))}`,
+      heading: cleanText(product.name) || "Product",
+    }));
+    return links.length ? [{ route, ...collection, links }] : [];
+  });
+  return { version: 1, origin, observedAt: new Date().toISOString(), entries, collections };
 }
 export async function writeStorefrontDocuments({ directory = path.join(root, "dist"), snapshot, template } = {}) {
   if (snapshot?.version !== 1 || !Array.isArray(snapshot.entries)) throw new Error("Regenerate the public catalogue before the website build");
   template ??= await fs.readFile(path.join(directory, "index.html"), "utf8");
   const documents = new Map();
-  for (const route of ["/", "/shop", "/offers", "/help"]) documents.set(route, { ...PAGES[route], canonical: snapshot.origin + route,
-    type: "website", image: new URL(DEFAULT_SHARE_IMAGE, snapshot.origin).href, imageAlt: "GymDrobe wordmark" });
+  const collectionDocs = snapshot.collections || [];
+  const defaultPreview = {
+    type: "website", image: new URL(DEFAULT_SHARE_IMAGE, snapshot.origin).href, imageAlt: "GymDrobe wordmark",
+  };
+  for (const route of ["/", "/shop", "/offers", "/help"]) {
+    const fallback = collectionDocs.length && ["/", "/shop"].includes(route)
+      ? `<main><h1>${escape(PAGES[route].title)}</h1><h2>Shop by category</h2>${collectionLinks(collectionDocs)}</main>`
+      : "";
+    documents.set(route, { ...PAGES[route], ...defaultPreview, canonical: snapshot.origin + route, fallback });
+  }
+  for (const collection of collectionDocs) {
+    const { route, heading, description, title, links } = collection;
+    if (!Object.hasOwn(STOREFRONT_COLLECTIONS, route)) throw new Error("Invalid collection document path");
+    documents.set(route, {
+      ...defaultPreview, title, description, canonical: snapshot.origin + route,
+      schema: collectionBreadcrumbs(snapshot.origin, route, collection),
+      fallback: `<main><nav aria-label="Breadcrumb"><a href="/">Home</a> / <a href="/shop">Shop</a></nav><h1>${escape(heading)}</h1><p>${escape(description)}</p>${collectionLinks(links)}</main>`,
+    });
+  }
   for (const entry of snapshot.entries) {
     if (!/^\/product\/[A-Za-z0-9_-]{1,200}$/.test(entry.route) || entry.metadata?.canonical?.startsWith(snapshot.origin + "/product/") !== true) throw new Error("Invalid catalogue document path");
-    documents.set(entry.route, entry.metadata);
+    const { canonical, schema } = entry.metadata;
+    documents.set(entry.route, {
+      ...entry.metadata,
+      fallback: `<main><nav aria-label="Breadcrumb"><a href="/">Home</a> / <a href="/shop">Shop</a></nav><h1>${escape(schema.name)}</h1><p>${escape(schema.description)}</p><p>Enable JavaScript to see current prices, stock and purchase options.</p><a href="${escape(canonical)}">Product page</a></main>`,
+    });
   }
   for (const [route, metadata] of documents) {
     // Extensionless HTML files are served by the existing Vercel filesystem

@@ -24,6 +24,8 @@ import {
   getTotalStock,
 } from "../utils/cartUtils.js";
 
+import { collectionPathForCategory } from "../utils/storefrontCollections.js";
+
 export { money };
 
 // Include local image URLs in production.
@@ -41,7 +43,7 @@ export const productPath = (id) =>
   `/product/${encodeURIComponent(id)}`;
 
 export const categoryPath = (name) =>
-  `/shop?${new URLSearchParams({
+  collectionPathForCategory(name) || `/shop?${new URLSearchParams({
     category: name,
   })}`;
 

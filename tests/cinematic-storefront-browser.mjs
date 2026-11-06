@@ -181,6 +181,32 @@ try{
   });
   assert.ok(await gallery.locator('.main-photo img').getAttribute('src'));
  });await galleryChoice.c.close();
+ const collectionCategory = "Compression T-shirt";
+ const collection = await context(390, { catalogProducts: [
+  { ...f.products[0], category: collectionCategory },
+  { ...f.products[1], category: "Joggers" },
+ ] });
+ await check('Canonical category navigation scopes the catalogue and keeps filters out of search',async()=>{
+  const { p } = collection;
+  await visit(p,'/shop');
+  await p.getByRole('navigation',{name:'Shop by category'}).getByRole('link',{name:'Compression T-shirts'}).click();
+  await p.waitForURL('**/collections/compression-t-shirts');
+  await p.getByRole('heading',{name:'Compression T-shirts',exact:true}).waitFor();
+  await p.locator('.product-grid .gm-product-card').first().waitFor();
+  assert.equal(await p.locator('.product-grid .gm-product-card').count(),1);
+  assert.equal(await p.getByRole('link',{name:'Categories',exact:true}).last().getAttribute('aria-current'),'page');
+  assert.match(await p.locator('link[rel=canonical]').getAttribute('href'),/\/collections\/compression-t-shirts$/);
+  assert.equal(await p.locator('meta[name=robots]').getAttribute('content'),'index, follow');
+  await p.getByLabel('Sort by:').selectOption('price-low');
+  await p.waitForURL('**/collections/compression-t-shirts?sort=price-low');
+  await p.waitForFunction(()=>document.querySelector('meta[name=robots]')?.content==='noindex, follow');
+  await p.goBack();
+  await p.waitForURL('**/collections/compression-t-shirts');
+  await p.reload();
+  await p.getByRole('heading',{name:'Compression T-shirts',exact:true}).waitFor();
+  await p.goto(f.url+'/shop?category=Compression+T-shirt');
+  await p.waitForFunction(()=>document.querySelector('link[rel=canonical]')?.href.endsWith('/collections/compression-t-shirts'));
+ });await collection.c.close();
  const x=await context();
  await check('Search and URL-preserving catalog filters',async()=>{
   await visit(x.p,'/');

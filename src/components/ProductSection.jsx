@@ -24,6 +24,7 @@ import {
   productDepartment,
 } from "../utils/catalog.js";
 
+import { STOREFRONT_COLLECTIONS, collectionMatchesProduct } from "../utils/storefrontCollections.js";
 import ProductCard from "./ProductCard.jsx";
 import Modal from "./Modal.jsx";
 
@@ -108,6 +109,7 @@ function Filters({
   change,
   reset,
   products,
+  fixedCategory,
 }) {
   const minParam = params.get("minPrice") || "";
   const maxParam = params.get("maxPrice") || "";
@@ -221,7 +223,7 @@ function Filters({
         </button>
       </div>
 
-      {categoryOptions.length > 0 && (
+      {!fixedCategory && categoryOptions.length > 0 && (
         <details className="filter-group" open><summary>CATEGORIES</summary><fieldset><legend className="sr-only">CATEGORIES</legend>
 
           {categoryOptions.map((category) => {
@@ -549,7 +551,7 @@ function Filters({
   );
 }
 
-export default function ProductSection() {
+export default function ProductSection({ storefrontCollection }) {
   const {
     products: catalogue,
     loading,
@@ -557,15 +559,22 @@ export default function ProductSection() {
     refreshProducts,
   } = useCatalog();
 
-  const [params, setParams] =
-    useSearchParams();
+  const [query, setParams] = useSearchParams();
+  const params = useMemo(() => {
+    if (!storefrontCollection) return query;
+    const scoped = new URLSearchParams(query);
+    scoped.delete("category");
+    return scoped;
+  }, [query, storefrontCollection]);
 
   const [drawer, setDrawer] =
     useState(false);
 
   const products = useMemo(
-    () => catalogProducts(catalogue),
-    [catalogue],
+    () => catalogProducts(catalogue).filter(
+      product => !storefrontCollection || collectionMatchesProduct(storefrontCollection, product),
+    ),
+    [catalogue, storefrontCollection],
   );
 
   const result = useMemo(
@@ -708,13 +717,13 @@ export default function ProductSection() {
 
     next.set("collection", value);
 
-    return `/shop?${next}`;
+    return `${storefrontCollection ? "" : "/shop"}?${next}`;
   }
 
   let title =
     SHOP_DEPARTMENTS.find(
       (item) => item.id === department,
-    )?.title || "All workout essentials";
+    )?.title || storefrontCollection?.heading || "All workout essentials";
 
   if (searchQuery) {
     title = `Results for “${searchQuery}”`;
@@ -740,6 +749,7 @@ export default function ProductSection() {
     change,
     reset,
     products,
+    fixedCategory: Boolean(storefrontCollection),
   };
 
   const errorMessage =
@@ -757,12 +767,17 @@ export default function ProductSection() {
       >
         <Link to="/">Home</Link>
         <span>/</span>
-        <span>Shop</span>
+        {storefrontCollection ? <>
+          <Link to="/shop">Shop</Link>
+          <span>/</span>
+          <span aria-current="page">{storefrontCollection.heading}</span>
+        </> : <span>Shop</span>}
       </nav>
 
       <div className="shop-title">
         <div>
           <h1>{title}</h1>
+          {storefrontCollection && !searchQuery && <p>{storefrontCollection.description}</p>}
 
           {!loading && !loadError && (
             <p
@@ -815,6 +830,14 @@ export default function ProductSection() {
             {"”"}
           </div>
         )}
+
+      {!storefrontCollection && !query.size && !loading && !loadError && (
+        <nav className="shop-category-links" aria-label="Shop by category">
+          {Object.entries(STOREFRONT_COLLECTIONS)
+            .filter(([, group]) => products.some(product => collectionMatchesProduct(group, product)))
+            .map(([path, group]) => <Link key={path} to={path}>{group.heading}</Link>)}
+        </nav>
+      )}
 
       <div className="shop-toolbar">
         <button

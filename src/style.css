@@ -351,6 +351,20 @@ main:focus {
   color: var(--muted);
   padding-left: 248px;
 }
+.shop-category-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  padding: 0 16px;
+  font-size: 13px;
+}
+.shop-category-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .sort-label {
   border: 1px solid #d4d5d9;
   padding: 11px 13px;

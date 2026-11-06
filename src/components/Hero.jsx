@@ -29,9 +29,10 @@ export default function Hero() {
     let disposed = false;
     let idleId;
     let timerId;
+    let paintId;
     let scheduled = false;
 
-    const scheduleVideo = () => {
+    const queueVideo = () => {
       if (disposed || scheduled) return;
       scheduled = true;
       if (typeof window.requestIdleCallback === "function") {
@@ -45,6 +46,13 @@ export default function Hero() {
       }
     };
 
+    const scheduleVideo = () => {
+      // The second frame runs after the browser can paint the poster.
+      paintId = window.requestAnimationFrame(() => {
+        paintId = window.requestAnimationFrame(queueVideo);
+      });
+    };
+
     if (poster.complete) scheduleVideo();
     else {
       poster.addEventListener("load", scheduleVideo);
@@ -55,6 +63,7 @@ export default function Hero() {
       disposed = true;
       poster.removeEventListener("load", scheduleVideo);
       poster.removeEventListener("error", scheduleVideo);
+      if (paintId !== undefined) window.cancelAnimationFrame(paintId);
       if (idleId !== undefined) window.cancelIdleCallback(idleId);
       if (timerId !== undefined) window.clearTimeout(timerId);
     };

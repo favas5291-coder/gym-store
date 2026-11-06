@@ -40,6 +40,7 @@ import SEOController from "./components/SEOController.jsx";
 import DeferredFitnessGuide from "./components/DeferredFitnessGuide.jsx";
 
 import Home from "./pages/Home.jsx";
+import { STOREFRONT_COLLECTIONS } from "./utils/storefrontCollections.js";
 import { installRoutePrefetch } from "./utils/routePrefetch.js";
 import { NativeShoppingNavigation, NativeCategoriesPage, NativeSearchPage } from "./native/NativeShopping.jsx";
 import NativeAppController from "./native/NativeAppController.jsx";
@@ -634,6 +635,7 @@ function Layout() {
               {[
                 ["/install", InstallAppPage],
                 ["/shop", Shop],
+                ...Object.keys(STOREFRONT_COLLECTIONS).map(path => [path, Shop]),
                 ["/categories", NativeCategoriesPage],
                 ["/search", NativeSearchPage],
                 [
