@@ -49,7 +49,24 @@ try{
   const current=await fixture.Order.findById(mixed._id);assert.equal(current.payment.refundedAmount,mixed.items[1].price);assert.equal(current.items[1].quantity,1);assert.equal(await fixture.S.M.Entitlement.countDocuments({order:mixed._id}),1);assert.equal((await fixture.S.M.Entitlement.findOne({order:mixed._id})).resolvedQuantity,0);assert.equal((await fixture.Product.findById(legacy._id).select("+marketplaceAccount")).marketplaceAccount,undefined);
   await go(supplierPage,"/supplier/orders");assert.equal(await supplierPage.getByText("Existing catalogue items (no supplier assignment)",{exact:true}).count(),0);assert.ok(!(await supplierPage.locator(".mp-main").innerText()).includes(legacy.name));
  });
- await check("supplier layouts fit requested widths and preserve five-destination customer navigation",async()=>{for(const width of [320,375,390,430,480,768,1024,1440]){await supplierPage.setViewportSize({width,height:900});for(const route of ["/supplier","/supplier/products","/supplier/orders","/supplier/earnings","/supplier/payment","/supplier/settings"]){await go(supplierPage,route);await supplierPage.locator('.mp-main h1').first().waitFor();await noOverflow(supplierPage,`${route} at ${width}`);}if(width===390||width===1440){await go(supplierPage,"/supplier");await supplierPage.screenshot({path:path.join(out,`supplier-overview-${width}.png`),fullPage:true});}}});
+ await check("shipping profile uses the actual admin API for draft, expiry, confirmation, activation and pause",async()=>{await verifyShippingProfile(adminPage,fixture,out);});
+ await check("supplier layouts fit requested widths and preserve five-destination customer navigation", async () => {
+  const widths = [320, 375, 390, 430, 480, 768, 1024, 1440];
+  const routes = ["/supplier", "/supplier/products", "/supplier/orders", "/supplier/earnings", "/supplier/payment", "/supplier/settings"];
+  // Resize each mounted view. Reloading every width floods the same IP's real API rate limit.
+  for (const route of routes) {
+   await supplierPage.setViewportSize({width: widths[0], height: 900});
+   await go(supplierPage, route);
+   await supplierPage.locator(".mp-main h1").first().waitFor();
+   for (const width of widths) {
+    await supplierPage.setViewportSize({width, height: 900});
+    await noOverflow(supplierPage, `${route} at ${width}`);
+    if (route === "/supplier" && [390, 1440].includes(width)) {
+     await supplierPage.screenshot({path: path.join(out, `supplier-overview-${width}.png`), fullPage: true});
+    }
+   }
+  }
+ });
  await check("simulated Google reauthentication with another account preserves the current supplier session",async()=>{await supplierPage.setViewportSize({width:390,height:844});await go(supplierPage,"/supplier/settings");const original=await supplierPage.evaluate(()=>localStorage.getItem("gymdrobe-auth-token"));await supplierPage.route("**/api/auth/google/challenge",r=>r.fulfill({json:{success:true,nonce:"fixture",challenge:"fixture"}}));await supplierPage.route("https://accounts.google.com/gsi/client",r=>r.fulfill({contentType:"application/javascript",body:`window.google={accounts:{id:{initialize(o){window.fixtureGoogle=o},renderButton(c){const b=document.createElement('button');b.type='button';b.textContent='Choose another fixture account';b.onclick=()=>window.fixtureGoogle.callback({credential:'fixture-credential'});c.appendChild(b)}}}};`}));await supplierPage.route("**/api/auth/google",r=>r.fulfill({json:{success:true,token:"different-fixture-token",user:{id:String(fixture.customer._id),email:fixture.customer.email,role:"customer"}}}));await supplierPage.getByRole("button",{name:"Confirm with Google",exact:true}).click();await supplierPage.getByRole("dialog").getByRole("button",{name:"Choose another fixture account",exact:true}).click();await supplierPage.getByText("Use the same account for verification.",{exact:true}).waitFor();assert.equal(await supplierPage.evaluate(()=>localStorage.getItem("gymdrobe-auth-token")),original);assert.equal(await supplierPage.locator("dialog[open]").count(),0);await supplierPage.unroute("**/api/auth/google/challenge");await supplierPage.unroute("**/api/auth/google");});
  const wb=await webkit.launch({headless:true});try{const ctx=await wb.newContext({viewport:{width:390,height:844},reducedMotion:"reduce"});const page=await ctx.newPage();observe(page);await check("WebKit supplier password login, refresh and responsive forms use the actual auth API",async()=>{await go(page,"/supplier/login");await fill(page,"Supplier email","supplier-ui@example.test");await fill(page,"Supplier password","Fixture-Supplier-UI-123");await page.getByRole("button",{name:"Sign in to supplier workspace",exact:true}).click();await page.getByRole("navigation",{name:"Supplier navigation",exact:true}).waitFor();await page.reload();await page.getByRole("navigation",{name:"Supplier navigation",exact:true}).waitFor();for(const width of [320,390,480,768,1440]){await page.setViewportSize({width,height:900});await go(page,"/supplier/settings");await page.getByRole("heading",{name:"Account settings",exact:true}).waitFor();await noOverflow(page,`WebKit ${width}`);}await page.setViewportSize({width:390,height:844});await go(page,"/supplier");await page.screenshot({path:path.join(out,"supplier-webkit-390.png"),fullPage:true});});
  await check("WebKit admin mixed-item controls remain usable on small screens and record a real API cancellation",async()=>{
@@ -70,6 +87,5 @@ try{
  });
  await ctx.close();
  }finally{await wb.close();}
- await check("shipping profile uses the actual admin API for draft, expiry, confirmation, activation and pause",async()=>{await verifyShippingProfile(adminPage,fixture,out);});
  assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,"report.json"),JSON.stringify({passed,errors,payment:"Synthetic SDK boundary; actual HTTP order, catalogue, JWT and MongoDB transactions. No real provider verification or transfer.",hold:"Eight days simulated in disposable database only.",backend:process.env.GYMDROBE_MARKETPLACE_BACKEND_SHA||"Paired feature branch"},null,2));
 }catch(error){console.error(error);if(adminPage)await adminPage.screenshot({path:path.join(out,"admin-failure.png"),fullPage:true}).catch(()=>{});if(supplierPage)await supplierPage.screenshot({path:path.join(out,"supplier-failure.png"),fullPage:true}).catch(()=>{});fs.writeFileSync(path.join(out,"failure.json"),JSON.stringify({passed,errors,error:error.stack},null,2));process.exitCode=1;}finally{await browser?.close();await fixture?.close();}
