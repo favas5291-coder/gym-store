@@ -1664,6 +1664,7 @@ function ProfileEditor({ token, initial, onClose }) {
             <input
               disabled={!confirmable}
               type="datetime-local"
+              aria-describedby="shipping-agreement-expiry-help"
               value={expiry}
               onChange={(event) => {
                 setExpiry(event.target.value);
@@ -1672,7 +1673,10 @@ function ProfileEditor({ token, initial, onClose }) {
             />
           </Field>
 
-          <p>The expiry uses your device's local time.</p>
+          <p id="shipping-agreement-expiry-help">
+            Enter both an expiry date and a time to confirm the courier
+            terms. Use your device's local time.
+          </p>
 
           <Field label="I have verified this courier's actual origin, covered products, pincodes, payment support, parcel limits and complete charges">
             <input
