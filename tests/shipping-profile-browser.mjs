@@ -43,7 +43,9 @@ export async function verifyShippingProfile(page, fixture, output) {
   assert.equal(forbidden.status, 403);
   assert.equal(forbidden.headers.get("cache-control"), "no-store");
 
-  const field = name => page.getByLabel(name, { exact: true });
+  const field = name => page.locator("label.shipping-field")
+    .filter({ has: page.getByText(name, { exact: true }) })
+    .locator("input, select, textarea");
   const button = name => page.getByRole("button", { name, exact: true });
   await page.goto(fixture.url + "/admin/shipping-profiles");
   await button("Add shipping profile").click();
