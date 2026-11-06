@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {chromium,webkit} from "playwright";
 import {startMarketplaceFixture} from "./marketplace-fixture.mjs";
+import {verifyShippingProfile} from "./shipping-profile-browser.mjs";
 const out=path.resolve("test-results/marketplace");fs.mkdirSync(out,{recursive:true});const passed=[],errors=[];let fixture,browser,adminPage,supplierPage;
 const check=async(name,fn)=>{await fn();passed.push(name);console.log("PASS",name);};
 const fill=(page,label,value)=>page.getByLabel(label,{exact:true}).fill(String(value));
@@ -69,5 +70,6 @@ try{
  });
  await ctx.close();
  }finally{await wb.close();}
+ await check("shipping profile uses the actual admin API for draft, expiry, confirmation, activation and pause",async()=>{await verifyShippingProfile(adminPage,fixture,out);});
  assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,"report.json"),JSON.stringify({passed,errors,payment:"Synthetic SDK boundary; actual HTTP order, catalogue, JWT and MongoDB transactions. No real provider verification or transfer.",hold:"Eight days simulated in disposable database only.",backend:process.env.GYMDROBE_MARKETPLACE_BACKEND_SHA||"Paired feature branch"},null,2));
 }catch(error){console.error(error);if(adminPage)await adminPage.screenshot({path:path.join(out,"admin-failure.png"),fullPage:true}).catch(()=>{});if(supplierPage)await supplierPage.screenshot({path:path.join(out,"supplier-failure.png"),fullPage:true}).catch(()=>{});fs.writeFileSync(path.join(out,"failure.json"),JSON.stringify({passed,errors,error:error.stack},null,2));process.exitCode=1;}finally{await browser?.close();await fixture?.close();}
