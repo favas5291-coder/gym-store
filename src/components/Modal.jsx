@@ -14,9 +14,11 @@ export default function Modal({
   onClose,
   children,
   className = "",
+  focusTitle = false,
 }) {
   const dialogRef = useRef(null);
   const closeButtonRef = useRef(null);
+  const titleRef = useRef(null);
   const closeCallback = useRef(onClose);
 
   const titleId = useId();
@@ -44,7 +46,8 @@ export default function Modal({
 
     document.body.style.overflow = "hidden";
 
-    closeButtonRef.current?.focus({
+    const initialFocus = focusTitle ? titleRef : closeButtonRef;
+    initialFocus.current?.focus({
       preventScroll: true,
     });
 
@@ -85,7 +88,7 @@ export default function Modal({
         });
       }
     };
-  }, []);
+  }, [focusTitle]);
 
   function requestClose() {
     closeCallback.current?.();
@@ -126,7 +129,11 @@ export default function Modal({
       }}
     >
       <div className="modal-head">
-        <h2 id={titleId}>
+        <h2
+          id={titleId}
+          ref={titleRef}
+          tabIndex={focusTitle ? -1 : undefined}
+        >
           {title}
         </h2>
 
