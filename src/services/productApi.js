@@ -62,6 +62,7 @@ async function request(
     body,
     signal,
     timeoutMs = REQUEST_TIMEOUT,
+    earlyRequest,
   } = {},
 ) {
   const headers = {
@@ -93,7 +94,7 @@ async function request(
     throw abortError();
   }
 
-  const controller = new AbortController();
+  const controller = earlyRequest?.controller ?? new AbortController();
   let timedOut = false;
 
   function cancel() {
@@ -117,13 +118,13 @@ async function request(
   }, duration);
 
   try {
-    const response = await fetch(`${API_URL}${path}`, {
+    const response = await (earlyRequest?.response ?? fetch(`${API_URL}${path}`, {
       method,
       headers,
       cache: "no-store",
       signal: controller.signal,
       body: serializedBody,
-    });
+    }));
 
     let data = null;
 
@@ -309,7 +310,10 @@ function responseInteger(value, fallback, minimum = 0) {
 // ======================================================
 
 export async function getProducts(options = {}) {
-  const data = await request("/products", options);
+  const early = typeof window === "undefined" ? undefined : window.__gymdrobeCatalogueRequest;
+  const canReuse = early?.url === `${API_URL}/products` && Object.keys(options).length === 0;
+  if (early) delete window.__gymdrobeCatalogueRequest;
+  const data = await request("/products", canReuse ? { earlyRequest: early } : options);
 
   if (!Array.isArray(data.products)) {
     throw apiError(
