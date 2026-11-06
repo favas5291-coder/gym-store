@@ -40,9 +40,6 @@ import {
 
 import "./FitnessGuide.css";
 
-const HEADING =
-  "What do you need for your fitness journey?";
-
 const QUESTIONS = [
   "What are you looking for?",
   "What is your budget?",
@@ -846,12 +843,9 @@ export default function FitnessGuide() {
 
       {view !== "closed" && (
         <Modal
-          title={
-            view === "intro"
-              ? HEADING
-              : "Find My Gym Essentials"
-          }
+          title="Find your workout gear"
           onClose={close}
+          focusTitle
           className={`gd-fitness-guide${
             view === "intro"
               ? " gd-guide-welcome"
@@ -861,22 +855,13 @@ export default function FitnessGuide() {
           <div className="gd-guide-body" ref={scroll}>
             {view === "intro" && (
               <div className="gd-guide-intro">
-                <span
-                  className="gd-guide-star"
-                  aria-hidden="true"
-                >
-                  ✦
-                </span>
-
                 <p>
-                  Tell us what you’re looking for, your
-                  budget and your goal. We’ll help you
-                  find suitable products.
+                  Choose what you need, your budget and
+                  your goal. We’ll suggest products that fit.
                 </p>
 
                 <p className="gd-guide-muted">
-                  Three optional questions. No account
-                  or contact details needed.
+                  Three optional questions. No sign-in required.
                 </p>
 
                 <div className="gd-guide-actions">
@@ -885,15 +870,15 @@ export default function FitnessGuide() {
                     type="button"
                     onClick={edit}
                   >
-                    Help Me Choose Products
+                    Help me choose
                   </button>
 
                   <button
-                    className="button secondary"
+                    className="gd-guide-text"
                     type="button"
                     onClick={close}
                   >
-                    Skip for Now
+                    Skip for now
                   </button>
                 </div>
               </div>

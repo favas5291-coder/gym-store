@@ -45,26 +45,6 @@ body:has(dialog[open]) .gd-guide-reopen {
   display: none;
 }
 
-.modal.gd-fitness-guide.gd-guide-welcome {
-  width: min(600px, calc(100% - 32px));
-}
-
-.gd-guide-welcome .gd-guide-intro {
-  animation: gd-guide-welcome-in 240ms ease-out both;
-}
-
-@keyframes gd-guide-welcome-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @media (max-width: 700px) {
   .gd-guide-reopen {
     right: 14px;
@@ -77,15 +57,25 @@ body:has(dialog[open]) .gd-guide-reopen {
 }
 
 .modal.gd-fitness-guide {
+  --guide-gutter: 24px;
+  --guide-ink: var(--ink, #202321);
+  --guide-paper: var(--paper, #fcfcf9);
+  --guide-muted: var(--muted, #686b66);
+  --guide-line: var(--line, #dedfd9);
+  --guide-accent: var(--gd-accent, #95482e);
   width: min(930px, calc(100% - 32px));
   max-width: 930px;
   max-height: min(88dvh, 900px);
   padding: 0;
-  border: 1px solid #eaded4;
-  border-radius: 22px;
-  color: #17202a;
-  background: #fff;
-  box-shadow: 0 24px 80px #17202a30;
+  border: 1px solid var(--guide-line);
+  border-radius: 18px;
+  color: var(--guide-ink);
+  background: var(--guide-paper);
+  box-shadow: 0 18px 54px #20232126;
+}
+
+.modal.gd-fitness-guide.gd-guide-welcome {
+  width: min(440px, calc(100% - 32px));
 }
 
 .modal.gd-fitness-guide[open] {
@@ -94,46 +84,54 @@ body:has(dialog[open]) .gd-guide-reopen {
 }
 
 .gd-fitness-guide::backdrop {
-  background: #17202a70;
+  background: #20232152;
 }
 
 .gd-fitness-guide .modal-head {
   flex: 0 0 auto;
-  padding: 20px 24px;
+  padding: 16px var(--guide-gutter) 6px;
   margin: 0;
-  border-bottom: 1px solid #f1e6df;
-  background: #fffaf6;
-  gap: 14px;
+  border-bottom: 0;
+  background: transparent;
 }
 
 .gd-fitness-guide .modal-head h2 {
   margin: 0;
-  font-size: clamp(20px, 3vw, 25px);
-  line-height: 1.35;
+  font-size: clamp(23px, 6vw, 27px);
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
 }
 
 .gd-fitness-guide .modal-head button {
   flex-shrink: 0;
-  border: 1px solid #eaded4;
-  border-radius: 50%;
-  background: #fff;
-  color: #17202a;
-  font-size: 27px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--guide-ink);
+  font-size: 24px;
+  line-height: 1;
   cursor: pointer;
+}
+
+.gd-fitness-guide .modal-head button:hover {
+  background: #20232108;
 }
 
 .gd-guide-body {
   overflow-y: auto;
   overscroll-behavior: contain;
   min-height: 0;
-  padding: 24px;
-  scrollbar-gutter: stable;
+  padding: 8px var(--guide-gutter) 20px;
 }
 
 .gd-guide-body h3 {
-  font-size: 23px;
-  margin: 8px 0 15px;
-  line-height: 1.4;
+  font-size: 21px;
+  margin: 8px 0 12px;
+  line-height: 1.3;
 }
 
 .gd-guide-body h4 {
@@ -147,31 +145,22 @@ body:has(dialog[open]) .gd-guide-reopen {
 }
 
 .gd-guide-muted {
-  color: #64748b;
+  color: var(--guide-muted);
   font-size: 13px !important;
 }
 
 .gd-guide-intro {
-  text-align: center;
-  padding: 15px 20px 25px;
-  max-width: 620px;
-  margin: auto;
-}
-
-.gd-guide-star {
-  display: grid;
-  place-items: center;
-  width: 72px;
-  height: 72px;
-  margin: 0 auto 15px;
-  border-radius: 22px;
-  color: #c2410c;
-  background: #fff1e4;
-  font-size: 45px;
+  text-align: left;
 }
 
 .gd-guide-intro > p:first-of-type {
-  font-size: 18px;
+  margin: 0 0 8px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.gd-guide-intro > .gd-guide-muted {
+  margin: 0;
 }
 
 .gd-guide-actions,
@@ -184,7 +173,22 @@ body:has(dialog[open]) .gd-guide-reopen {
 }
 
 .gd-guide-intro .gd-guide-actions {
-  justify-content: center;
+  display: grid;
+  gap: 4px;
+  margin-top: 18px;
+}
+
+.gd-guide-intro .gd-guide-text {
+  justify-self: start;
+  padding: 0;
+  color: var(--guide-muted);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.gd-guide-intro .gd-guide-text:hover {
+  color: var(--guide-ink);
+  text-decoration: underline;
 }
 
 .gd-fitness-guide .button {
@@ -198,8 +202,8 @@ body:has(dialog[open]) .gd-guide-reopen {
 }
 
 .gd-fitness-guide .button:not(.secondary) {
-  background: #c2410c;
-  border-color: #c2410c;
+  background: var(--guide-ink);
+  border-color: var(--guide-ink);
   color: #fff;
 }
 
@@ -476,39 +480,37 @@ body:has(dialog[open]) .gd-guide-reopen {
 
 .gd-fitness-guide :focus-visible,
 .gd-guide-reopen button:focus-visible {
-  outline: 3px solid #c2410c;
-  outline-offset: 3px;
+  outline: 2px solid var(--guide-accent, #95482e);
+  outline-offset: 2px;
 }
 
-.gd-fitness-guide h3:focus {
-  outline: none;
+#app .gd-fitness-guide :is(h2, h3)[tabindex="-1"]:focus {
+  outline: none !important;
 }
 
 @media (max-width: 640px) {
-  .modal.gd-fitness-guide {
+  .modal.gd-fitness-guide,
+  .modal.gd-fitness-guide.gd-guide-welcome {
+    --guide-gutter: 20px;
     width: 100%;
     max-width: none;
     margin: auto 0 0;
-    max-height: 92dvh;
-    border-radius: 22px 22px 0 0;
+    max-height: calc(100dvh - max(12px, env(safe-area-inset-top, 0px)));
+    border-width: 1px 0 0;
+    border-radius: 20px 20px 0 0;
     position: fixed;
     inset: auto 0 0;
   }
 
-  .modal.gd-fitness-guide.gd-guide-welcome {
-    width: calc(100% - 24px);
-    margin: auto 12px 12px;
-    border-radius: 22px;
-  }
-
-  .gd-fitness-guide .modal-head {
-    padding: 17px 16px;
+  .gd-fitness-guide .modal-head,
+  .gd-guide-body {
+    padding-inline:
+      max(var(--guide-gutter), env(safe-area-inset-left, 0px))
+      max(var(--guide-gutter), env(safe-area-inset-right, 0px));
   }
 
   .gd-guide-body {
-    padding:
-      18px 16px
-      calc(24px + env(safe-area-inset-bottom));
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   }
 
   .gd-guide-choices {
@@ -562,10 +564,6 @@ body:has(dialog[open]) .gd-guide-reopen {
 
   .gd-guide-total dt {
     flex-shrink: 1;
-  }
-
-  .gd-guide-intro {
-    padding-inline: 0;
   }
 
   .gd-guide-question-actions {
