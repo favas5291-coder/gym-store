@@ -47,3 +47,12 @@ test("buildSitemap rejects invalid origins and product catalogs", () => {
     /missing its canonical ID/,
   );
 });
+
+test("sitemap lists only canonical collection URLs with an active product", () => {
+  const xml = buildSitemap("https://www.gymdrobe.com", [
+    { id: "tee", category: "Compression T-shirt" },
+    { id: "hidden-bag", category: "BAG", isActive: false },
+  ]);
+  assert.match(xml, /<loc>https:\/\/www\.gymdrobe\.com\/collections\/compression-t-shirts<\/loc>/);
+  assert.doesNotMatch(xml, /gym-bags|hidden-bag|\?category/);
+});

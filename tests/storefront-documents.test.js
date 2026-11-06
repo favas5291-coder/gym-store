@@ -69,3 +69,30 @@ test("Vercel keeps the filesystem before SPA fallback and identifies public HTML
   assert.ok(!new RegExp(privateRoute.src).test(`/product/${id}`));
   assert.ok(routes.some(route => route.status === 308 && new RegExp(route.src).test(`/product/${id}/`)));
 });
+
+test("stocked collection documents publish scoped product links and breadcrumbs", async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "gymdrobe-collections-"));
+  const route = "/collections/compression-t-shirts";
+  const snapshot = publicCatalogueSnapshot(origin, [
+    { ...product, category: "Compression T-shirt" },
+    { ...product, id: "hidden", slug: "hidden", category: "BAG", isActive: false },
+    { ...product, id: "other", slug: "other", category: "Protein" },
+  ]);
+  try {
+    const appTemplate = template.replace('id="root"', 'id="app"');
+    await writeStorefrontDocuments({ directory, snapshot, template: appTemplate });
+    const collection = await fs.readFile(path.join(directory, route.slice(1)), "utf8");
+    assert.ok(collection.includes(`rel="canonical" href="${origin}${route}"`));
+    assert.match(collection, /<noscript>.*<h1>Compression T-shirts<\/h1>/);
+    assert.ok(collection.includes(`href="/product/${id}"`));
+    assert.doesNotMatch(collection, /\/product\/(other|hidden)/);
+    const jsonLd = JSON.parse(collection.match(/id="gymdrobe-collection-schema" type="application\/ld\+json">(.*?)<\/script>/)[1]);
+    assert.equal(jsonLd["@type"], "BreadcrumbList");
+    assert.equal(jsonLd.itemListElement.at(-1).item, origin + route);
+    const home = await fs.readFile(path.join(directory, "index.html"), "utf8");
+    assert.ok(home.includes(`href="${route}"`));
+    await assert.rejects(fs.access(path.join(directory, "collections/gym-bags")));
+  } finally {
+    await fs.rm(directory, { recursive: true, force: true });
+  }
+});

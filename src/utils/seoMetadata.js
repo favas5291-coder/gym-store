@@ -1,7 +1,7 @@
-export const DEFAULT_DESCRIPTION = "Discover training clothing, gym shoes and workout essentials at GymDrobe. Everything you need for every workout.";
+export const DEFAULT_DESCRIPTION = "Shop gym clothing, training bags, shoes and workout essentials at GymDrobe. Browse sizes, colours and current availability for delivery in India.";
 export const DEFAULT_SHARE_IMAGE = "/gymdrobe-share-v2.png";
 export const PAGES = {
-  "/": { title: "GymDrobe | Everything for Every Workout", description: DEFAULT_DESCRIPTION },
+  "/": { title: "GymDrobe India | Gym Clothing, Bags & Workout Gear", description: DEFAULT_DESCRIPTION },
   "/shop": { title: "Shop Gym Clothing & Workout Essentials | GymDrobe", description: "Explore gym clothing, shoes, bags and workout essentials at GymDrobe. Browse products, compare options and find gear for your next workout." },
   "/offers": { title: "Offers & Coupons | GymDrobe", description: "Explore current GymDrobe offers on gym clothing and workout essentials." },
   "/help": { title: "Shopping Help | GymDrobe", description: "Find help with shopping, delivery, payments and orders at GymDrobe." },

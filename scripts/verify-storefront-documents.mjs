@@ -13,3 +13,13 @@ for (const entry of snapshot.entries) {
   assert.equal(schema.offers, undefined, "Do not freeze prices or stock in a build snapshot");
 }
 console.log(`Verified ${snapshot.entries.length} built product/alias documents, canonical URLs, bundle entries and omission of mutable offers.`);
+for (const { route, heading, links } of snapshot.collections || []) {
+  const html = await fs.readFile(path.join("dist", route.slice(1)), "utf8");
+  assert.ok(html.includes(`rel="canonical" href="${snapshot.origin}${route}"`));
+  assert.ok(html.includes(`<h1>${heading}</h1>`));
+  const schema = JSON.parse(html.match(/id="gymdrobe-collection-schema" type="application\/ld\+json">([^]*?)<\/script>/)[1]);
+  assert.equal(schema["@type"], "BreadcrumbList");
+  assert.equal(schema.itemListElement.at(-1).item, snapshot.origin + route);
+  for (const link of links) assert.ok(html.includes(`href="${link.route}"`));
+}
+console.log(`Verified ${snapshot.collections?.length || 0} collection documents, product links and breadcrumbs.`);

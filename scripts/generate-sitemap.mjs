@@ -3,6 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { publicCatalogueSnapshot, snapshotFile } from "./storefront-documents.mjs";
 
+import { STOREFRONT_COLLECTIONS, collectionMatchesProduct } from "../src/utils/storefrontCollections.js";
+
 const scriptPath = fileURLToPath(import.meta.url);
 const root = path.resolve(path.dirname(scriptPath), "..");
 const publicDirectory = path.join(root, "public");
@@ -108,6 +110,10 @@ export function buildSitemap(origin, products) {
     routes.add(
       `/product/${encodeURIComponent(String(id))}`,
     );
+  }
+
+  for (const [route, collection] of Object.entries(STOREFRONT_COLLECTIONS)) {
+    if (products.some(product => collectionMatchesProduct(collection, product))) routes.add(route);
   }
 
   if (routes.size > 50000) {

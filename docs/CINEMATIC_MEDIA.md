@@ -7,7 +7,7 @@ The current Higgsfield Seedance 2.5 films are generated editorial atmosphere, no
 | Placement | Delivery file | Dimensions | Approximate size |
 | --- | --- | --- | --- |
 | Desktop film | `public/media/campaign/hero-desktop.mp4` | 1920 × 1080 | 1.3 MB |
-| Portrait film | `public/media/campaign/hero-mobile.mp4` | 720 × 1280 | 936 KB |
+| Portrait film | `public/media/campaign/hero-mobile.mp4` | 720 × 1280 | 688 KiB |
 | Desktop poster | `public/media/campaign/hero-desktop.webp` | 1920 × 1080 | 47 KB |
 | Portrait poster | `public/media/campaign/hero-mobile.webp` | 900 × 1600 | 47 KB |
 

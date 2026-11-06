@@ -36,7 +36,7 @@ export function NativeShoppingNavigation() {
     {isNativeApp() && offline && <div className="native-offline" role="status">You’re offline. Your saved bag is kept on this device. Reconnect to check stock or pay.</div>}
     <nav className="shopping-bottom-nav" aria-label="Shopping navigation">
       {tabs.map(([to, label, Icon]) => {
-        const active = to === '/account' ? account : to === '/' ? pathname === '/' : pathname === to || (to === '/categories' && pathname === '/shop') || (to === '/cart' && pathname === '/checkout');
+        const active = to === '/account' ? account : to === '/' ? pathname === '/' : pathname === to || (to === '/categories' && (pathname === '/shop' || pathname.startsWith('/collections/'))) || (to === '/cart' && pathname === '/checkout');
         return <Link key={to} to={to} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined} aria-label={label === 'Cart' ? `Cart, ${count} items` : label}><span className="shopping-tab-icon"><Icon size={22} strokeWidth={active ? 2 : 1.65} aria-hidden="true"/>{label === 'Cart' && count > 0 && <span className="shopping-cart-badge" aria-hidden="true">{count > 99 ? '99+' : count}</span>}</span><span>{label}</span></Link>;
       })}
     </nav>

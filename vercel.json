@@ -22,14 +22,14 @@
       "status": 308
     },
     {
-      "src": "/(product/[^/]+|shop|offers|help)/$",
+      "src": "/(product/[^/]+|collections/[^/]+|shop|offers|help)/$",
       "headers": {
         "Location": "/$1"
       },
       "status": 308
     },
     {
-      "src": "/(?:product/[^/]+|shop|offers|help)$",
+      "src": "/(?:product/[^/]+|collections/[^/]+|shop|offers|help)$",
       "headers": {
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "public, max-age=0, must-revalidate"
