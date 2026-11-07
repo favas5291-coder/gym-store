@@ -25,15 +25,25 @@ final class GymDrobeUITests: XCTestCase {
         XCTAssertTrue(workout.waitForExistence(timeout: 20))
         workout.tap()
 
-        // Add one guest item through the real catalogue and app UI.
-        let quickAdd = app.buttons["Quick add Compression Half Sleeves T-shirt"].firstMatch
-        XCTAssertTrue(quickAdd.waitForExistence(timeout: 45))
-        quickAdd.tap()
-        let black = app.buttons.matching(NSPredicate(format: "label ==[c] %@", "Colour BLACK")).firstMatch
-        XCTAssertTrue(black.waitForExistence(timeout: 15))
+        // Add one guest item from the product detail, where all variant
+        // controls are available without depending on Quick Add's sheet.
+        let product = app.links["View Compression Half Sleeves T-shirt"].firstMatch
+        XCTAssertTrue(product.waitForExistence(timeout: 45), app.debugDescription)
+        product.tap()
+        let skip = app.buttons.matching(NSPredicate(format: "label ==[c] %@", "Skip for now")).firstMatch
+        if skip.exists && skip.isHittable {
+            skip.tap()
+        }
+
+        let black = app.webViews.buttons.matching(NSPredicate(format: "label BEGINSWITH[c] %@", "Colour BLACK")).firstMatch
+        XCTAssertTrue(black.waitForExistence(timeout: 30), app.debugDescription)
         black.tap()
-        app.buttons["Size M"].firstMatch.tap()
-        app.buttons["Add to Cart"].firstMatch.tap()
+        let size = app.webViews.buttons["Size M"].firstMatch
+        XCTAssertTrue(size.waitForExistence(timeout: 10), app.debugDescription)
+        size.tap()
+        let add = app.webViews.buttons["Add to Cart"].firstMatch
+        XCTAssertTrue(add.waitForExistence(timeout: 15), app.debugDescription)
+        add.tap()
         XCTAssertTrue(cart(1).waitForExistence(timeout: 30))
         cart(1).tap()
         let bag = app.webViews.staticTexts["Shopping bag"].firstMatch
