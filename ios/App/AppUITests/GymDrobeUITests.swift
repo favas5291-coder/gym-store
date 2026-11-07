@@ -17,6 +17,42 @@ final class GymDrobeUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Search by photo"].firstMatch.exists, "Free release must hide deferred photo search")
         app.links["Wishlist"].firstMatch.tap()
         XCTAssertTrue(app.webViews.staticTexts["Your wishlist is waiting"].firstMatch.waitForExistence(timeout: 15))
+
+        let cart = { (count: Int) in app.links["Cart, \(count) items"].firstMatch }
+        XCTAssertTrue(cart(0).waitForExistence(timeout: 15))
+        app.links["Categories"].firstMatch.tap()
+        let workout = app.links["Workout clothing"].firstMatch
+        XCTAssertTrue(workout.waitForExistence(timeout: 20))
+        workout.tap()
+
+        // Add one guest item through the real catalogue and app UI.
+        let quickAdd = app.buttons["Quick add Compression Half Sleeves T-shirt"].firstMatch
+        XCTAssertTrue(quickAdd.waitForExistence(timeout: 45))
+        quickAdd.tap()
+        let black = app.buttons.matching(NSPredicate(format: "label ==[c] %@", "Colour BLACK")).firstMatch
+        XCTAssertTrue(black.waitForExistence(timeout: 15))
+        black.tap()
+        app.buttons["Size M"].firstMatch.tap()
+        app.buttons["Add to Cart"].firstMatch.tap()
+        XCTAssertTrue(cart(1).waitForExistence(timeout: 30))
+        cart(1).tap()
+        let bag = app.webViews.staticTexts["Shopping bag"].firstMatch
+        XCTAssertTrue(bag.waitForExistence(timeout: 20))
+        XCTAssertTrue(app.webViews.staticTexts["Compression Half Sleeves T-shirt"].firstMatch.exists)
+
+        app.links["Account"].firstMatch.tap()
+        XCTAssertTrue(app.webViews.staticTexts["Your favourites. All together."].firstMatch.waitForExistence(timeout: 20))
+        XCTAssertTrue(cart(1).exists, "The guest badge must survive entering Account")
+
+        let leftEdge = app.coordinate(withNormalizedOffset: CGVector(dx: 0.005, dy: 0.48))
+        let right = app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.48))
+        leftEdge.press(forDuration: 0.05, thenDragTo: right)
+        XCTAssertTrue(bag.waitForExistence(timeout: 20), "The iPhone back gesture should return to Cart")
+        XCTAssertTrue(cart(1).exists)
+
+        app.buttons["Remove"].firstMatch.tap()
+        XCTAssertTrue(cart(0).waitForExistence(timeout: 20))
+        XCTAssertTrue(app.webViews.staticTexts["Your bag is empty"].firstMatch.waitForExistence(timeout: 15))
     }
     private func capture(_ name: String, app: XCUIApplication) {
         // A WebKit accessibility tree can arrive before its first composited
