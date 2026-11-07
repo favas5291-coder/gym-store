@@ -1,5 +1,6 @@
 """Exercise actual iPhone app controls using XCTest, on the booted simulator."""
 import json
+import re
 from pathlib import Path
 import subprocess
 
@@ -31,6 +32,32 @@ finally:
                 subprocess.run(command, stdout=destination, stderr=subprocess.STDOUT, check=False, timeout=20)
         except (subprocess.TimeoutExpired, OSError) as error:
             print(f"Diagnostic {name} unavailable: {type(error).__name__}")
+    # The raw simulator log can include sensitive application messages.
+    # Never upload it for session diagnosis; export only allowlisted fixed
+    # operation names and numeric OSStatus values from our Debug NSLog.
+    try:
+        trace = subprocess.run(
+            ["xcrun", "simctl", "spawn", device["udid"], "log", "show",
+             "--last", "10m", "--style", "compact", "--predicate",
+             'eventMessage CONTAINS "GymDrobe secure session"'],
+            capture_output=True, text=True, timeout=25, check=False,
+        )
+        events = []
+        for match in re.finditer(
+            r"GymDrobe secure session (read|write|clear) failed, OSStatus=(-?\d+)",
+            trace.stdout,
+        ):
+            events.append({"operation": match.group(1), "os_status": int(match.group(2))})
+        (output / "session-diagnostics.json").write_text(json.dumps({
+            "capture_status": "available" if trace.returncode == 0 else "unavailable",
+            "events": events[-20:],
+            "note": "No tokens, values, usernames, URLs, or raw log lines exported. Empty events are not a pass.",
+        }, indent=2))
+    except (subprocess.TimeoutExpired, OSError):
+        (output / "session-diagnostics.json").write_text(json.dumps({
+            "capture_status": "unavailable", "events": [],
+            "note": "Native log collection failed. Empty events are not a pass.",
+        }, indent=2))
     # Keep native failure captures too, without replacing the test's exit status.
     if (output / "Shopping.xcresult").exists():
         for report in ("summary", "tests"):
