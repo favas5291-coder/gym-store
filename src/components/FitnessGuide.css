@@ -1,8 +1,9 @@
+/* Compact, purposeful launcher; the existing shopping guide remains intact. */
 .gd-guide-reopen {
   position: fixed;
-  z-index: 30;
-  right: 20px;
-  bottom: calc(20px + env(safe-area-inset-bottom));
+  z-index: 72;
+  right: max(20px, env(safe-area-inset-right, 0px));
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   max-width: calc(100vw - 32px);
 }
 
@@ -10,49 +11,111 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  min-height: 44px;
-  padding: 0;
+  gap: 10px;
   box-sizing: border-box;
-  border: 1px solid #c2410c;
-  border-radius: 50%;
-  color: #9a3412;
-  background: #fffaf6;
-  box-shadow: 0 4px 18px #17202a14;
+  min-height: 48px;
+  min-width: 48px;
+  max-width: 100%;
+  padding: 11px 17px 11px 14px;
+  border: 1px solid #333b34;
+  border-radius: 12px;
+  background: #202820;
+  color: #f9f8f2;
+  box-shadow: 0 7px 22px rgba(16, 24, 18, .18);
   font: inherit;
   font-size: 12px;
-  font-weight: 700;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: .025em;
+  text-transform: none;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color .18s ease, border-color .18s ease,
+    box-shadow .18s ease, transform .18s ease;
+}
+
+.gd-guide-reopen > button svg {
+  display: block;
+  flex: 0 0 auto;
+  width: 19px;
+  height: 19px;
+  color: #d98d61;
+}
+
+.gd-guide-reopen-label {
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .gd-guide-reopen > button:hover {
-  background: #ffedd5;
+  background: #2a342b;
+  border-color: #6c776c;
+  box-shadow: 0 10px 24px rgba(16, 24, 18, .2);
+  transform: translateY(-1px);
+}
+
+.gd-guide-reopen > button:active {
+  background: #303b31;
+  transform: translateY(0);
+  box-shadow: 0 4px 12px rgba(16, 24, 18, .14);
+}
+
+.gd-guide-reopen > button:focus-visible {
+  outline: 2px solid #b96b47;
+  outline-offset: 3px;
 }
 
 .gd-guide-reopen p {
   max-width: 240px;
-  padding: 10px;
-  border: 1px solid #fecaca;
-  border-radius: 10px;
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #f1c7be;
+  border-radius: 9px;
   background: #fff;
-  color: #991b1b;
+  color: #9c3327;
   font-size: 12px;
   line-height: 1.5;
 }
 
-body:has(dialog[open]) .gd-guide-reopen {
+body:has(dialog[open]) .gd-guide-reopen,
+body:has(.gn-search-open) .gd-guide-reopen {
   display: none;
 }
 
 @media (max-width: 700px) {
   .gd-guide-reopen {
-    right: 14px;
-    bottom: calc(16px + env(safe-area-inset-bottom));
+    right: max(12px, env(safe-area-inset-right, 0px));
+    /* Leave the fixed five-tab mobile navigation fully available. */
+    bottom: calc(94px + env(safe-area-inset-bottom, 0px));
   }
 
   .gd-guide-reopen.on-product {
-    bottom: calc(100px + env(safe-area-inset-bottom));
+    /* Above the product purchase bar as well as the mobile navigation. */
+    bottom: calc(156px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .gd-guide-reopen > button {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    padding: 0;
+    border-radius: 12px;
+  }
+
+  .gd-guide-reopen-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gd-guide-reopen > button {
+    transition: none;
+    transform: none !important;
   }
 }
 
