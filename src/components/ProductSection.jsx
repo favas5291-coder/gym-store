@@ -26,6 +26,7 @@ import {
 
 import { STOREFRONT_COLLECTIONS, collectionMatchesProduct } from "../utils/storefrontCollections.js";
 import ProductCard from "./ProductCard.jsx";
+import { createSearchIndex, searchCatalogue } from "../utils/smartSearch.js";
 import { ProductImage } from "./StorefrontShared.jsx";
 import Modal from "./Modal.jsx";
 
@@ -593,9 +594,17 @@ export default function ProductSection({ storefrontCollection }) {
     [catalogue, storefrontCollection],
   );
 
+  const searchIndex = useMemo(() => createSearchIndex(products), [products]);
+
+  const searchData = useMemo(() => {
+    const term = params.get("search") || "";
+    if (!term || ["bestseller", "bestsellers", "new", "new arrivals", "trending", "featured", "top rated"].includes(normalizeCatalogText(term))) return null;
+    return searchCatalogue(searchIndex, term, { strict: params.get("literal") === "1" });
+  }, [searchIndex, params]);
+
   const result = useMemo(
-    () => filterProducts(products, params),
-    [products, params],
+    () => filterProducts(products, params, searchData),
+    [products, params, searchData],
   );
 
   const pages = Math.max(
@@ -647,7 +656,7 @@ export default function ProductSection({ storefrontCollection }) {
     .filter(
       ([key, value]) =>
         value &&
-        !["page", "sort"].includes(key),
+        !["page", "sort", "literal"].includes(key),
     );
 
   const activeFilterCount = chips.filter(
@@ -827,6 +836,15 @@ export default function ProductSection({ storefrontCollection }) {
           </button>
         )}
       </div>
+
+      {searchQuery && searchData?.correctedQuery && !loading && !loadError && (
+        <div className="notice" role="status">
+          Showing results for <strong>“{searchData.correctedQuery}”</strong>.{" "}
+          <button type="button" className="text-link" onClick={() => change({ literal: "1" })}>
+            Search instead for “{searchQuery}”
+          </button>
+        </div>
+      )}
 
       {searchQuery &&
         !loading &&
@@ -1117,6 +1135,20 @@ export default function ProductSection({ storefrontCollection }) {
                     ? "Products added to GymDrobe will appear here."
                     : "Try another category or remove some filters to explore the collection."}
                 </p>
+
+                {searchQuery && searchData?.related?.length > 0 && (
+                  <div className="smart-search-recovery">
+                    <p>Explore a related category:</p>
+                    <div className="empty-actions">
+                      {searchData.related.map((category) => (
+                        <Link key={category} className="button secondary"
+                          to={`/shop?${new URLSearchParams({category})}`}>
+                          {category}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {products.length > 0 && (
                   <div className="empty-actions">

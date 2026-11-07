@@ -1,4 +1,5 @@
 import { reviewStats } from "./reviews.js";
+import { searchCatalogue } from "./smartSearch.js";
 
 import {
   getDiscountedPrice,
@@ -315,11 +316,22 @@ export function matchesSearch(product, query) {
 export function filterProducts(
   catalogue,
   parameters = new URLSearchParams(),
+  precomputedSearch = null,
 ) {
   const params =
     typeof parameters?.get === "function"
       ? parameters
       : new URLSearchParams(parameters || "");
+
+  const queryText = String(params.get("search") || "").trim();
+  const specialQuery = ["bestseller", "bestsellers", "new", "new arrivals", "trending", "featured", "top rated"]
+    .includes(normalizeCatalogText(queryText));
+  const searchData = queryText && !specialQuery
+    ? precomputedSearch || searchCatalogue(catalogue, queryText, { strict: params.get("literal") === "1" })
+    : null;
+  const searchScores = searchData
+    ? new Map(searchData.matches.map(({ product, score }) => [product, score]))
+    : null;
 
   const selected = (key) =>
     String(params.get(key) || "")
@@ -353,7 +365,7 @@ export function filterProducts(
         return false;
       }
 
-      if (!matchesSearch(product, params.get("search"))) {
+      if (searchScores ? !searchScores.has(product) : !matchesSearch(product, queryText)) {
         return false;
       }
 
@@ -513,6 +525,7 @@ export function filterProducts(
   };
 
   const recommended = (a, b) =>
+    (searchScores ? (searchScores.get(b) || 0) - (searchScores.get(a) || 0) : 0) ||
     Number(getTotalStock(b) > 0) -
       Number(getTotalStock(a) > 0) ||
     Number(Boolean(b.isFeatured)) -
