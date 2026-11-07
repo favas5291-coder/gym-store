@@ -28,6 +28,13 @@ import {
 } from "../utils/shopperStorage.js";
 
 const AuthContext = createContext(null);
+
+// Log only a bounded native bridge error *code*, never a rejection message,
+// Keychain value, session token, user identifier or provider payload.
+function safeBridgeCode(error) {
+  const code = typeof error?.code === "string" ? error.code : "";
+  return /^[A-Z][A-Z0-9_]{1,47}$/.test(code) ? code : "BRIDGE_REJECTED";
+}
 async function googleOnly() {
   throw new Error(
     "Please use Continue with Google to access your GymDrobe account."
@@ -94,8 +101,11 @@ export default function AuthProvider({ children }) {
       tokenRef.current = stored;
       setToken(stored);
       setStorageReady(true);
-    }).catch(() => {
+    }).catch((error) => {
       if (cancelled) return;
+      if (isNativeApp()) {
+        console.warn("GymDrobe native secure-session read failed", safeBridgeCode(error));
+      }
       setAuthError("Unable to read your saved session. Unlock your device and retry.");
       setLoading(false);
     });

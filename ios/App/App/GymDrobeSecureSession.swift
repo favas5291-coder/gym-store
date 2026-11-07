@@ -24,6 +24,10 @@ public class GymDrobeSecureSessionPlugin: CAPPlugin, CAPBridgedPlugin {
         if status == errSecItemNotFound { call.resolve([:]); return }
         guard status == errSecSuccess, let data = value as? Data,
               let token = String(data: data, encoding: .utf8) else {
+            #if DEBUG
+            // OSStatus alone is diagnostic; never log the Keychain key, value or JWT.
+            NSLog("GymDrobe secure session read failed, OSStatus=\(status)")
+            #endif
             call.reject("Your secure session is unavailable. Unlock your iPhone and retry.", "KEYCHAIN_UNAVAILABLE"); return
         }
         call.resolve(["token": token])
@@ -40,12 +44,20 @@ public class GymDrobeSecureSessionPlugin: CAPPlugin, CAPBridgedPlugin {
         if status == errSecItemNotFound {
             status = SecItemAdd(query.merging(attributes) { _, new in new } as CFDictionary, nil)
         }
-        guard status == errSecSuccess else { call.reject("Unable to save your secure session.", "KEYCHAIN_UNAVAILABLE"); return }
+        guard status == errSecSuccess else {
+            #if DEBUG
+            NSLog("GymDrobe secure session write failed, OSStatus=\(status)")
+            #endif
+            call.reject("Unable to save your secure session.", "KEYCHAIN_UNAVAILABLE"); return
+        }
         call.resolve()
     }
     @objc func clear(_ call: CAPPluginCall) {
         let status = SecItemDelete(query as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
+            #if DEBUG
+            NSLog("GymDrobe secure session clear failed, OSStatus=\(status)")
+            #endif
             call.reject("Unable to remove your secure session. Unlock your iPhone and retry.", "KEYCHAIN_UNAVAILABLE"); return
         }
         call.resolve()

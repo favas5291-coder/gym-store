@@ -19,6 +19,22 @@ final class GymDrobeUITests: XCTestCase {
         XCTAssertTrue(app.webViews.staticTexts["Your wishlist is waiting"].firstMatch.waitForExistence(timeout: 15))
     }
 
+    func testGuestAccountSessionWithoutCartDependency() {
+        // Keep Account diagnosis independent: flaky Cart accessibility must not
+        // prevent observing a real native secure-session rejection.
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launch()
+        XCTAssertEqual(app.state, .runningForeground)
+        let accountTab = app.links["Account"].firstMatch
+        tapTab(accountTab)
+
+        let guestAccount = app.webViews.staticTexts["Your favourites. All together."].firstMatch
+        let ready = guestAccount.waitForExistence(timeout: 30)
+        capture(ready ? "iPhone-guest-account" : "iPhone-guest-account-failure", app: app)
+        XCTAssertTrue(ready, "Guest Account must render without a saved token. Review Debug-only OSStatus and redacted session code.")
+    }
+
     func testCartAccountAndBack() {
         continueAfterFailure = false
         let app = XCUIApplication()
