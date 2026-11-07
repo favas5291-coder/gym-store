@@ -1,7 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { PAGES, DEFAULT_SHARE_IMAGE, cleanText, productMetadata } from "../src/utils/seoMetadata.js";
+import { PAGES, DEFAULT_SHARE_IMAGE, cleanText, getImages, productMetadata } from "../src/utils/seoMetadata.js";
+import { filterProducts } from "../src/utils/catalog.js";
 import { STOREFRONT_COLLECTIONS, collectionBreadcrumbs, collectionMatchesProduct } from "../src/utils/storefrontCollections.js";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const snapshotFile = path.join(root, "node_modules/.cache/gymdrobe-public-catalogue.json");
@@ -23,6 +24,10 @@ export function metadataHtml(template, metadata) {
       "twitter:image": metadata.image, "twitter:image:alt": metadata.imageAlt }).map(([name,value]) => meta(name,value)),
     ...(metadata.schema ? [`<script id="${metadata.schema["@type"] === "BreadcrumbList" ? "gymdrobe-collection-schema" : "gymdrobe-product-schema"}" type="application/ld+json">${JSON.stringify(metadata.schema).replace(/</g, "\\u003c").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029")}</script>`] : []),
   ];
+  if (metadata.shopPreview?.items?.length) {
+    const json = JSON.stringify(metadata.shopPreview).replace(/</g, "\\u003c");
+    tags.push(`<script id="gymdrobe-shop-preview" type="application/json">${json}</script>`);
+  }
   const fallback = metadata.fallback ? `<noscript>${metadata.fallback}</noscript>` : "";
   return head + tags.join("\n") + "\n" + body.replace('<div id="app"></div>', () => `<div id="app"></div>${fallback}`);
 }
@@ -57,7 +62,12 @@ export function publicCatalogueSnapshot(origin, products) {
     }));
     return links.length ? [{ route, ...collection, links }] : [];
   });
-  return { version: 1, origin, observedAt: new Date().toISOString(), entries, collections };
+  const shopPreview = filterProducts(products).slice(0, 4).map(product => ({
+    name: cleanText(product.name) || "Product",
+    path: `/product/${encodeURIComponent(String(product.id ?? product._id))}`,
+    image: getImages(product, origin).find(url => url.startsWith("https://")) || "",
+  }));
+  return { version: 1, origin, observedAt: new Date().toISOString(), entries, collections, shopPreview };
 }
 export async function writeStorefrontDocuments({ directory = path.join(root, "dist"), snapshot, template } = {}) {
   if (snapshot?.version !== 1 || !Array.isArray(snapshot.entries)) throw new Error("Regenerate the public catalogue before the website build");
@@ -71,7 +81,9 @@ export async function writeStorefrontDocuments({ directory = path.join(root, "di
     const fallback = collectionDocs.length && ["/", "/shop"].includes(route)
       ? `<main><h1>${escape(PAGES[route].title)}</h1><h2>Shop by category</h2>${collectionLinks(collectionDocs)}</main>`
       : "";
-    documents.set(route, { ...PAGES[route], ...defaultPreview, canonical: snapshot.origin + route, fallback });
+    documents.set(route, { ...PAGES[route], ...defaultPreview, canonical: snapshot.origin + route, fallback,
+      ...(route === "/shop" && { shopPreview: { observedAt: snapshot.observedAt, items: snapshot.shopPreview } }),
+    });
   }
   for (const collection of collectionDocs) {
     const { route, heading, description, title, links } = collection;

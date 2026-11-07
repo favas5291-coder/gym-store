@@ -96,3 +96,29 @@ test("stocked collection documents publish scoped product links and breadcrumbs"
     await fs.rm(directory, { recursive: true, force: true });
   }
 });
+
+
+test("Shop preview contains only public product links and images from the build snapshot", async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "gymdrobe-shop-preview-"));
+  try {
+    const snapshot = publicCatalogueSnapshot(origin, [
+      product,
+      { ...product, id: "hidden", slug: "hidden", name: "Hidden product", isActive: false },
+    ]);
+    await writeStorefrontDocuments({ directory, snapshot, template });
+    const shop = await fs.readFile(path.join(directory, "shop"), "utf8");
+    const payload = shop.match(/<script id="gymdrobe-shop-preview" type="application\/json">(.*?)<\/script>/);
+    assert.ok(payload);
+    assert.deepEqual(JSON.parse(payload[1]), { observedAt: snapshot.observedAt, items: [
+      { name: product.name, path: `/product/${id}`, image: product.image },
+    ] });
+    const home = await fs.readFile(path.join(directory, "index.html"), "utf8");
+    const detail = await fs.readFile(path.join(directory, "product", id), "utf8");
+    assert.doesNotMatch(home + detail, /gymdrobe-shop-preview/);
+    assert.doesNotMatch(payload[1], /supplierCost|supplierLink|price|stock|Hidden product/);
+    const hostile = metadataHtml(template, { ...productMetadata(product, origin), shopPreview: {
+      observedAt: snapshot.observedAt, items: [{ name: "</script><img src=x>" }],
+    } });
+    assert.doesNotMatch(hostile, /<img src=x>/);
+  } finally { await fs.rm(directory, { recursive: true, force: true }); }
+});
