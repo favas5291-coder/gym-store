@@ -1,6 +1,6 @@
 # Launch operations — owner completion draft
 
-Prepared 5 November 2026. Internal review only; not a supplier agreement, published customer policy, tax opinion or evidence of supplier acceptance. Existing catalogue records and displayed availability do not establish physical stock, product rights or fulfilment commitments.
+Prepared 5 November 2026; first-order scope updated 7 November 2026. Internal review only; not a supplier agreement, published customer policy, tax opinion or evidence of supplier acceptance. Existing catalogue records and displayed availability do not establish physical stock, product rights or fulfilment commitments.
 
 ## Facts and release boundaries
 
@@ -9,17 +9,32 @@ Prepared 5 November 2026. Internal review only; not a supplier agreement, publis
 - No supplier's identity, accepted commercial terms, licensed product artwork, actual stock, commission rate, invoice/tax treatment or delivery promise has been verified here.
 - Do not publish new policy promises or activate outbound routing until the responsible owner approves the facts below. No external message, contract acceptance, shipment or payout is triggered by this document.
 
-## Five-product launch register
+## One-product controlled website launch register
 
-The owner must select five actual catalogue products and attach current, supplier-confirmed evidence. A photo or catalogue price is insufficient. Complete a row for every sellable size/colour/SKU, rather than a single total for a product.
+The initial launch gate is **one confirmed product variant**, not five. Expansion products remain deferred until the first order passes stock, supplier, fulfillment and provider-backed acceptance. A photo, catalogue price or displayed quantity is insufficient. Complete each sellable size/colour/SKU separately before making it available.
 
-| Slot | Catalogue ID and variant SKU | Supplier legal identity and rights evidence | Confirmed available stock and timestamp | Accepted cost and who pays each cost | Dispatch, courier and returns owner | Approval |
+**Candidate:** Compression Half Sleeves T-shirt, Black / M; catalogue ID `6ad2351ed8f991271e3d1a8b`. A 7 November read-only catalogue handoff reported **9 listed units** and a **₹699 displayed discounted price**. Neither number proves actual stock, an approved sale price, supplier acceptance or a current checkout quote.
+
+| Slot | Catalogue ID and variant SKU | Supplier identity, rights and accepted terms | Physical stock confirmation with timestamp | Unit cost, taxes, charges and settlement | Packing, courier and returns owner | Approval |
 |---|---|---|---|---|---|---|
-| 1 | Pending owner selection | Unconfirmed | Unconfirmed | Unconfirmed | Unconfirmed | Not ready |
-| 2 | Pending owner selection | Unconfirmed | Unconfirmed | Unconfirmed | Unconfirmed | Not ready |
-| 3 | Pending owner selection | Unconfirmed | Unconfirmed | Unconfirmed | Unconfirmed | Not ready |
-| 4 | Pending owner selection | Unconfirmed | Unconfirmed | Unconfirmed | Unconfirmed | Not ready |
-| 5 | Pending owner selection | Unconfirmed | Unconfirmed | Unconfirmed | Unconfirmed | Not ready |
+| Pilot | `6ad2351ed8f991271e3d1a8b` — Black / M; variant SKU to confirm | **Unconfirmed** | **Unconfirmed** (9 listed ≠ physical count) | **Unconfirmed** (₹699 displayed ≠ accepted quote) | **Unconfirmed** | **NO-GO** |
+| Expansion 2–5 | Deferred | Not required for pilot | Not required | Not required | Not required | **Deferred** |
+
+### Pilot owner confirmation — secure evidence references only
+
+Fill and approve these facts **before** a real paid order:
+
+1. Physical Black/M quantity, timestamp, variant SKU, responsible stock holder and one reserved unit.
+2. Legal supplier/seller of record, resale and image rights, current tax-inclusive/exclusive unit cost, customer price and invoice issuer.
+3. Pickup PIN code, packing operator, packed weight in kilograms and package length × width × height in centimetres.
+4. Courier, supported delivery PIN, written shipping/collection/COD fees and carrier acceptance of the parcel.
+5. Accepted dispatch period, tracking process, contact owner and failed-delivery/RTO responsibility.
+6. Return location, eligibility, exchange/refund window, reverse-shipping/inspection payer and dispute contact.
+7. Full allocation of taxes, coupons, Razorpay fee, COD cost, shipping, packaging and settlement timing; verify that supplier payable and GymDrobe contribution both reconcile.
+
+A record is complete only with an accountable approver, date, and location of evidence. Do not paste supplier PII, provider secrets or bank details into a public pull request.
+
+**Technical release gate:** test payments and webhooks must pass in a **distinct, approved** staging database and Razorpay Test Mode environment. Draft backend PR #15 provides a proposed configuration guard, not actual staging infrastructure. Record prepaid, COD-advance, cancel/retry, duplicate webhook, reservation, refund and reconciliation evidence separately from fixture tests. Only owner-approved deployment may change production. iPhone and advanced features remain separate release tracks.
 
 Record evidence location, supplier approver, offer revision and explicit acceptance date. Do not infer acceptance from an invitation, a draft offer, supplier application or earlier discussion.
 
