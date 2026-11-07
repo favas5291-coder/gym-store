@@ -49,6 +49,7 @@ const EMPTY = {
   colorImagesText: {},
   videoUrl: "",
   tagsText: "",
+  searchAliasesText: "",
   highlightsText: "",
   careInstructionsText: "",
   sizesText: "",
@@ -282,6 +283,10 @@ function draftFor(product) {
 
     tagsText: list(
       product.tags,
+    ).join(", "),
+
+    searchAliasesText: list(
+      product.searchAliases,
     ).join(", "),
 
     highlightsText: list(
@@ -868,6 +873,13 @@ function validateBasicDraft(draft) {
     return (
       "Use up to 50 tags, each no longer than 100 characters."
     );
+  }
+
+  if (
+    commas(draft.searchAliasesText).length > 30 ||
+    commas(draft.searchAliasesText).some((value) => value.length > 80)
+  ) {
+    return "Use up to 30 alternative search names, each no longer than 80 characters.";
   }
 
   if (
@@ -1703,6 +1715,11 @@ export function payloadFor(
       "tags",
       "tagsText",
       commas(draft.tagsText),
+    ],
+    [
+      "searchAliases",
+      "searchAliasesText",
+      commas(draft.searchAliasesText),
     ],
     [
       "highlights",
