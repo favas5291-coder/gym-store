@@ -26,7 +26,7 @@ import {
 
 import { STOREFRONT_COLLECTIONS, collectionMatchesProduct } from "../utils/storefrontCollections.js";
 import ProductCard from "./ProductCard.jsx";
-import { searchCatalogue } from "../utils/smartSearch.js";
+import { createSearchIndex, searchCatalogue } from "../utils/smartSearch.js";
 import { ProductImage } from "./StorefrontShared.jsx";
 import Modal from "./Modal.jsx";
 
@@ -594,11 +594,13 @@ export default function ProductSection({ storefrontCollection }) {
     [catalogue, storefrontCollection],
   );
 
+  const searchIndex = useMemo(() => createSearchIndex(products), [products]);
+
   const searchData = useMemo(() => {
     const term = params.get("search") || "";
     if (!term || ["bestseller", "bestsellers", "new", "new arrivals", "trending", "featured", "top rated"].includes(normalizeCatalogText(term))) return null;
-    return searchCatalogue(products, term, { strict: params.get("literal") === "1" });
-  }, [products, params]);
+    return searchCatalogue(searchIndex, term, { strict: params.get("literal") === "1" });
+  }, [searchIndex, params]);
 
   const result = useMemo(
     () => filterProducts(products, params, searchData),
