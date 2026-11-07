@@ -40,6 +40,20 @@ const CANONICAL = new Map(
 );
 const STOP = new Set(["a", "an", "and", "for", "from", "in", "my", "of", "the", "to", "with"]);
 
+// Narrow shopping-intent rewrites. These select product vocabulary, never
+// create products or claim a product meets a medical/fitness outcome.
+const INTENTS = Object.freeze({
+  "protein for muscle": "protein",
+  "shirt for gym": "tshirt",
+  "weight lifting belt": "lifting belt",
+  "hand protection gym": "gloves",
+  "gym hand cover": "gloves",
+  "workout pant": "joggers",
+  "gym bottle": "bottle",
+  "running footwear": "shoes",
+  "workout equipment for home": "equipment",
+});
+
 export function normalizeSearchText(value) {
   return String(value ?? "")
     .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
@@ -122,7 +136,7 @@ export function createSearchIndex(products) {
 }
 
 function resolveTokens(index, query, strict) {
-  const original = significant(query);
+  const original = significant(INTENTS[normalizeSearchText(query)] || query);
   let changed = false;
   let ambiguous = false;
   const corrected = [];
