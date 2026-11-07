@@ -16,11 +16,13 @@ import {
   SHOP_DEPARTMENTS,
   catalogOptions,
   catalogProducts,
-  matchesSearch,
   productDepartment,
 } from "../utils/catalog.js";
 
 import { useCatalog } from "../context/CatalogContext.jsx";
+import { createSearchIndex, searchCatalogue } from "../utils/smartSearch.js";
+import { getTotalStock } from "../utils/cartUtils.js";
+import { getDiscountedPrice } from "../utils/productPricing.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
 import "./GymDrobeStorefront.css";
@@ -279,6 +281,7 @@ function SearchBox({
   onChange,
   onSubmit,
   onPick,
+  onNavigate,
   recent,
   onClearHistory,
   onClear,
@@ -296,30 +299,19 @@ function SearchBox({
   const [availableHeight, setAvailableHeight] = useState(300);
 
   const listId = useId();
+  const [settledValue, setSettledValue] = useState("");
+  useEffect(() => {
+    const timeout = setTimeout(() => setSettledValue(value.trim()), 240);
+    return () => clearTimeout(timeout);
+  }, [value]);
   const clean = value.trim();
-
-  const matches = useMemo(() => {
-    if (!clean) return [];
-
-    const found = [];
-
-    for (const product of Array.isArray(products)
-      ? products
-      : []) {
-      if (
-        product &&
-        product.id != null &&
-        product.isActive !== false &&
-        matchesSearch(product, clean)
-      ) {
-        found.push(product);
-
-        if (found.length === 6) break;
-      }
-    }
-
-    return found;
-  }, [clean, products]);
+  const settled = settledValue === clean ? settledValue : "";
+  const index = useMemo(() => createSearchIndex(products), [products]);
+  const searchData = useMemo(
+    () => settled ? searchCatalogue(index, settled, { limit: 6 }) : null,
+    [index, settled],
+  );
+  const matches = searchData?.products || [];
 
   const options = clean
     ? [
@@ -327,30 +319,36 @@ function SearchBox({
           type: "product",
           product,
           label: product.name,
-
-          href: `/product/${encodeURIComponent(
-            String(product.id),
-          )}`,
+          href: "/product/" + encodeURIComponent(String(product.id)),
         })),
-
+        ...(searchData?.categories || []).slice(0, 3).map((category) => ({
+          type: "category",
+          label: "Category: " + category,
+          query: category,
+          href: "/shop?" + new URLSearchParams({ category }),
+        })),
+        ...(searchData?.brands || []).slice(0, 2).map((brand) => ({
+          type: "brand",
+          label: "Brand: " + brand,
+          query: brand,
+          href: "/shop?" + new URLSearchParams({ brand }),
+        })),
+        ...(searchData?.correctedQuery ? [{
+          type: "query",
+          label: "Search for “" + searchData.correctedQuery + "”",
+          query: searchData.correctedQuery,
+          href: "/shop?" + new URLSearchParams({ search: searchData.correctedQuery }),
+        }] : []),
         {
           type: "query",
-          label: `Search all results for “${clean}”`,
+          label: "Search all results for “" + clean + "”",
           query: clean,
-
-          href: `/shop?${new URLSearchParams({
-            search: clean,
-          })}`,
+          href: "/shop?" + new URLSearchParams({ search: clean }),
         },
       ]
     : recent.map((query) => ({
-        type: "query",
-        label: query,
-        query,
-
-        href: `/shop?${new URLSearchParams({
-          search: query,
-        })}`,
+        type: "query", label: query, query,
+        href: "/shop?" + new URLSearchParams({ search: query }),
       }));
 
   function close() {
@@ -423,6 +421,8 @@ function SearchBox({
 
     if (option.type === "product") {
       onPick(option.product);
+    } else if (["brand", "category"].includes(option.type)) {
+      onNavigate(option.href);
     } else {
       onSubmit(option.query);
     }
@@ -662,10 +662,9 @@ function SearchBox({
                     {option.type === "product" && (
                       <small>
                         {option.product.category}
-
-                        {option.product.brand
-                          ? ` · ${option.product.brand}`
-                          : ""}
+                        {option.product.brand ? " · " + option.product.brand : ""}
+                        {" · ₹" + getDiscountedPrice(option.product).toLocaleString("en-IN")}
+                        {getTotalStock(option.product) <= 0 ? " · Out of stock" : ""}
                       </small>
                     )}
                   </span>
@@ -683,10 +682,9 @@ function SearchBox({
             </p>
           )}
 
-          {clean && !matches.length && (
+          {clean && settled && !matches.length && (
             <p className="gn-search-hint">
-              No matching suggestions. Try another
-              word or search the full shop.
+              No matching products yet. Search the shop or try another term.
             </p>
           )}
         </div>
@@ -1149,6 +1147,10 @@ export default function Navbar({
           onOpen={() =>
             setActiveMenu(null)
           }
+          onNavigate={(href) => {
+            closeMenus();
+            navigate(href);
+          }}
           onPick={(product) => {
             closeMenus();
 
