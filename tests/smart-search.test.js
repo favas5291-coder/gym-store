@@ -48,6 +48,16 @@ test("supports aliases, phrases, prefixes and deliberate alternate names", () =>
   assert.ok(ids("Hydration").includes("shaker"));
 });
 
+test("understands bounded intent phrases without inventing catalogue stock", () => {
+  assert.ok(ids("protein for muscle").includes("whey"));
+  assert.ok(ids("shirt for gym").includes("tshirt"));
+  assert.ok(ids("hand protection gym").includes("gloves"));
+  assert.ok(ids("workout pant").includes("joggers"));
+  assert.ok(ids("gym bottle").includes("shaker"));
+  assert.ok(ids("running footwear").includes("shoe"));
+  assert.ok(ids("workout equipment for home").includes("dumbbell"));
+});
+
 test("only uses real active catalogue data for results and suggestions", () => {
   const result = searchCatalogue(catalog, "protein");
   assert.deepEqual(result.products.map((p) => p.id), ["whey"]);
