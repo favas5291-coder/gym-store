@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { House, Grid2X2, Search, Heart, UserRound, ShoppingBag, ArrowUpRight } from "lucide-react";
 import { useStore } from "../context/StoreContext.jsx";
@@ -7,6 +7,7 @@ import { SHOP_DEPARTMENTS, catalogOptions, productDepartment } from "../utils/ca
 import { collectionPathForCategory } from "../utils/storefrontCollections.js";
 import { isNativeApp } from "./platform.js";
 import PhotoSearchButton from "../components/PhotoSearchButton.jsx";
+import { searchCatalogue } from "../utils/smartSearch.js";
 
 export function NativeShoppingNavigation() {
   const { cart } = useStore();
@@ -64,12 +65,70 @@ export function NativeCategoriesPage() {
 
 export function NativeSearchPage() {
   const navigate = useNavigate();
+  const { products } = useCatalog();
   const [query, setQuery] = useState("");
-  return <div className="page native-discover"><p className="eyebrow">MADE FOR YOUR WORKOUT</p><h1>What’s in your next session?</h1>
-    <form className="native-search-form" role="search" onSubmit={(event) => { event.preventDefault(); const term = query.trim(); if (term) navigate(`/shop?${new URLSearchParams({ search: term })}`); }}>
-      <label className="sr-only" htmlFor="app-search">Search GymDrobe</label><input id="app-search" type="search" enterKeyHint="search" placeholder="Shoes, tees, shakers…" value={query} onChange={(event) => setQuery(event.target.value)} maxLength={200}/>
-      <PhotoSearchButton/><button type="submit" aria-label="Search products" disabled={!query.trim()}><Search size={24}/></button>
+  const [settled, setSettled] = useState("");
+  const [active, setActive] = useState(-1);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(query.trim()), 240);
+    return () => clearTimeout(timer);
+  }, [query]);
+  const current = settled && settled === query.trim();
+  const search = useMemo(
+    () => current ? searchCatalogue(products, settled, { limit: 5 }) : null,
+    [products, settled, current],
+  );
+  const options = [
+    ...(search?.products || []).map((product) => ({
+      label: product.name,
+      detail: product.category,
+      href: "/product/" + encodeURIComponent(String(product.id || product._id)),
+    })),
+    ...(search?.categories || []).slice(0, 3).map((category) => ({
+      label: "Category: " + category,
+      href: "/shop?" + new URLSearchParams({ category }),
+    })),
+  ];
+  function submit(term = query) {
+    const clean = term.trim();
+    if (clean) navigate("/shop?" + new URLSearchParams({ search: clean }));
+  }
+  return <div className="page native-discover">
+    <p className="eyebrow">MADE FOR YOUR WORKOUT</p>
+    <h1>What’s in your next session?</h1>
+    <form className="native-search-form" role="search" onSubmit={(event) => { event.preventDefault(); submit(); }}>
+      <label className="sr-only" htmlFor="app-search">Search GymDrobe</label>
+      <input id="app-search" type="search" role="combobox" aria-expanded={Boolean(query.trim() && current)}
+        aria-controls="native-smart-suggestions" aria-autocomplete="list"
+        aria-activedescendant={active >= 0 && current ? "native-smart-option-" + active : undefined}
+        enterKeyHint="search" placeholder="Shoes, tees, shakers…" value={query}
+        onChange={(event) => { setQuery(event.target.value); setActive(-1); }} maxLength={120}
+        onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing) return;
+          if (["ArrowDown", "ArrowUp"].includes(event.key) && options.length) {
+            event.preventDefault();
+            setActive((old) => (old + (event.key === "ArrowDown" ? 1 : -1) + options.length) % options.length);
+          } else if (event.key === "Enter" && active >= 0 && options[active]) {
+            event.preventDefault();
+            navigate(options[active].href);
+          } else if (event.key === "Escape") setActive(-1);
+        }}
+      />
+      <PhotoSearchButton />
+      <button type="submit" aria-label="Search products" disabled={!query.trim()}><Search size={24}/></button>
     </form>
+    {query.trim() && current && <div className="native-smart-panel">
+      {search?.correctedQuery && <button type="button" onClick={() => submit(search.correctedQuery)}>
+        Did you mean “{search.correctedQuery}”?
+      </button>}
+      {options.length > 0 && <ul id="native-smart-suggestions" role="listbox" aria-label="Matching products and categories">
+        {options.map((option, index) => <li role="presentation" key={option.href}>
+          <Link role="option" id={"native-smart-option-" + index} aria-selected={index === active}
+            to={option.href}>{option.label}{option.detail && <small>{option.detail}</small>}</Link>
+        </li>)}
+      </ul>}
+      {options.length === 0 && <p>No product suggestions yet. You can still search the full shop.</p>}
+    </div>}
     <Link className="text-link" to="/categories">Browse categories</Link>
   </div>;
 }
