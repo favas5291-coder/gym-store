@@ -6,6 +6,7 @@ import {
 } from "react";
 
 import { Link, useLocation } from "react-router-dom";
+import { SlidersHorizontal } from "lucide-react";
 
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { useStore } from "../context/StoreContext.jsx";
@@ -818,21 +819,13 @@ export default function FitnessGuide() {
             aria-label="Help me choose products"
             title="Help me choose products"
           >
-            <svg
-              width="22"
-              height="22"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+            <SlidersHorizontal
+              size={19}
+              strokeWidth={1.8}
               aria-hidden="true"
               focusable="false"
-            >
-              <path d="m12 3 2.7 6.3L21 12l-6.3 2.7L12 21l-2.7-6.3L3 12l6.3-2.7L12 3Z" />
-              <path d="M20 3v4m-2-2h4" />
-            </svg>
+            />
+            <span className="gd-guide-reopen-label">Find your gear</span>
           </button>
 
           {launcherMessage && (
