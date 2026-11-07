@@ -36,12 +36,22 @@ jobs:
       - run: npm ci
       - run: npm run doctor && npm test
       - run: npm run ios:sync
-      - name: Compile unsigned application and UI test runner before booting the simulator
+      - name: Compile ad-hoc-signed simulator app and UI test runner
         id: compile
         run: |
           set -o pipefail
           mkdir -p test-results/ios
-          xcodebuild -quiet -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/DerivedData CODE_SIGNING_ALLOWED=NO build-for-testing 2>&1 | tee test-results/ios/build.log
+          xcodebuild -quiet -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/DerivedData CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual AD_HOC_CODE_SIGNING_ALLOWED=YES build-for-testing 2>&1 | tee test-results/ios/build.log
+      - name: Verify the simulator app has a code signature
+        run: |
+          APP=ios/DerivedData/Build/Products/Debug-iphonesimulator/App.app
+          codesign --verify --deep --verbose=2 "$APP"
+          codesign -d --entitlements :- "$APP" > test-results/ios/app-entitlements.plist
+          if ! /usr/libexec/PlistBuddy -c "Print :application-identifier" test-results/ios/app-entitlements.plist >/dev/null 2>&1 && \
+             ! /usr/libexec/PlistBuddy -c "Print :keychain-access-groups" test-results/ios/app-entitlements.plist >/dev/null 2>&1; then
+            echo "Simulator app lacks a Keychain-capable application identity; fail instead of misdiagnosing Account."
+            exit 1
+          fi
       - name: Prepare iPhone simulator for native launch and navigation tests
         timeout-minutes: 14
         run: |
