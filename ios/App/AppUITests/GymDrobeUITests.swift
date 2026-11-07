@@ -17,7 +17,6 @@ final class GymDrobeUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Search by photo"].firstMatch.exists, "Free release must hide deferred photo search")
         app.links["Wishlist"].firstMatch.tap()
         XCTAssertTrue(app.webViews.staticTexts["Your wishlist is waiting"].firstMatch.waitForExistence(timeout: 15))
-
     }
 
     func testCartAccountAndBack() {
@@ -46,7 +45,7 @@ final class GymDrobeUITests: XCTestCase {
     private func tapTab(_ tab: XCUIElement) {
         // WebKit's link frame can cover only the label. The centre of the
         // visible tab icon sits just above it inside the same touch target.
-        XCTAssertTrue(tab.waitForExistence(timeout: 45), app.debugDescription)
+        XCTAssertTrue(tab.waitForExistence(timeout: 45), tab.debugDescription)
         tab.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             .withOffset(CGVector(dx: 0, dy: -20)).tap()
     }
