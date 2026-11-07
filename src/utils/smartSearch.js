@@ -202,7 +202,7 @@ function tokenScore(fieldData, token, weight) {
   return 0;
 }
 
-function score(item, terms, queryText) {
+function score(item, terms, queryText, originalQuery) {
   if (!terms.length) return 0;
   let total = 0;
   for (const token of terms) {
@@ -218,7 +218,8 @@ function score(item, terms, queryText) {
     if (!best) return 0;
     total += best;
   }
-  if (item.name.normalized === queryText) total += 1500;
+  if (item.name.normalized === originalQuery) total += 3000;
+  else if (item.name.normalized === queryText) total += 1500;
   else if (item.name.normalized.includes(queryText)) total += 260;
   if (item.brand.normalized === queryText || item.category.normalized === queryText) total += 450;
   // Availability is a tie-breaker, never a replacement for relevance.
@@ -236,7 +237,7 @@ export function searchCatalogue(productsOrIndex, query, { strict = false, limit 
   }
   const resolved = resolveTokens(index, clean, strict);
   const relevant = index.entries
-    .map((item) => ({ product: item.product, score: score(item, resolved.tokens, resolved.tokens.join(" ")) }))
+    .map((item) => ({ product: item.product, score: score(item, resolved.tokens, resolved.tokens.join(" "), clean) }))
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score);
   const counts = (property) => {
