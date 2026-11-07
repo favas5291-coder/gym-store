@@ -98,8 +98,8 @@ export function NativeSearchPage() {
     <h1>What’s in your next session?</h1>
     <form className="native-search-form" role="search" onSubmit={(event) => { event.preventDefault(); submit(); }}>
       <label className="sr-only" htmlFor="app-search">Search GymDrobe</label>
-      <input id="app-search" type="search" role="combobox" aria-expanded={Boolean(query.trim() && current)}
-        aria-controls="native-smart-suggestions" aria-autocomplete="list"
+      <input id="app-search" type="search" role="combobox" aria-expanded={Boolean(query.trim() && current && options.length)}
+        aria-controls={query.trim() && current && options.length ? "native-smart-suggestions" : undefined} aria-autocomplete="list"
         aria-activedescendant={active >= 0 && current ? "native-smart-option-" + active : undefined}
         enterKeyHint="search" placeholder="Shoes, tees, shakers…" value={query}
         onChange={(event) => { setQuery(event.target.value); setActive(-1); }} maxLength={120}
