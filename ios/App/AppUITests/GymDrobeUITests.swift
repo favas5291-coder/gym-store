@@ -49,14 +49,15 @@ final class GymDrobeUITests: XCTestCase {
         scrollTo(add, in: app)
         add.tap()
         XCTAssertTrue(cart(1).waitForExistence(timeout: 30))
-        cart(1).tap()
-        let bag = app.webViews.staticTexts["Shopping bag"].firstMatch
+        tapTab(cart(1))
+        let bag = app.webViews.staticTexts["1 item in your bag"].firstMatch
         XCTAssertTrue(bag.waitForExistence(timeout: 20))
         XCTAssertTrue(app.webViews.staticTexts["Compression Half Sleeves T-shirt"].firstMatch.exists)
 
-        app.links["Account"].firstMatch.tap()
+        tapTab(app.links["Account"].firstMatch)
         XCTAssertTrue(app.webViews.staticTexts["Your favourites. All together."].firstMatch.waitForExistence(timeout: 20))
         XCTAssertTrue(cart(1).exists, "The guest badge must survive entering Account")
+        XCTAssertFalse(bag.exists)
 
         let leftEdge = app.coordinate(withNormalizedOffset: CGVector(dx: 0.005, dy: 0.48))
         let right = app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.48))
@@ -64,10 +65,20 @@ final class GymDrobeUITests: XCTestCase {
         XCTAssertTrue(bag.waitForExistence(timeout: 20), "The iPhone back gesture should return to Cart")
         XCTAssertTrue(cart(1).exists)
 
-        app.buttons["Remove"].firstMatch.tap()
+        let remove = app.webViews.buttons["Remove"].firstMatch
+        XCTAssertTrue(remove.waitForExistence(timeout: 15), app.debugDescription)
+        scrollTo(remove, in: app)
+        remove.tap()
         XCTAssertTrue(cart(0).waitForExistence(timeout: 20))
         XCTAssertTrue(app.webViews.staticTexts["Your bag is empty"].firstMatch.waitForExistence(timeout: 15))
     }
+    private func tapTab(_ tab: XCUIElement) {
+        // The visible WebKit link can lack an XCTest activation point after
+        // scrolling. Tap its rendered centre and assert the destination.
+        XCTAssertTrue(tab.waitForExistence(timeout: 15))
+        tab.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    }
+
     private func scrollTo(_ element: XCUIElement, in app: XCUIApplication) {
         let lower = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
         let upper = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.32))
