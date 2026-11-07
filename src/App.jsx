@@ -43,8 +43,12 @@ import Home from "./pages/Home.jsx";
 import { STOREFRONT_COLLECTIONS } from "./utils/storefrontCollections.js";
 import { installRoutePrefetch } from "./utils/routePrefetch.js";
 import { NativeShoppingNavigation, NativeCategoriesPage, NativeSearchPage } from "./native/NativeShopping.jsx";
-import NativeAppController from "./native/NativeAppController.jsx";
-import OrderPushController from "./native/OrderPushController.jsx";
+import { isNativeApp } from "./native/platform.js";
+
+// Avoid pulling native-only payment, app-link and push controllers into
+// the regular website's initial JavaScript. Native apps load them on boot.
+const NativeAppController = lazy(() => import("./native/NativeAppController.jsx"));
+const OrderPushController = lazy(() => import("./native/OrderPushController.jsx"));
 
 const Shop = lazy(
   () => import("./pages/Shop.jsx"),
@@ -926,8 +930,12 @@ function StorefrontApplication() {
 export default function App() {
   return (
     <BrowserRouter>
-      <NativeAppController />
-      <OrderPushController />
+      {isNativeApp() && (
+        <Suspense fallback={null}>
+          <NativeAppController />
+          <OrderPushController />
+        </Suspense>
+      )}
       <CatalogProvider>
         <StorefrontApplication />
       </CatalogProvider>
