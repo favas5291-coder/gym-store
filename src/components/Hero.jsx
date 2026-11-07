@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { heroMedia } from "../data/campaignMedia.js";
 import { PremiumButton, TextLink } from "./PremiumControls.jsx";
-import HeroVideoDiagnostics from "./HeroVideoDiagnostics.jsx";
+// The optional debug panel should never join the normal homepage bundle.
+const HeroVideoDiagnostics = lazy(() => import("./HeroVideoDiagnostics.jsx"));
 
 // The video stays mounted during React renders and viewport-height changes.
 export default function Hero() {
@@ -223,7 +224,9 @@ export default function Hero() {
         <div className="cinema-caption"><span>MAKE TIME FOR YOURSELF.</span></div>
       </div>
       {debugEnabledRef.current && (
-        <HeroVideoDiagnostics videoRef={videoRef} diagnosticsRef={diagnosticsRef} />
+        <Suspense fallback={null}>
+          <HeroVideoDiagnostics videoRef={videoRef} diagnosticsRef={diagnosticsRef} />
+        </Suspense>
       )}
     </section>
   );

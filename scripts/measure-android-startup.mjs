@@ -58,7 +58,12 @@ for (let run = 1; run <= 2; run++) {
     // Software video decoding can saturate this emulator. FCP is already
     // captured; pause before the HOME transition, as backgrounding does in use.
     await evaluate(`document.querySelector('video')?.pause(); true`);
-    adb('shell', 'am', 'start', '-W', '-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.HOME');
+    // Dispatch HOME as a user input instead of waiting for the launcher via
+    // `am start -W`. The latter hung after a successful first startup sample
+    // on the API 35 GitHub emulator. The following `am start -W` still checks
+    // that GymDrobe resumes; a stalled/unresponsive emulator remains a failure.
+    adb('shell', 'input', 'keyevent', 'KEYCODE_HOME');
+    await pause(350);
     const warm = adb('shell', 'am', 'start', '-W', '-n', 'com.gymdrobe.app/.MainActivity');
     const timing = value => Object.fromEntries([...value.matchAll(/^(ThisTime|TotalTime|WaitTime):\s*(\d+)/gm)].map(match => [match[1], Number(match[2])]));
     samples.push({ run, coldActivity: timing(cold), warmActivity: timing(warm), webview: page });

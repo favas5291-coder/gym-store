@@ -306,9 +306,15 @@ function SearchBox({
   }, [value]);
   const clean = value.trim();
   const settled = settledValue === clean ? settledValue : "";
-  const index = useMemo(() => createSearchIndex(products), [products]);
+  // Product search is optional on first paint. Build its index only after
+  // a real query settles, then reuse it while the shopper keeps typing.
+  const hasQuery = Boolean(settled);
+  const index = useMemo(
+    () => hasQuery ? createSearchIndex(products) : null,
+    [products, hasQuery],
+  );
   const searchData = useMemo(
-    () => settled ? searchCatalogue(index, settled, { limit: 6 }) : null,
+    () => settled && index ? searchCatalogue(index, settled, { limit: 6 }) : null,
     [index, settled],
   );
   const matches = searchData?.products || [];
