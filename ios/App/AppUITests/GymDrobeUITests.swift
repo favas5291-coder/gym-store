@@ -35,14 +35,18 @@ final class GymDrobeUITests: XCTestCase {
             skip.tap()
         }
 
-        let black = app.webViews.buttons.matching(NSPredicate(format: "label BEGINSWITH[c] %@", "Colour BLACK")).firstMatch
+        // WebKit exposes aria-pressed variant choices as switches.
+        let black = app.webViews.switches["Colour BLACK"].firstMatch
         XCTAssertTrue(black.waitForExistence(timeout: 30), app.debugDescription)
+        scrollTo(black, in: app)
         black.tap()
-        let size = app.webViews.buttons["Size M"].firstMatch
+        let size = app.webViews.switches["Size M"].firstMatch
         XCTAssertTrue(size.waitForExistence(timeout: 10), app.debugDescription)
+        scrollTo(size, in: app)
         size.tap()
         let add = app.webViews.buttons["Add to Cart"].firstMatch
         XCTAssertTrue(add.waitForExistence(timeout: 15), app.debugDescription)
+        scrollTo(add, in: app)
         add.tap()
         XCTAssertTrue(cart(1).waitForExistence(timeout: 30))
         cart(1).tap()
@@ -64,6 +68,16 @@ final class GymDrobeUITests: XCTestCase {
         XCTAssertTrue(cart(0).waitForExistence(timeout: 20))
         XCTAssertTrue(app.webViews.staticTexts["Your bag is empty"].firstMatch.waitForExistence(timeout: 15))
     }
+    private func scrollTo(_ element: XCUIElement, in app: XCUIApplication) {
+        let lower = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+        let upper = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.32))
+        for _ in 0..<6 {
+            if element.isHittable { return }
+            lower.press(forDuration: 0.05, thenDragTo: upper)
+        }
+        XCTAssertTrue(element.isHittable, app.debugDescription)
+    }
+
     private func capture(_ name: String, app: XCUIApplication) {
         // A WebKit accessibility tree can arrive before its first composited
         // frame. Wait for visible pixels too, with the same nonblank threshold.
