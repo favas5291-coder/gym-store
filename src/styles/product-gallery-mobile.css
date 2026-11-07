@@ -58,7 +58,6 @@
     overscroll-behavior-inline: contain;
     scroll-padding-inline: 4px;
     -webkit-overflow-scrolling: touch;
-    touch-action: pan-x;
   }
 
   #app .premium-storefront .product-page .gd-color-gallery > .thumbnails > button {
