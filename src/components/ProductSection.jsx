@@ -26,9 +26,23 @@ import {
 
 import { STOREFRONT_COLLECTIONS, collectionMatchesProduct } from "../utils/storefrontCollections.js";
 import ProductCard from "./ProductCard.jsx";
+import { ProductImage } from "./StorefrontShared.jsx";
 import Modal from "./Modal.jsx";
 
 const PAGE_SIZE = 12;
+const SHOP_PREVIEW_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+
+function readShopPreview() {
+  try {
+    const source = document.getElementById("gymdrobe-shop-preview");
+    const preview = source && JSON.parse(source.textContent);
+    const age = Date.now() - Date.parse(preview?.observedAt);
+    if (age >= 0 && age < SHOP_PREVIEW_MAX_AGE && Array.isArray(preview.items)) return preview.items;
+  } catch {
+    // The existing loading state also works without a valid build snapshot.
+  }
+  return [];
+}
 
 const MULTI_VALUE_FILTERS = [
   "category",
@@ -559,7 +573,9 @@ export default function ProductSection({ storefrontCollection }) {
     refreshProducts,
   } = useCatalog();
 
+  const [shopPreview] = useState(readShopPreview);
   const [query, setParams] = useSearchParams();
+  const showShopPreview = loading && !storefrontCollection && !query.size && shopPreview.length > 0;
   const params = useMemo(() => {
     if (!storefrontCollection) return query;
     const scoped = new URLSearchParams(query);
@@ -966,7 +982,27 @@ export default function ProductSection({ storefrontCollection }) {
             </div>
           )}
 
-          {loading && (
+          {showShopPreview && (
+            <>
+              <p className="muted" role="status">Previewing products while current prices and availability load.</p>
+              <div className="product-grid" data-shop-preview>
+                {shopPreview.map(item => (
+                  <article className="gm-product-card" key={item.path}>
+                    <div className="gm-product-visual">
+                      <Link className="gm-product-image" to={item.path} aria-label={`View ${item.name}`}>
+                        <ProductImage product={item} decorative />
+                      </Link>
+                    </div>
+                    <div className="gm-product-copy">
+                      <Link className="gm-product-info-link" to={item.path}><h3>{item.name}</h3></Link>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </>
+          )}
+
+          {loading && !showShopPreview && (
             <div className="empty-state">
               <h2>Loading products...</h2>
 
