@@ -187,6 +187,14 @@ const SECTIONS = [
         "training, lightweight, tshirt",
       ],
       [
+        "searchAliasesText",
+        "Alternative search names",
+        "gym tee, workout shirt, compression top",
+        "text",
+        false,
+        2500,
+      ],
+      [
         "specificationsText",
         "Specifications",
         "Capacity: 25 litres\nDimensions: 45 × 25 × 22 cm",
