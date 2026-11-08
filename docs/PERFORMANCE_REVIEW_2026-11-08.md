@@ -49,19 +49,37 @@ The public catalogue contained **126,317 decoded response bytes** on both sample
 - Backend `/api/products` already uses `Product.find({isActive: true}).lean()`, a `Server-Timing` header for the product DB/review/serialization stages, and `Cache-Control: no-store`. It also loads all active products plus their reviews. Future catalogue growth may increase payload and query work; measure response bytes, collection size, timings and Atlas `explain` before changing response shape or caching.
 - India-to-Oregon network latency is a plausible additional cost, not a measured number. No hosting migration should occur automatically.
 
-## Candidate code and new tests (PR #55)
+## Expanded lab comparison and decision (8 Nov 2026)
 
-1. `src/components/ProductSection.jsx`: avoid eager `createSearchIndex(products)` during ordinary browsing and special collection searches; keep explicit normal-query search behavior.
-2. `tests/performance-audit.mjs`: add matched-fixture lab samples for `/shop?search=training`, `/product/<fixture-id>`, `/cart` (empty), and `/login` (guest) in addition to home/shop.
-3. New scenario timings are deliberately **not** measurements of signed-in account, customer payment, checkout, real API latency, live CDN delivery or physical devices.
-4. Full CI comparison and browser acceptance must be checked before the PR may be merged. Revert or adjust if candidate timings regress or search behavior fails.
+Source: [expanded performance audit run 42460361285](https://github.com/favas5291-coder/gym-store/actions/runs/42460361285). The same fixture and script were tested on PR base and candidate, three cold-context samples per route at 390px mobile / 1440px desktop. The measured candidate was a temporary change to defer shop search indexing. **The candidate showed no reliable performance benefit and was reverted from PR #55.** Retain only the additional tests, read-only HTTP probe and documentation for review.
+
+| Mobile 390px LCP | Existing | Experimental candidate |
+| --- | ---: | ---: |
+| Homepage | 1744 ms | 1720 ms |
+| Shop | 2468 ms | 2480 ms |
+| Search (training) | 2364 ms | 2372 ms |
+| Product detail fixture | 2256 ms | 2268 ms |
+| Empty cart | 1832 ms | 1840 ms |
+| Guest login | 1796 ms | 1796 ms |
+
+Desktop homepage/shop LCP were unchanged at 180 ms / 460 ms respectively in this trial; cart/product differences were small and inconsistent. Candidate initial JavaScript was ~0.4% larger on every sampled page, so no broad speed claim is justified. This is **synthetic** evidence with mocked APIs.
+
+**Additional finding:** mobile empty-cart CLS measured 0.10125, slightly over the 0.1 target in both before/after builds. The shift source has not yet been validated on a physical device or production session. Investigate without redesigning the cart based only on a tiny threshold exceedance.
+
+## PR #55: retained auditable work
+
+1. `tests/performance-audit.mjs` includes matched-fixture lab samples for Home, Shop, `/shop?search=training`, a real product detail fixture, empty cart and signed-out login.
+2. `scripts/probe-public-http.mjs` and `.github/workflows/live-readonly-performance.yml` record safe, read-only production HTTP headers/timing from GitHub CI. No private URLs, credentials, charges or writes.
+3. This documentation records verifiable results and remaining release gates.
+4. No product-pricing, checkout, payment, supplier, customer-data, infrastructure, API caching or production-deployment change was approved or shipped in this audit. The search-index source experiment was reverted.
+5. **Review final PR CI** after the revert before considering test-only merge. Do not infer live Core Web Vitals from these results.
 
 ## Acceptance / remaining evidence
 
 | Requested area | Evidence available | Status |
 | --- | --- | --- |
 | Homepage and shop lab LCP/CLS | Earlier successful comparable PR audit | Tested in lab, live not verified |
-| Product/search/cart/login lab LCP | Expanded audit in PR #55 | Candidate CI pending |
+| Product/search/cart/login lab LCP | Expanded audited run 42460361285 | Measured in synthetic lab; real user unverified |
 | Real 4G/Indian geography | No authenticated public field/India measurements | Unverified |
 | Browser cold/warm cache | Lab cold context only | Warm cache and real CDN unverified |
 | LCP, INP and CLS p75 real users | No access to CrUX/Search Console real user dashboard | Unverified |
