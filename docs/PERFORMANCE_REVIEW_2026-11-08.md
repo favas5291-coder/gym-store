@@ -7,7 +7,7 @@
 - Frontend `main`: `51148f4d813291b52cd9c7dc083d086fdb445557` (merged speed PR #53, 7 Nov).
 - Backend `main`: `e07fb781cfa4686e8945f3c52fcd9227df3c0e11` (deployed to Render 7 Nov).
 - The candidate changes in [PR #55](https://github.com/favas5291-coder/gym-store/pull/55) are **draft only**. They are not proof of speed improvement or a production deployment.
-- Live site `https://www.gymdrobe.com/` and production API could not be reached through the available external testing tools. **No real Indian mobile-network or live physical-device measurements were obtained.**
+- Direct external browser tools could not reach the site, but the safe read-only [public HTTP probe](https://github.com/favas5291-coder/gym-store/actions/runs/42460252847) from a GitHub-hosted runner **did** reach the live public homepage, shop and backend successfully (8/8 HTTP 200 responses). **No real Indian mobile-network, browser rendering or physical-device measurements were obtained.**
 - Vercel reports a successful commit status for frontend `main`, but current production page bytes/commit SHA were not independently verified.
 
 ## Existing comparable lab evidence (7 Nov CI, PR #53)
@@ -24,6 +24,23 @@ Lab setup: Chromium, identical local assets and mocked instantaneous APIs, three
 | Shop / desktop 1440px | 468 ms | 496 ms | 6% higher LCP in this lab run |
 
 Earlier independent PR #53 run 42381729936 showed somewhat better desktop candidate samples, so the desktop effect is not reliably established. Mobile bytes moved only ~0.1–0.4%; the homepage's video response accounted for ~704 KB on mobile and ~1328 KB on desktop in the local lab. This is a byte-transfer target to investigate, **not** evidence the live hero must be removed.
+
+## Direct live public HTTP evidence (8 Nov 2026, read-only CI)
+
+Source: [public HTTP probe run 42460252847](https://github.com/favas5291-coder/gym-store/actions/runs/42460252847). Two samples per endpoint from a GitHub Actions Ubuntu runner. Each sample includes request setup, TLS/connection, response headers and response-body transfer. **Not India geography, not Lighthouse or mobile loading.**
+
+| Public endpoint | First total duration | Second total duration | HTTP |
+| --- | ---: | ---: | --- |
+| `https://www.gymdrobe.com/` | 337 ms | 28 ms | 200, Vercel cache HIT |
+| `https://www.gymdrobe.com/shop` | 28 ms | 19 ms | 200, Vercel cache HIT |
+| Backend `/api/health` | 133 ms | 86 ms | 200 |
+| Backend `/api/products` | 1280 ms | 810 ms | 200 |
+
+The `/api/products` `Server-Timing` header separates backend work:
+- First: `products;dur=939.0, reviews;dur=233.6, serialize;dur=0.3` (ms).
+- Second: `products;dur=473.9, reviews;dur=234.5, serialize;dur=0.2` (ms).
+
+The public catalogue contained **126,317 decoded response bytes** on both samples; Node fetch transparently decompresses `br`, so this number must **not** be described as compressed network bytes. Two samples are insufficient to establish production p95, normal load, database location or true user experience. The product query and reviews stages are priority profiling candidates; avoid assuming geography is the sole cause.
 
 ## Hosting and backend
 
@@ -49,9 +66,9 @@ Earlier independent PR #53 run 42381729936 showed somewhat better desktop candid
 | Browser cold/warm cache | Lab cold context only | Warm cache and real CDN unverified |
 | LCP, INP and CLS p75 real users | No access to CrUX/Search Console real user dashboard | Unverified |
 | Checkout payments and inventory | Out of scope for synthetic audit, safe flows only | Unverified |
-| Render P95 API and Atlas query plans | No suitable telemetry returned | Unverified |
+| Render P95 API and Atlas query plans | Two successful live catalogue requests and `Server-Timing` durations, but no platform P95 or Atlas `explain` | Needs query-plan and representative sampling |
 | Physical Android and iPhone | No physical device executed in this review | Unverified |
-| Frontend current production SHA | GitHub Vercel commit status success only | Live SHA unverified |
+| Frontend current production SHA | Public homepage and shop returned 200 with Vercel cache HIT, plus GitHub Vercel commit status success | Live deployed commit SHA unverified |
 | Admin/supplier authenticated pages | No safe test credentials in this audit | Unverified |
 
 ## Next safe steps
