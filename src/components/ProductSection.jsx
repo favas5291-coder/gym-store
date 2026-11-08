@@ -594,13 +594,23 @@ export default function ProductSection({ storefrontCollection }) {
     [catalogue, storefrontCollection],
   );
 
-  const searchIndex = useMemo(() => createSearchIndex(products), [products]);
+  const searchQuery = params.get("search") || "";
+  // Most shoppers browse categories or filters without searching. Avoid
+  // rebuilding a full text index on each catalogue refresh in those cases.
+  const needsSearchIndex = Boolean(searchQuery.trim()) &&
+    !["bestseller", "bestsellers", "new", "new arrivals", "trending", "featured", "top rated"]
+      .includes(normalizeCatalogText(searchQuery));
+  const searchIndex = useMemo(
+    () => needsSearchIndex ? createSearchIndex(products) : null,
+    [products, needsSearchIndex],
+  );
 
-  const searchData = useMemo(() => {
-    const term = params.get("search") || "";
-    if (!term || ["bestseller", "bestsellers", "new", "new arrivals", "trending", "featured", "top rated"].includes(normalizeCatalogText(term))) return null;
-    return searchCatalogue(searchIndex, term, { strict: params.get("literal") === "1" });
-  }, [searchIndex, params]);
+  const searchData = useMemo(
+    () => searchIndex
+      ? searchCatalogue(searchIndex, searchQuery, { strict: params.get("literal") === "1" })
+      : null,
+    [searchIndex, searchQuery, params],
+  );
 
   const result = useMemo(
     () => filterProducts(products, params, searchData),
@@ -631,9 +641,6 @@ export default function ProductSection({ storefrontCollection }) {
     page * PAGE_SIZE,
     result.length,
   );
-
-  const searchQuery =
-    params.get("search") || "";
 
   const department =
     params.get("department") || "";
