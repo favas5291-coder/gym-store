@@ -25,8 +25,19 @@ function built(value) {
 }
 const products = built(fixture.products.map(product => ({ ...product, colorImages: [] })));
 const samples = [];
+// Cover the routes shoppers actually open, not just the home and shop entry
+// points. All scenarios use the same isolated mock APIs and no customer data.
+const routes = [
+  { path: '/', label: 'home', ready: '.cinema-hero' },
+  { path: '/shop', label: 'shop', ready: '.gm-product-card' },
+  { path: '/shop?search=training', label: 'search', ready: '.gm-product-card' },
+  { path: `/product/${products[0].id}`, label: 'product', ready: '.product-detail-layout' },
+  { path: '/cart', label: 'cart-empty', ready: '.cart-page' },
+  { path: '/login', label: 'login-guest', ready: '.auth-page' },
+];
 try {
-  for (const width of [390, 1440]) for (const route of ['/', '/shop']) for (let run = 1; run <= 3; run++) {
+  for (const width of [390, 1440]) for (const scenario of routes) for (let run = 1; run <= 3; run++) {
+    const route = scenario.path;
     const context = await browser.newContext({ viewport: { width, height: 960 }, isMobile: width === 390, hasTouch: width === 390 });
     const mock = await mockStorefront(context, products);
     await context.addInitScript(() => {
@@ -46,7 +57,7 @@ try {
       await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
     }
     await page.goto('http://127.0.0.1:4221' + route, { waitUntil: 'domcontentloaded' });
-    await page.locator(route === '/' ? '.cinema-hero' : '.gm-product-card').first().waitFor();
+    await page.locator(scenario.ready).first().waitFor();
     await page.waitForTimeout(width === 390 ? 9000 : 3000);
     const metrics = await page.evaluate(() => {
       const resources = performance.getEntriesByType('resource').map(r => ({ url: new URL(r.name).pathname, kind: r.initiatorType, bytes: r.encodedBodySize, duration: r.duration }));
@@ -70,7 +81,7 @@ try {
         await page.locator('.gm-product-card').first().locator('.alternate-photo').waitFor();
       }
     }
-    if (run === 1) await page.screenshot({ path: path.join(output, `${width}-${route === '/' ? 'home' : 'shop'}.png`) });
+    if (run === 1) await page.screenshot({ path: path.join(output, `${width}-${scenario.label}.png`) });
     await context.close();
   }
   const html = await fs.readFile('dist/index.html', 'utf8');
@@ -82,8 +93,8 @@ try {
   await fs.writeFile(path.join(output, 'audit.json'), JSON.stringify({ conditions: {
     browser: await browser.version(), cache: 'Fresh context per sample; three samples per route/viewport',
     desktop: '1440×960, no network/CPU throttle', mobile: '390×960, touch, 4× CPU, 150ms RTT, 1.6Mbps down',
-    assets: 'Identical local photographs with alternate photos; instant mocked APIs',
-    limitations: 'Lab only, no CDN compression. No field INP, real API latency, physical-device or iOS-app claim.'
+    assets: 'Identical local photographs with alternate photos; instant mocked APIs; public product, search, empty cart and guest login only',
+    limitations: 'Lab only, no CDN compression. Cart is empty and login is signed-out; no checkout/payment/account journeys. No field INP, real API latency, physical-device or iOS-app claim.'
   }, entry, samples }, null, 2));
 } finally {
   await browser.close();
