@@ -1,0 +1,26 @@
+name: Read-only public HTTP performance probe
+on:
+  pull_request:
+    paths:
+      - 'scripts/probe-public-http.mjs'
+      - '.github/workflows/live-readonly-performance.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Sample public homepage, shop and catalogue (read-only)
+        run: node scripts/probe-public-http.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-http-timings
+          path: test-results/performance/public-http.json
+          retention-days: 14
