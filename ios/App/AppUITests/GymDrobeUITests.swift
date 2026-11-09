@@ -18,6 +18,38 @@ final class GymDrobeUITests: XCTestCase {
         app.links["Wishlist"].firstMatch.tap()
         XCTAssertTrue(app.webViews.staticTexts["Your wishlist is waiting"].firstMatch.waitForExistence(timeout: 15))
     }
+
+    func testCartAccountAndBack() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launch()
+        XCTAssertEqual(app.state, .runningForeground)
+
+        let cart = app.links["Cart, 0 items"].firstMatch
+        tapTab(cart)
+        let emptyBag = app.webViews.staticTexts["Your bag is empty"].firstMatch
+        XCTAssertTrue(emptyBag.waitForExistence(timeout: 20), app.debugDescription)
+
+        tapTab(app.links["Account"].firstMatch)
+        XCTAssertTrue(app.webViews.staticTexts["Your favourites. All together."].firstMatch.waitForExistence(timeout: 20), app.debugDescription)
+        XCTAssertTrue(cart.exists)
+        XCTAssertFalse(emptyBag.exists)
+
+        let leftEdge = app.coordinate(withNormalizedOffset: CGVector(dx: 0.005, dy: 0.48))
+        let right = app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.48))
+        leftEdge.press(forDuration: 0.05, thenDragTo: right)
+        XCTAssertTrue(emptyBag.waitForExistence(timeout: 20), app.debugDescription)
+        XCTAssertTrue(cart.exists)
+    }
+
+    private func tapTab(_ tab: XCUIElement) {
+        // WebKit's link frame can cover only the label. The centre of the
+        // visible tab icon sits just above it inside the same touch target.
+        XCTAssertTrue(tab.waitForExistence(timeout: 45), tab.debugDescription)
+        tab.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .withOffset(CGVector(dx: 0, dy: -20)).tap()
+    }
+
     private func capture(_ name: String, app: XCUIApplication) {
         // A WebKit accessibility tree can arrive before its first composited
         // frame. Wait for visible pixels too, with the same nonblank threshold.
