@@ -62,6 +62,7 @@ import {
 } from "../context/CatalogContext.jsx";
 
 import useProductReviews from "../hooks/useProductReviews.js";
+import { getProductById } from "../services/productApi.js";
 
 import {
   buyingInformation,
@@ -869,6 +870,7 @@ function ProductDetail({
 
 export default function ProductPage() {
   const { id } = useParams();
+  const [earlyDetail, setEarlyDetail] = useState(null);
 
   const {
     shoppingKey,
@@ -882,6 +884,25 @@ export default function ProductPage() {
     refreshProducts,
   } = useCatalog();
 
+  useEffect(() => {
+    if (!id || loaded) return;
+
+    const controller = new AbortController();
+    getProductById(id, { signal: controller.signal }).then((product) => {
+      if (!controller.signal.aborted && product.isActive !== false) {
+        setEarlyDetail({ route: id, product });
+      }
+    }).catch(() => {
+      // The catalogue request still supplies the normal fallback and retry.
+    });
+    return () => controller.abort();
+  }, [id, loaded]);
+
+  // Render live item details early. ProductOptions still checks catalogue
+  // readiness before it enables either purchase action.
+  const earlyProduct = !loaded && earlyDetail?.route === id
+    ? earlyDetail.product
+    : null;
   const catalog = Array.isArray(products)
     ? products
     : [];
@@ -900,14 +921,10 @@ export default function ProductPage() {
           value != null &&
           String(value) === String(id),
       ),
-  );
+  ) || earlyProduct;
 
   if (
-    loading ||
-    (
-      loaded === false &&
-      !error
-    )
+    !earlyProduct && (loading || (loaded === false && !error))
   ) {
     return (
       <div role="status">
@@ -919,7 +936,7 @@ export default function ProductPage() {
     );
   }
 
-  if (error) {
+  if (error && !earlyProduct) {
     return (
       <EmptyState title="Unable to load product">
         <p role="alert">
