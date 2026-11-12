@@ -262,7 +262,7 @@ export default function ProductCard({
           {item.colors.slice(0, 4).map(color => <button type="button" key={color} aria-label={`Preview ${color} ${item.name}`} aria-pressed={(cardColor || item.selectedColor || firstOptions(item).selectedColor) === color} title={color} onClick={() => setCardColor(color)}>
             <span aria-hidden="true" style={{ backgroundColor: typeof CSS !== "undefined" && CSS.supports("color", color) ? color : "#b2b2a5" }} />
           </button>)}
-          {item.colors.length > 4 && <Link to={path} aria-label={`View all ${item.colors.length} colours`}>+{item.colors.length - 4}</Link>}
+          {item.colors.length > 4 && <Link to={path} aria-label={`+${item.colors.length - 4} more colours`}>+{item.colors.length - 4}</Link>}
         </div>}
 
         <div className="gm-product-card-cta">

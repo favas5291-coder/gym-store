@@ -32,6 +32,57 @@ async function capture(p,name){
 }
 async function choose(p){await p.getByRole('button',{name:'Colour Black',exact:true}).first().click();await p.getByRole('button',{name:'Size M',exact:true}).first().click();}
 try{
+ const deepLink=await context(390,{browser:{isMobile:true,hasTouch:true}});
+ await check('Product deep link renders before the catalogue without enabling purchase',async()=>{
+  let releaseCatalogue;
+  let releaseDetail;
+  const catalogueGate=new Promise(resolve=>{releaseCatalogue=resolve;});
+  const detailGate=new Promise(resolve=>{releaseDetail=resolve;});
+  await deepLink.c.route('**/api/products',async route=>{
+   await catalogueGate;
+   await route.fallback();
+  });
+  await deepLink.c.route('**/api/products/'+fixtureProductId,async route=>{
+   await detailGate;
+   await route.fallback();
+  });
+  try{
+   await deepLink.p.goto(f.url+'/product/'+fixtureProductId,{waitUntil:'domcontentloaded'});
+   await deepLink.p.getByRole('heading',{name:'Loading product…',exact:true}).waitFor();
+   assert.ok(await deepLink.p.locator('footer').evaluate(footer=>footer.getBoundingClientRect().top>=window.innerHeight));
+   releaseDetail();
+   await deepLink.p.getByRole('heading',{name:'Gym Training T-Shirt',exact:true}).waitFor();
+   const buy=deepLink.p.getByRole('button',{name:'Buy Now',exact:true}).first();
+   assert.ok(await buy.isDisabled());
+   releaseCatalogue();
+   await deepLink.p.waitForFunction(()=>[...document.querySelectorAll('button')].some(button=>button.textContent.trim()==='Buy Now'&&!button.disabled));
+   const detailRequests=deepLink.mock.requests.filter(request=>request.path==='/api/products/'+fixtureProductId);
+   // The development StrictMode remount can start a second request after cancellation.
+   assert.ok(detailRequests.length>=1&&detailRequests.length<=2);
+   assert.equal(deepLink.mock.requests.filter(request=>request.path==='/api/products').length,1);
+  }finally{releaseDetail();releaseCatalogue();}
+ });await deepLink.c.close();
+
+ const help=await context(390);
+ await check('Help offers email and hides the WhatsApp link when no number is configured',async()=>{
+  await visit(help.p,'/help');
+  await help.p.getByRole('heading',{name:'Email support',exact:true}).waitFor();
+  assert.equal(await help.p.getByRole('link',{name:'Email support@gymdrobe.com',exact:true}).getAttribute('href'),'mailto:support@gymdrobe.com');
+  assert.equal(await help.p.locator('a[href^="https://wa.me/"]').count(),0);
+ });await help.c.close();
+
+ const colourOverflow=await context(390,{catalogProducts:[
+  {...f.products[0],colors:['Black','White','Red','Blue','Green','Silver']},
+  ...f.products.slice(1),
+ ]});
+ await check('Extra product colours include the visible count in the link name',async()=>{
+  await visit(colourOverflow.p,'/shop');
+  const more=colourOverflow.p.getByRole('link',{name:'+2 more colours',exact:true}).first();
+  await more.waitFor();
+  assert.equal(await more.textContent(),'+2');
+  assert.equal(await more.getAttribute('href'),'/product/'+fixtureProductId);
+ });await colourOverflow.c.close();
+
  // Search must remain compact and attached to the input across iPhone, tablet and desktop.
  for (const width of [320,375,390,430,768,1024,1440]) {
   const searchUI=await context(width,{browser:{isMobile:width<=430,hasTouch:width<=430}});
