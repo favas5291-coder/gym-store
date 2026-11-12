@@ -35,13 +35,22 @@ try{
  const deepLink=await context(390,{browser:{isMobile:true,hasTouch:true}});
  await check('Product deep link renders before the catalogue without enabling purchase',async()=>{
   let releaseCatalogue;
+  let releaseDetail;
   const catalogueGate=new Promise(resolve=>{releaseCatalogue=resolve;});
+  const detailGate=new Promise(resolve=>{releaseDetail=resolve;});
   await deepLink.c.route('**/api/products',async route=>{
    await catalogueGate;
    await route.fallback();
   });
+  await deepLink.c.route('**/api/products/'+fixtureProductId,async route=>{
+   await detailGate;
+   await route.fallback();
+  });
   try{
    await deepLink.p.goto(f.url+'/product/'+fixtureProductId,{waitUntil:'domcontentloaded'});
+   await deepLink.p.getByRole('heading',{name:'Loading product…',exact:true}).waitFor();
+   assert.ok(await deepLink.p.locator('footer').evaluate(footer=>footer.getBoundingClientRect().top>=window.innerHeight));
+   releaseDetail();
    await deepLink.p.getByRole('heading',{name:'Gym Training T-Shirt',exact:true}).waitFor();
    const buy=deepLink.p.getByRole('button',{name:'Buy Now',exact:true}).first();
    assert.ok(await buy.isDisabled());
@@ -51,7 +60,7 @@ try{
    // The development StrictMode remount can start a second request after cancellation.
    assert.ok(detailRequests.length>=1&&detailRequests.length<=2);
    assert.equal(deepLink.mock.requests.filter(request=>request.path==='/api/products').length,1);
-  }finally{releaseCatalogue();}
+  }finally{releaseDetail();releaseCatalogue();}
  });await deepLink.c.close();
 
  const help=await context(390);

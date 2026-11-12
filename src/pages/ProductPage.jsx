@@ -927,7 +927,7 @@ export default function ProductPage() {
     !earlyProduct && (loading || (loaded === false && !error))
   ) {
     return (
-      <div role="status">
+      <div role="status" style={{ minBlockSize: "100vh" }}>
         <EmptyState title="Loading product…">
           Getting the latest product information
           from GymDrobe.
