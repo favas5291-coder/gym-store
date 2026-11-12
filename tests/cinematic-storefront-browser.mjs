@@ -62,6 +62,18 @@ try{
   assert.equal(await help.p.locator('a[href^="https://wa.me/"]').count(),0);
  });await help.c.close();
 
+ const colourOverflow=await context(390,{catalogProducts:[
+  {...f.products[0],colors:['Black','White','Red','Blue','Green','Silver']},
+  ...f.products.slice(1),
+ ]});
+ await check('Extra product colours include the visible count in the link name',async()=>{
+  await visit(colourOverflow.p,'/shop');
+  const more=colourOverflow.p.getByRole('link',{name:'+2 more colours',exact:true}).first();
+  await more.waitFor();
+  assert.equal(await more.textContent(),'+2');
+  assert.equal(await more.getAttribute('href'),'/product/'+fixtureProductId);
+ });await colourOverflow.c.close();
+
  // Search must remain compact and attached to the input across iPhone, tablet and desktop.
  for (const width of [320,375,390,430,768,1024,1440]) {
   const searchUI=await context(width,{browser:{isMobile:width<=430,hasTouch:width<=430}});
