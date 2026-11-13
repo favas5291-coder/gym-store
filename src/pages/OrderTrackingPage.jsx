@@ -1,3 +1,4 @@
+import { CustomerOrderUpdates } from "../components/CustomerOrderUpdates.jsx";
 import {SupplierShipmentDetails} from "../components/OrderPaymentDetails.jsx";
 import {
   Link,
@@ -150,6 +151,7 @@ export default function OrderTrackingPage() {
   return (
     <div className="page narrow tracking-page">
       <SupplierShipmentDetails order={order}/>
+      <CustomerOrderUpdates key={order.orderNumber || order.id} order={order} />
       <Link
         className="text-link"
         to={detailsPath}

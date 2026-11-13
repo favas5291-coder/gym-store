@@ -486,6 +486,7 @@ async function application({
 
     {
       module,
+      whatsAppOrderOptInEnabled: false,
       h,
       Fragment: "fragment",
 

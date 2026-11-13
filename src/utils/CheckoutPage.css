@@ -251,3 +251,10 @@
     height: 82px;
   }
 }
+.gd-supplier-shipment {
+  padding-block: 12px;
+  overflow-wrap: anywhere;
+}
+.gd-supplier-shipment + .gd-supplier-shipment {
+  border-top: 1px solid #e4e4de;
+}
