@@ -22,6 +22,8 @@ export function formatOrderStatus(value) {
     delivered: "Delivered",
     cancelled: "Cancelled",
     pending: "Pending",
+    accepted: "Accepted",
+    preparing: "Preparing",
     paid: "Paid",
     "partially-paid": "Advance paid",
     failed: "Failed",
@@ -336,7 +338,7 @@ export function SupplierShipmentDetails({ order = {} }) {
             )}
             {shipment.deliveredAt
               ? <p>Recorded delivery: {formatOrderDate(shipment.deliveredAt)}</p>
-              : shipment.estimatedDeliveryAt && <p>Estimated delivery: {formatOrderDate(shipment.estimatedDeliveryAt)}</p>}
+              : shipment.estimatedDeliveryAt && <p>Estimated delivery: {new Date(shipment.estimatedDeliveryAt).toLocaleDateString("en-IN", { dateStyle: "medium", timeZone: "UTC" })}</p>}
           </article>
         );
       })}
