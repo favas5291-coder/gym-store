@@ -11,6 +11,26 @@ try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const products = fixture.products.map((p, index) => index === 0 ? { ...p, publicFulfilmentName: "Fixture Athletics" } : p);
   const { order } = await mockStorefront(context, products, { signedIn: true });
+  await context.route("**/api/payments/checkout/quote", async route => {
+    const payload = route.request().postDataJSON();
+    const subtotal = 550 * payload.items.reduce((sum, row) => sum + row.quantity, 0);
+    const shipping = 79;
+    const finalTotal = subtotal + shipping;
+    const advance = payload.paymentMethod === "cod-partial" ? subtotal / 10 : finalTotal;
+    return route.fulfill({ json: { success: true, quote: {
+      previewOnly: true, purchaseEnabled: false, inventoryReserved: false, shippingIsEstimate: true,
+      method: payload.deliveryMethod, items: payload.items.map(row => ({
+        product: row.id, selectedSize: row.selectedSize, selectedColor: row.selectedColor,
+        quantity: row.quantity, name: "Training shirt", price: 550, publicFulfilmentName: "Fixture Athletics",
+        priceAllocation: { quantity: row.quantity, lineSubtotalPaise: 55000 * row.quantity,
+          kitDiscountPaise: 0, couponDiscountPaise: 0, linePaidPaise: 55000 * row.quantity,
+          unitBasePaise: 55000, extraPaiseUnits: 0 },
+      })), kitSnapshots: [],
+      pricing: { currency: "INR", subtotal, kitDiscount: 0, couponDiscount: 0, totalAfterCoupon: subtotal, shipping, finalTotal },
+      payment: { method: payload.paymentMethod, amountToPayNow: advance, amountDue: finalTotal - advance, advancePercentage: payload.paymentMethod === "cod-partial" ? 10 : 0 },
+      deliveryReview: { ready: true, items: [] },
+    } } });
+  });
   const orderUpdates = [
     { id: "package-shipped", at: "2026-11-12T09:00:00Z", message: "Fixture Athletics has shipped your training shirt via Fixture Courier.", unread: true, orderNumber: order.orderNumber },
     { id: "confirmed", at: "2026-11-11T09:00:00Z", message: "Your GymDrobe order is confirmed. See your order details for confirmed package assignments.", unread: false, orderNumber: order.orderNumber },
@@ -35,6 +55,12 @@ try {
   await page.goto(`${fixture.url}/product/${fixtureProductId}`);
   await page.getByText("Ships from Fixture Athletics").waitFor();
   await page.locator("#delivery-returns").screenshot({ path: output + "/product-supplier.png" });
+  await page.getByRole("button", { name: "Colour Black", exact: true }).first().click();
+  await page.getByRole("button", { name: "Size M", exact: true }).first().click();
+  await page.getByRole("button", { name: "Buy Now", exact: true }).click();
+  await page.waitForURL("**/checkout?mode=buy-now");
+  await page.getByLabel("Pincode", { exact: true }).fill("673001");
+  await page.getByText("Ships from Fixture Athletics").waitFor();
   await page.goto(`${fixture.url}/orders/${fixtureOrderId}/track`);
   const shipment = page.getByRole("region", { name: "Shipment details" });
   await shipment.getByText("Shipped by Fixture Athletics").waitFor();
