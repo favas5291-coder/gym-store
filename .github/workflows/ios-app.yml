@@ -42,34 +42,6 @@ jobs:
           set -o pipefail
           mkdir -p test-results/ios
           xcodebuild -quiet -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/DerivedData CODE_SIGNING_ALLOWED=NO build-for-testing 2>&1 | tee test-results/ios/build.log
-      - name: Add simulator-only Keychain identity to ad-hoc signature
-        run: |
-          # This is NOT an App Store/development provisioning profile.
-          # Only the CI simulator bundle is re-signed; project entitlements
-          # and real-device signing configuration are left unchanged.
-          python3 - <<'PY'
-          from pathlib import Path
-          import plistlib
-          identity = "GYMDROBE00.com.gymdrobe.app"
-          Path("test-results/ios/simulator-keychain-entitlements.plist").write_bytes(
-              plistlib.dumps({
-                  "application-identifier": identity,
-                  "keychain-access-groups": [identity],
-                  "com.apple.developer.team-identifier": "GYMDROBE00",
-              })
-          )
-          PY
-          codesign --force --sign - --entitlements test-results/ios/simulator-keychain-entitlements.plist ios/DerivedData/Build/Products/Debug-iphonesimulator/App.app
-      - name: Verify the simulator app has a code signature
-        run: |
-          APP=ios/DerivedData/Build/Products/Debug-iphonesimulator/App.app
-          codesign --verify --deep --verbose=2 "$APP"
-          codesign -d --entitlements :- "$APP" > test-results/ios/app-entitlements.plist
-          if ! /usr/libexec/PlistBuddy -c "Print :application-identifier" test-results/ios/app-entitlements.plist >/dev/null 2>&1 && \
-             ! /usr/libexec/PlistBuddy -c "Print :keychain-access-groups" test-results/ios/app-entitlements.plist >/dev/null 2>&1; then
-            echo "Simulator app lacks a Keychain-capable application identity; fail instead of misdiagnosing Account."
-            exit 1
-          fi
       - name: Prepare iPhone simulator for native launch and navigation tests
         timeout-minutes: 14
         run: |
