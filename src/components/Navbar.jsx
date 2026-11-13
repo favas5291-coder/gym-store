@@ -1023,7 +1023,11 @@ export default function Navbar({
       className={`gd-nav${
         raised ? " gn-raised" : ""
       }`}
-      onPointerLeave={(event) => {
+      onPointerLeave={(event) =>
+      <nav className="shopping-help-bar" aria-label="Shopping information">
+        <a href="/shipping-and-returns.html">Delivery &amp; returns</a>
+        <Link to="/help">Customer support</Link>
+      </nav> {
         if (event.pointerType === "mouse") {
           setActiveMenu(null);
         }

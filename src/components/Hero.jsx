@@ -6,7 +6,7 @@ export default function Hero() {
     <section className="cinema-hero" aria-labelledby="cinema-title">
       <div className="cinema-content">
         <h1 id="cinema-title">Everything You Need for Every Workout</h1>
-        <p className="cinema-tagline">India’s fitness marketplace for workout clothing, accessories and training essentials.</p>
+        <p className="cinema-tagline">Training apparel that moves with you. Everyday gear for the work you put in.</p>
         <div className="cinema-actions">
           <PremiumButton to="/shop" className="cinema-shop">Shop Workout Gear</PremiumButton>
         </div>
