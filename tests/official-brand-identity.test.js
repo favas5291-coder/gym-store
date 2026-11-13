@@ -13,20 +13,20 @@ test("approved external GymDrobe brand vectors remain available", () => {
   }
 });
 
-test("previous internal wordmarks are restored; external icon is separate", () => {
+test("approved wordmarks are used on light and dark surfaces", () => {
   const navbar = read("src/components/Navbar.jsx");
   const footer = read("src/components/Footer.jsx");
   const style = read("src/components/GymDrobeStorefront.css");
   const offline = read("public/offline.html");
   const install = read("src/pages/InstallAppPage.jsx");
   const html = read("index.html");
-  assert.match(navbar, /className="gn-wordmark">GYMDROBE/);
-  assert.match(footer, /aria-label="GymDrobe home">GYMDROBE<\/Link>/);
+  assert.match(navbar, /gymdrobe-wordmark-green\.png/);
+  assert.match(footer, /gymdrobe-wordmark-cream\.png/);
   assert.doesNotMatch(navbar + footer, /gymdrobe-lockup\.svg|gn-branded-lockup|footer-branded-lockup/);
   assert.doesNotMatch(style, /\.gn-branded-lockup|\.footer-branded-lockup/);
   assert.doesNotMatch(offline, /gymdrobe-app-icon\.svg/);
-  assert.match(install, /gymdrobe-app-icon\.svg/);
-  assert.ok(html.includes('href="/android-chrome-192x192.png?v=3"'));
+  assert.match(install, /gymdrobe-app-icon-1024\.png/);
+  assert.ok(html.includes('href="/android-chrome-192x192.png?v=4"'));
   assert.ok(html.includes('https://www.gymdrobe.com/brand/external/gymdrobe-app-icon-1024.png'));
   assert.ok(!html.includes('type="image/svg+xml"'), "Search favicon must use supported PNG/ICO formats");
 });

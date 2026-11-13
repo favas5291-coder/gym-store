@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { heroMedia } from "../data/campaignMedia.js";
-import { PremiumButton, TextLink } from "./PremiumControls.jsx";
+import { PremiumButton } from "./PremiumControls.jsx";
 // The optional debug panel should never join the normal homepage bundle.
 const HeroVideoDiagnostics = lazy(() => import("./HeroVideoDiagnostics.jsx"));
 
@@ -181,14 +181,11 @@ export default function Hero() {
   return (
     <section className="cinema-hero" aria-labelledby="cinema-title">
       <div className="cinema-content">
-        <p className="cinema-kicker">THE GYMDROBE COLLECTION</p>
-        <h1 id="cinema-title">Built for your<br /><span>every move.</span></h1>
-        <p className="cinema-tagline">Everything You Need for Every Workout.</p>
+        <h1 id="cinema-title">Everything You Need for Every Workout</h1>
+        <p className="cinema-tagline">India’s fitness marketplace for workout clothing, accessories and training essentials.</p>
         <div className="cinema-actions">
-          <PremiumButton to="/shop" className="cinema-shop">Shop Now</PremiumButton>
-          <TextLink href="#categories" className="cinema-explore">Explore Collections</TextLink>
+          <PremiumButton to="/shop" className="cinema-shop">Shop Workout Gear</PremiumButton>
         </div>
-        <p className="cinema-note">Clothing. Footwear. Equipment. Your routine.</p>
       </div>
       <div className="cinema-stage">
         <picture className="cinema-poster">

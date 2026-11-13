@@ -1,12 +1,10 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { TextLink } from "./PremiumControls.jsx";
 
 import categories from "../data/categories.js";
 
 import { useCatalog } from "../context/CatalogContext.jsx";
 
-import CategoryCard from "./CategoryCard.jsx";
 import { productDepartment } from "../utils/catalog.js";
 import { categoryPath } from "./StorefrontShared.jsx";
 
@@ -142,37 +140,28 @@ export function categoryCards(products = []) {
   });
 }
 
+const featuredCategories = [
+  { name: "Workout Clothing", department: "workout", to: "/shop?department=workout" },
+  { name: "Accessories", department: "accessories", to: "/shop?department=accessories" },
+  { name: "Starter Essentials", department: "hydration", to: "/kits" },
+];
+
 export default function CategorySection() {
   const { products, loading, error } = useCatalog();
-  const { cards, picks } = useMemo(() => {
-    const cards = categoryCards(products);
-    const stockByCategory = new Map();
-    for (const product of products) {
-      if (typeof product?.category !== "string") continue;
-      const name = product.category;
-      stockByCategory.set(name, (stockByCategory.get(name) || 0) + (Number(product.stock) || 0));
-    }
+  const cards = useMemo(() => categoryCards(products), [products]);
 
-    const ordered = [...cards].sort(
-      (a, b) => (stockByCategory.get(b.name) || 0) - (stockByCategory.get(a.name) || 0),
-    );
-    const picks = [];
-    for (const department of ["workout", "workout", "shoes", "accessories", "hydration", "supplements"]) {
-      const next = ordered.find(
-        (card) => !picks.includes(card) && productDepartment({ category: card.name }) === department,
-      );
-      if (next) picks.push(next);
-    }
-    for (const card of ordered) {
-      if (picks.length >= 6) break;
-      if (!picks.includes(card)) picks.push(card);
-    }
-    return { cards, picks };
-  }, [products]);
-  if (!cards.length && !loading && !error) return null;
-  return <section className="gm-section gm-categories" id="categories" aria-labelledby="gm-category-title">
-    <div className="gm-section-head"><h2 id="gm-category-title">Shop by category</h2><TextLink to="/shop">Shop all</TextLink></div>
-    {!cards.length ? <p className="muted" role="status">{error ? "Categories are temporarily unavailable." : "Loading collections…"}</p> : <div className="gm-category-grid">{picks.map(category => <CategoryCard key={category.name} {...category} offer="" autoRotate={false} minimal />)}</div>}
-    {cards.length > picks.length && <details className="category-directory"><summary>Explore all {cards.length} categories</summary><nav aria-label="All product categories">{cards.map(c => <Link to={categoryPath(c.name)} key={c.name}>{c.name}</Link>)}</nav></details>}
+  return <section className="gm-section gm-categories" id="categories" aria-label="Shop by category">
+    <div className="theme-category-grid">
+      {featuredCategories.map(({ name, department, to }) => {
+        const photo = cards.find(card => card.icon && productDepartment({ category: card.name }) === department)?.icon;
+        return <Link key={name} to={to} className="theme-category">
+          <span>{name} <span aria-hidden="true">›</span></span>
+          {photo && <img src={photo} alt="" loading="lazy" width="160" height="120" />}
+        </Link>;
+      })}
+    </div>
+    {loading && <p className="muted" role="status">Loading collections…</p>}
+    {error && <p className="muted" role="status">Some collections are temporarily unavailable.</p>}
+    {cards.length > 0 && <details className="category-directory"><summary>Explore all {cards.length} categories</summary><nav aria-label="All product categories">{cards.map(card => <Link to={categoryPath(card.name)} key={card.name}>{card.name}</Link>)}</nav></details>}
   </section>;
 }

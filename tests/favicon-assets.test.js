@@ -113,12 +113,12 @@ test("browser favicons and PWA use only approved external icons",()=>{
   const manifest=JSON.parse(read("public/site.webmanifest").toString());
   assert.doesNotMatch(index,/href="\/favicon\.jpeg"/);
   for(const name of ["favicon-16x16.png","favicon-32x32.png","favicon-48x48.png","favicon.ico","apple-touch-icon.png","site.webmanifest"]){
-    assert.ok(index.includes("/"+name+"?v=3"),name);
+    assert.ok(index.includes("/"+name+"?v=4"),name);
   }
   const launcher = manifest.icons.filter(i=>i.purpose==="any");
   assert.deepEqual(launcher.map(i=>i.sizes),["192x192","512x512"]);
-  assert.ok(launcher.every(i=>i.src.endsWith("?v=3")));
+  assert.ok(launcher.every(i=>i.src.endsWith("?v=4")));
   assert.equal(manifest.icons.filter(i=>i.purpose==="maskable").length,1);
-  assert.match(manifest.icons.find(i=>i.purpose==="maskable").src,/^\/brand\/external\/gymdrobe-maskable-512\.png\?v=3$/);
+  assert.match(manifest.icons.find(i=>i.purpose==="maskable").src,/^\/brand\/external\/gymdrobe-maskable-512\.png\?v=4$/);
   assert.ok(manifest.icons.every(i=>existsSync(new URL("public/"+i.src.slice(1).split("?")[0],root))));
 });

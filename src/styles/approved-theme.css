@@ -1,0 +1,171 @@
+@import url("https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;700&family=Inter:wght@400;500;600;700&display=swap");
+
+#app .premium-storefront {
+  --brand-green: #0f3d3a;
+  --brand-cream: #f5dabf;
+  --brand-orange: #ef5f18;
+  --paper: #faf9f6;
+  --ink: #181a18;
+  --accent: var(--brand-green);
+  --gd-accent: var(--brand-green);
+  --line: #dedbd4;
+  --headline: "Barlow Semi Condensed", "Arial Narrow", sans-serif;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+#app .premium-storefront :is(h1, h2, h3, .theme-category) {
+  font-family: var(--headline);
+}
+
+#app .premium-storefront :is(h1, .gm-section-head h2, .cinema-content h1) {
+  color: var(--brand-green);
+  font-weight: 700;
+  letter-spacing: -.02em;
+}
+
+#app .premium-storefront .gd-nav,
+#app .premium-storefront .gd-nav.gn-raised,
+#app .premium-storefront .shopping-bottom-nav {
+  background: var(--paper);
+  border-color: var(--line);
+}
+
+#app .premium-storefront .gd-nav .gn-wordmark {
+  width: clamp(112px, 12vw, 154px);
+  height: auto;
+}
+
+#app .premium-storefront .gd-nav .gn-form {
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: white;
+}
+
+#app .premium-storefront .shopping-bottom-nav > a.active {
+  color: var(--brand-green);
+}
+
+#app .premium-storefront .shopping-bottom-nav > a.active .shopping-tab-icon {
+  background: var(--brand-cream);
+}
+
+#app .premium-storefront .shopping-cart-badge {
+  background: var(--brand-green);
+  border-color: var(--paper);
+}
+
+#app .premium-storefront :is(.button:not(.secondary, .buy-now), .premium-button--primary, .cinema-shop.premium-button) {
+  background: var(--brand-orange);
+  border-color: var(--brand-orange);
+  color: var(--ink) !important;
+  border-radius: 8px;
+}
+
+#app .premium-storefront :is(.button:not(.secondary, .buy-now), .premium-button--primary, .cinema-shop.premium-button):hover:not(:disabled) {
+  background: #ff7836;
+  border-color: #ff7836;
+}
+
+#app .premium-storefront :focus-visible {
+  outline-color: var(--brand-green) !important;
+}
+
+#app .premium-storefront .premium-footer {
+  background: var(--brand-green);
+  color: var(--paper);
+}
+
+#app .premium-storefront .premium-footer :is(a, h2, summary, button, .footer-about p) {
+  color: var(--brand-cream);
+}
+
+#app .premium-storefront .premium-footer :focus-visible {
+  outline-color: var(--brand-cream) !important;
+}
+
+.footer-wordmark {
+  width: clamp(136px, 19vw, 224px);
+}
+
+#app .premium-storefront .cinema-hero {
+  background: var(--brand-cream);
+  min-height: clamp(340px, 34vw, 480px);
+}
+
+#app .premium-storefront .cinema-tagline {
+  color: var(--ink);
+  max-width: 32ch;
+}
+
+#app .premium-storefront .gm-categories {
+  padding-block: 20px;
+}
+
+.theme-category-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.theme-category {
+  display: grid;
+  grid-template-columns: 1fr 42%;
+  align-items: center;
+  min-height: 90px;
+  overflow: hidden;
+  background: var(--brand-cream);
+  color: var(--brand-green);
+  border-radius: 8px;
+  font-size: clamp(16px, 2vw, 25px);
+  font-weight: 700;
+}
+
+.theme-category > span {
+  padding: 12px;
+  overflow-wrap: anywhere;
+}
+
+.theme-category img {
+  width: 100%;
+  height: 100%;
+  max-height: 120px;
+  object-fit: cover;
+}
+
+@media (max-width: 700px) {
+  #app .premium-storefront .cinema-hero {
+    display: grid;
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+  }
+
+  #app .premium-storefront .cinema-hero::after {
+    content: none;
+  }
+
+  #app .premium-storefront .cinema-content {
+    height: auto;
+    padding: 22px 16px;
+  }
+
+  #app .premium-storefront .cinema-content h1 {
+    font-size: clamp(32px, 8vw, 46px);
+    text-wrap: initial;
+  }
+
+  #app .premium-storefront .cinema-stage {
+    position: relative;
+    height: clamp(165px, 50vw, 255px);
+    min-height: 0;
+  }
+
+  .theme-category {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(48px, auto) 65px;
+  }
+
+  .theme-category > span {
+    padding: 8px;
+  }
+}
