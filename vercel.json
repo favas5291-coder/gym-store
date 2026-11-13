@@ -10,14 +10,14 @@
     {
       "src": "^/favicon\\.jpeg$",
       "headers": {
-        "Location": "/favicon.ico?v=3"
+        "Location": "/favicon.ico?v=4"
       },
       "status": 308
     },
     {
       "src": "^/favicon-64-v1\\.png$",
       "headers": {
-        "Location": "/favicon-48x48.png?v=3"
+        "Location": "/favicon-48x48.png?v=4"
       },
       "status": 308
     },

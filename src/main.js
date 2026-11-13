@@ -39,3 +39,4 @@ createRoot(root).render(
 );
 
 import "./native/shopping-navigation.css";
+import "./styles/approved-theme.css";

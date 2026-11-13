@@ -41,7 +41,7 @@ export default function InstallAppPage() {
       <Link className="install-app-shop" to="/shop">Explore the collection <ArrowUpRight size={16} aria-hidden="true" /></Link>
     </div>
     <aside className="install-app-card" aria-label="Installation instructions">
-      <div className="install-app-icon"><img src="/brand/gymdrobe-app-icon.svg?v=3" width="88" height="88" alt="GymDrobe app icon" /><Smartphone size={22} aria-hidden="true" /></div>
+      <div className="install-app-icon"><img src="/brand/external/gymdrobe-app-icon-1024.png?v=4" width="88" height="88" alt="GymDrobe app icon" /><Smartphone size={22} aria-hidden="true" /></div>
       <h2>Add to your home screen</h2>
       <details open={ios}>
         <summary>iPhone & iPad</summary>

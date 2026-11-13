@@ -76,7 +76,7 @@ try {
   await page.reload({ waitUntil: "domcontentloaded" });
   await assertAdvancing("after hard reload");
 
-  await page.getByRole("link", { name: /Shop Now/ }).click();
+  await page.getByRole("link", { name: /Shop Workout Gear/ }).click();
   await page.waitForURL("**/shop");
   await page.goBack();
   await assertAdvancing("after navigating home");
@@ -100,7 +100,7 @@ try {
   await reducedPage.waitForTimeout(2200);
   assert.equal(await reducedPage.locator(".cinema-film").count(), 0, "Reduced motion must not mount the video");
   assert.deepEqual(mediaRequests, [], "Reduced motion must not download campaign video");
-  assert.equal(await reducedPage.getByRole("link", { name: /Shop Now/ }).count(), 1);
+  assert.equal(await reducedPage.getByRole("link", { name: /Shop Workout Gear/ }).count(), 1);
   await reduced.close();
 
   console.log("PASS WebKit mobile-sized and reduced-motion tests; real iPhone low-power testing remains manual");

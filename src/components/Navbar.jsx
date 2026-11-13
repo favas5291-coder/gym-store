@@ -252,8 +252,7 @@ function Icon({ name, size = 22 }) {
 }
 
 function Brand() {
-  // Restore the established in-store wordmark; the premium square icon is external-only.
-  return <span className="gn-wordmark">GYMDROBE</span>;
+  return <img className="gn-wordmark" src="/brand/gymdrobe-wordmark-green.png" alt="GymDrobe" />;
 }
 
 function Thumbnail({ src }) {

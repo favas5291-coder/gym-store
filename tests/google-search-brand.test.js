@@ -18,12 +18,12 @@ test("Google Search favicon declarations use crawlable PNG/ICO candidates, not S
   assert.ok(icons.every((tag) => !tag.includes('type="image/svg+xml"')),
     "Google Search favicon does not list SVG as a supported format");
   assert.ok(icons.some((tag) =>
-    tag.includes('sizes="192x192"') && tag.includes('href="/android-chrome-192x192.png?v=3"')),
+    tag.includes('sizes="192x192"') && tag.includes('href="/android-chrome-192x192.png?v=4"')),
     "Keep one high-resolution square PNG candidate");
-  assert.ok(icons.some((tag) => tag.includes('href="/favicon.ico?v=3"')));
+  assert.ok(icons.some((tag) => tag.includes('href="/favicon.ico?v=4"')));
   assert.deepEqual(pngDimensions("public/android-chrome-192x192.png"), [192, 192]);
   assert.deepEqual(pngDimensions("public/favicon-48x48.png"), [48, 48]);
-  assert.ok(html.includes('href="/site.webmanifest?v=3"'));
+  assert.ok(html.includes('href="/site.webmanifest?v=4"'));
 });
 
 test("homepage exposes the actual high-resolution external logo in OnlineStore JSON-LD", () => {
@@ -60,11 +60,11 @@ test("brand image applies to homepage while product social shares retain product
   assert.match(seo, /const shareImage\s*=\s*images\[0\]\s*\|\|\s*new URL\(DEFAULT_SHARE_IMAGE, origin\)\.href/);
 });
 
-test("fix does not change established internal UI branding", () => {
+test("storefront uses approved wordmarks", () => {
   const navbar = read("src/components/Navbar.jsx").toString("utf8");
   const footer = read("src/components/Footer.jsx").toString("utf8");
-  assert.match(navbar, /className="gn-wordmark">GYMDROBE<\/span>/);
-  assert.match(footer, /aria-label="GymDrobe home">GYMDROBE<\/Link>/);
+  assert.match(navbar, /gymdrobe-wordmark-green\.png/);
+  assert.match(footer, /gymdrobe-wordmark-cream\.png/);
   assert.doesNotMatch(navbar + footer, /\/brand\/gymdrobe-lockup\.svg/);
 });
 
@@ -87,8 +87,8 @@ test("retired Google-visible logo URLs redirect before serving static legacy ass
   const config = JSON.parse(read("vercel.json").toString("utf8"));
   const redirects = [
     ["^/gymdrobe-share-v1\\.png$", "/gymdrobe-share-v2.png"],
-    ["^/favicon\\.jpeg$", "/favicon.ico?v=3"],
-    ["^/favicon-64-v1\\.png$", "/favicon-48x48.png?v=3"],
+    ["^/favicon\\.jpeg$", "/favicon.ico?v=4"],
+    ["^/favicon-64-v1\\.png$", "/favicon-48x48.png?v=4"],
   ];
   const filesystem = config.routes.findIndex(route => route.handle === "filesystem");
   assert.ok(filesystem >= 0, "Existing SPA filesystem routing must be retained");

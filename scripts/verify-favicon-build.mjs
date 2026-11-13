@@ -18,8 +18,8 @@ for(const filename of assets){
   console.log("PASS favicon production asset:",filename,build.length,"bytes");
 }
 const html=await readFile(path.join(root,"dist","index.html"),"utf8");
-assert.ok(html.includes("/favicon-32x32.png?v=3"));
-assert.ok(html.includes("/apple-touch-icon.png?v=3"));
-assert.ok(html.includes("/site.webmanifest?v=3"));
+assert.ok(html.includes("/favicon-32x32.png?v=4"));
+assert.ok(html.includes("/apple-touch-icon.png?v=4"));
+assert.ok(html.includes("/site.webmanifest?v=4"));
 assert.ok(!html.includes('href="/favicon.jpeg"'));
 console.log("PASS production HTML references approved premium external icon URLs");

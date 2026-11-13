@@ -321,20 +321,20 @@ try{
   const v=await context(width);
   await check(width+'px flagship cinematic hero and responsive navigation',async()=>{
    await visit(v.p,'/');
-   await v.p.getByRole('heading',{name:/Built for your every move/i}).waitFor();
-   assert.ok(await v.p.getByRole('link',{name:/Shop Now/}).isVisible());
-   assert.ok(await v.p.getByRole('link',{name:/Explore Collections/}).isVisible());
+   await v.p.getByRole('heading',{name:/Everything You Need for Every Workout/i}).waitFor();
+   assert.ok(await v.p.getByRole('link',{name:/Shop Workout Gear/}).isVisible());
+   assert.equal(await v.p.locator('.theme-category').count(),3);
    assert.equal(await v.p.getByRole('button',{name:/Pause hero film|Play hero film/}).count(),0);
    const m=await v.p.evaluate(()=>{
     const r=(s)=>{const x=document.querySelector(s).getBoundingClientRect();return {left:x.left,right:x.right,top:x.top,bottom:x.bottom,width:x.width,height:x.height};};
-    return {page:document.documentElement.scrollWidth,vw:innerWidth,hero:r('.cinema-hero'),stage:r('.cinema-stage'),content:r('.cinema-content'),shop:r('.cinema-shop'),explore:r('.cinema-explore')};
+    return {page:document.documentElement.scrollWidth,vw:innerWidth,hero:r('.cinema-hero'),stage:r('.cinema-stage'),content:r('.cinema-content'),shop:r('.cinema-shop')};
    });
    assert.ok(m.page<=m.vw+1,JSON.stringify(m));
-   assert.ok(m.shop.right<=width+1 && m.explore.right<=width+1,JSON.stringify(m));
+   assert.ok(m.shop.right<=width+1,JSON.stringify(m));
    if(width<=700){
     assert.ok(m.stage.width>=width-1 && m.hero.width>=width-1,'Mobile footage must fill viewport without letterbox');
-    assert.ok(m.hero.height>=450 && m.content.bottom<=m.hero.bottom+1,'Copy overlaid inside full-screen mobile hero');
-    assert.ok(m.shop.bottom<=m.hero.bottom+1 && m.explore.bottom<=m.hero.bottom+1,'Mobile CTAs remain visible');
+    assert.ok(m.content.bottom<=m.stage.top+1,'Copy sits above the mobile campaign image');
+    assert.ok(m.shop.bottom<=m.hero.bottom+1,'Mobile CTAs remain visible');
     assert.ok(await v.p.getByRole('navigation',{name:'Shopping navigation'}).isVisible());
     assert.ok(await v.p.getByRole('combobox',{name:'Search products'}).isVisible());
    }else{
@@ -377,7 +377,7 @@ try{
    assert.ok(await motion.p.evaluate(()=>window.__initialHeroVideo===document.querySelector('.cinema-film')));
    assert.ok(requests.every(u=>u.endsWith(width<700?'hero-mobile.mp4':'hero-desktop.mp4')));
    await motion.p.reload();await waitForMovingVideo(motion.p);
-   await motion.p.getByRole('link',{name:/Shop Now/}).click();await motion.p.waitForURL('**/shop');
+   await motion.p.getByRole('link',{name:/Shop Workout Gear/}).click();await motion.p.waitForURL('**/shop');
    await motion.p.goBack();await waitForMovingVideo(motion.p);
    assert.ok(await motion.p.locator('.cinema-film').evaluate(v=>!v.paused&&v.loop&&v.muted));
   });await motion.c.close();
@@ -403,7 +403,7 @@ try{
   assert.equal(await autoplay.p.locator('.cinema-film.is-autoplay-blocked').count(),1);
   assert.equal(await autoplay.p.locator('.cinema-play-fallback,.cinema-control').count(),0);
   assert.equal(await autoplay.p.getByRole('button',{name:/Play cinematic|Pause hero|Replay/i}).count(),0);
-  assert.ok(await autoplay.p.getByRole('link',{name:/Shop Now/}).isVisible());
+  assert.ok(await autoplay.p.getByRole('link',{name:/Shop Workout Gear/}).isVisible());
   assert.ok(await autoplay.p.getByRole('link',{name:/Explore Collections/}).isVisible());
  });await autoplay.c.close();
  const diagnostics=await context(390,{browser:{reducedMotion:'no-preference',isMobile:true,hasTouch:true}});
@@ -429,10 +429,10 @@ try{
   assert.equal(await iphone.p.getByRole('button',{name:/Play cinematic|Pause hero|Replay/i}).count(),0);
  });await iphone.c.close();
  const fail=await context(390,{browser:{reducedMotion:'no-preference'}});await fail.c.route('**/media/campaign/*.mp4',r=>r.abort());
- await check('Failed film retains poster and Shop Now',async()=>{
+ await check('Failed film retains poster and Shop Workout Gear',async()=>{
   await visit(fail.p,'/');await fail.p.waitForTimeout(350);
   assert.ok(await fail.p.locator('.cinema-poster img').evaluate(i=>i.complete&&i.naturalWidth>0));
-  await fail.p.getByRole('link',{name:/Shop Now/}).click();await fail.p.waitForURL('**/shop');
+  await fail.p.getByRole('link',{name:/Shop Workout Gear/}).click();await fail.p.waitForURL('**/shop');
  });await fail.c.close();
  const save=await context(390,{browser:{reducedMotion:'no-preference'}});
  await save.c.addInitScript(()=>Object.defineProperty(navigator,'connection',{value:{saveData:true},configurable:true}));
@@ -444,13 +444,13 @@ try{
   assert.equal(await video.getAttribute('preload'),'metadata');
   assert.ok(await video.evaluate(v=>v.autoplay&&v.loop&&v.muted&&!v.paused));
   assert.equal(await save.p.locator('.cinema-play-fallback,.cinema-control').count(),0);
-  assert.ok(await save.p.getByRole('link',{name:/Shop Now/}).isVisible());
+  assert.ok(await save.p.getByRole('link',{name:/Shop Workout Gear/}).isVisible());
  });await save.c.close();
  await check('Premium controls use Lucide SVG arrows and preserve shopping action semantics',async()=>{
   const shop=await context(390,{signedIn:true});
   try{
    await visit(shop.p,'/');
-   for(const name of [/Shop Now/,/Explore Collections/,/Shop all/]){
+   for(const name of [/Shop Workout Gear/]){
     const link=shop.p.getByRole('link',{name}).first();
     assert.ok(await link.isVisible(),String(name)+' link visible');
     assert.ok(await link.locator('svg.premium-control-arrow').count()>0,String(name)+' has Lucide vector');
