@@ -22,7 +22,47 @@ final class GymDrobeUITests: XCTestCase {
         XCTAssertTrue(app.webViews.staticTexts["Your wishlist is waiting"].firstMatch.waitForExistence(timeout: 15))
     }
 
+    func testGuestAccountSessionWithoutCartDependency() {
+        // Keep Account diagnosis independent: flaky Cart accessibility must not
+        // prevent observing a real native secure-session rejection.
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launch()
+        XCTAssertEqual(app.state, .runningForeground)
+        let accountTab = app.links["Account"].firstMatch
+        tapShoppingTab(accountTab, app: app)
+
+        let guestAccount = app.webViews.staticTexts["Your favourites. All together."].firstMatch
+        let ready = guestAccount.waitForExistence(timeout: 30)
+        capture(ready ? "iPhone-guest-account" : "iPhone-guest-account-failure", app: app)
+        XCTAssertTrue(ready, "Guest Account must render without a saved token. Review Debug-only OSStatus and redacted session code.")
+    }
+
+    func testCartAccountAndBack() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launch()
+        XCTAssertEqual(app.state, .runningForeground)
+
+        let cart = app.links["Cart, 0 items"].firstMatch
+        tapShoppingTab(cart, app: app)
+        let emptyBag = app.webViews.staticTexts["Your bag is empty"].firstMatch
+        XCTAssertTrue(emptyBag.waitForExistence(timeout: 20), app.debugDescription)
+
+        tapShoppingTab(app.links["Account"].firstMatch, app: app)
+        XCTAssertTrue(app.webViews.staticTexts["Your favourites. All together."].firstMatch.waitForExistence(timeout: 20), app.debugDescription)
+        XCTAssertTrue(cart.exists)
+        XCTAssertFalse(emptyBag.exists)
+
+        let leftEdge = app.coordinate(withNormalizedOffset: CGVector(dx: 0.005, dy: 0.48))
+        let right = app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.48))
+        leftEdge.press(forDuration: 0.05, thenDragTo: right)
+        XCTAssertTrue(emptyBag.waitForExistence(timeout: 20), app.debugDescription)
+        XCTAssertTrue(cart.exists)
+    }
+
     private func tapShoppingTab(_ tab: XCUIElement, app: XCUIApplication) {
+        XCTAssertTrue(tab.waitForExistence(timeout: 45))
         XCTAssertTrue(tab.isHittable)
         let navigation = app.webViews.otherElements.matching(
             NSPredicate(format: "label BEGINSWITH %@", "Shopping navigation")

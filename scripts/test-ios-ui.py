@@ -3,6 +3,7 @@ from contextlib import suppress
 import json
 import os
 from pathlib import Path
+import re
 import signal
 import subprocess
 
@@ -75,6 +76,22 @@ def collect_diagnostics(directory):
                 subprocess.run(command, stdout=destination, stderr=subprocess.STDOUT, check=False, timeout=10)
         except (subprocess.TimeoutExpired, OSError) as error:
             print(f"Diagnostic {name} unavailable: {type(error).__name__}")
+    try:
+        trace = subprocess.run(
+            ["xcrun", "simctl", "spawn", device["udid"], "log", "show", "--last", "10m",
+             "--style", "compact", "--predicate", 'eventMessage CONTAINS "GymDrobe secure session"'],
+            capture_output=True, text=True, timeout=15, check=False,
+        )
+        events = [
+            {"operation": match[0], "os_status": int(match[1])}
+            for match in re.findall(r"GymDrobe secure session (read|write|clear) failed, OSStatus=(-?\d+)", trace.stdout)
+        ]
+        (directory / "session-diagnostics.json").write_text(json.dumps({
+            "capture_status": "available" if trace.returncode == 0 else "unavailable",
+            "events": events[-20:],
+        }, indent=2))
+    except (subprocess.TimeoutExpired, OSError) as error:
+        print(f"Keychain diagnostics unavailable: {type(error).__name__}")
     bundle = directory / "Shopping.xcresult"
     # A partial bundle has runner logs, but xcresulttool cannot read it yet.
     if (bundle / "Info.plist").is_file():
