@@ -280,12 +280,22 @@
   margin-top: 14px;
 }
 
-.home-spotlight-grid img {
+#app .storefront-home .gm-home-product-grid .gm-product-image > img { object-fit: contain; }
+
+.home-spotlight-media, .home-collection-media {
   width: 100%;
-  aspect-ratio: 3 / 4;
-  object-fit: cover;
-  border-radius: 9px;
-  margin-bottom: 6px;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  background: #eeefeb;
+}
+.home-spotlight-media { border-radius: 9px; margin-bottom: 6px; }
+.home-spotlight-media img, .home-collection-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .home-collections > div { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -374,11 +384,23 @@
   gap: clamp(16px, 4vw, 50px);
 }
 
-.home-story img {
-  width: 100%;
-  max-height: 360px;
-  object-fit: cover;
+.home-story-media {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  background: #171c1b;
   border-radius: 10px;
+}
+.home-story-media img, .home-story-media video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.home-story-media video { position: absolute; inset: 0; opacity: 0; }
+.home-story-media.is-playing video { opacity: 1; }
+@media (max-width: 700px) {
+  .home-story-media { aspect-ratio: 9 / 16; width: min(100%, 210px); justify-self: center; }
 }
 
 .home-app-discovery { grid-template-columns: auto 1fr; }
@@ -407,7 +429,6 @@
   background: white;
 }
 
-#app .storefront-home .home-collection-grid img { width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; }
 .home-collection-grid strong { padding: 10px; }
 
 #app .premium-storefront :is(.gm-product-card, .panel, .price-summary, .delivery-box) {

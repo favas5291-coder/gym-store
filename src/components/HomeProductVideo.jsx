@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { claimHomeVideo, releaseHomeVideo } from "../utils/homeMedia.js";
 import { productVideo } from "../utils/productVideo.js";
 import { money, priceDetails, productPath, ProductImage, resolveProductImage } from "./StorefrontShared.jsx";
 
@@ -45,13 +46,18 @@ function Playlist({ clips, fallback }) {
     const video = player.current;
     if (!video) return;
     if (paused || reducedMotion || !visible || hidden) {
-      video.pause();
+      releaseHomeVideo(video);
       return;
     }
     let current = true;
     video.play().catch(() => { if (current) setBlocked(true); });
     return () => { current = false; };
   }, [clip, near, paused, reducedMotion, visible, hidden]);
+
+  useEffect(() => {
+    const video = player.current;
+    return () => releaseHomeVideo(video);
+  }, [clip, near]);
 
   function advance(event) {
     if (available.length === 1) {
@@ -74,7 +80,7 @@ function Playlist({ clips, fallback }) {
             poster={resolveProductImage(product.image) || undefined}
             aria-label={`${product.name} demonstration`}
             muted playsInline controls preload="metadata"
-            onPlay={() => { setPaused(false); setBlocked(false); }}
+            onPlay={event => { claimHomeVideo(event.currentTarget); setPaused(false); setBlocked(false); }}
             onPause={event => {
               if (!event.currentTarget.ended && visible && !hidden && !reducedMotion) setPaused(true);
             }}

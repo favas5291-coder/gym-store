@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Pause, Play } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { productDepartment } from "../utils/catalog.js";
@@ -29,12 +29,9 @@ export default function HomeProductCarousel() {
   const [visible, setVisible] = useState(false);
   const [hidden, setHidden] = useState(() => document.hidden);
   const [focused, setFocused] = useState(false);
-  const [hovered, setHovered] = useState(false);
   const [interacting, setInteracting] = useState(false);
-  const [playback, setPlayback] = useState(null);
   const [reducedMotion, setReducedMotion] = useState(() => matchMedia("(prefers-reduced-motion: reduce)").matches);
   const multiple = slides.length > 1;
-  const playing = playback ?? !reducedMotion;
   const product = slides[active % slides.length];
 
   useEffect(() => {
@@ -57,13 +54,12 @@ export default function HomeProductCarousel() {
   }, [multiple]);
 
   useEffect(() => {
-    if (!multiple || !playing || !visible || hidden || focused || hovered || interacting) return;
+    if (!multiple || reducedMotion || !visible || hidden || focused || interacting) return;
     const timer = setTimeout(() => setActive(index => (index + 1) % slides.length), 3000);
     return () => clearTimeout(timer);
-  }, [active, focused, hidden, hovered, interacting, multiple, playing, slides.length, visible]);
+  }, [active, focused, hidden, interacting, multiple, reducedMotion, slides.length, visible]);
 
   function move(offset) {
-    setPlayback(false);
     setActive(index => (index % slides.length + offset + slides.length) % slides.length);
   }
 
@@ -79,13 +75,10 @@ export default function HomeProductCarousel() {
 
   return (
     <section className="home-product-carousel" aria-labelledby="home-carousel-title"
-      onFocus={() => setFocused(true)}
-      onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}
-      onPointerEnter={event => { if (event.pointerType === "mouse") setHovered(true); }}
-      onPointerLeave={() => setHovered(false)}
       onKeyDown={event => {
         if (multiple && ["ArrowLeft", "ArrowRight"].includes(event.key)) {
           event.preventDefault();
+          setFocused(false);
           move(event.key === "ArrowRight" ? 1 : -1);
         }
       }}>
@@ -94,6 +87,8 @@ export default function HomeProductCarousel() {
         {product ? <Link className="home-carousel-photo"
           to={productPath(product.id ?? product._id)}
           aria-label={`View ${product.name}`}
+          onFocus={event => setFocused(event.currentTarget.matches(":focus-visible"))}
+          onBlur={() => setFocused(false)}
           onPointerDown={event => {
             if (!event.isPrimary) return;
             gesture.current = { pointer: event.pointerId, x: event.clientX, y: event.clientY };
@@ -117,9 +112,6 @@ export default function HomeProductCarousel() {
         </div>}
         {multiple && <div className="home-carousel-controls" role="group" aria-label="Photo showcase controls">
           <button type="button" aria-label="Previous product" onClick={() => move(-1)}><ArrowLeft size={17} aria-hidden="true" /></button>
-          <button type="button" aria-label={playing ? "Pause slideshow" : "Play slideshow"} onClick={() => setPlayback(!playing)}>
-            {playing ? <Pause size={17} aria-hidden="true" /> : <Play size={17} aria-hidden="true" />}
-          </button>
           <button type="button" aria-label="Next product" onClick={() => move(1)}><ArrowRight size={17} aria-hidden="true" /></button>
         </div>}
       </div>
