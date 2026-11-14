@@ -5,7 +5,7 @@ import { useCatalog } from "../context/CatalogContext.jsx";
 import { productDepartment } from "../utils/catalog.js";
 import { homeCollections } from "../utils/homeCollections.js";
 import { productImageSources } from "../utils/productImages.js";
-import { money, priceDetails, productPath, ProductImage, resolveProductImage } from "./StorefrontShared.jsx";
+import { priceDetails, productPath, ProductImage, resolveProductImage } from "./StorefrontShared.jsx";
 import "./HomeProductCarousel.css";
 
 function selectProducts(products) {
@@ -23,16 +23,19 @@ function selectProducts(products) {
 export default function HomeProductCarousel() {
   const { products, loading, error, refreshProducts } = useCatalog();
   const slides = useMemo(() => selectProducts(products), [products]);
-  const rail = useRef(null);
+  const frame = useRef(null);
+  const gesture = useRef(null);
   const [active, setActive] = useState(0);
   const [visible, setVisible] = useState(false);
   const [hidden, setHidden] = useState(() => document.hidden);
   const [focused, setFocused] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [interacting, setInteracting] = useState(false);
   const [playback, setPlayback] = useState(null);
   const [reducedMotion, setReducedMotion] = useState(() => matchMedia("(prefers-reduced-motion: reduce)").matches);
   const multiple = slides.length > 1;
   const playing = playback ?? !reducedMotion;
+  const product = slides[active % slides.length];
 
   useEffect(() => {
     const preference = matchMedia("(prefers-reduced-motion: reduce)");
@@ -47,40 +50,31 @@ export default function HomeProductCarousel() {
   }, []);
 
   useEffect(() => {
-    const element = rail.current;
-    if (!element || !multiple) return;
-    const observer = new IntersectionObserver(([entry]) => setVisible(entry.intersectionRatio >= 0.4), { threshold: 0.4 });
-    observer.observe(element);
+    if (!frame.current) return;
+    const observer = new IntersectionObserver(([entry]) => setVisible(entry.intersectionRatio >= 0.45), { threshold: 0.45 });
+    observer.observe(frame.current);
     return () => observer.disconnect();
   }, [multiple]);
 
   useEffect(() => {
-    if (!multiple || !playing || !visible || hidden || focused || hovered) return;
-    const timer = window.setTimeout(() => {
-      const index = (Math.min(active, slides.length - 1) + 1) % slides.length;
-      const element = rail.current;
-      element.scrollTo({ left: element.children[index].offsetLeft, behavior: reducedMotion || index === 0 ? "instant" : "smooth" });
-    }, 5000);
-    return () => window.clearTimeout(timer);
-  }, [active, focused, hidden, hovered, multiple, playing, reducedMotion, slides.length, visible]);
+    if (!multiple || !playing || !visible || hidden || focused || hovered || interacting) return;
+    const timer = setTimeout(() => setActive(index => (index + 1) % slides.length), 3000);
+    return () => clearTimeout(timer);
+  }, [active, focused, hidden, hovered, interacting, multiple, playing, slides.length, visible]);
 
   function move(offset) {
     setPlayback(false);
-    const index = (Math.min(active, slides.length - 1) + offset + slides.length) % slides.length;
-    const element = rail.current;
-    element.scrollTo({ left: element.children[index].offsetLeft, behavior: reducedMotion ? "instant" : "smooth" });
+    setActive(index => (index % slides.length + offset + slides.length) % slides.length);
   }
 
-  function onScroll() {
-    const element = rail.current;
-    const width = element.children[1]?.offsetLeft;
-    if (width) setActive(Math.min(slides.length - 1, Math.round(element.scrollLeft / width)));
-  }
-
-  function onKeyDown(event) {
-    if (!multiple || !["ArrowLeft", "ArrowRight"].includes(event.key)) return;
-    event.preventDefault();
-    move(event.key === "ArrowRight" ? 1 : -1);
+  function finishGesture(event, cancelled = false) {
+    const start = gesture.current;
+    if (!start || start.pointer !== event.pointerId) return;
+    setInteracting(false);
+    const x = event.clientX - start.x;
+    const y = event.clientY - start.y;
+    start.suppressClick = cancelled || Math.abs(x) > 12 || Math.abs(y) > 12;
+    if (!cancelled && multiple && Math.abs(x) >= 40 && Math.abs(x) > Math.abs(y)) move(x < 0 ? 1 : -1);
   }
 
   return (
@@ -89,37 +83,48 @@ export default function HomeProductCarousel() {
       onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}
       onPointerEnter={event => { if (event.pointerType === "mouse") setHovered(true); }}
       onPointerLeave={() => setHovered(false)}
-      onKeyDown={onKeyDown}>
-      <header className="home-carousel-header">
-        <h1 id="home-carousel-title">Shop Featured Gear</h1>
-        {multiple && <div className="home-carousel-controls" aria-label="Carousel controls">
-          <button type="button" aria-label="Previous product" onClick={() => move(-1)}><ArrowLeft size={19} aria-hidden="true" /></button>
-          <button type="button" aria-label={playing ? "Pause slideshow" : "Play slideshow"} onClick={() => setPlayback(!playing)}>
-            {playing ? <Pause size={18} aria-hidden="true" /> : <Play size={18} aria-hidden="true" />}
-          </button>
-          <button type="button" aria-label="Next product" onClick={() => move(1)}><ArrowRight size={19} aria-hidden="true" /></button>
+      onKeyDown={event => {
+        if (multiple && ["ArrowLeft", "ArrowRight"].includes(event.key)) {
+          event.preventDefault();
+          move(event.key === "ArrowRight" ? 1 : -1);
+        }
+      }}>
+      <h1 id="home-carousel-title" className="sr-only">Featured GymDrobe products</h1>
+      <div className="home-carousel-frame" ref={frame}>
+        {product ? <Link className="home-carousel-photo"
+          to={productPath(product.id ?? product._id)}
+          aria-label={`View ${product.name}`}
+          onPointerDown={event => {
+            if (!event.isPrimary) return;
+            gesture.current = { pointer: event.pointerId, x: event.clientX, y: event.clientY };
+            if (event.pointerType !== "mouse") event.currentTarget.setPointerCapture(event.pointerId);
+            setInteracting(true);
+          }}
+          onPointerUp={event => finishGesture(event)}
+          onPointerCancel={event => finishGesture(event, true)}
+          onPointerLeave={event => { if (event.pointerType === "mouse") finishGesture(event, true); }}
+          onDragStart={event => event.preventDefault()}
+          onClick={event => {
+            if (event.detail && gesture.current?.suppressClick) event.preventDefault();
+            gesture.current = null;
+          }}>
+          <ProductImage key={product.id ?? product._id} product={product} decorative eager
+            fetchPriority={active === 0 ? "high" : "auto"} sizes="(max-width: 699px) 94vw, 1000px" />
+        </Link> : <div className="home-carousel-state" role="status">
+          <p>{loading ? "Loading featured gear…" : error ? "Featured gear couldn’t load." : "Explore the full collection."}</p>
+          {error ? <button type="button" className="button" onClick={refreshProducts}>Retry collection</button> :
+            !loading && <Link className="button" to="/shop">Shop all</Link>}
         </div>}
-      </header>
-      {slides.length === 0 ? <div className="home-carousel-state" role="status">
-        <p>{loading ? "Loading featured gear…" : error ? "Featured gear couldn’t load." : "Explore the full collection."}</p>
-        {error ? <button type="button" className="button" onClick={refreshProducts}>Retry collection</button> :
-          !loading && <Link className="button" to="/shop">Shop all</Link>}
-      </div> : <div className="home-carousel-rail" ref={rail} onScroll={onScroll}
-        onPointerDown={event => { if (event.pointerType === "touch" || !event.target.closest("a")) setPlayback(false); }}
-        onWheel={event => { if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) setPlayback(false); }}>
-        {slides.map((product, index) => (
-          <article className="home-carousel-card" key={product.id ?? product._id} aria-label={`${index + 1} of ${slides.length}`}>
-            <div className="home-carousel-photo">
-              <ProductImage product={product} eager={index === 0} fetchPriority={index === 0 ? "high" : "auto"}
-                sizes="(max-width: 699px) 85vw, 440px" />
-            </div>
-            <div className="home-carousel-details">
-              <h2>{product.name}</h2>
-              <p>{money(priceDetails(product).selling)}</p>
-              <Link to={productPath(product.id ?? product._id)} className="button" aria-label={`View Product: ${product.name}`}>View Product</Link>
-            </div>
-          </article>
-        ))}
+        {multiple && <div className="home-carousel-controls" role="group" aria-label="Photo showcase controls">
+          <button type="button" aria-label="Previous product" onClick={() => move(-1)}><ArrowLeft size={17} aria-hidden="true" /></button>
+          <button type="button" aria-label={playing ? "Pause slideshow" : "Play slideshow"} onClick={() => setPlayback(!playing)}>
+            {playing ? <Pause size={17} aria-hidden="true" /> : <Play size={17} aria-hidden="true" />}
+          </button>
+          <button type="button" aria-label="Next product" onClick={() => move(1)}><ArrowRight size={17} aria-hidden="true" /></button>
+        </div>}
+      </div>
+      {multiple && <div className="home-carousel-dots" aria-hidden="true">
+        {slides.map((item, index) => <span key={item.id ?? item._id} className={index === active % slides.length ? "is-active" : undefined} />)}
       </div>}
     </section>
   );

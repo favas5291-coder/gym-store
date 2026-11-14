@@ -28,7 +28,7 @@ const samples = [];
 // Cover the routes shoppers actually open, not just the home and shop entry
 // points. All scenarios use the same isolated mock APIs and no customer data.
 const routes = [
-  { path: '/', label: 'home', ready: '.cinema-hero, .home-carousel-card' },
+  { path: '/', label: 'home', ready: '.cinema-hero, .home-carousel-card, .home-carousel-photo' },
   { path: '/shop', label: 'shop', ready: '.gm-product-card' },
   { path: '/shop?search=training', label: 'search', ready: '.gm-product-card' },
   { path: `/product/${products[0].id}`, label: 'product', ready: '.product-detail-layout' },
