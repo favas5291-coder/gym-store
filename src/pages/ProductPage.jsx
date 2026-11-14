@@ -590,6 +590,8 @@ function ProductDetail({
           >
             <h2>DELIVERY & RETURNS</h2>
 
+            {product.publicFulfilmentName && <p>Ships from <strong>{product.publicFulfilmentName}</strong></p>}
+
             <DeliveryPincode
               product={product}
               storageKey={deliveryKey}

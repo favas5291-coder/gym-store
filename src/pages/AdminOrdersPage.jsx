@@ -1,3 +1,4 @@
+import { getWhatsAppDeliveryStatus } from "../services/orderApi.js";
 import AdminKitFulfillment from "../components/AdminKitFulfillment.jsx";
 import PurchasedKitSummary from "../components/PurchasedKitSummary.jsx";
 import AdminItemSourcing from "../components/AdminItemSourcing.jsx";
@@ -228,6 +229,33 @@ function StatusBadge({ status }) {
     >
       {statusLabel(status)}
     </span>
+  );
+}
+
+function WhatsAppDeliveryStatus({ orderNumber, token }) {
+  const [rows, setRows] = useState(null);
+  const [status, setStatus] = useState("");
+  async function load() {
+    setStatus("loading");
+    try {
+      setRows(await getWhatsAppDeliveryStatus(orderNumber, token));
+      setStatus("");
+    } catch {
+      setStatus("error");
+    }
+  }
+  return (
+    <section>
+      <h3>WhatsApp order updates</h3>
+      <button className="button secondary" type="button" disabled={status === "loading"} onClick={load}>
+        {status === "loading" ? "Loading…" : "Check delivery status"}
+      </button>
+      {status === "error" && <p role="alert">Delivery status could not be loaded.</p>}
+      {rows?.length === 0 && <p>No deliveries recorded.</p>}
+      {rows?.length > 0 && <ul>{rows.map(row => (
+        <li key={row._id}>{row.state} · {row.attempts} attempts · {row.code || "Waiting"}</li>
+      ))}</ul>}
+    </section>
   );
 }
 
@@ -794,6 +822,7 @@ function AdminOrderCard({
             </div>
           ) : (
             <>
+              <WhatsAppDeliveryStatus key={order.orderNumber || order.id} orderNumber={order.orderNumber || order.id} token={token} />
               <section>
                 <h3>1. Ordered items</h3>
 

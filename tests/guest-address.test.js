@@ -182,6 +182,7 @@ async function application({
       "\nmodule.exports={Checkout};",
     {
       module,
+      whatsAppOrderOptInEnabled: false,
       h,
       Fragment: "fragment",
       EMPTY_ADDRESS,

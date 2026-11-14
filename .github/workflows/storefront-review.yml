@@ -68,6 +68,8 @@ jobs:
         run: node tests/free-navigation-browser.mjs
       - name: Storefront interactions and responsive screenshots
         run: npm run test:storefront
+      - name: Customer supplier and order update acceptance
+        run: node tests/supplier-order-updates-browser.mjs
       - name: PWA install, offline recovery and update checks
         run: node tests/pwa-browser.mjs
       - name: Android UI and native-adapter contracts
