@@ -327,19 +327,44 @@ try{
    await visit(view.p, '/');
    const carousel = view.p.getByRole('region', { name: 'Featured GymDrobe products' });
    const photo = carousel.locator('.home-carousel-photo');
-   await carousel.getByRole('button', { name: 'Play slideshow' }).waitFor();
+   await photo.waitFor();
+   assert.equal(await carousel.getByRole("button", { name: /pause|play/i }).count(), 0);
    assert.equal(await photo.count(), 1);
    const path = await photo.getAttribute('href');
    assert.ok(path);
    assert.equal(await photo.innerText(), '');
    await carousel.getByRole('button', { name: 'Next product' }).press('ArrowRight');
-   assert.notEqual(await photo.getAttribute('href'), path);
+   await view.p.waitForFunction(url => document.querySelector('.home-carousel-photo')?.getAttribute('href') !== url, path);
    await carousel.getByRole('button', { name: 'Previous product' }).click();
-   assert.equal(await photo.getAttribute('href'), path);
+   await view.p.waitForFunction(url => document.querySelector('.home-carousel-photo')?.getAttribute('href') === url, path);
    await photo.click();
    await view.p.waitForURL('**' + path);
   } finally {
    await view.c.close();
+  }
+ });
+ await check('Carousel resumes after arrow navigation and the story loops in view', async () => {
+  const v = await context(390, { browser: { reducedMotion: 'no-preference' } });
+  try {
+   await visit(v.p, '/');
+   const carousel = v.p.getByRole('region', { name: 'Featured GymDrobe products' });
+   const photo = carousel.locator('.home-carousel-photo');
+   await photo.waitFor();
+   const first = await photo.getAttribute('href');
+   assert.equal(await photo.locator('img').evaluate(img => getComputedStyle(img).objectFit), 'contain');
+   await carousel.getByRole('button', { name: 'Next product' }).click();
+   await v.p.waitForFunction(path => document.querySelector('.home-carousel-photo')?.getAttribute('href') !== path, first);
+   const selected = await photo.getAttribute('href');
+   await v.p.waitForFunction(path => document.querySelector('.home-carousel-photo')?.getAttribute('href') !== path, selected);
+   await v.p.locator('.home-story-media').scrollIntoViewIfNeeded();
+   await v.p.waitForFunction(() => {
+    const player = document.querySelector('.home-story-media video');
+    return player && player.loop && player.muted && player.playsInline && player.currentTime > 0;
+   });
+   await carousel.scrollIntoViewIfNeeded();
+   await v.p.waitForFunction(() => !document.querySelector('.home-story-media video'));
+  } finally {
+   await v.c.close();
   }
  });
  for (const width of [390, 1440]) {

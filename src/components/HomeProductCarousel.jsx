@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Pause, Play } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { productDepartment } from "../utils/catalog.js";
 import { homeCollections } from "../utils/homeCollections.js";
+import { responsiveProductImage } from "../utils/responsiveProductImage.js";
 import { productImageSources } from "../utils/productImages.js";
 import { priceDetails, productPath, ProductImage, resolveProductImage } from "./StorefrontShared.jsx";
 import "./HomeProductCarousel.css";
@@ -20,21 +21,22 @@ function selectProducts(products) {
   return [...new Set([...varied, ...eligible])].slice(0, 6);
 }
 
+const photoSizes = "(max-width: 699px) 94vw, 1000px";
+
 export default function HomeProductCarousel() {
   const { products, loading, error, refreshProducts } = useCatalog();
   const slides = useMemo(() => selectProducts(products), [products]);
   const frame = useRef(null);
   const gesture = useRef(null);
+  const prepared = useRef(new Map());
+  const pendingMove = useRef(0);
   const [active, setActive] = useState(0);
   const [visible, setVisible] = useState(false);
   const [hidden, setHidden] = useState(() => document.hidden);
   const [focused, setFocused] = useState(false);
-  const [hovered, setHovered] = useState(false);
   const [interacting, setInteracting] = useState(false);
-  const [playback, setPlayback] = useState(null);
   const [reducedMotion, setReducedMotion] = useState(() => matchMedia("(prefers-reduced-motion: reduce)").matches);
   const multiple = slides.length > 1;
-  const playing = playback ?? !reducedMotion;
   const product = slides[active % slides.length];
 
   useEffect(() => {
@@ -57,14 +59,38 @@ export default function HomeProductCarousel() {
   }, [multiple]);
 
   useEffect(() => {
-    if (!multiple || !playing || !visible || hidden || focused || hovered || interacting) return;
-    const timer = setTimeout(() => setActive(index => (index + 1) % slides.length), 3000);
-    return () => clearTimeout(timer);
-  }, [active, focused, hidden, hovered, interacting, multiple, playing, slides.length, visible]);
+    if (!multiple || hidden || !visible || reducedMotion || navigator.connection?.saveData) return;
+    const warmup = setTimeout(() => prepare((active + 1) % slides.length), 1000);
+    return () => clearTimeout(warmup);
+  }, [active, slides, hidden, visible, reducedMotion]);
 
-  function move(offset) {
-    setPlayback(false);
-    setActive(index => (index % slides.length + offset + slides.length) % slides.length);
+  useEffect(() => {
+    if (!multiple || reducedMotion || !visible || hidden || focused || interacting) return;
+    let current = true;
+    const timer = setTimeout(() => move(1, () => current), 3000);
+    return () => { current = false; clearTimeout(timer); };
+  }, [active, focused, hidden, interacting, multiple, reducedMotion, slides, visible]);
+
+  function prepare(index) {
+    const source = productImageSources(slides[index]).map(resolveProductImage).find(Boolean);
+    if (!source) return Promise.resolve();
+    if (!prepared.current.has(source)) {
+      const image = new Image();
+      image.fetchPriority = "low";
+      image.sizes = photoSizes;
+      image.srcset = responsiveProductImage(source) || "";
+      image.src = source;
+      prepared.current.set(source, image.decode().catch(() => {}));
+    }
+    return prepared.current.get(source);
+  }
+
+  function move(offset, allowed = () => true) {
+    const next = (active % slides.length + offset + slides.length) % slides.length;
+    const id = ++pendingMove.current;
+    prepare(next).then(() => {
+      if (id === pendingMove.current && allowed() && !document.hidden) setActive(next);
+    });
   }
 
   function finishGesture(event, cancelled = false) {
@@ -79,13 +105,10 @@ export default function HomeProductCarousel() {
 
   return (
     <section className="home-product-carousel" aria-labelledby="home-carousel-title"
-      onFocus={() => setFocused(true)}
-      onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}
-      onPointerEnter={event => { if (event.pointerType === "mouse") setHovered(true); }}
-      onPointerLeave={() => setHovered(false)}
       onKeyDown={event => {
         if (multiple && ["ArrowLeft", "ArrowRight"].includes(event.key)) {
           event.preventDefault();
+          setFocused(false);
           move(event.key === "ArrowRight" ? 1 : -1);
         }
       }}>
@@ -94,6 +117,8 @@ export default function HomeProductCarousel() {
         {product ? <Link className="home-carousel-photo"
           to={productPath(product.id ?? product._id)}
           aria-label={`View ${product.name}`}
+          onFocus={event => setFocused(event.currentTarget.matches(":focus-visible"))}
+          onBlur={() => setFocused(false)}
           onPointerDown={event => {
             if (!event.isPrimary) return;
             gesture.current = { pointer: event.pointerId, x: event.clientX, y: event.clientY };
@@ -109,7 +134,7 @@ export default function HomeProductCarousel() {
             gesture.current = null;
           }}>
           <ProductImage key={product.id ?? product._id} product={product} decorative eager
-            fetchPriority={active === 0 ? "high" : "auto"} sizes="(max-width: 699px) 94vw, 1000px" />
+            fetchPriority={active === 0 ? "high" : "auto"} decoding="sync" sizes={photoSizes} />
         </Link> : <div className="home-carousel-state" role="status">
           <p>{loading ? "Loading featured gear…" : error ? "Featured gear couldn’t load." : "Explore the full collection."}</p>
           {error ? <button type="button" className="button" onClick={refreshProducts}>Retry collection</button> :
@@ -117,9 +142,6 @@ export default function HomeProductCarousel() {
         </div>}
         {multiple && <div className="home-carousel-controls" role="group" aria-label="Photo showcase controls">
           <button type="button" aria-label="Previous product" onClick={() => move(-1)}><ArrowLeft size={17} aria-hidden="true" /></button>
-          <button type="button" aria-label={playing ? "Pause slideshow" : "Play slideshow"} onClick={() => setPlayback(!playing)}>
-            {playing ? <Pause size={17} aria-hidden="true" /> : <Play size={17} aria-hidden="true" />}
-          </button>
           <button type="button" aria-label="Next product" onClick={() => move(1)}><ArrowRight size={17} aria-hidden="true" /></button>
         </div>}
       </div>

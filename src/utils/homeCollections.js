@@ -1,5 +1,19 @@
+import { productImageSources } from "./productImages.js";
 import { productDepartment } from './catalog.js';
 import { getTotalStock } from './cartUtils.js';
+
+const time = value => Date.parse(value) || 0;
+
+export function publicationTime(product) {
+  return time(product.publishedAt) || time(product.createdAt);
+}
+
+export function latestCollectionProduct(products, department, extraMatch = () => true) {
+  const contentTime = product => Math.max(publicationTime(product), time(product.contentUpdatedAt));
+  return products.filter(product => productDepartment(product) === department &&
+    extraMatch(product) && productImageSources(product).length > 0)
+    .sort((a, b) => contentTime(b) - contentTime(a))[0];
+}
 
 // Small, distinct selections; labels are derived from saved catalog flags.
 export function homeCollections(products = []) {
@@ -26,8 +40,10 @@ export function homeCollections(products = []) {
   const departments = ['workout', 'shoes', 'accessories', 'hydration', 'supplements'];
   const varied = [...departments.map(d => available.find(p => productDepartment(p) === d)).filter(Boolean), ...available];
   const bestsellers = available.filter(p => p.isBestSeller === true);
-  const lead = pick(bestsellers.length ? bestsellers : varied);
-  const fresh = pick([...available.filter(p => p.isNew === true)].sort((a,b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0)));
+  const fresh = pick(available.filter(p => (p.isNew ?? p.isNewArrival) === true)
+    .sort((a, b) => publicationTime(b) - publicationTime(a)));
+  const distinctLead = pick(bestsellers.length ? bestsellers : varied);
+  const lead = bestsellers.length ? bestsellers.slice(0, 4) : distinctLead.length ? distinctLead : fresh;
   const trending = available.filter(p => p.isTrending === true);
   const more = pick(trending.length ? trending : available.filter(p => p.isFeatured === true));
   return { available, lead, leadTitle: bestsellers.length ? 'Best sellers' : 'Selected for your routine', fresh, more, moreTitle: trending.length ? 'Trending now' : 'More to explore' };

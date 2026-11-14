@@ -517,7 +517,8 @@ export function filterProducts(
 
     newest: (a, b) =>
       Number(Boolean(b.isNew ?? b.isNewArrival)) -
-      Number(Boolean(a.isNew ?? a.isNewArrival)),
+      Number(Boolean(a.isNew ?? a.isNewArrival)) ||
+      (Date.parse(b.publishedAt || b.createdAt) || 0) - (Date.parse(a.publishedAt || a.createdAt) || 0),
 
     bestseller: (a, b) =>
       Number(Boolean(b.isBestSeller)) -
@@ -531,11 +532,12 @@ export function filterProducts(
     Number(Boolean(b.isFeatured)) -
       Number(Boolean(a.isFeatured));
 
+  const sortKey = params.get("sort") || (collection === "new" ? "newest" : "");
   const sort = Object.prototype.hasOwnProperty.call(
     comparators,
-    params.get("sort"),
+    sortKey,
   )
-    ? comparators[params.get("sort")]
+    ? comparators[sortKey]
     : recommended;
 
   return result.sort(sort);

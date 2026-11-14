@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { homeCollections } from '../src/utils/homeCollections.js';
+import { homeCollections, latestCollectionProduct } from '../src/utils/homeCollections.js';
 import { filterProducts } from '../src/utils/catalog.js';
 const product = (id, extra = {}) => ({ id, name: `Product ${id}`, category: 'Clothing', price: 799, stock: 10, ...extra });
 
@@ -43,4 +43,15 @@ test('Empty or fully unavailable catalogs produce no promotional product claims'
 test('Trending collection navigation uses the actual trending flag', () => {
   const products=[product('a',{isTrending:true}),product('b',{isFeatured:true}),product('c')];
   assert.deepEqual(filterProducts(products,new URLSearchParams('collection=trending')).map(p=>p.id),['a']);
+});
+
+test("Collection covers use content dates and arrivals use publication dates", () => {
+  const older = product("old", { isNew: true, publishedAt: "2026-01-02", updatedAt: "2026-12-01", image: "/old.webp" });
+  const latest = product("new", { isNew: true, publishedAt: "2026-03-02", image: "/new.webp" });
+  const items = [older, latest];
+  assert.equal(latestCollectionProduct(items, "workout").id, "new");
+  older.contentUpdatedAt = "2026-04-01";
+  assert.equal(latestCollectionProduct(items, "workout").id, "old");
+  assert.deepEqual(homeCollections(items).fresh.map(item => item.id), ["new", "old"]);
+  assert.deepEqual(filterProducts(items, new URLSearchParams("collection=new")).map(item => item.id), ["new", "old"]);
 });

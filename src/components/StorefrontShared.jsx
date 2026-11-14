@@ -165,6 +165,7 @@ function ProductImageContent({
   eager,
   decorative,
   fetchPriority,
+  decoding,
   sizes,
 }) {
   const [index, setIndex] = useState(0);
@@ -195,10 +196,11 @@ function ProductImageContent({
             : product?.name || "Product"
         }
         loading={eager ? "eager" : "lazy"}
-        decoding="async"
+        decoding={decoding}
         width={480}
         height={600}
         fetchPriority={fetchPriority}
+      decoding={decoding}
         onError={() => {
           if (srcSet) {
             // Retry the original photo if a resized
@@ -238,6 +240,7 @@ export function ProductImage({
   eager = false,
   decorative = false,
   fetchPriority = "auto",
+  decoding = "async",
 
   sizes = eager
     ? "(max-width: 900px) 100vw, 60vw"
@@ -254,6 +257,7 @@ export function ProductImage({
       eager={eager}
       decorative={decorative}
       fetchPriority={fetchPriority}
+      decoding={decoding}
       sizes={sizes}
     />
   );
