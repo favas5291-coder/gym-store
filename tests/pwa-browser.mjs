@@ -75,7 +75,7 @@ try {
     assert.ok(await mobile.page.getByText("Add GymDrobe using your browser menu.", { exact: false }).isVisible());
     const size = await mobile.page.evaluate(() => ({ content: document.documentElement.scrollWidth, viewport: innerWidth }));
     assert.ok(size.content <= size.viewport, JSON.stringify(size));
-    assert.equal(await mobile.page.title(), "Install GymDrobe | Your Fitness Store");
+    assert.equal(await mobile.page.title(), "GymDrobe App | Add to Your Home Screen");
     await mobile.page.screenshot({ path: path.join(output, "install-390.png"), fullPage: true });
   });
 
@@ -138,7 +138,7 @@ try {
       return Promise.all(names.map(async (name) => ({ name, urls: (await (await caches.open(name)).keys()).map((r) => new URL(r.url).pathname) })));
     });
     assert.equal(entries.length, 1);
-    assert.deepEqual(entries[0].urls.sort(), ["/icons/gymdrobe-maskable-512.png", "/offline.html", "/offline.js"]);
+    assert.deepEqual(entries[0].urls.sort(), ["/brand/external/gymdrobe-maskable-512.png", "/offline.html", "/offline.js"]);
   });
 
   await check("updates wait for an explicit action instead of reloading a session", async () => {

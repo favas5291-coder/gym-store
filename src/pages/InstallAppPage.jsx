@@ -24,7 +24,7 @@ export default function InstallAppPage() {
 
   return <section className="install-app" aria-labelledby="install-title">
     <div className="install-app-copy">
-      <span className="install-app-eyebrow">GYMDROBE / ON YOUR HOME SCREEN</span>
+      <span className="install-app-eyebrow">GYMDROBE WEB APP</span>
       <h1 id="install-title">Your next workout.<br />One tap away.</h1>
       <p className="install-app-intro">Keep your fitness essentials close. Add GymDrobe to your home screen and open your store in its own window.</p>
       <ul className="install-app-benefits">

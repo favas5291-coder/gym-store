@@ -1,7 +1,7 @@
 /* Only the offline document and its static assets are cached. Never cache
    storefront HTML, API responses, credentials, orders, prices or payments. */
 const CACHE_NAME = "gymdrobe-offline-__GYMDROBE_PWA_VERSION__";
-const OFFLINE_FILES = ["/offline.html", "/offline.js", "/icons/gymdrobe-maskable-512.png?v=1"];
+const OFFLINE_FILES = ["/offline.html", "/offline.js", "/brand/external/gymdrobe-maskable-512.png?v=4"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(OFFLINE_FILES)));

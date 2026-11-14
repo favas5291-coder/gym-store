@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { publicCatalogueSnapshot, snapshotFile } from "./storefront-documents.mjs";
 
+import { STOREFRONT_DOCUMENT_ROUTES } from "../src/utils/seoMetadata.js";
 import { STOREFRONT_COLLECTIONS, collectionMatchesProduct } from "../src/utils/storefrontCollections.js";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -73,19 +74,24 @@ function validateApi(value) {
   return api.href.replace(/\/+$/, "");
 }
 
-export function buildSitemap(origin, products) {
+function productLastModified(value, now) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T/.test(value)) return "";
+  const time = Date.parse(value);
+  if (!Number.isFinite(time) || time > now) return "";
+  const date = new Date(time).toISOString();
+  return date.slice(0, 10) === value.slice(0, 10) ? date : "";
+}
+
+export function buildSitemap(origin, products, now = Date.now()) {
   const siteOrigin = validateSite(origin);
 
   if (!Array.isArray(products)) {
     throw new Error("The product catalog must be an array.");
   }
 
-  const routes = new Set([
-    "/",
-    "/shop",
-    "/offers",
-    "/help",
-  ]);
+  const routes = new Map(
+    [...STOREFRONT_DOCUMENT_ROUTES, "/shipping-and-returns.html"].map(route => [route, ""]),
+  );
 
   for (const product of products) {
     if (!product || typeof product !== "object") {
@@ -107,13 +113,14 @@ export function buildSitemap(origin, products) {
       );
     }
 
-    routes.add(
+    routes.set(
       `/product/${encodeURIComponent(String(id))}`,
+      productLastModified(product.updatedAt, now),
     );
   }
 
   for (const [route, collection] of Object.entries(STOREFRONT_COLLECTIONS)) {
-    if (products.some(product => collectionMatchesProduct(collection, product))) routes.add(route);
+    if (products.some(product => collectionMatchesProduct(collection, product))) routes.set(route, "");
   }
 
   if (routes.size > 50000) {
@@ -123,10 +130,8 @@ export function buildSitemap(origin, products) {
   }
 
   const entries = [...routes].map(
-    (route) =>
-      `  <url><loc>${escapeXml(
-        `${siteOrigin}${route}`,
-      )}</loc></url>`,
+    ([route, lastmod]) =>
+      `  <url><loc>${escapeXml(`${siteOrigin}${route}`)}</loc>${lastmod ? `<lastmod>${lastmod}</lastmod>` : ""}</url>`,
   );
 
   const xml = [

@@ -1,12 +1,16 @@
-export const DEFAULT_DESCRIPTION = "Shop gym clothing, training bags, shoes and workout essentials at GymDrobe. Browse sizes, colours and current availability for delivery in India.";
+import { collectionPathForCategory } from "./storefrontCollections.js";
+
+export const DEFAULT_DESCRIPTION = "Shop gym clothing, workout apparel and fitness accessories at GymDrobe. Find the right gear for every workout. Explore GymDrobe online.";
 export const DEFAULT_SHARE_IMAGE = "/gymdrobe-share-v2.png";
 export const PAGES = {
-  "/": { title: "GymDrobe India | Gym Clothing, Bags & Workout Gear", description: DEFAULT_DESCRIPTION },
+  "/": { title: "GymDrobe | Gym Wear, Workout Clothing & Fitness Gear", description: DEFAULT_DESCRIPTION },
   "/shop": { title: "Shop Gym Clothing & Workout Essentials | GymDrobe", description: "Explore gym clothing, shoes, bags and workout essentials at GymDrobe. Browse products, compare options and find gear for your next workout." },
   "/offers": { title: "Offers & Coupons | GymDrobe", description: "Explore current GymDrobe offers on gym clothing and workout essentials." },
   "/help": { title: "Shopping Help | GymDrobe", description: "Find help with shopping, delivery, payments and orders at GymDrobe." },
-  "/install": { title: "Install GymDrobe | Your Fitness Store", description: "Add GymDrobe to your home screen for quick access to fitness essentials, your shopping bag and orders." },
+  "/install": { title: "GymDrobe App | Add to Your Home Screen", description: "Install the GymDrobe web app from your browser on iPhone, iPad or Android. Shop fitness gear and access your wishlist, bag and orders." },
 };
+export const STOREFRONT_DOCUMENT_ROUTES = ["/", "/shop", "/offers", "/help", "/install"];
+
 export function cleanText(value) {
   return typeof value === "string" ? value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() : "";
 }
@@ -35,4 +39,24 @@ export function productMetadata(product, origin) {
   // offers. The existing client adds those from its fresh authoritative API read.
   return { title: `${name} | GymDrobe`, description: description.slice(0, 160), canonical, type: "product",
     image: images[0] || new URL(DEFAULT_SHARE_IMAGE, origin).href, imageAlt: images.length ? name : "GymDrobe wordmark", schema };
+}
+
+export function productBreadcrumbs(origin, canonical, product) {
+  const category = cleanText(product.category);
+  const collection = collectionPathForCategory(category);
+  const items = [
+    ["Home", origin + "/"],
+    ...(collection ? [[category, origin + collection]] : []),
+    [cleanText(product.name) || "Product", canonical],
+  ];
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map(([name, item], index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name,
+      item,
+    })),
+  };
 }

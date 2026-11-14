@@ -56,3 +56,14 @@ test("sitemap lists only canonical collection URLs with an active product", () =
   assert.match(xml, /<loc>https:\/\/www\.gymdrobe\.com\/collections\/compression-t-shirts<\/loc>/);
   assert.doesNotMatch(xml, /gym-bags|hidden-bag|\?category/);
 });
+
+test("sitemap includes the web app and policy with verified product modification dates only", () => {
+  const xml = buildSitemap("https://www.gymdrobe.com", [
+    { id: "recent", updatedAt: "2026-11-13T09:30:00.000Z" },
+    { id: "bad-date", updatedAt: "2026-02-31T00:00:00.000Z" },
+    { id: "future", updatedAt: "2026-11-16T09:30:00.000Z" },
+  ], Date.parse("2026-11-14T00:00:00.000Z"));
+  assert.match(xml, /<loc>https:\/\/www\.gymdrobe\.com\/install<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/www\.gymdrobe\.com\/shipping-and-returns\.html<\/loc>/);
+  assert.equal([...xml.matchAll(/<lastmod>(.*?)<\/lastmod>/g)].map(match => match[1]).join(), "2026-11-13T09:30:00.000Z");
+});

@@ -22,14 +22,14 @@
       "status": 308
     },
     {
-      "src": "/(product/[^/]+|collections/[^/]+|shop|offers|help)/$",
+      "src": "/(product/[^/]+|collections/[^/]+|shop|offers|help|install)/$",
       "headers": {
         "Location": "/$1"
       },
       "status": 308
     },
     {
-      "src": "/(?:product/[^/]+|collections/[^/]+|shop|offers|help)$",
+      "src": "/(?:product/[^/]+|collections/[^/]+|shop|offers|help|install)$",
       "headers": {
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "public, max-age=0, must-revalidate"
@@ -37,7 +37,7 @@
       "continue": true
     },
     {
-      "src": "/(?:account|cart|wishlist|checkout|login|orders|addresses|saved|compare|notifications|admin|supplier|dev)(?:/.*)?$",
+      "src": "^/(?:storefront-shell\\.html|(?:account|cart|wishlist|checkout|login|orders|addresses|saved|compare|notifications|admin|supplier|dev|order-success|signup|forgot-password|reset-password|search|categories|kits)(?:/.*)?)$",
       "headers": {
         "X-Robots-Tag": "noindex, follow"
       },
@@ -75,8 +75,17 @@
       "handle": "filesystem"
     },
     {
-      "src": "/(?!api(?:/|$))[^.]*",
-      "dest": "/index.html"
+      "src": "^/(?:product/[^/]+|collections/(?:compression-t-shirts|gym-joggers|gym-bags))/?$",
+      "dest": "/storefront-shell.html"
+    },
+    {
+      "src": "^/(?:account|cart|wishlist|checkout|login|orders|addresses|saved|compare|notifications|admin|supplier|dev|order-success|signup|forgot-password|reset-password|search|categories|kits)(?:/[^.]*)?$",
+      "dest": "/storefront-shell.html"
+    },
+    {
+      "src": "^/(?!api(?:/|$)|[.])[^.]*$",
+      "dest": "/404.html",
+      "status": 404
     }
   ]
 }
