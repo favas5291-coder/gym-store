@@ -96,7 +96,7 @@ try{
   await keyboardUI.p.getByRole('button',{name:'Clear history'}).click();
   assert.equal(await keyboardUI.p.locator('.gn-results li').count(),0);
   assert.equal(await keyboardUI.p.locator('.gn-results').count(),1);
-  await keyboardUI.p.locator('.cinema-hero').click({position:{x:10,y:180},force:true});
+  await keyboardUI.p.locator('.theme-category-grid').click({position:{x:10,y:180},force:true});
   assert.equal(await keyboardUI.p.locator('.gn-results').count(),0);
  });await keyboardUI.c.close();
  // The detail hero should not letterbox square or landscape photos inside
@@ -312,28 +312,13 @@ try{
 
  for(const width of [320,375,390,430,768,1024,1440,1920]){
   const v=await context(width);
-  await check(width+'px flagship cinematic hero and responsive navigation',async()=>{
+  await check(width+'px merchandising and responsive navigation',async()=>{
    await visit(v.p,'/');
-   await v.p.getByRole('heading',{name:/Everything You Need for Every Workout/i}).waitFor();
-   assert.ok(await v.p.getByRole('link',{name:/Shop Workout Gear/}).isVisible());
    assert.equal(await v.p.locator('.theme-category').count(),3);
-   assert.equal(await v.p.getByRole('button',{name:/Pause hero film|Play hero film/}).count(),0);
-   const m=await v.p.evaluate(()=>{
-    const r=(s)=>{const x=document.querySelector(s).getBoundingClientRect();return {left:x.left,right:x.right,top:x.top,bottom:x.bottom,width:x.width,height:x.height};};
-    return {page:document.documentElement.scrollWidth,vw:innerWidth,hero:r('.cinema-hero'),stage:r('.cinema-stage'),content:r('.cinema-content'),shop:r('.cinema-shop')};
-   });
-   assert.ok(m.page<=m.vw+1,JSON.stringify(m));
-   assert.ok(m.shop.right<=width+1,JSON.stringify(m));
-   if(width<=700){
-    assert.ok(m.stage.width>0 && m.hero.width>=width-1,'Mobile campaign spans the viewport');
-    assert.ok(m.content.right<=m.stage.left+1,'Mobile copy sits beside the campaign photograph');
-    assert.ok(m.shop.bottom<=m.hero.bottom+1,'Mobile CTAs remain visible');
-    assert.ok(await v.p.getByRole('navigation',{name:'Shopping navigation'}).isVisible());
-    assert.ok(await v.p.getByRole('combobox',{name:'Search products'}).isVisible());
-   }else{
-    assert.ok(m.stage.left>m.hero.left+m.hero.width*.35,'Desktop split retains film on the right');
-    assert.ok(m.content.right<=m.stage.left+2,'Desktop content stays left of the film');
-   }
+   assert.ok(await v.p.locator('.theme-category').first().isVisible());
+   assert.ok(await v.p.getByRole('combobox',{name:'Search products'}).isVisible());
+   assert.ok(await v.p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+   if(width<=700) assert.ok(await v.p.getByRole('navigation',{name:'Shopping navigation'}).isVisible());
   });await v.c.close();
  }
  for (const width of [390, 1440]) {
@@ -346,9 +331,9 @@ try{
     }
    });
    await visit(view.p, '/');
-   await view.p.locator('.cinema-poster img').evaluate(image => image.decode());
+   await view.p.locator('.theme-category img').first().evaluate(image => image.decode());
    await view.p.waitForLoadState('networkidle');
-   assert.equal(await view.p.locator('.cinema-hero video').count(), 0);
+   assert.equal(await view.p.locator('main video').count(), 0);
    assert.deepEqual(videoRequests, []);
   });
   await view.c.close();
@@ -357,14 +342,8 @@ try{
   const shop=await context(390,{signedIn:true});
   try{
    await visit(shop.p,'/');
-   for(const name of [/Shop Workout Gear/]){
-    const link=shop.p.getByRole('link',{name}).first();
-    assert.ok(await link.isVisible(),String(name)+' link visible');
-    assert.ok(await link.locator('svg.premium-control-arrow').count()>0,String(name)+' has Lucide vector');
-   }
-   const cta=shop.p.locator('.cinema-shop');
+   const cta=shop.p.locator('.theme-category').first();
    assert.ok(await cta.evaluate(el=>el.getBoundingClientRect().height>=44));
-   assert.equal(await shop.p.locator('.cinema-hero').innerText().then(t=>/[↗→⬆➡]/.test(t)),false);
    await visit(shop.p,'/shop');
    const quick=shop.p.getByRole('button',{name:'Quick add Gym Training T-Shirt'}).first();
    await quick.waitFor();

@@ -1,3 +1,4 @@
+import GetApp from "./GetApp.jsx";
 import {
   useEffect,
   useId,
@@ -252,12 +253,7 @@ function Icon({ name, size = 22 }) {
 }
 
 function Brand() {
-  return (
-    <picture className="gn-wordmark">
-      <img className="gn-wordmark-light" src="/brand/gymdrobe-wordmark-cream.png" alt="GymDrobe" />
-      <img className="gn-wordmark-dark" src="/brand/gymdrobe-wordmark-green.png" alt="GymDrobe" />
-    </picture>
-  );
+  return <img className="gn-wordmark" src="/brand/gymdrobe-wordmark-green.png" alt="GymDrobe" />;
 }
 
 function Thumbnail({ src }) {
@@ -1056,8 +1052,9 @@ export default function Navbar({
       }}
     >
       <nav className="shopping-help-bar" aria-label="Shopping information">
-        <a href="/shipping-and-returns.html">Delivery &amp; returns</a>
-        <Link to="/help">Customer support</Link>
+        <GetApp showPromotion={location.pathname === "/"} />
+        <Link to="/orders">Track Order</Link>
+        <Link to="/help">Help</Link>
       </nav>
       <div className="gn-bar">
         <button

@@ -1,14 +1,17 @@
 import { lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
-import Hero from "../components/Hero.jsx";
 import CategorySection, { HomeCategoryLinks } from "../components/CategorySection.jsx";
 const HomeProductSections = lazy(() => import("../components/HomeProductSections.jsx"));
 
 export default function Home() {
   return <div className="cinematic-home">
     <HomeCategoryLinks />
-    <Hero />
+    <h1 className="sr-only">GymDrobe workout clothing and gear</h1>
     <CategorySection />
+    <div className="home-offer-strip">
+      <Link to="/offers">Browse GymDrobe offers</Link>
+      <a href="/shipping-and-returns.html">Delivery &amp; returns</a>
+    </div>
     <Suspense fallback={<section className="gm-section catalog-status" role="status">Loading products…</section>}><HomeProductSections /></Suspense>
     <section className="gm-section home-shopping-care" aria-label="Delivery and customer support">
       <a href="/shipping-and-returns.html">

@@ -150,9 +150,14 @@ const featuredCategories = [
 ];
 
 export function HomeCategoryLinks() {
+  const { products } = useCatalog();
+  const hasBrands = products.some(product => product.brand?.trim());
   return (
     <nav className="home-category-links" aria-label="Shop categories">
       {featuredCategories.map(({ name, to }) => <Link key={to} to={to}>{name}</Link>)}
+      {hasBrands && <a href="#home-brands">Brands</a>}
+      <Link to="/shop?collection=new">New Arrivals</Link>
+      <Link to="/offers">Offers</Link>
     </nav>
   );
 }
@@ -162,13 +167,13 @@ export default function CategorySection() {
   const cards = useMemo(() => categoryCards(products), [products]);
 
   return <section className="gm-section gm-categories" id="categories" aria-labelledby="home-category-title">
-    <h2 className="home-category-title" id="home-category-title">Shop by category</h2>
+    <h2 className="sr-only" id="home-category-title">Shop by category</h2>
     <div className="theme-category-grid">
       {featuredCategories.map(({ name, department, to, fallback }) => {
         const photo = cards.find(card => card.icon && productDepartment({ category: card.name }) === department)?.icon || fallback;
         return <Link key={name} to={to} className="theme-category">
-          <img src={photo} alt="" loading="lazy" width="420" height="250" />
-          <span>{name}</span>
+          <img src={photo} alt="" loading="eager" decoding="async" width="420" height="250" />
+          <span><strong>{name}</strong><small>Shop now →</small></span>
         </Link>;
       })}
     </div>

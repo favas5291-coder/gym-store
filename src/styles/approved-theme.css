@@ -447,3 +447,222 @@
     object-position: 54% center;
   }
 }
+
+/* The utility strip and sign-in row stay together in the shopping header. */
+#app .premium-storefront .gd-nav,
+#app .premium-storefront .gd-nav.gn-raised {
+  background: white;
+  color: var(--ink);
+}
+
+#app .premium-storefront .shopping-help-bar {
+  display: flex;
+  align-items: center;
+  gap: clamp(12px, 2vw, 28px);
+  padding-block: 0;
+}
+
+.shopping-help-bar .get-app-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  min-height: 42px;
+  background: none;
+  border: 0;
+  color: inherit;
+}
+
+#app .premium-storefront .shopping-help-bar > a {
+  min-height: 42px;
+}
+
+#app .premium-storefront .shopping-help-bar :focus-visible {
+  outline-color: var(--brand-cream) !important;
+}
+
+.get-app-dialog {
+  width: min(390px, calc(100% - 32px));
+  padding: 28px;
+  border: 1px solid #dedbd4;
+  border-radius: 16px;
+  background: white;
+  color: #181a18;
+  text-align: center;
+}
+
+.get-app-dialog::backdrop { background: #122725aa; }
+.get-app-dialog img { margin: 0 auto 12px; }
+.get-app-dialog a { text-decoration: underline; }
+.get-app-close { position: absolute; top: 8px; right: 8px; }
+.get-app-close,
+.get-app-promotion button {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+}
+
+.get-app-promotion { display: none; }
+
+@media (min-width: 1024px) {
+  html:not(.gymdrobe-native) #app .storefront-home .gd-nav .gn-bar {
+    grid-template-columns: minmax(120px, .75fr) minmax(330px, 2fr) minmax(230px, 1.5fr) 132px;
+    grid-template-areas: "brand navigation search actions";
+    gap: 12px;
+  }
+
+  html:not(.gymdrobe-native) #app .storefront-home .gd-nav .gn-desktop { display: flex; }
+
+  .get-app-promotion {
+    position: fixed;
+    inset: auto auto 18px 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: white;
+    color: #0f3d3a;
+    border: 1px solid #dedbd4;
+    border-radius: 12px;
+    box-shadow: 0 6px 22px #0f3d3a1c;
+    font-weight: 700;
+  }
+
+  .get-app-promotion small { color: #525852; font-weight: 500; }
+}
+
+#app .storefront-home .home-category-links {
+  justify-content: safe center;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+#app .storefront-home .home-category-links > a { flex: 0 0 auto; }
+
+#app .storefront-home .gm-categories {
+  width: 100%;
+  max-width: 1600px;
+  padding: 12px max(16px, 3vw) 20px;
+}
+
+#app .storefront-home .theme-category-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 34%;
+  grid-template-columns: none;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  padding-bottom: 6px;
+}
+
+#app .storefront-home .theme-category {
+  aspect-ratio: 1;
+  scroll-snap-align: start;
+}
+
+#app .storefront-home .theme-category > span {
+  display: grid;
+  gap: 6px;
+  padding: 28px 16px 14px;
+}
+
+.theme-category small { font-family: Inter, sans-serif; font-size: .55em; }
+
+.home-offer-strip {
+  width: 94%;
+  margin: 0 auto 20px;
+  border: 1px solid #dedbd4;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 24px;
+  background: white;
+  color: #0f3d3a;
+  font-weight: 700;
+}
+
+#app .storefront-home .cinematic-home :is(.home-new, .home-spotlight, .home-collections) { padding-block: 26px; }
+#app .storefront-home .home-new > h2 { text-align: center; margin: 0 0 16px; }
+
+.home-product-feature {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  align-items: center;
+  background: #eeeae3;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.home-product-feature .gd-product-video { margin: 0; }
+.home-feature-photo img { width: 100%; max-height: 420px; object-fit: contain; }
+.home-feature-copy { padding: 20px; }
+.home-feature-copy h3 { font-size: clamp(20px, 3vw, 38px); margin: 0 0 16px; }
+.home-spotlight { background: #f3f2f0; }
+
+.home-spotlight-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.home-spotlight-grid img {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 9px;
+  margin-bottom: 6px;
+}
+
+.home-collections > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.home-collections a { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 15px; border-radius: 8px; background: var(--brand-cream); }
+
+@media (max-width: 700px) {
+  #app .storefront-home .theme-category-grid { grid-auto-columns: 78%; }
+  #app .storefront-home .theme-category { aspect-ratio: .98; font-size: 24px; }
+  .home-product-feature { grid-template-columns: 1fr; }
+  .home-spotlight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.gymdrobe-native #app .premium-storefront .shopping-help-bar { display: none; }
+
+#app .storefront-home .home-collection-banner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  padding: 0;
+  margin: 12px 0;
+  overflow: hidden;
+}
+
+.home-collection-banner > span {
+  display: grid;
+  gap: 10px;
+  padding: clamp(14px, 4vw, 48px);
+  align-content: center;
+}
+
+.home-collection-banner strong {
+  font: 700 clamp(20px, 4vw, 50px) var(--headline);
+}
+
+.home-collection-banner img {
+  width: 100%;
+  height: clamp(140px, 27vw, 330px);
+  object-fit: cover;
+}
+
+#home-brands { scroll-margin-top: 145px; }
+
+#app .storefront-home .gd-nav :is(.gn-action, .gn-menu-toggle) { color: var(--ink); }
+#app .storefront-home .gd-nav :is(.gn-action, .gn-menu-toggle):focus-visible {
+  outline-color: var(--brand-green) !important;
+}
