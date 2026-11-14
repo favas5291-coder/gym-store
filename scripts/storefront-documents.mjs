@@ -85,7 +85,13 @@ export function publicCatalogueSnapshot(origin, products) {
     path: `/product/${encodeURIComponent(String(product.id ?? product._id))}`,
     image: getImages(product, origin).find(url => url.startsWith("https://")) || "",
   }));
-  return { version: 1, origin, observedAt: new Date().toISOString(), entries, collections, shopPreview };
+  // Keep the no-script shop document bounded as the catalogue grows. The
+  // sitemap and scoped collection documents retain their complete link lists.
+  const shopLinks = entries
+    .filter(({ route, metadata }) => origin + route === metadata.canonical)
+    .slice(0, 48)
+    .map(({ route, metadata }) => ({ route, heading: metadata.schema.name }));
+  return { version: 1, origin, observedAt: new Date().toISOString(), entries, collections, shopPreview, shopLinks };
 }
 export async function writeStorefrontDocuments({ directory = path.join(root, "dist"), snapshot, template } = {}) {
   if (snapshot?.version !== 1 || !Array.isArray(snapshot.entries)) throw new Error("Regenerate the public catalogue before the website build");
@@ -98,11 +104,14 @@ export async function writeStorefrontDocuments({ directory = path.join(root, "di
   const categoryLinks = collectionDocs.length
     ? `<h2>Shop by category</h2>${collectionLinks(collectionDocs)}`
     : "";
+  const products = snapshot.shopLinks?.length
+    ? `<h2>Shop products</h2>${collectionLinks(snapshot.shopLinks)}`
+    : "";
   const app = '<a href="/install">Install the GymDrobe web app</a>';
   const shop = '<a href="/shop">Shop GymDrobe</a>';
   const fallbacks = {
     "/": `<h1>GymDrobe</h1><p>${escape(PAGES["/"].description)}</p><p>${shop} · ${app}</p>${categoryLinks}`,
-    "/shop": `<h1>Shop GymDrobe</h1><p>${escape(PAGES["/shop"].description)}</p>${categoryLinks}`,
+    "/shop": `<h1>Shop GymDrobe</h1><p>${escape(PAGES["/shop"].description)}</p>${categoryLinks}${products}`,
     "/install": `<h1>Install the GymDrobe web app</h1><p>${escape(PAGES["/install"].description)}</p><ul><li>On iPhone or iPad, open GymDrobe in Safari and choose Add to Home Screen in the Share menu.</li><li>On Android, open GymDrobe in Chrome and choose Install app or Add to Home screen in the browser menu.</li></ul><p>${shop}</p>`,
     "/offers": `<h1>GymDrobe Offers</h1><p>${escape(PAGES["/offers"].description)}</p><p>${shop}</p>`,
     "/help": `<h1>GymDrobe Shopping Help</h1><p>${escape(PAGES["/help"].description)}</p><p><a href="/shipping-and-returns.html">Shipping and returns</a></p>`,

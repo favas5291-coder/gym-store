@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { productMetadata, getImages } from "../src/utils/seoMetadata.js";
+import { productMetadata, getImages, listingFilters, LISTING_FILTER_KEYS } from "../src/utils/seoMetadata.js";
 import { metadataHtml, publicCatalogueSnapshot, writeStorefrontDocuments } from "../scripts/storefront-documents.mjs";
 const origin = "https://www.gymdrobe.com", id = "6ad2351ed8f991271e3d1a8b";
 const product = { id, slug: "compression-tee-" + id, name: 'Training tee "A"', description: "<p>A real product description.</p>", brand: "Fixture Brand", image: "https://images.example.test/tee.jpg", price: 1000, discount: 30.1, stock: 5, supplierCost: 200, supplierLink: "private-source-marker" };
@@ -64,7 +64,7 @@ test("Vercel keeps the filesystem before SPA fallback and identifies public HTML
   assert.ok(routes.findIndex(route => route.handle === "filesystem") < routes.findIndex(route => route.dest === "/storefront-shell.html"));
   const document = routes.find(route => route.headers?.["Content-Type"]);
   assert.ok(new RegExp(document.src).test(`/product/${id}`)); assert.ok(!new RegExp(document.src).test("/shop.js"));
-  const privateRoute = routes.find(route => route.headers?.["X-Robots-Tag"]);
+  const privateRoute = routes.find(route => route.headers?.["X-Robots-Tag"] && !route.has);
   for (const route of ["/account", "/orders/private-order", "/admin/orders", "/checkout"]) assert.ok(new RegExp(privateRoute.src).test(route));
   assert.ok(!new RegExp(privateRoute.src).test(`/product/${id}`));
   assert.ok(routes.some(route => route.status === 308 && new RegExp(route.src).test(`/product/${id}/`)));
@@ -135,6 +135,13 @@ test("initial HTML scopes homepage identity, serves app instructions, and separa
     );
     assert.match(home, /<title>GymDrobe \| Gym Wear, Workout Clothing &amp; Fitness Gear<\/title>/);
     assert.equal([...home.matchAll(/id="gymdrobe-site-schema"/g)].length, 1);
+    const graph = JSON.parse(home.match(/id="gymdrobe-site-schema"\s+type="application\/ld\+json"\s*>(.*?)<\/script>/s)[1])["@graph"];
+    const website = graph.find(node => node["@type"] === "WebSite");
+    const store = graph.find(node => node["@type"] === "OnlineStore");
+    assert.equal(website.url, origin + "/");
+    assert.deepEqual(website.alternateName, ["GymDrobe Store", "gymdrobe.com"]);
+    assert.deepEqual(website.publisher, { "@id": store["@id"] });
+    assert.equal(store.logo.contentUrl, origin + "/brand/external/gymdrobe-app-icon-1024.png");
     assert.match(home, /href="\/install">Install the GymDrobe web app/);
     assert.match(install, /<link rel="canonical" href="https:\/\/www\.gymdrobe\.com\/install"/);
     assert.match(install, /<noscript>.*Add to Home Screen/);
@@ -158,4 +165,44 @@ test("initial HTML scopes homepage identity, serves app instructions, and separa
   } finally {
     await fs.rm(directory, { recursive: true, force: true });
   }
+});
+
+test("filter noindex rules match storefront controls and leave campaign URLs indexable", async () => {
+  const { routes } = JSON.parse(await fs.readFile(new URL("../vercel.json", import.meta.url), "utf8"));
+  const filesystem = routes.findIndex(route => route.handle === "filesystem");
+  const filters = routes.slice(0, filesystem).filter(route => route.has && route.headers?.["X-Robots-Tag"]);
+  assert.deepEqual(filters.map(route => route.has[0].key), LISTING_FILTER_KEYS);
+  const getHeader = url => {
+    const { pathname, searchParams } = new URL(url, origin);
+    return filters.find(rule => new RegExp(rule.src).test(pathname) &&
+      rule.has.every(({ key }) => searchParams.has(key)))?.headers["X-Robots-Tag"];
+  };
+  for (const url of ["/shop?search=shirt", "/shop?category=Joggers", "/collections/gym-bags?sort=price", "/shop?utm_source=profile&size=M"]) {
+    assert.equal(getHeader(url), "noindex, follow", url);
+    assert.ok(listingFilters(new URL(url, origin).searchParams).length);
+  }
+  for (const url of ["/shop", "/shop?utm_source=profile&fbclid=test", "/collections/gym-bags?gclid=test", "/product/123?size=M"]) {
+    assert.equal(getHeader(url), undefined, url);
+  }
+  assert.deepEqual(listingFilters(new URLSearchParams("utm_source=profile&unknown=1")), []);
+  const index = routes.find(rule => new RegExp(rule.src).test("/index.html"));
+  assert.equal(index.status, 308);
+  assert.equal(index.headers.Location, "/");
+});
+
+test("no-script Shop includes canonical links for products outside curated collections", async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "gymdrobe-shop-crawl-"));
+  try {
+    const appTemplate = template.replace('id="root"', 'id="app"');
+    const snapshot = publicCatalogueSnapshot(origin, [
+      { ...product, category: "Gym Gloves" },
+      { ...product, id: "hidden", slug: "hidden-slug", isActive: false },
+    ]);
+    await writeStorefrontDocuments({ directory, snapshot, template: appTemplate });
+    const html = await fs.readFile(path.join(directory, "shop"), "utf8");
+    const fallback = html.match(/<noscript>(.*?)<\/noscript>/s)[1];
+    assert.ok(fallback.includes(`href="/product/${id}"`));
+    assert.ok(!fallback.includes(product.slug));
+    assert.doesNotMatch(fallback, /hidden-slug|private-source-marker/);
+  } finally { await fs.rm(directory, { recursive: true, force: true }); }
 });

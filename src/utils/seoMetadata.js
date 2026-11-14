@@ -11,6 +11,18 @@ export const PAGES = {
 };
 export const STOREFRONT_DOCUMENT_ROUTES = ["/", "/shop", "/offers", "/help", "/install"];
 
+// Listing controls create alternate views of the same catalogue. Analytics
+// parameters and unknown keys do not change the result set.
+export const LISTING_FILTER_KEYS = [
+  "availability", "brand", "category", "collection", "color", "department",
+  "discount", "gender", "literal", "maxPrice", "minPrice", "page", "rating",
+  "search", "size", "sort", "subcategory",
+];
+
+export function listingFilters(query) {
+  return LISTING_FILTER_KEYS.filter(key => query.has(key));
+}
+
 export function cleanText(value) {
   return typeof value === "string" ? value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() : "";
 }
