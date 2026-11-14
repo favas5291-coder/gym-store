@@ -3,14 +3,12 @@ import { Link } from "react-router-dom";
 import Hero from "../components/Hero.jsx";
 import CategorySection from "../components/CategorySection.jsx";
 const HomeProductSections = lazy(() => import("../components/HomeProductSections.jsx"));
-const HomeReviews = lazy(() => import("../components/HomeReviews.jsx"));
 
 export default function Home() {
   return <div className="cinematic-home">
     <Hero />
     <CategorySection />
     <Suspense fallback={<section className="gm-section catalog-status" role="status">Loading products…</section>}><HomeProductSections /></Suspense>
-    <Suspense fallback={null}><HomeReviews /></Suspense>
     <section className="gm-section home-shopping-care" aria-label="Delivery and customer support">
       <a href="/shipping-and-returns.html">
         <strong>Delivery &amp; returns</strong>

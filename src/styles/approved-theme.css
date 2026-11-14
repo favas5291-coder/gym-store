@@ -239,3 +239,20 @@
 .gymdrobe-native #app .premium-storefront .shopping-help-bar {
   display: none;
 }
+
+#app .premium-storefront .cinematic-home > .gm-section {
+  width: 90%;
+  max-width: 1440px;
+  padding-inline: 0;
+}
+
+#app .premium-storefront .cinematic-home .theme-category img {
+  min-height: 104px;
+}
+
+@media (max-width: 700px) {
+  #app .premium-storefront .cinematic-home .theme-category img {
+    min-height: 0;
+    max-height: 65px;
+  }
+}
