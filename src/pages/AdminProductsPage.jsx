@@ -1,3 +1,4 @@
+import AdminBrandLogos from "../components/AdminBrandLogos.jsx";
 import ProductColorImagesEditor from "../components/ProductColorImagesEditor.jsx";
 
 import {
@@ -1417,6 +1418,7 @@ function AdminProductsWorkspace({ token }) {
   const lock = useRef(false);
   const baseline = useRef(null);
   const editorRef = useRef(null);
+  const [catalogueRevision, setCatalogueRevision] = useState(0);
 
   const [products, setProducts] =
     useState([]);
@@ -1728,6 +1730,7 @@ function AdminProductsWorkspace({ token }) {
 
   async function refreshStorefront() {
     try {
+      setCatalogueRevision(revision => revision + 1);
       await catalog.refreshProducts?.();
     } catch {
       if (mounted.current) {
@@ -2349,6 +2352,8 @@ function AdminProductsWorkspace({ token }) {
           </button>
         </div>
       </header>
+
+      <AdminBrandLogos token={token} catalogueRevision={catalogueRevision} />
 
       {sessionExpired && (
         <div
