@@ -1,3 +1,4 @@
+import GetApp from "./GetApp.jsx";
 import {
   useEffect,
   useId,
@@ -1050,6 +1051,11 @@ export default function Navbar({
         }
       }}
     >
+      <nav className="shopping-help-bar" aria-label="Shopping information">
+        <GetApp showPromotion={location.pathname === "/"} />
+        <Link to="/orders">Track Order</Link>
+        <Link to="/help">Help</Link>
+      </nav>
       <div className="gn-bar">
         <button
           type="button"
