@@ -665,3 +665,28 @@ export async function deleteProduct(
 ) {
   return archiveProduct(token, id, options);
 }
+export async function getBrandLogos(options = {}) {
+  const data = await request("/brands", { timeoutMs: 8000, ...options });
+  return Array.isArray(data.brands) ? data.brands : [];
+}
+
+export function brandLogoUrl(path) {
+  return `${API_URL}${path}`;
+}
+
+export async function getAdminBrands(token, signal) {
+  const data = await request("/brands/admin", { token, signal });
+  return data.brands;
+}
+
+export function changeBrandLogo(path, token, body) {
+  return request(`/brands/admin${path}`, { token, method: "POST", body });
+}
+
+export async function getBrandLogoPreview(key, id, token, signal) {
+  const response = await fetch(brandLogoUrl(`/brands/admin/${encodeURIComponent(key)}/preview/${id}`), {
+    headers: { Authorization: `Bearer ${token}` }, signal,
+  });
+  if (!response.ok) throw new Error("Logo preview could not be loaded.");
+  return response.blob();
+}

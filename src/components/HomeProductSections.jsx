@@ -5,6 +5,7 @@ import { asset } from "../data/assets.js";
 import { homeCollections } from "../utils/homeCollections.js";
 import { ProductImage } from "./StorefrontShared.jsx";
 import ProductRow from "./ProductRow.jsx";
+import HomeBrandGrid from "./HomeBrandGrid.jsx";
 import HomeProductVideo from "./HomeProductVideo.jsx";
 
 export default function HomeProductSections() {
@@ -20,7 +21,6 @@ export default function HomeProductSections() {
     );
   }
 
-  const brands = [...new Set(available.map(product => product.brand?.trim()).filter(Boolean))];
   const gymBag = available.find(product => /\b(?:duffel|duffle|gym bag|sports bag)\b/i.test(product.name));
   const collections = [
     { title: "Your First Gym Kit", to: "/kits", image: asset("Towel.jpg") },
@@ -57,13 +57,7 @@ export default function HomeProductSections() {
           <strong>{title}</strong>
         </Link>)}
       </div>
-      {brands.length > 0 && <>
-        <h3 id="home-brands">Shop by brand</h3>
-        <div className="home-brand-grid">{brands.slice(0, 6).map(brand => <Link key={brand} to={`/shop?brand=${encodeURIComponent(brand)}`}>{brand}</Link>)}</div>
-        {brands.length > 6 && <details className="home-brand-more"><summary>View all brands</summary>
-          <div className="home-brand-grid">{brands.slice(6).map(brand => <Link key={brand} to={`/shop?brand=${encodeURIComponent(brand)}`}>{brand}</Link>)}</div>
-        </details>}
-      </>}
+      <HomeBrandGrid products={products} />
     </section>
     {fresh.length > 0 && <ProductRow title="New Arrivals" products={fresh} grid to="/shop?collection=new" />}
   </>;

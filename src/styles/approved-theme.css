@@ -447,18 +447,46 @@
   #app .storefront-home .cinema-stage { height: clamp(180px, 49vw, 280px); }
 }
 
+#app .storefront-home .home-brands { margin-top: 24px; }
+#app .storefront-home .home-brands h3 { scroll-margin-top: 120px; }
+
 #app .storefront-home .home-brand-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 132px), 1fr));
   gap: 8px;
 }
 
-#app .storefront-home .home-brand-grid a {
+#app .storefront-home .home-brand-grid .home-brand-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
+  block-size: 90px;
+  gap: 6px;
+  padding: 8px 12px;
   background: white;
   border: 1px solid var(--line);
   text-align: center;
   overflow-wrap: anywhere;
+}
+
+#app .storefront-home .home-brand-tile img {
+  width: min(100%, 128px);
+  height: 36px;
+  object-fit: contain;
+}
+
+.home-brand-caption { font-size: 12px; line-height: 1.25; }
+.home-brand-name { font-size: 14px; font-weight: 600; line-height: 1.25; }
+.home-brand-caption, .home-brand-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+@media (max-width: 700px) {
+  #app .storefront-home .home-brand-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .home-brand-more { margin-top: 12px; }
