@@ -349,9 +349,12 @@ try{
    await visit(v.p, '/');
    const carousel = v.p.getByRole('region', { name: 'Featured GymDrobe products' });
    const photo = carousel.locator('.home-carousel-photo');
-   await carousel.getByRole('button', { name: 'Next product' }).click();
-   const selected = await photo.getAttribute('href');
+   await photo.waitFor();
+   const first = await photo.getAttribute('href');
    assert.equal(await photo.locator('img').evaluate(img => getComputedStyle(img).objectFit), 'contain');
+   await carousel.getByRole('button', { name: 'Next product' }).click();
+   await v.p.waitForFunction(path => document.querySelector('.home-carousel-photo')?.getAttribute('href') !== path, first);
+   const selected = await photo.getAttribute('href');
    await v.p.waitForFunction(path => document.querySelector('.home-carousel-photo')?.getAttribute('href') !== path, selected);
    await v.p.locator('.home-story-media').scrollIntoViewIfNeeded();
    await v.p.waitForFunction(() => {
