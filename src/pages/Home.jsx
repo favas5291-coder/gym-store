@@ -1,11 +1,12 @@
 import { lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import Hero from "../components/Hero.jsx";
-import CategorySection from "../components/CategorySection.jsx";
+import CategorySection, { HomeCategoryLinks } from "../components/CategorySection.jsx";
 const HomeProductSections = lazy(() => import("../components/HomeProductSections.jsx"));
 
 export default function Home() {
   return <div className="cinematic-home">
+    <HomeCategoryLinks />
     <Hero />
     <CategorySection />
     <Suspense fallback={<section className="gm-section catalog-status" role="status">Loading products…</section>}><HomeProductSections /></Suspense>

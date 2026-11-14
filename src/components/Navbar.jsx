@@ -252,7 +252,12 @@ function Icon({ name, size = 22 }) {
 }
 
 function Brand() {
-  return <img className="gn-wordmark" src="/brand/gymdrobe-wordmark-green.png" alt="GymDrobe" />;
+  return (
+    <picture className="gn-wordmark">
+      <img className="gn-wordmark-light" src="/brand/gymdrobe-wordmark-cream.png" alt="GymDrobe" />
+      <img className="gn-wordmark-dark" src="/brand/gymdrobe-wordmark-green.png" alt="GymDrobe" />
+    </picture>
+  );
 }
 
 function Thumbnail({ src }) {

@@ -1,3 +1,6 @@
+import clothingPhoto from "../assets/tshirt.jpg";
+import accessoriesPhoto from "../assets/shaker.jpg";
+import essentialsPhoto from "../assets/Towel.jpg";
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 
@@ -141,22 +144,31 @@ export function categoryCards(products = []) {
 }
 
 const featuredCategories = [
-  { name: "Workout Clothing", department: "workout", to: "/shop?department=workout" },
-  { name: "Accessories", department: "accessories", to: "/shop?department=accessories" },
-  { name: "Starter Essentials", department: "hydration", to: "/kits" },
+  { name: "Workout Clothing", department: "workout", fallback: clothingPhoto, to: "/shop?department=workout" },
+  { name: "Accessories", department: "accessories", fallback: accessoriesPhoto, to: "/shop?department=accessories" },
+  { name: "Starter Essentials", department: "hydration", fallback: essentialsPhoto, to: "/kits" },
 ];
+
+export function HomeCategoryLinks() {
+  return (
+    <nav className="home-category-links" aria-label="Shop categories">
+      {featuredCategories.map(({ name, to }) => <Link key={to} to={to}>{name}</Link>)}
+    </nav>
+  );
+}
 
 export default function CategorySection() {
   const { products, loading, error } = useCatalog();
   const cards = useMemo(() => categoryCards(products), [products]);
 
-  return <section className="gm-section gm-categories" id="categories" aria-label="Shop by category">
+  return <section className="gm-section gm-categories" id="categories" aria-labelledby="home-category-title">
+    <h2 className="home-category-title" id="home-category-title">Shop by category</h2>
     <div className="theme-category-grid">
-      {featuredCategories.map(({ name, department, to }) => {
-        const photo = cards.find(card => card.icon && productDepartment({ category: card.name }) === department)?.icon;
+      {featuredCategories.map(({ name, department, to, fallback }) => {
+        const photo = cards.find(card => card.icon && productDepartment({ category: card.name }) === department)?.icon || fallback;
         return <Link key={name} to={to} className="theme-category">
-          <span>{name} <span aria-hidden="true">›</span></span>
-          {photo && <img src={photo} alt="" loading="lazy" width="160" height="120" />}
+          <img src={photo} alt="" loading="lazy" width="420" height="250" />
+          <span>{name}</span>
         </Link>;
       })}
     </div>

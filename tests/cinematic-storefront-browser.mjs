@@ -325,8 +325,8 @@ try{
    assert.ok(m.page<=m.vw+1,JSON.stringify(m));
    assert.ok(m.shop.right<=width+1,JSON.stringify(m));
    if(width<=700){
-    assert.ok(m.stage.width>=width-1 && m.hero.width>=width-1,'Mobile footage must fill viewport without letterbox');
-    assert.ok(m.content.bottom<=m.stage.top+1,'Copy sits above the mobile campaign image');
+    assert.ok(m.stage.width>0 && m.hero.width>=width-1,'Mobile campaign spans the viewport');
+    assert.ok(m.content.right<=m.stage.left+1,'Mobile copy sits beside the campaign photograph');
     assert.ok(m.shop.bottom<=m.hero.bottom+1,'Mobile CTAs remain visible');
     assert.ok(await v.p.getByRole('navigation',{name:'Shopping navigation'}).isVisible());
     assert.ok(await v.p.getByRole('combobox',{name:'Search products'}).isVisible());

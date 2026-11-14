@@ -256,3 +256,194 @@
     max-height: 65px;
   }
 }
+
+#app .premium-storefront .gn-wordmark-light,
+#app .storefront-home .gn-wordmark-dark {
+  display: none;
+}
+
+#app .premium-storefront.storefront-home .gn-wordmark-light {
+  display: block;
+}
+
+#app .storefront-home .gd-nav,
+#app .storefront-home .gd-nav.gn-raised {
+  background: var(--brand-green);
+  color: var(--brand-cream);
+}
+
+#app .storefront-home .gd-nav :is(.gn-action, .gn-menu-toggle) {
+  color: var(--brand-cream);
+}
+
+#app .storefront-home .gd-nav :is(.gn-action, .gn-menu-toggle):focus-visible {
+  outline-color: var(--brand-cream) !important;
+}
+
+#app .storefront-home .gd-nav .gn-form {
+  border-radius: 8px;
+}
+
+#app .storefront-home .shopping-help-bar {
+  display: none;
+}
+
+#app .storefront-home .home-category-links {
+  display: flex;
+  justify-content: center;
+  background: white;
+  border-bottom: 1px solid var(--line);
+}
+
+#app .storefront-home .home-category-links > a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 6px clamp(8px, 3vw, 44px);
+  text-align: center;
+  font-size: clamp(11px, 2.6vw, 14px);
+  font-weight: 700;
+}
+
+#app .storefront-home .home-category-links > a:hover {
+  text-decoration: underline;
+}
+
+#app .storefront-home .cinema-hero {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  grid-template-columns: 46% 54%;
+  min-height: clamp(300px, 25vw, 420px);
+}
+
+#app .storefront-home .cinema-content {
+  padding: clamp(20px, 4vw, 64px);
+}
+
+#app .storefront-home .cinema-content h1 {
+  font-size: clamp(36px, 4.6vw, 72px);
+}
+
+#app .storefront-home .cinema-tagline {
+  margin-block: 12px 18px;
+}
+
+#app .storefront-home .home-category-title {
+  margin: 0 0 12px;
+  font-size: clamp(24px, 3vw, 38px);
+}
+
+#app .storefront-home .theme-category {
+  position: relative;
+  display: block;
+  aspect-ratio: 1.8;
+  min-height: 0;
+  border-radius: 8px;
+  background: #332e29;
+}
+
+#app .storefront-home .cinematic-home .theme-category img {
+  min-height: 0;
+  max-height: none;
+  height: 100%;
+  object-fit: cover;
+}
+
+#app .storefront-home .theme-category > span {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 22px 12px 10px;
+  background: linear-gradient(transparent, #181a18 78%);
+  color: white;
+  line-height: 1.1;
+}
+
+#app .storefront-home .premium-footer {
+  background: #292b29;
+}
+
+@media (min-width: 1024px) {
+  html:not(.gymdrobe-native) #app .storefront-home .gd-nav .gn-bar {
+    grid-template-columns: minmax(150px, 1fr) minmax(360px, 620px) 132px;
+    grid-template-areas: "brand search actions";
+    height: 72px;
+  }
+
+  html:not(.gymdrobe-native) #app .storefront-home .gd-nav :is(.gn-desktop, .gn-menu-toggle) {
+    display: none;
+  }
+}
+
+@media (max-width: 700px) {
+  #app .storefront-home .cinema-hero {
+    grid-template-columns: minmax(0, 1fr) minmax(0, .9fr);
+    min-height: 0;
+  }
+
+  #app .storefront-home .cinema-content {
+    grid-column: 1;
+    grid-row: 1;
+    padding: 16px 10px 16px 14px;
+  }
+
+  #app .storefront-home .cinema-content h1 {
+    font-size: clamp(23px, 6.4vw, 39px);
+  }
+
+  #app .storefront-home .cinema-tagline {
+    margin-block: 8px 10px;
+    font-size: 11px;
+  }
+
+  #app .premium-storefront.storefront-home .cinema-shop.premium-button {
+    min-width: 0;
+    min-height: 44px;
+    padding: 8px 9px;
+    gap: 4px;
+    font-size: 11px;
+  }
+
+  #app .storefront-home .cinema-stage {
+    grid-column: 2;
+    grid-row: 1;
+    height: auto;
+  }
+
+  #app .storefront-home .cinema-poster img {
+    object-position: 54% center;
+  }
+
+  #app .storefront-home .theme-category-grid {
+    gap: 6px;
+  }
+
+  #app .storefront-home .theme-category {
+    aspect-ratio: .85;
+    font-size: clamp(13px, 3.5vw, 19px);
+  }
+
+  #app .storefront-home .theme-category > span {
+    padding: 16px 6px 7px;
+  }
+}
+
+#app .storefront-home .cinema-shop .premium-button-label {
+  font-size: inherit;
+  font-weight: 700;
+}
+
+#app .storefront-home .cinematic-home #featured {
+  padding-top: 22px;
+}
+
+#app .storefront-home .cinema-poster img {
+  object-position: 58% 26%;
+}
+
+@media (max-width: 700px) {
+  #app .storefront-home .cinema-poster img {
+    object-position: 54% center;
+  }
+}
