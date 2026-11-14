@@ -75,7 +75,7 @@ try {
     assert.ok(await mobile.page.getByText("Add GymDrobe using your browser menu.", { exact: false }).isVisible());
     const size = await mobile.page.evaluate(() => ({ content: document.documentElement.scrollWidth, viewport: innerWidth }));
     assert.ok(size.content <= size.viewport, JSON.stringify(size));
-    assert.equal(await mobile.page.title(), "Install GymDrobe | Your Fitness Store");
+    assert.equal(await mobile.page.title(), "GymDrobe App | Add to Your Home Screen");
     await mobile.page.screenshot({ path: path.join(output, "install-390.png"), fullPage: true });
   });
 
