@@ -172,7 +172,7 @@ export default function CategorySection() {
       {featuredCategories.map(({ name, department, to, fallback }) => {
         const photo = cards.find(card => card.icon && productDepartment({ category: card.name }) === department)?.icon || fallback;
         return <Link key={name} to={to} className="theme-category">
-          <img src={photo} alt="" loading="eager" decoding="async" width="420" height="250" />
+          <img src={photo} alt="" loading="lazy" decoding="async" width="420" height="250" />
           <span><strong>{name}</strong><span aria-hidden="true">→</span></span>
         </Link>;
       })}

@@ -334,9 +334,9 @@ try{
    assert.ok(path);
    assert.equal(await photo.innerText(), '');
    await carousel.getByRole('button', { name: 'Next product' }).press('ArrowRight');
-   assert.notEqual(await photo.getAttribute('href'), path);
+   await view.p.waitForFunction(url => document.querySelector('.home-carousel-photo')?.getAttribute('href') !== url, path);
    await carousel.getByRole('button', { name: 'Previous product' }).click();
-   assert.equal(await photo.getAttribute('href'), path);
+   await view.p.waitForFunction(url => document.querySelector('.home-carousel-photo')?.getAttribute('href') === url, path);
    await photo.click();
    await view.p.waitForURL('**' + path);
   } finally {
