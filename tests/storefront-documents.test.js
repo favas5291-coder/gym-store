@@ -44,7 +44,7 @@ test("actual file generator preserves the app bundle and writes only known publi
   try {
     await fs.writeFile(path.join(directory, "index.html"), template);
     const count = await writeStorefrontDocuments({ directory, snapshot: publicCatalogueSnapshot(origin, [product]) });
-    assert.equal(count, 6);
+    assert.equal(count, 7);
     for (const route of [id, product.slug]) {
       const html = await fs.readFile(path.join(directory, "product", route), "utf8");
       assert.ok(html.includes('content="product"')); assert.ok(html.includes('src="/assets/app.js"'));
@@ -61,7 +61,7 @@ test("missing catalogue snapshot fails the metadata build rather than silently r
 });
 test("Vercel keeps the filesystem before SPA fallback and identifies public HTML and private noindex routes", async () => {
   const { routes } = JSON.parse(await fs.readFile(new URL("../vercel.json", import.meta.url), "utf8"));
-  assert.ok(routes.findIndex(route => route.handle === "filesystem") < routes.findIndex(route => route.dest === "/index.html"));
+  assert.ok(routes.findIndex(route => route.handle === "filesystem") < routes.findIndex(route => route.dest === "/storefront-shell.html"));
   const document = routes.find(route => route.headers?.["Content-Type"]);
   assert.ok(new RegExp(document.src).test(`/product/${id}`)); assert.ok(!new RegExp(document.src).test("/shop.js"));
   const privateRoute = routes.find(route => route.headers?.["X-Robots-Tag"]);
@@ -86,7 +86,7 @@ test("stocked collection documents publish scoped product links and breadcrumbs"
     assert.match(collection, /<noscript>.*<h1>Compression T-shirts<\/h1>/);
     assert.ok(collection.includes(`href="/product/${id}"`));
     assert.doesNotMatch(collection, /\/product\/(other|hidden)/);
-    const jsonLd = JSON.parse(collection.match(/id="gymdrobe-collection-schema" type="application\/ld\+json">(.*?)<\/script>/)[1]);
+    const jsonLd = JSON.parse(collection.match(/id="gymdrobe-breadcrumb-schema" type="application\/ld\+json">(.*?)<\/script>/)[1]);
     assert.equal(jsonLd["@type"], "BreadcrumbList");
     assert.equal(jsonLd.itemListElement.at(-1).item, origin + route);
     const home = await fs.readFile(path.join(directory, "index.html"), "utf8");
@@ -121,4 +121,41 @@ test("Shop preview contains only public product links and images from the build 
     } });
     assert.doesNotMatch(hostile, /<img src=x>/);
   } finally { await fs.rm(directory, { recursive: true, force: true }); }
+});
+
+test("initial HTML scopes homepage identity, serves app instructions, and separates dynamic routes from 404s", async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "gymdrobe-brand-search-"));
+  try {
+    const template = await fs.readFile(new URL("../index.html", import.meta.url), "utf8");
+    const snapshot = publicCatalogueSnapshot(origin, [{ ...product, legacyId: 123, category: "Compression T-shirt" }]);
+    await writeStorefrontDocuments({ directory, snapshot, template });
+    const read = file => fs.readFile(path.join(directory, file), "utf8");
+    const [home, install, legacy, shell, missing] = await Promise.all(
+      ["index.html", "install", "product/123", "storefront-shell.html", "404.html"].map(read),
+    );
+    assert.match(home, /<title>GymDrobe \| Gym Wear, Workout Clothing &amp; Fitness Gear<\/title>/);
+    assert.equal([...home.matchAll(/id="gymdrobe-site-schema"/g)].length, 1);
+    assert.match(home, /href="\/install">Install the GymDrobe web app/);
+    assert.match(install, /<link rel="canonical" href="https:\/\/www\.gymdrobe\.com\/install"/);
+    assert.match(install, /<noscript>.*Add to Home Screen/);
+    assert.match(legacy, /gymdrobe-breadcrumb-schema/);
+    assert.ok(legacy.includes(`href="${origin}/product/${id}"`));
+    assert.match(legacy, /<img src="https:\/\/images\.example\.test\/tee\.jpg"/);
+    assert.doesNotMatch(install + legacy + shell + missing, /id="gymdrobe-site-schema"/);
+    assert.doesNotMatch(shell, /rel="canonical"|name="robots"|<noscript>/);
+    assert.match(missing, /name="robots" content="noindex, follow"/);
+    assert.doesNotMatch(missing, /rel="canonical"/);
+
+    const { routes } = JSON.parse(await fs.readFile(new URL("../vercel.json", import.meta.url), "utf8"));
+    const rewrites = routes.slice(routes.findIndex(route => route.handle === "filesystem") + 1);
+    const resolve = url => rewrites.find(route => new RegExp(route.src, "i").test(url));
+    for (const url of ["/product/new-id", "/order-success", "/reset-password", "/orders/123/return", "/kits/123", "/search", "/categories", "/checkout", "/admin/marketplace/listings"]) {
+      assert.equal(resolve(url).dest, "/storefront-shell.html", url);
+    }
+    assert.equal(resolve("/no-such-page").status, 404);
+    assert.equal(resolve("/collections/no-such-category").status, 404);
+    assert.equal(resolve("/api/products"), undefined);
+  } finally {
+    await fs.rm(directory, { recursive: true, force: true });
+  }
 });

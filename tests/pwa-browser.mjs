@@ -138,7 +138,7 @@ try {
       return Promise.all(names.map(async (name) => ({ name, urls: (await (await caches.open(name)).keys()).map((r) => new URL(r.url).pathname) })));
     });
     assert.equal(entries.length, 1);
-    assert.deepEqual(entries[0].urls.sort(), ["/icons/gymdrobe-maskable-512.png", "/offline.html", "/offline.js"]);
+    assert.deepEqual(entries[0].urls.sort(), ["/brand/external/gymdrobe-maskable-512.png", "/offline.html", "/offline.js"]);
   });
 
   await check("updates wait for an explicit action instead of reloading a session", async () => {

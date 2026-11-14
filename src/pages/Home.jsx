@@ -25,7 +25,7 @@ export default function Home() {
       <img src="/brand/external/gymdrobe-app-icon-1024.png" alt="" width="88" height="88" loading="lazy" />
       <div>
         <h2 id="home-app-title">GymDrobe on your home screen</h2>
-        <p>Open your wishlist, bag and orders from your phone.</p>
+        <p>Add the GymDrobe web app from your browser to shop and open your wishlist, bag and orders.</p>
         <Link className="button" to="/install">Get App</Link>
       </div>
     </section>}

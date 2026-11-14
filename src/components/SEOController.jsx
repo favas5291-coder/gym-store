@@ -1,11 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { getDiscountedPrice } from "../utils/productPricing.js";
 import { getTotalStock } from "../utils/cartUtils.js";
 import { returnPolicyMarkup } from "../utils/returnPolicy.js";
-import { DEFAULT_DESCRIPTION, DEFAULT_SHARE_IMAGE, PAGES, cleanText, getImages } from "../utils/seoMetadata.js";
+import { DEFAULT_DESCRIPTION, DEFAULT_SHARE_IMAGE, PAGES, cleanText, getImages, productBreadcrumbs, productMetadata } from "../utils/seoMetadata.js";
 
 import { STOREFRONT_COLLECTIONS, collectionBreadcrumbs, collectionMatchesProduct, collectionPathForCategory } from "../utils/storefrontCollections.js";
 
@@ -88,6 +88,8 @@ function updateCanonical(url) {
 
 export default function SEOController() {
   const { pathname, search } = useLocation();
+  const initialPath = useRef(pathname);
+  const homepageSchema = useRef(document.getElementById("gymdrobe-site-schema"));
 
   const {
     products,
@@ -123,7 +125,7 @@ export default function SEOController() {
     const product = match
       ? catalog.find(
           (item) =>
-            item &&
+            item && item.isActive !== false &&
             identifier &&
             [
               item.id,
@@ -162,6 +164,11 @@ export default function SEOController() {
     const name =
       cleanText(product?.name) || "Product";
 
+    // The initial product HTML is usable during catalogue loading or a failed request.
+    // Once the catalogue settles, the fresh result determines indexing and offers.
+    if (match && pathname === initialPath.current && !product && !missingProduct &&
+        document.getElementById("gymdrobe-product-schema")) return;
+
     const title = missingProduct
       ? "Product Not Found | GymDrobe"
       : product
@@ -169,7 +176,9 @@ export default function SEOController() {
         : page?.title ||
           (match
             ? "Product | GymDrobe"
-            : "Your Account & Shopping | GymDrobe");
+            : document.title === "Page Not Found | GymDrobe"
+              ? "Page Not Found | GymDrobe"
+              : "Your Account & Shopping | GymDrobe");
 
     const fullDescription = product
       ? cleanText(product.description) ||
@@ -211,23 +220,33 @@ export default function SEOController() {
     setMeta("og:description", summary, true);
     setMeta("og:url", canonicalUrl, true);
 
-    setMeta("twitter:card", "summary");
     setMeta("twitter:title", title);
     setMeta("twitter:description", summary);
 
     updateCanonical(
-      isPublicPage && !missingProduct
+      isPublicPage && !missingProduct && !emptyCollection
         ? canonicalUrl
         : null,
     );
 
-    document.getElementById("gymdrobe-collection-schema")?.remove();
-    if (collection && !filteredListing && !emptyCollection) {
-      const breadcrumb = document.createElement("script");
-      breadcrumb.id = "gymdrobe-collection-schema";
-      breadcrumb.type = "application/ld+json";
-      breadcrumb.textContent = JSON.stringify(collectionBreadcrumbs(origin, path, collection));
-      document.head.appendChild(breadcrumb);
+    if (path === "/" && homepageSchema.current && !homepageSchema.current.isConnected) {
+      document.head.appendChild(homepageSchema.current);
+    } else if (path !== "/") {
+      homepageSchema.current?.remove();
+    }
+
+    document.getElementById("gymdrobe-breadcrumb-schema")?.remove();
+    const breadcrumbs = product
+      ? productBreadcrumbs(origin, canonicalUrl, product)
+      : collection && !filteredListing && !emptyCollection
+        ? collectionBreadcrumbs(origin, path, collection)
+        : null;
+    if (breadcrumbs) {
+      const script = document.createElement("script");
+      script.id = "gymdrobe-breadcrumb-schema";
+      script.type = "application/ld+json";
+      script.textContent = JSON.stringify(breadcrumbs);
+      document.head.appendChild(script);
     }
 
     document
@@ -299,38 +318,19 @@ export default function SEOController() {
       return;
     }
 
-    const schema = {
-      "@context": "https://schema.org",
-      "@type": "Product",
-      name,
-      description: fullDescription,
-      url: canonicalUrl,
-    };
-
-    if (images.length) {
-      schema.image = images;
-    }
-
-    const sku = cleanText(product.sku);
-    const brand = cleanText(product.brand);
-
-    if (sku) {
-      schema.sku = sku;
-    }
-
-    if (brand) {
-      schema.brand = {
-        "@type": "Brand",
-        name: brand,
-      };
-    }
+    const { schema } = productMetadata(product, origin);
+    const catalogueReady = loaded && !loading && !error;
+    const variantPrices = Array.isArray(product.variantPrices) ? product.variantPrices : [];
+    const variablePricing = variantPrices.some(
+      row => row?.customerUnitAmount !== variantPrices[0]?.customerUnitAmount,
+    );
 
     const rawPrice = Number(product.price);
 
     const price = getDiscountedPrice(product);
 
     if (
-      product.price != null &&
+      catalogueReady && !variablePricing && product.price != null &&
       product.price !== "" &&
       Number.isFinite(rawPrice) &&
       rawPrice >= 0 &&

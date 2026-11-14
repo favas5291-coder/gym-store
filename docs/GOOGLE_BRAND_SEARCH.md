@@ -1,48 +1,37 @@
-# GymDrobe external logo in Google Search
+# GymDrobe branded search
 
-**Branding boundary:** The approved black, white, and orange square icon is used for search/browser/app identity. The existing in-store `GYMDROBE` header, footer, colors, checkout, and app interface are intentionally unchanged.
+The canonical origin is `https://www.gymdrobe.com`. The homepage declares GymDrobe as its preferred site name through WebSite structured data. The linked OnlineStore entity uses the square green and cream logo. The web app's install page is at `/install` and gives browser-based installation instructions for iPhone, iPad and Android.
 
-## What the source provides
+## Keyword and page map
 
-- One 192×192 PNG favicon declaration (plus 16/32/48 PNG and ICO fallbacks) in `index.html`. No SVG is declared as a `rel="icon"` because Google Search's documented accepted formats do not include SVG.
-- Square PNG logo source: `/brand/external/gymdrobe-app-icon-1024.png` (1024×1024). Referenced by the server-visible `OnlineStore` JSON-LD `logo.contentUrl` property as an `ImageObject`.
-- The homepage `WebPage` JSON-LD declares `primaryImageOfPage` using the same approved square logo. This is an **additional preferred-image signal**, not a guarantee that Google's preview card will use it.
-- Existing legacy image URLs `/gymdrobe-share-v1.png`, `/favicon.jpeg`, and `/favicon-64-v1.png` now have 308 redirects to the approved versions. Redirects are placed before `filesystem` routing to avoid exposing outdated artwork to future crawls.
-- Homepage brand social preview: `/gymdrobe-share-v2.png` (1200×630); individual product pages continue prioritizing product images.
-- `robots.txt` permits crawling of the homepage and static images. Vercel's route order serves files before the SPA fallback.
+| Search intent | Canonical page |
+| --- | --- |
+| GymDrobe, GymDrobe website, GymDrobe official | `/` |
+| Gym wear India, workout clothing, fitness essentials | `/shop` |
+| Gym T-shirts, men's and women's compression tops | `/collections/compression-t-shirts` |
+| Gym joggers, training track pants | `/collections/gym-joggers` |
+| Gym bags, training duffels | `/collections/gym-bags` |
+| GymDrobe app, install GymDrobe | `/install` |
+| Product model, brand and size queries | The corresponding canonical `/product/<id>` |
 
-The logo is a **reconstruction of the approved mockup**, not an original master vector. Avoid using the complete mockup with phone and pedestal as the production logo. The long wordmark is difficult to read at tiny sizes.
+The current apparel selection supports a combined compression T-shirt or jogger collection. Keep separate men's and women's landing pages on hold until each has enough products and distinct shopping information.
 
-## Verify after deploying the approved change
+## Production and Search Console
 
-These checks require access to the actual public deployment; source checks alone cannot establish HTTP 200 or indexing.
+1. Verify the homepage, `/install`, `/shop`, the collection pages and a product from the sitemap. Check HTTP status, canonical, initial HTML and JSON-LD. Confirm an invented URL returns 404, checkout returns `X-Robots-Tag: noindex, follow`, and the favicon and logo return image bytes.
+2. Open [Search Console](https://search.google.com/search-console) and select the verified GymDrobe domain property. In **Sitemaps**, submit `https://www.gymdrobe.com/sitemap.xml` if it has not already been submitted. If the existing entry is successful, keep it and check its last read date.
+3. Inspect `https://www.gymdrobe.com/` and `https://www.gymdrobe.com/install`. Run **Test live URL** and **Request indexing** for each if the live test succeeds. Record Google-selected canonical and the last crawl date when available. Use **Page indexing** for exclusions and **Performance** for clicks, impressions and position on branded queries filtered to India.
+4. Use the [Schema Markup Validator](https://validator.schema.org/) for the homepage and [Rich Results Test](https://search.google.com/test/rich-results) for product eligibility. The site's product offers are updated from live catalogue data in the browser. Size does not have a preselected URL, so the site does not publish ProductGroup markup for all size and colour combinations.
+5. Submit the same sitemap through [Bing Webmaster Tools](https://www.bing.com/webmasters/) if the property is available and check URL Inspection there.
 
-1. Inspect the final deployed **view-source** of `https://www.gymdrobe.com/`. Confirm the favicon links and JSON-LD reflect this version. Confirm the internal site still uses the original wordmark.
-2. Inspect these exact URLs in a browser or with `curl -I -L`:
-   - `https://www.gymdrobe.com/favicon.ico?v=3`
-   - `https://www.gymdrobe.com/favicon-48x48.png?v=3`
-   - `https://www.gymdrobe.com/android-chrome-192x192.png?v=3`
-   - `https://www.gymdrobe.com/brand/external/gymdrobe-app-icon-1024.png`
-   - `https://www.gymdrobe.com/gymdrobe-share-v2.png`
-   - `https://www.gymdrobe.com/robots.txt`
-   - `https://www.gymdrobe.com/site.webmanifest?v=3`
-   Each should be publicly accessible without sign-in, not a 200-status HTML fallback. PNG URLs should return an image media type; `.ico` should contain genuine ICO bytes.
-   Also request `https://www.gymdrobe.com/gymdrobe-share-v1.png`, `https://www.gymdrobe.com/favicon.jpeg`, and `https://www.gymdrobe.com/favicon-64-v1.png` **without following redirects**. Confirm each returns 308 with the intended `Location`; following the redirect should return a real current image.
-3. Verify the public homepage resolves consistently from `gymdrobe.com` and `www.gymdrobe.com`. Google Search uses a favicon per hostname, so retain the intended canonical `www` hostname and confirm redirect behavior externally.
-4. Run `npm test`, `npm run build`, and `node scripts/verify-favicon-build.mjs` after the build. Test app icon cropping at physical favicon sizes. Inspect actual desktop and mobile UI.
-5. Run [Google Rich Results Test](https://search.google.com/test/rich-results) or [Schema Markup Validator](https://validator.schema.org/) on the deployed homepage. Confirm `OnlineStore` and its image URL are parsed, without invented merchant or business information.
-6. Open the verified `www.gymdrobe.com` property in [Google Search Console](https://search.google.com/search-console), use **URL Inspection** for `https://www.gymdrobe.com/`, run **Test live URL**, and request indexing if available. This must be done through an authorized account; no request is submitted by committing repository changes.
-7. Check Search appearance after Google recrawls. Google may take **days to weeks** and makes the final decision whether to display a favicon or organization logo.
+## Public profiles and app listing copy
 
-## What code does not control
+Use **GymDrobe** as the profile name on official Instagram, Facebook, YouTube and LinkedIn profiles where applicable. Use the green and cream square wordmark and link to `https://www.gymdrobe.com/`. Suggested bio: “Gym clothing, workout gear and fitness essentials. Shop GymDrobe online in India.” Add each URL to OnlineStore `sameAs` once control and the official link are verified.
 
-- The generic globe icon seen on Google may reflect a previous crawl, an inaccessible favicon at the time of Google's fetch, or Google's choice to show a fallback. The screenshot **does not prove** a single root cause.
-- The cropped image in the right-hand Google surface may be chosen from cached site thumbnails, brand profiles, Google Merchant Center or another source. Favicon markup alone does not change that image.
-- External Google Merchant Center, Google Business Profile, Search Console, Instagram, WhatsApp Business and app-store listings each require their own account access and approval. No change to those systems is made from this repository.
-- The favicon, Organization logo, and `WebPage.primaryImageOfPage` metadata **suggest** preferred visuals; they cannot guarantee Google uses them in its result card or instantly updates a thumbnail.
-- Legacy images were still present in the repository, but we **cannot confirm** that one of those exact files supplied the previously cropped Google result. Redirects make future requests for those URLs resolve to new artwork.
+Native listing title: **GymDrobe**. Short description: “Shop gym wear, training bags and fitness essentials in India.” Full description: “Find gym clothing, workout accessories and training essentials from multiple brands. Browse products by category, compare colours and sizes, save favourites and check your orders.” Use the official homepage and `/help` as website and support URLs. Publish store links when the public listings resolve. Verify Apple associated domains with the distribution Team ID and Android App Links with the release signing fingerprint before advertising those links.
 
-Official guidance:
-- [Google Search favicon guidelines](https://developers.google.com/search/docs/appearance/favicon-in-search)
-- [Organization / OnlineStore structured data](https://developers.google.com/search/docs/appearance/structured-data/organization)
-- [Google image SEO: preferred preview image metadata](https://developers.google.com/search/docs/appearance/google-images)
+## 30, 60 and 90 days
+
+- **30 days:** Track branded queries and homepage canonical selection weekly. Update profiles you control and publish the first gym-owner interview with a link to the relevant collection.
+- **60 days:** Compare clicks and impressions for the T-shirt, jogger and gym-bag pages. Add real sizing, fabric and capacity details where shoppers need them. Link trainer demonstrations to the products used.
+- **90 days:** Compare branded traffic and indexed product pages with the baseline. Expand collection coverage where assortment and customer demand support a distinct page. Link native listings only after public launch.
