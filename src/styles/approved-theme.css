@@ -1,16 +1,18 @@
-@import url("https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;700&family=Inter:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap");
 
 #app .premium-storefront {
   --brand-green: #0f3d3a;
-  --brand-cream: #f5dabf;
-  --brand-orange: #ef5f18;
-  --paper: #faf9f6;
-  --ink: #181a18;
+  --brand-accent: #a9bdb3;
+  --brand-surface: #fff;
+  --brand-hover: #14514d;
+  --space: clamp(16px, 4vw, 64px);
+  --paper: #f7f8f6;
+  --ink: #171c1b;
   --accent: var(--brand-green);
   --gd-accent: var(--brand-green);
-  --line: #dedbd4;
-  --headline: "Barlow Semi Condensed", "Arial Narrow", sans-serif;
-  font-family: Inter, system-ui, sans-serif;
+  --line: #e9ece8;
+  --headline: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-family: Manrope, system-ui, sans-serif;
 }
 
 #app .premium-storefront :is(h1, h2, h3, .theme-category) {
@@ -46,7 +48,7 @@
 }
 
 #app .premium-storefront .shopping-bottom-nav > a.active .shopping-tab-icon {
-  background: var(--brand-cream);
+  background: var(--brand-accent);
 }
 
 #app .premium-storefront .shopping-cart-badge {
@@ -55,15 +57,15 @@
 }
 
 #app .premium-storefront :is(.button:not(.secondary, .buy-now), .premium-button--primary, .cinema-shop.premium-button) {
-  background: var(--brand-orange);
-  border-color: var(--brand-orange);
-  color: var(--ink) !important;
+  background: var(--brand-green);
+  border-color: var(--brand-green);
+  color: white !important;
   border-radius: 8px;
 }
 
 #app .premium-storefront :is(.button:not(.secondary, .buy-now), .premium-button--primary, .cinema-shop.premium-button):hover:not(:disabled) {
-  background: #ff7836;
-  border-color: #ff7836;
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
 }
 
 #app .premium-storefront :focus-visible {
@@ -76,346 +78,18 @@
 }
 
 #app .premium-storefront .premium-footer :is(a, h2, summary, button, .footer-about p) {
-  color: var(--brand-cream);
+  color: var(--brand-accent);
 }
 
 #app .premium-storefront .premium-footer :focus-visible {
-  outline-color: var(--brand-cream) !important;
+  outline-color: var(--brand-accent) !important;
 }
 
 .footer-wordmark {
   width: clamp(136px, 19vw, 224px);
 }
 
-#app .premium-storefront .cinema-hero {
-  background: var(--brand-cream);
-  min-height: clamp(340px, 34vw, 480px);
-}
-
-#app .premium-storefront .cinema-tagline {
-  color: var(--ink);
-  max-width: 32ch;
-}
-
-#app .premium-storefront .gm-categories {
-  padding-block: 20px;
-}
-
-.theme-category-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.theme-category {
-  display: grid;
-  grid-template-columns: 1fr 42%;
-  align-items: center;
-  min-height: 90px;
-  overflow: hidden;
-  background: var(--brand-cream);
-  color: var(--brand-green);
-  border-radius: 8px;
-  font-size: clamp(16px, 2vw, 25px);
-  font-weight: 700;
-}
-
-.theme-category > span {
-  padding: 12px;
-  overflow-wrap: anywhere;
-}
-
-.theme-category img {
-  width: 100%;
-  height: 100%;
-  max-height: 120px;
-  object-fit: cover;
-}
-
-@media (max-width: 700px) {
-  #app .premium-storefront .cinema-hero {
-    display: grid;
-    grid-template-columns: 1fr;
-    height: auto;
-    min-height: 0;
-  }
-
-  #app .premium-storefront .cinema-hero::after {
-    content: none;
-  }
-
-  #app .premium-storefront .cinema-content {
-    height: auto;
-    padding: 22px 16px;
-  }
-
-  #app .premium-storefront .cinema-content h1 {
-    font-size: clamp(32px, 8vw, 46px);
-    text-wrap: initial;
-  }
-
-  #app .premium-storefront .cinema-stage {
-    position: relative;
-    height: clamp(165px, 50vw, 255px);
-    min-height: 0;
-  }
-
-  .theme-category {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(48px, auto) 65px;
-  }
-
-  .theme-category > span {
-    padding: 8px;
-  }
-}
-
-/* Campaign and shopping information from the storefront concept. */
-#app .premium-storefront .shopping-help-bar {
-  display: flex;
-  justify-content: flex-end;
-  gap: 24px;
-  padding: 6px max(5%, env(safe-area-inset-right));
-  background: var(--brand-green);
-  color: var(--paper);
-  font-size: 12px;
-}
-
-#app .premium-storefront .shopping-help-bar a {
-  display: inline-flex;
-  min-height: 28px;
-  align-items: center;
-}
-
-#app .premium-storefront .shopping-help-bar a:focus-visible {
-  outline-color: var(--brand-cream) !important;
-}
-
-#app .premium-storefront .cinema-hero {
-  max-width: 1440px;
-  width: 90%;
-  margin: 24px auto 0;
-}
-
-#app .premium-storefront .theme-category {
-  background: #eee8de;
-  border-radius: 0;
-  min-height: 104px;
-}
-
-#app .premium-storefront .home-shopping-care {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.home-shopping-care a {
-  display: grid;
-  gap: 6px;
-  padding-block: 18px;
-  border-top: 1px solid var(--line);
-}
-
-.home-shopping-care strong {
-  color: var(--brand-green);
-}
-
-.home-shopping-care a:hover span {
-  text-decoration: underline;
-}
-
-@media (max-width: 700px) {
-  #app .premium-storefront .shopping-help-bar {
-    justify-content: center;
-    padding-block: 0;
-  }
-
-  #app .premium-storefront .cinema-hero {
-    margin-top: 10px;
-  }
-}
-
-/* Native navigation reserves a fixed header height. */
-.gymdrobe-native #app .premium-storefront .shopping-help-bar {
-  display: none;
-}
-
-#app .premium-storefront .cinematic-home > .gm-section {
-  width: 90%;
-  max-width: 1440px;
-  padding-inline: 0;
-}
-
-#app .premium-storefront .cinematic-home .theme-category img {
-  min-height: 104px;
-}
-
-@media (max-width: 700px) {
-  #app .premium-storefront .cinematic-home .theme-category img {
-    min-height: 0;
-    max-height: 65px;
-  }
-}
-
-#app .premium-storefront .gn-wordmark-light,
-#app .storefront-home .gn-wordmark-dark {
-  display: none;
-}
-
-#app .premium-storefront.storefront-home .gn-wordmark-light {
-  display: block;
-}
-
-#app .storefront-home .gd-nav,
-#app .storefront-home .gd-nav.gn-raised {
-  background: var(--brand-green);
-  color: var(--brand-cream);
-}
-
-#app .storefront-home .gd-nav :is(.gn-action, .gn-menu-toggle) {
-  color: var(--brand-cream);
-}
-
-#app .storefront-home .gd-nav :is(.gn-action, .gn-menu-toggle):focus-visible {
-  outline-color: var(--brand-cream) !important;
-}
-
-#app .storefront-home .gd-nav .gn-form {
-  border-radius: 8px;
-}
-
-#app .storefront-home .shopping-help-bar {
-  display: none;
-}
-
-#app .storefront-home .home-category-links {
-  display: flex;
-  justify-content: center;
-  background: white;
-  border-bottom: 1px solid var(--line);
-}
-
-#app .storefront-home .home-category-links > a {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  padding: 6px clamp(8px, 3vw, 44px);
-  text-align: center;
-  font-size: clamp(11px, 2.6vw, 14px);
-  font-weight: 700;
-}
-
-#app .storefront-home .home-category-links > a:hover {
-  text-decoration: underline;
-}
-
-#app .storefront-home .cinema-hero {
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  grid-template-columns: 46% 54%;
-  min-height: clamp(300px, 25vw, 420px);
-}
-
-#app .storefront-home .cinema-content {
-  padding: clamp(20px, 4vw, 64px);
-}
-
-#app .storefront-home .cinema-content h1 {
-  font-size: clamp(36px, 4.6vw, 72px);
-}
-
-#app .storefront-home .cinema-tagline {
-  margin-block: 12px 18px;
-}
-
-#app .storefront-home .home-category-title {
-  margin: 0 0 12px;
-  font-size: clamp(24px, 3vw, 38px);
-}
-
-#app .storefront-home .theme-category {
-  position: relative;
-  display: block;
-  aspect-ratio: 1.8;
-  min-height: 0;
-  border-radius: 8px;
-  background: #332e29;
-}
-
-#app .storefront-home .cinematic-home .theme-category img {
-  min-height: 0;
-  max-height: none;
-  height: 100%;
-  object-fit: cover;
-}
-
-#app .storefront-home .theme-category > span {
-  position: absolute;
-  inset: auto 0 0;
-  padding: 22px 12px 10px;
-  background: linear-gradient(transparent, #181a18 78%);
-  color: white;
-  line-height: 1.1;
-}
-
-#app .storefront-home .premium-footer {
-  background: #292b29;
-}
-
-@media (min-width: 1024px) {
-  html:not(.gymdrobe-native) #app .storefront-home .gd-nav .gn-bar {
-    grid-template-columns: minmax(150px, 1fr) minmax(360px, 620px) 132px;
-    grid-template-areas: "brand search actions";
-    height: 72px;
-  }
-
-  html:not(.gymdrobe-native) #app .storefront-home .gd-nav :is(.gn-desktop, .gn-menu-toggle) {
-    display: none;
-  }
-}
-
-@media (max-width: 700px) {
-  #app .storefront-home .cinema-hero {
-    grid-template-columns: minmax(0, 1fr) minmax(0, .9fr);
-    min-height: 0;
-  }
-
-  #app .storefront-home .cinema-content {
-    grid-column: 1;
-    grid-row: 1;
-    padding: 16px 10px 16px 14px;
-  }
-
-  #app .storefront-home .cinema-content h1 {
-    font-size: clamp(23px, 6.4vw, 39px);
-  }
-
-  #app .storefront-home .cinema-tagline {
-    margin-block: 8px 10px;
-    font-size: 11px;
-  }
-
-  #app .premium-storefront.storefront-home .cinema-shop.premium-button {
-    min-width: 0;
-    min-height: 44px;
-    padding: 8px 9px;
-    gap: 4px;
-    font-size: 11px;
-  }
-
-  #app .storefront-home .cinema-stage {
-    grid-column: 2;
-    grid-row: 1;
-    height: auto;
-  }
-
-  #app .storefront-home .cinema-poster img {
-    object-position: 54% center;
-  }
-
-  #app .storefront-home .theme-category-grid {
+#app .storefront-home .theme-category-grid {
     gap: 6px;
   }
 
@@ -424,14 +98,19 @@
     font-size: clamp(13px, 3.5vw, 19px);
   }
 
-  #app .storefront-home .theme-category > span {
-    padding: 16px 6px 7px;
-  }
+  #app .storefront-home .theme-category img {
+  width: 100%;
+  aspect-ratio: 1.55;
+  object-fit: cover;
 }
 
-#app .storefront-home .cinema-shop .premium-button-label {
-  font-size: inherit;
-  font-weight: 700;
+#app .storefront-home .theme-category > span {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 12px 14px;
 }
 
 #app .storefront-home .cinematic-home #featured {
@@ -478,16 +157,16 @@
 }
 
 #app .premium-storefront .shopping-help-bar :focus-visible {
-  outline-color: var(--brand-cream) !important;
+  outline-color: var(--brand-accent) !important;
 }
 
 .get-app-dialog {
   width: min(390px, calc(100% - 32px));
   padding: 28px;
-  border: 1px solid #dedbd4;
+  border: 1px solid #e9ece8;
   border-radius: 16px;
   background: white;
-  color: #181a18;
+  color: #171c1b;
   text-align: center;
 }
 
@@ -525,7 +204,7 @@
     padding: 6px 10px;
     background: white;
     color: #0f3d3a;
-    border: 1px solid #dedbd4;
+    border: 1px solid #e9ece8;
     border-radius: 12px;
     box-shadow: 0 6px 22px #0f3d3a1c;
     font-weight: 700;
@@ -551,7 +230,7 @@
 #app .storefront-home .theme-category-grid {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: 34%;
+  grid-auto-columns: calc((100% - 24px) / 3);
   grid-template-columns: none;
   gap: 12px;
   overflow-x: auto;
@@ -561,7 +240,10 @@
 }
 
 #app .storefront-home .theme-category {
-  aspect-ratio: 1;
+  display: block;
+  overflow: hidden;
+  border-radius: 10px;
+  background: white;
   scroll-snap-align: start;
 }
 
@@ -571,23 +253,7 @@
   padding: 28px 16px 14px;
 }
 
-.theme-category small { font-family: Inter, sans-serif; font-size: .55em; }
-
-.home-offer-strip {
-  width: 94%;
-  margin: 0 auto 20px;
-  border: 1px solid #dedbd4;
-  border-radius: 12px;
-  padding: 14px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 8px 24px;
-  background: white;
-  color: #0f3d3a;
-  font-weight: 700;
-}
+.theme-category small { font-family: Manrope, sans-serif; font-size: .55em; }
 
 #app .storefront-home .cinematic-home :is(.home-new, .home-spotlight, .home-collections) { padding-block: 26px; }
 #app .storefront-home .home-new > h2 { text-align: center; margin: 0 0 16px; }
@@ -596,7 +262,7 @@
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   align-items: center;
-  background: #eeeae3;
+  background: #edf1ee;
   border-radius: 12px;
   overflow: hidden;
 }
@@ -623,46 +289,163 @@
 }
 
 .home-collections > div { display: flex; flex-wrap: wrap; gap: 8px; }
-.home-collections a { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 15px; border-radius: 8px; background: var(--brand-cream); }
+.home-collections a { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 15px; border-radius: 8px; background: var(--brand-accent); }
 
 @media (max-width: 700px) {
   #app .storefront-home .theme-category-grid { grid-auto-columns: 78%; }
-  #app .storefront-home .theme-category { aspect-ratio: .98; font-size: 24px; }
+  #app .storefront-home .theme-category { font-size: 16px; }
   .home-product-feature { grid-template-columns: 1fr; }
   .home-spotlight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .gymdrobe-native #app .premium-storefront .shopping-help-bar { display: none; }
 
-#app .storefront-home .home-collection-banner {
+
+#app .premium-storefront .shopping-help-bar {
+  background: var(--brand-green);
+  color: white;
+  justify-content: flex-end;
+  padding-inline: var(--space);
+  font-size: 12px;
+}
+
+#app .premium-storefront .shopping-help-bar a {
+  display: inline-flex;
+  align-items: center;
+}
+
+#app .storefront-home .home-category-links {
+  display: flex;
+  background: white;
+  border-bottom: 1px solid var(--line);
+}
+
+#app .storefront-home .home-category-links > a {
+  padding: 12px clamp(12px, 2vw, 28px);
+  min-height: 44px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+#app .storefront-home .cinema-hero {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  width: 100%;
-  padding: 0;
-  margin: 12px 0;
-  overflow: hidden;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  max-width: 1600px;
+  margin: 0 auto;
+  min-height: clamp(320px, 35vw, 560px);
+  background: #eaf0ec;
 }
 
-.home-collection-banner > span {
+#app .storefront-home .cinema-content {
+  padding: clamp(22px, 5.5vw, 80px);
+}
+
+#app .storefront-home .cinema-content h1 {
+  font-size: clamp(34px, 4.9vw, 70px);
+  letter-spacing: -.055em;
+}
+
+#app .storefront-home .cinema-shop .premium-button-label {
+  font: inherit;
+}
+
+#app .storefront-home .cinema-shop.premium-button,
+#app .premium-storefront .gd-checkout .gd-checkout-pay,
+#app .premium-storefront .product-primary-actions .button:not(.buy-now, .secondary) {
+  background: var(--brand-green);
+  border-color: var(--brand-green);
+  color: white !important;
+}
+
+#app .storefront-home .cinematic-home > .gm-section {
+  width: 100%;
+  max-width: 1600px;
+  padding-inline: var(--space);
+}
+
+.home-category-title { margin: 0 0 14px; }
+
+.home-story,
+.home-app-discovery,
+.home-shopping-care {
   display: grid;
-  gap: 10px;
-  padding: clamp(14px, 4vw, 48px);
-  align-content: center;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: clamp(16px, 4vw, 50px);
 }
 
-.home-collection-banner strong {
-  font: 700 clamp(20px, 4vw, 50px) var(--headline);
-}
-
-.home-collection-banner img {
+.home-story img {
   width: 100%;
-  height: clamp(140px, 27vw, 330px);
+  max-height: 360px;
   object-fit: cover;
+  border-radius: 10px;
 }
 
-#home-brands { scroll-margin-top: 145px; }
+.home-app-discovery { grid-template-columns: auto 1fr; }
+.home-app-discovery img { border-radius: 16px; }
 
-#app .storefront-home .gd-nav :is(.gn-action, .gn-menu-toggle) { color: var(--ink); }
-#app .storefront-home .gd-nav :is(.gn-action, .gn-menu-toggle):focus-visible {
-  outline-color: var(--brand-green) !important;
+.home-shopping-care > a {
+  display: grid;
+  gap: 5px;
+  border-top: 1px solid var(--line);
+  padding-block: 14px;
+}
+
+#app .storefront-home .home-collection-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+#app .storefront-home .home-collection-grid a {
+  display: grid;
+  align-content: start;
+  padding: 0;
+  overflow: hidden;
+  background: white;
+}
+
+.home-collection-grid a:first-child { grid-row: span 3; }
+.home-collection-grid img { width: 100%; height: clamp(75px, 12vw, 160px); object-fit: cover; }
+.home-collection-grid a:first-child img { height: 100%; min-height: 0; }
+.home-collection-grid a:first-child { grid-template-rows: minmax(0, 1fr) auto; }
+.home-collection-grid strong { padding: 10px; }
+
+#app .premium-storefront :is(.gm-product-card, .panel, .price-summary, .delivery-box) {
+  border-radius: 10px;
+}
+
+#app .premium-storefront :is(.gm-product-card, .gd-checkout .price-summary, .delivery-box) {
+  background: var(--brand-surface);
+}
+
+#app .premium-storefront :is(.button, .premium-button, .gn-icon-button):focus-visible {
+  outline-offset: 3px;
+}
+
+@media (max-width: 700px) {
+  #app .storefront-home .cinema-hero {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    height: auto;
+  }
+
+  #app .storefront-home .cinema-content { padding: 20px 16px; }
+  #app .storefront-home .cinema-stage {
+    order: 0;
+    min-height: 0;
+    height: clamp(165px, 45vw, 270px);
+  }
+  #app .storefront-home .cinema-poster img { object-position: center 35%; }
+  .home-story { grid-template-columns: 1fr; }
+}
+
+#app .storefront-home .theme-category { align-self: start; }
+#app .storefront-home .theme-category > span span { flex: none; }
+#app .storefront-home .cinema-poster img { object-fit: cover; }
+
+@media (max-width: 700px) {
+  #app .storefront-home .cinema-stage { height: clamp(180px, 49vw, 280px); }
 }

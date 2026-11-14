@@ -1,17 +1,15 @@
 import { lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
+import Hero from "../components/Hero.jsx";
+import { isNativeApp } from "../native/platform.js";
 import CategorySection, { HomeCategoryLinks } from "../components/CategorySection.jsx";
 const HomeProductSections = lazy(() => import("../components/HomeProductSections.jsx"));
 
 export default function Home() {
   return <div className="cinematic-home">
     <HomeCategoryLinks />
-    <h1 className="sr-only">GymDrobe workout clothing and gear</h1>
+    <Hero />
     <CategorySection />
-    <div className="home-offer-strip">
-      <Link to="/offers">Browse GymDrobe offers</Link>
-      <a href="/shipping-and-returns.html">Delivery &amp; returns</a>
-    </div>
     <Suspense fallback={<section className="gm-section catalog-status" role="status">Loading products…</section>}><HomeProductSections /></Suspense>
     <section className="gm-section home-shopping-care" aria-label="Delivery and customer support">
       <a href="/shipping-and-returns.html">
@@ -23,5 +21,13 @@ export default function Home() {
         <span>Contact GymDrobe →</span>
       </Link>
     </section>
+    {!isNativeApp() && <section className="gm-section home-app-discovery" aria-labelledby="home-app-title">
+      <img src="/brand/external/gymdrobe-app-icon-1024.png" alt="" width="88" height="88" loading="lazy" />
+      <div>
+        <h2 id="home-app-title">GymDrobe on your home screen</h2>
+        <p>Open your wishlist, bag and orders from your phone.</p>
+        <Link className="button" to="/install">Get App</Link>
+      </div>
+    </section>}
   </div>;
 }
