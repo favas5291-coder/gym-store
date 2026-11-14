@@ -25,6 +25,43 @@ async function capture(p,name){
 }
 async function choose(p){await p.getByRole('button',{name:'Colour Black',exact:true}).first().click();await p.getByRole('button',{name:'Size M',exact:true}).first().click();}
 try{
+ for (const width of [390, 1440]) {
+  const view = await context(width);
+  await check(`${width}px editorial cards, account contrast and guide`, async () => {
+   await visit(view.p, '/');
+   const spotlight = view.p.locator('.home-spotlight');
+   await spotlight.scrollIntoViewIfNeeded();
+   const cards = spotlight.locator('.home-spotlight-grid > a');
+   assert.ok(await cards.count() > 0);
+   const card = cards.first();
+   assert.match(await card.innerText(), /₹/);
+   assert.equal(await card.locator('strong').evaluate(el => getComputedStyle(el).webkitLineClamp), '2');
+   await spotlight.screenshot({path:path.join(output, `refinement-${width}-spotlight.png`)});
+   await view.p.locator('.home-collections').screenshot({path:path.join(output, `refinement-${width}-collections-brands.png`)});
+   const story = view.p.locator('.home-story');
+   await story.scrollIntoViewIfNeeded();
+   if (width === 390) {
+    const bounds = await story.locator('.home-story-media').boundingBox();
+    assert.ok(bounds.width > 330, 'Story media must use the mobile content width');
+   }
+   await story.screenshot({path:path.join(output, `refinement-${width}-story.png`)});
+   await view.p.locator('.home-new').screenshot({path:path.join(output, `refinement-${width}-video.png`)});
+   await visit(view.p, '/login');
+   assert.equal(await view.p.locator('.auth-banner h1').evaluate(el => getComputedStyle(el).color), 'rgb(255, 255, 255)');
+   await view.p.locator('.auth-card').screenshot({path:path.join(output, `refinement-${width}-account.png`)});
+   await view.p.getByRole('button', {name:'Help me choose products', exact:true}).click();
+   await view.p.getByRole('button', {name:'Help me choose',exact:true}).click();
+   const guide = view.p.getByRole('dialog', {name:'Find your workout gear'});
+   await guide.screenshot({path:path.join(output, `refinement-${width}-guide-categories.png`)});
+   await guide.getByRole('button', {name:'Next', exact:true}).click();
+   await guide.getByRole('button', {name:'₹1,000', exact:true}).click();
+   await guide.screenshot({path:path.join(output, `refinement-${width}-guide-budget.png`)});
+   assert.equal(await guide.getByRole('button',{name:'₹1,000',exact:true}).getAttribute('aria-pressed'), 'true');
+   assert.ok(await guide.getByRole('button',{name:'Next',exact:true}).isVisible());
+   await guide.getByRole('button',{name:'Close dialog'}).click();
+  });
+  await view.c.close();
+ }
  // Search must remain compact and attached to the input across iPhone, tablet and desktop.
  for (const width of [320,375,390,430,768,1024,1440]) {
   const searchUI=await context(width,{browser:{isMobile:width<=430,hasTouch:width<=430}});

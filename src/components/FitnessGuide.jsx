@@ -958,7 +958,7 @@ export default function FitnessGuide() {
                           />
 
                           <span>
-                            {category.name}
+                            {category.name.toLowerCase().replace(/\b\w/g, letter => letter.toUpperCase())}
                             <small>
                               {category.count} available{" "}
                               {category.count === 1
@@ -1042,7 +1042,7 @@ export default function FitnessGuide() {
                             setError("");
                           }}
                         >
-                          {money(value)}
+                          {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(value)}
                         </button>
                       ))}
 

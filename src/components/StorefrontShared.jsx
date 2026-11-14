@@ -200,7 +200,6 @@ function ProductImageContent({
         width={480}
         height={600}
         fetchPriority={fetchPriority}
-      decoding={decoding}
         onError={() => {
           if (srcSet) {
             // Retry the original photo if a resized

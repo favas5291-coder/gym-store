@@ -1,3 +1,4 @@
+import { brandKey } from "./brandIdentity.js";
 import { reviewStats } from "./reviews.js";
 import { searchCatalogue } from "./smartSearch.js";
 
@@ -346,6 +347,9 @@ export function filterProducts(
   const collection = params.get("collection");
   const department = params.get("department");
   const availability = params.get("availability");
+  const exactBrand = params.get("brandKey");
+  const brands = selected("brand").map(brandKey);
+  const legacyBrands = brands.filter(brand => !catalogProducts(catalogue).some(product => brandKey(product.brand) === brand));
 
   const same = (a, b) =>
     normalizeCatalogText(a) === normalizeCatalogText(b);
@@ -405,7 +409,9 @@ export function filterProducts(
 
       if (
         !contains(selected("gender"), product.gender) ||
-        !contains(selected("brand"), product.brand)
+        (exactBrand && brandKey(product.brand) !== brandKey(exactBrand)) ||
+        (!exactBrand && brands.length > 0 && !brands.includes(brandKey(product.brand)) &&
+          !legacyBrands.some(brand => same(brand, product.brand)))
       ) {
         return false;
       }

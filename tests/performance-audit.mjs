@@ -41,8 +41,8 @@ try {
     const context = await browser.newContext({ viewport: { width, height: 960 }, isMobile: width === 390, hasTouch: width === 390 });
     const mock = await mockStorefront(context, products);
     await context.addInitScript(() => {
-      window.lab = { lcp: 0, cls: 0, longTasks: 0, longTaskMs: 0, shifts: [] };
-      new PerformanceObserver(list => { for (const entry of list.getEntries()) window.lab.lcp = entry.startTime; }).observe({ type: 'largest-contentful-paint', buffered: true });
+      window.lab = { lcp: 0, cls: 0, longTasks: 0, longTaskMs: 0, shifts: [], lcpCandidates: [] };
+      new PerformanceObserver(list => { for (const entry of list.getEntries()) { window.lab.lcp = entry.startTime; window.lab.lcpCandidates.push({ time: entry.startTime, tag: entry.element?.tagName, parent: entry.element?.parentElement?.className, url: entry.url, size: entry.size }); } }).observe({ type: 'largest-contentful-paint', buffered: true });
       new PerformanceObserver(list => { for (const entry of list.getEntries()) if (!entry.hadRecentInput) {
         window.lab.cls += entry.value;
         window.lab.shifts.push({ value: entry.value, sources: entry.sources.map(s => ({ node: s.node?.className || s.node?.tagName, from: s.previousRect.toJSON(), to: s.currentRect.toJSON() })) });
