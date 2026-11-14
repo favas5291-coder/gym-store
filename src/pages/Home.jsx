@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
-import Hero from "../components/Hero.jsx";
+import HomeProductCarousel from "../components/HomeProductCarousel.jsx";
 import { isNativeApp } from "../native/platform.js";
 import CategorySection, { HomeCategoryLinks } from "../components/CategorySection.jsx";
 const HomeProductSections = lazy(() => import("../components/HomeProductSections.jsx"));
@@ -8,7 +8,7 @@ const HomeProductSections = lazy(() => import("../components/HomeProductSections
 export default function Home() {
   return <div className="cinematic-home">
     <HomeCategoryLinks />
-    <Hero />
+    <HomeProductCarousel />
     <CategorySection />
     <Suspense fallback={<section className="gm-section catalog-status" role="status">Loading products…</section>}><HomeProductSections /></Suspense>
     <section className="gm-section home-shopping-care" aria-label="Delivery and customer support">
