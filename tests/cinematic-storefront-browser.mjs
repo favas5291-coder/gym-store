@@ -321,6 +321,27 @@ try{
    if(width<=700) assert.ok(await v.p.getByRole('navigation',{name:'Shopping navigation'}).isVisible());
   });await v.c.close();
  }
+ await check('Product carousel honours reduced motion and opens the selected product', async () => {
+  const view = await context(390);
+  try {
+   await visit(view.p, '/');
+   const carousel = view.p.getByRole('region', { name: 'Shop Featured Gear' });
+   const rail = carousel.locator('.home-carousel-rail');
+   const next = carousel.getByRole('button', { name: 'Next product' });
+   await carousel.getByRole('button', { name: 'Play slideshow' }).waitFor();
+   assert.equal(await rail.evaluate(element => element.scrollLeft), 0);
+   await next.press('ArrowRight');
+   assert.ok(await rail.evaluate(element => element.scrollLeft) > 0);
+   await carousel.getByRole('button', { name: 'Previous product' }).click();
+   assert.equal(await rail.evaluate(element => element.scrollLeft), 0);
+   const item = carousel.getByRole('link', { name: 'View Product: Gym Training T-Shirt' });
+   const path = await item.getAttribute('href');
+   await item.click();
+   await view.p.waitForURL('**' + path);
+  } finally {
+   await view.c.close();
+  }
+ });
  for (const width of [390, 1440]) {
   const view = await context(width, { browser: { reducedMotion: 'no-preference' } });
   await check(width + 'px home loads a static hero and makes zero video requests', async () => {
