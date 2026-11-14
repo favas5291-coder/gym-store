@@ -394,23 +394,20 @@
 #app .storefront-home .home-collection-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-auto-rows: 1fr;
   gap: 10px;
   margin-top: 14px;
 }
 
 #app .storefront-home .home-collection-grid a {
   display: grid;
-  align-content: start;
+  align-content: stretch;
+  grid-template-rows: auto minmax(44px, auto);
   padding: 0;
   overflow: hidden;
   background: white;
 }
 
-.home-collection-grid a:first-child { grid-row: span 3; }
-.home-collection-grid img { width: 100%; height: clamp(75px, 12vw, 160px); object-fit: cover; }
-.home-collection-grid a:first-child img { height: 100%; min-height: 0; }
-.home-collection-grid a:first-child { grid-template-rows: minmax(0, 1fr) auto; }
+#app .storefront-home .home-collection-grid img { width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; }
 .home-collection-grid strong { padding: 10px; }
 
 #app .premium-storefront :is(.gm-product-card, .panel, .price-summary, .delivery-box) {
@@ -448,4 +445,28 @@
 
 @media (max-width: 700px) {
   #app .storefront-home .cinema-stage { height: clamp(180px, 49vw, 280px); }
+}
+
+#app .storefront-home .home-brand-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
+  gap: 8px;
+}
+
+#app .storefront-home .home-brand-grid a {
+  justify-content: center;
+  background: white;
+  border: 1px solid var(--line);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.home-brand-more { margin-top: 12px; }
+.home-brand-more summary { cursor: pointer; min-height: 44px; display: list-item; padding: 12px 0; }
+.home-video-frame { position: relative; min-width: 0; }
+.home-video-frame video { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: contain; background: #171c1b; }
+.home-video-play { position: absolute; top: 12px; right: 12px; }
+
+@media (max-width: 700px) {
+  #app .storefront-home .gd-guide-reopen { display: none; }
 }

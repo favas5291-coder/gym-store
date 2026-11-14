@@ -321,22 +321,22 @@ try{
    if(width<=700) assert.ok(await v.p.getByRole('navigation',{name:'Shopping navigation'}).isVisible());
   });await v.c.close();
  }
- await check('Product carousel honours reduced motion and opens the selected product', async () => {
+ await check('Photo-only carousel honours reduced motion and opens the visible product', async () => {
   const view = await context(390);
   try {
    await visit(view.p, '/');
-   const carousel = view.p.getByRole('region', { name: 'Shop Featured Gear' });
-   const rail = carousel.locator('.home-carousel-rail');
-   const next = carousel.getByRole('button', { name: 'Next product' });
+   const carousel = view.p.getByRole('region', { name: 'Featured GymDrobe products' });
+   const photo = carousel.locator('.home-carousel-photo');
    await carousel.getByRole('button', { name: 'Play slideshow' }).waitFor();
-   assert.equal(await rail.evaluate(element => element.scrollLeft), 0);
-   await next.press('ArrowRight');
-   assert.ok(await rail.evaluate(element => element.scrollLeft) > 0);
+   assert.equal(await photo.count(), 1);
+   const path = await photo.getAttribute('href');
+   assert.ok(path);
+   assert.equal(await photo.innerText(), '');
+   await carousel.getByRole('button', { name: 'Next product' }).press('ArrowRight');
+   assert.notEqual(await photo.getAttribute('href'), path);
    await carousel.getByRole('button', { name: 'Previous product' }).click();
-   assert.equal(await rail.evaluate(element => element.scrollLeft), 0);
-   const item = carousel.getByRole('link', { name: 'View Product: Gym Training T-Shirt' });
-   const path = await item.getAttribute('href');
-   await item.click();
+   assert.equal(await photo.getAttribute('href'), path);
+   await photo.click();
    await view.p.waitForURL('**' + path);
   } finally {
    await view.c.close();
