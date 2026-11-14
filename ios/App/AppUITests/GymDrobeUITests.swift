@@ -7,17 +7,37 @@ final class GymDrobeUITests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         XCTAssertEqual(app.state, .runningForeground)
-        XCTAssertTrue(app.links["Categories"].firstMatch.waitForExistence(timeout: 45))
-        XCTAssertTrue(app.links["Categories"].firstMatch.isHittable)
+        let categories = app.links["Categories"].firstMatch
+        XCTAssertTrue(categories.waitForExistence(timeout: 45))
+        XCTAssertTrue(categories.isHittable)
         capture("iPhone-home", app: app)
-        app.links["Categories"].firstMatch.tap()
+        tapShoppingTab(categories, app: app)
+        XCTAssertTrue(app.webViews.links["Explore all products"].firstMatch.waitForExistence(timeout: 15),
+                      "Tapping Categories must open the Categories screen")
         XCTAssertTrue(app.webViews.staticTexts["Shop by category"].firstMatch.waitForExistence(timeout: 15))
         XCTAssertTrue(app.webViews.staticTexts["Workout clothing"].firstMatch.waitForExistence(timeout: 60), "Capture a loaded collection, not the catalogue loading state")
         capture("iPhone-categories", app: app)
         XCTAssertFalse(app.buttons["Search by photo"].firstMatch.exists, "Free release must hide deferred photo search")
-        app.links["Wishlist"].firstMatch.tap()
+        tapShoppingTab(app.links["Wishlist"].firstMatch, app: app)
         XCTAssertTrue(app.webViews.staticTexts["Your wishlist is waiting"].firstMatch.waitForExistence(timeout: 15))
     }
+
+    private func tapShoppingTab(_ tab: XCUIElement, app: XCUIApplication) {
+        XCTAssertTrue(tab.isHittable)
+        let navigation = app.webViews.otherElements.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Shopping navigation")
+        ).firstMatch
+        XCTAssertTrue(navigation.exists)
+        // WebKit can report just the text label as the link's frame. Tap the
+        // visible icon within the same tab, above the label and system edge.
+        let point = CGPoint(x: tab.frame.midX, y: navigation.frame.minY + 21)
+        XCTAssertTrue(navigation.frame.contains(point))
+        let window = app.windows.firstMatch
+        window.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: point.x - window.frame.minX, dy: point.y - window.frame.minY))
+            .tap()
+    }
+
     private func capture(_ name: String, app: XCUIApplication) {
         // A WebKit accessibility tree can arrive before its first composited
         // frame. Wait for visible pixels too, with the same nonblank threshold.
