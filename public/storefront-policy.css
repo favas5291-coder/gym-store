@@ -1,14 +1,22 @@
-body { background: #f8f8f3; color: #20211f; font: 15px/1.8 "Helvetica Neue", Arial, sans-serif; }
-.policy-header { background: #171a16; color: #f4f5ec; display: flex; align-items: center; justify-content: space-between; padding: 20px 6%; gap: 20px; }
-.policy-header a { color: inherit; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
-.policy-header a:first-child { font-size: 25px; font-weight: 800; letter-spacing: -1px; }
-.policy-header a:last-child { font-size: 12px; }
-main { margin: 0 auto; padding: 60px 24px 80px; max-width: 860px; }
-h1 { font-size: clamp(33px,5vw,50px); letter-spacing: -.05em; font-weight: 500; }
-h2 { font-size: 23px; font-weight: 500; letter-spacing: -.025em; }
-a { color: #934222; }
-section,.note { border: 1px solid #deded6; border-radius: 3px; background: white; padding: 25px; }
-a:focus-visible { outline: 2px solid #a74625; outline-offset: 4px; }
-.notice { background: #edeee5; border-color: #7b8869; }
-footer { color: #64645f; }
-@media(max-width:600px) { main { padding: 32px 20px 50px; } section,.note { padding: 18px; } .policy-header { padding: 12px 20px; } }
+body { margin: 0; background: #f8f5ec; color: #103d2b; font: 15px/1.8 system-ui, sans-serif; }
+.policy-header { background: #f8f5ec; border-bottom: 1px solid #dfd8cb; display: flex; align-items: center; justify-content: space-between; padding: 10px 6%; gap: 14px; }
+.policy-header a { color: #014421; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 650; }
+.policy-header img { width: clamp(112px, 16vw, 154px); height: auto; }
+main { margin: 0 auto; padding: 48px 24px 64px; max-width: 860px; }
+h1, h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 700; line-height: 1.2; }
+h1 { font-size: clamp(32px, 5vw, 50px); letter-spacing: -.04em; }
+h2 { font-size: clamp(22px, 3vw, 27px); letter-spacing: -.025em; }
+a { color: #014421; }
+section, .note { border: 1px solid #dfd8cb; border-radius: 12px; background: #fffdf8; padding: 24px; }
+a:focus-visible { outline: 2px solid #014421; outline-offset: 4px; }
+.notice { background: #ede5db; border-color: #014421; }
+footer { color: #505c52; }
+@media (max-width: 600px) {
+  main { padding: 28px 16px 44px; }
+  section, .note { padding: 16px; }
+  .policy-header { padding-inline: 16px; }
+}
+@media print {
+  body, section, .note { background: white; }
+  main { max-width: none; padding: 0; }
+}

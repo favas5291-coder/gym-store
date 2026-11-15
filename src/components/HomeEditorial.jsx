@@ -14,29 +14,22 @@ export default function HomeEditorial() {
   return (
     <div className="home-editorial">
       <section className="editorial-hero" aria-labelledby="editorial-heading">
-        <div className="editorial-hero-media">
+        <picture className="editorial-hero-media">
+          <source
+            media="(max-width: 719px)"
+            srcSet="/editorial/flat-lay-480.webp 480w, /editorial/flat-lay-800.webp 800w"
+            sizes="100vw"
+          />
           <img
-            className="editorial-duffel"
-            src="/editorial/duffel-720.webp"
-            srcSet="/editorial/duffel-420.webp 420w, /editorial/duffel-720.webp 720w, /editorial/duffel-960.webp 960w"
-            sizes="(max-width: 719px) 69vw, (max-width: 1023px) 42vw, 500px"
-            width="960"
-            height="914"
+            src="/editorial/flat-lay-800.webp"
+            srcSet="/editorial/flat-lay-800.webp 800w, /editorial/flat-lay-1280.webp 1280w"
+            sizes="(max-width: 1480px) 55vw, 802px"
+            width="1280"
+            height="1185"
             fetchPriority="high"
-            alt="Black cult 25-litre gym duffel with a shoulder strap"
+            alt="Gymshark flat lay with an open black gym bag, folded workout clothes, a bottle, towels and accessories"
           />
-          <img
-            className="editorial-shaker"
-            src="/editorial/shaker-360.webp"
-            srcSet="/editorial/shaker-180.webp 180w, /editorial/shaker-360.webp 360w"
-            sizes="(max-width: 719px) 30vw, 210px"
-            width="360"
-            height="480"
-            fetchPriority="low"
-            decoding="async"
-            alt="Black cult stainless steel shaker with a flip lid"
-          />
-        </div>
+        </picture>
         <div className="editorial-hero-copy">
           <h1 id="editorial-heading">Gear for every workout.</h1>
           <p>Workout clothing, accessories and starter essentials.</p>
@@ -55,7 +48,7 @@ export default function HomeEditorial() {
               <span className={`editorial-category-photo editorial-category-${image}`}>
                 <img srcSet={srcSet} sizes="(max-width: 719px) 30vw, (max-width: 1023px) 31vw, 420px" alt="" loading="lazy" decoding="async" width="560" height={image === "shaker" ? 747 : 560} />
               </span>
-              <span className="editorial-category-label">{label}<ArrowRight aria-hidden="true" size={16} /></span>
+              <span className="editorial-category-label">{label}</span>
             </Link>
           ))}
         </div>

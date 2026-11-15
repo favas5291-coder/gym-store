@@ -368,9 +368,11 @@ try{
    const categoryHeading = await view.p.getByRole('heading', { name: 'Shop by category' }).boundingBox();
    const navigation = await view.p.getByRole('navigation', { name: 'Shopping navigation' }).boundingBox();
    assert.ok(categoryHeading.y + categoryHeading.height <= navigation.y);
-   const duffel = view.p.locator('.editorial-duffel');
-   assert.equal(await duffel.getAttribute('fetchpriority'), 'high');
-   await duffel.evaluate(img => img.decode());
+   const heroPhoto = view.p.locator('.editorial-hero-media img');
+   assert.equal(await heroPhoto.count(), 1);
+   assert.equal(await heroPhoto.getAttribute('fetchpriority'), 'high');
+   await heroPhoto.evaluate(img => img.decode());
+   assert.match(await heroPhoto.getAttribute('alt'), /Gymshark flat lay/);
    await view.p.getByRole('link', { name: 'Shop workout gear' }).focus();
    assert.equal(await view.p.getByRole('link', { name: 'Shop workout gear' }).evaluate(link => getComputedStyle(link).outlineStyle), 'solid');
    await view.p.getByRole('link', { name: 'Shop workout gear' }).press('Enter');

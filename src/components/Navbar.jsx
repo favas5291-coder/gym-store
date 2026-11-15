@@ -252,7 +252,7 @@ function Icon({ name, size = 22 }) {
   );
 }
 
-function Brand() {
+export function Brand() {
   return <img className="gn-wordmark" src="/brand/gymdrobe-wordmark-green.png" alt="GymDrobe" />;
 }
 
@@ -710,6 +710,7 @@ function SearchBox({
 }
 
 export default function Navbar({
+  storefront = false,
   cartCount = 0,
   wishlistCount = 0,
 }) {
@@ -1079,7 +1080,7 @@ export default function Navbar({
           <Brand />
         </Link>
 
-        {location.pathname === "/" && <nav className="editorial-header-help" aria-label="Shopping information">
+        {storefront && <nav className="editorial-header-help" aria-label="Shopping information">
           <Link to="/orders"><Truck aria-hidden="true" size={16} />Track Order</Link>
           <Link to="/help"><CircleHelp aria-hidden="true" size={16} />Help</Link>
         </nav>}
@@ -1153,7 +1154,7 @@ export default function Navbar({
         </nav>
 
         <SearchBox
-          placeholder={location.pathname === "/" ? "Search T-shirts, gym bags and more." : undefined}
+          placeholder={storefront ? "Search T-shirts, gym bags and more." : undefined}
           value={search}
           onChange={setSearch}
           onSubmit={performSearch}

@@ -28,7 +28,7 @@ import StoreProvider, {
 import CatalogProvider from "./context/CatalogContext.jsx";
 import ShoppingToolsProvider from "./context/ShoppingToolsContext.jsx";
 
-import Navbar from "./components/Navbar.jsx";
+import Navbar, { Brand } from "./components/Navbar.jsx";
 import Footer from "./components/Footer.jsx";
 import Toast from "./components/Toast.jsx";
 import EmptyState from "./components/EmptyState.jsx";
@@ -344,72 +344,11 @@ function ScrollToTop() {
 
 function CheckoutHeader() {
   return (
-    <header
-      aria-label="GymDrobe checkout"
-      className="premium-checkout-header"
-      style={{
-        background: "#fff",
-        borderBottom:
-          "1px solid #e5e7eb",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: "1120px",
-          margin: "0 auto",
-          padding: "14px 20px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: "12px",
-        }}
-      >
-        <Link
-          to="/"
-          aria-label="GymDrobe home"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            minHeight: "44px",
-            color: "#111827",
-            textDecoration: "none",
-            fontSize: "22px",
-            fontWeight: 900,
-            letterSpacing: "-1px",
-          }}
-        >
-          GYM
-          <span
-            style={{
-              color: "#c2410c",
-            }}
-          >
-            DROBE
-          </span>
-        </Link>
-
-        <Link
-          to="/cart"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            minHeight: "44px",
-            padding: "0 14px",
-            border:
-              "1px solid #d1d5db",
-            borderRadius: "6px",
-            color: "#111827",
-            textDecoration: "none",
-            fontSize: "14px",
-            fontWeight: 600,
-          }}
-        >
-          <span aria-hidden="true">
-            ←&nbsp;
-          </span>
-
+    <header aria-label="GymDrobe checkout" className="premium-checkout-header">
+      <div>
+        <Link to="/" aria-label="GymDrobe home"><Brand /></Link>
+        <Link className="checkout-back" to="/cart">
+          <span aria-hidden="true">←</span>
           Back to bag
         </Link>
       </div>
@@ -514,6 +453,7 @@ function Layout() {
       ) : (
         <>
           <Navbar
+            storefront={!internal}
             cartCount={cart.reduce(
               (total, item) =>
                 total +

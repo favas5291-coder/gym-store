@@ -1,23 +1,40 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap");
 
 #app .premium-storefront {
-  --brand-green: #0f3d3a;
-  --brand-accent: #a9bdb3;
-  --brand-surface: #fff;
-  --brand-hover: #14514d;
+  --editorial-green: #014421;
+  --editorial-text: #103d2b;
+  --editorial-ivory: #f8f5ec;
+  --editorial-beige: #ede5db;
+  --brand-green: var(--editorial-green);
+  --brand-accent: #e3ebdf;
+  --brand-surface: #fffdf8;
+  --brand-hover: #103d2b;
   --space: clamp(16px, 4vw, 64px);
-  --paper: #f7f8f6;
-  --ink: #171c1b;
+  --paper: var(--editorial-ivory);
+  --ink: var(--editorial-text);
+  --muted: #505c52;
   --accent: var(--brand-green);
   --gd-accent: var(--brand-green);
-  --line: #e9ece8;
-  --headline: "Plus Jakarta Sans", system-ui, sans-serif;
+  --line: #dfd8cb;
+  --control-line: #928f82;
+  --headline: Georgia, "Times New Roman", serif;
+  --ui-radius: 8px;
+  --panel-radius: 12px;
+  color: var(--ink);
   font-family: Manrope, system-ui, sans-serif;
 }
 
-#app .premium-storefront :is(h1, h2, h3, .theme-category) {
+#app .premium-storefront :is(h1, .theme-category),
+#app .premium-storefront :is(.page-heading, .shop-title, .gm-section-head, .gd-account-content, .home-spotlight, .home-collections, .home-story, .home-new, .price-summary, .gd-checkout-fields) > h2 {
   font-family: var(--headline);
+  font-weight: 700;
+  letter-spacing: -.03em;
 }
+
+#app .premium-storefront .product-info h1 {
+  font-weight: 700;
+}
+
 
 #app .premium-storefront :is(h1, .gm-section-head h2, .cinema-content h1) {
   color: var(--brand-green);
@@ -38,9 +55,14 @@
 }
 
 #app .premium-storefront .gd-nav .gn-form {
-  border: 1px solid var(--line);
-  border-radius: 24px;
-  background: white;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius);
+  background: var(--editorial-beige);
+}
+
+#app .premium-storefront .gd-nav .gn-form:focus-within {
+  outline: 2px solid var(--brand-green);
+  outline-offset: 2px;
 }
 
 #app .premium-storefront .shopping-bottom-nav > a.active {
@@ -60,7 +82,7 @@
   background: var(--brand-green);
   border-color: var(--brand-green);
   color: white !important;
-  border-radius: 8px;
+  border-radius: var(--ui-radius);
 }
 
 #app .premium-storefront :is(.button:not(.secondary, .buy-now), .premium-button--primary, .cinema-shop.premium-button):hover:not(:disabled) {
@@ -127,13 +149,6 @@
   }
 }
 
-/* The utility strip and sign-in row stay together in the shopping header. */
-#app .premium-storefront .gd-nav,
-#app .premium-storefront .gd-nav.gn-raised {
-  background: white;
-  color: var(--ink);
-}
-
 #app .premium-storefront .shopping-help-bar {
   display: flex;
   align-items: center;
@@ -187,13 +202,13 @@
 .get-app-promotion { display: none; }
 
 @media (min-width: 1024px) {
-  html:not(.gymdrobe-native) #app .storefront-home .gd-nav .gn-bar {
+  html:not(.gymdrobe-native) #app .premium-storefront .gd-nav .gn-bar {
     grid-template-columns: minmax(120px, .75fr) minmax(330px, 2fr) minmax(230px, 1.5fr) 132px;
     grid-template-areas: "brand navigation search actions";
     gap: 12px;
   }
 
-  html:not(.gymdrobe-native) #app .storefront-home .gd-nav .gn-desktop { display: flex; }
+  html:not(.gymdrobe-native) #app .premium-storefront .gd-nav .gn-desktop { display: flex; }
 
   .get-app-promotion {
     position: fixed;
@@ -433,13 +448,136 @@
 .home-collection-grid strong { padding: 12px; font-size: 14px; line-height: 1.4; font-weight: 600; }
 .home-collection-media { aspect-ratio: 1; background: #fff; }
 
-#app .premium-storefront :is(.gm-product-card, .panel, .price-summary, .delivery-box) {
-  border-radius: 10px;
-}
-
-#app .premium-storefront :is(.gm-product-card, .gd-checkout .price-summary, .delivery-box) {
+#app .premium-storefront :is(.gm-product-card, .panel, .price-summary, .delivery-box, .address-card, .order-card, .auth-card),
+#app .premium-storefront .cart-page :is(.cart-row, .cart-kit-group),
+#app .premium-storefront .gd-checkout .price-summary {
+  border: 1px solid var(--line);
+  border-radius: var(--panel-radius);
   background: var(--brand-surface);
 }
+
+#app .premium-storefront .gd-checkout .check {
+  border-radius: var(--ui-radius);
+}
+
+#app .premium-storefront .gd-checkout .check:has(input:checked) {
+  background: var(--brand-accent);
+  border-color: var(--brand-green);
+}
+
+#app .premium-storefront .gm-product-visual {
+  background: var(--editorial-beige);
+  border-radius: calc(var(--panel-radius) - 1px) calc(var(--panel-radius) - 1px) 0 0;
+}
+
+#app .premium-storefront .gm-product-copy {
+  padding: 12px clamp(8px, 1.15vw, 16px);
+}
+
+#app .premium-storefront .gm-product-copy h3 {
+  font-family: inherit;
+  font-weight: 650;
+  white-space: normal;
+}
+
+#app .premium-storefront .gm-product-price strong {
+  color: var(--brand-green);
+  font-weight: 750;
+}
+
+#app .premium-storefront :is(.gallery .main-photo, .cart-page .cart-thumb, .home-story-media, .home-product-feature, .home-app-discovery) {
+  background: var(--editorial-beige);
+  border-radius: var(--panel-radius);
+}
+
+#app .premium-storefront .shop-toolbar .sort-label {
+  min-height: 44px;
+  padding: 0 10px;
+  border-color: var(--control-line);
+  border-radius: var(--ui-radius);
+  background: var(--brand-surface);
+}
+
+#app .premium-storefront .shop-toolbar .sort-label select {
+  min-height: 44px;
+  background: transparent;
+  color: var(--ink);
+}
+
+#app .premium-storefront :is(.option-list button, .filter-chips button, .collection-links a, .thumbnails button, .cart-controls select) {
+  border-radius: var(--ui-radius);
+}
+
+#app .premium-storefront :is(.option-list button[aria-pressed="true"], .collection-links a.active) {
+  color: var(--brand-green);
+  border-color: var(--brand-green);
+  background: var(--brand-accent);
+}
+
+#app .premium-storefront :is(.field input, .field select, .field textarea) {
+  background: var(--brand-surface);
+  border-color: var(--control-line);
+  border-radius: var(--ui-radius);
+}
+
+#app .premium-storefront :is(.button.secondary, .product-primary-actions .buy-now, .gm-product-card-cta .premium-button) {
+  color: var(--brand-green) !important;
+  background: var(--brand-surface);
+  border-color: var(--control-line);
+  border-radius: var(--ui-radius);
+}
+
+#app .premium-storefront :is(.button.secondary, .product-primary-actions .buy-now, .gm-product-card-cta .premium-button):hover:not(:disabled) {
+  color: var(--brand-green) !important;
+  border-color: var(--brand-green);
+  background: var(--brand-accent);
+}
+
+#app .premium-storefront :is(.card-heart.premium-icon-button, .gm-row-controls .premium-icon-button) {
+  color: var(--brand-green);
+  border-radius: 50%;
+}
+
+#app .premium-storefront .card-heart.premium-icon-button.saved {
+  background: var(--brand-accent);
+  color: var(--brand-green);
+}
+
+#app .premium-storefront .premium-checkout-header > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 1120px;
+  margin-inline: auto;
+  padding: 10px clamp(14px, 4vw, 32px);
+}
+
+#app .premium-storefront .premium-checkout-header a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+#app .premium-storefront .premium-checkout-header .gn-wordmark {
+  width: clamp(112px, 13vw, 154px);
+}
+
+#app .premium-storefront .checkout-back {
+  border: 1px solid var(--line);
+  border-radius: var(--ui-radius);
+  padding-inline: 12px;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+#app .premium-storefront .checkout-back:hover {
+  background: var(--editorial-beige);
+}
+
 
 #app .premium-storefront :is(.button, .premium-button, .gn-icon-button):focus-visible {
   outline-offset: 3px;
@@ -498,7 +636,7 @@
 /* Shared editorial rhythm for the homepage and account entry. */
 #app .storefront-home .cinematic-home > .gm-section { margin-block: 0; padding-block: 24px; }
 #app .storefront-home .cinematic-home :is(.gm-section-head h2, .home-category-title, .home-story h2, .home-new > h2, .home-spotlight > h2, .home-collections > h2, .home-brands h3) {
-  font-size: clamp(22px, 2.5vw, 32px); line-height: 1.25; font-weight: 650; letter-spacing: -.035em; color: var(--ink); margin: 0 0 18px;
+  font-size: clamp(22px, 2.5vw, 32px); line-height: 1.25; font-family: var(--headline); font-weight: 700; letter-spacing: -.035em; color: var(--ink); margin: 0 0 18px;
 }
 #app .storefront-home .home-new > h2 { text-align: left; }
 .home-spotlight-grid > a { min-width: 0; overflow: hidden; background: white; border: 1px solid var(--line); border-radius: 10px; }
@@ -535,4 +673,37 @@
   .home-story { gap: 20px; }
   #app .premium-storefront .auth-form { padding: 24px 20px; }
   #app .premium-storefront .auth-banner { padding: 24px 20px; }
+}
+
+@media (max-width: 1023px) {
+  #app .premium-storefront .shopping-help-bar { display: none; }
+
+  #app .premium-storefront .gd-nav .gn-bar,
+  .gymdrobe-native #app .premium-storefront .gd-nav .gn-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 44px 44px;
+    grid-template-areas: "brand help" "search search";
+    gap: 4px 6px;
+    height: auto;
+    padding: 5px max(14px, var(--shopping-safe-right)) 8px max(14px, var(--shopping-safe-left));
+  }
+
+  #app .premium-storefront .gd-nav .gn-brand { justify-self: start; }
+  #app .premium-storefront .gd-nav .gn-brand img { max-width: min(40vw, 160px); }
+  #app .premium-storefront .editorial-header-help { display: flex; grid-area: help; gap: 6px; }
+  .editorial-header-help a { color: var(--editorial-text); display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 44px; min-width: 44px; padding-inline: 4px; font-size: .825rem; font-weight: 650; white-space: nowrap; }
+}
+
+@media (max-width: 700px) {
+  #app .premium-storefront .shop-page .page-heading {
+    margin-bottom: 16px;
+  }
+
+  #app .premium-storefront .shop-toolbar {
+    padding-inline: 0;
+  }
+}
+
+@media (max-width: 359px) {
+  .editorial-header-help svg { display: none; }
 }
