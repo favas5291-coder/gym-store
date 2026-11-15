@@ -28,7 +28,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 
 import "./GymDrobeStorefront.css";
 import PhotoSearchButton from "./PhotoSearchButton.jsx";
-import { Search, Clock3, ArrowRight, X } from "lucide-react";
+import { Search, Clock3, ArrowRight, CircleHelp, Truck, X } from "lucide-react";
 
 const RECENT_SEARCH_KEY =
   "gymdrobe-recent-searches";
@@ -252,7 +252,7 @@ function Icon({ name, size = 22 }) {
   );
 }
 
-function Brand() {
+export function Brand() {
   return <img className="gn-wordmark" src="/brand/gymdrobe-wordmark-green.png" alt="GymDrobe" />;
 }
 
@@ -288,6 +288,7 @@ function SearchBox({
   onOpen,
   routeKey,
   onRemember,
+  placeholder = "Search for products, brands and more",
 }) {
   const { products } = useCatalog();
 
@@ -533,7 +534,7 @@ function SearchBox({
           enterKeyHint="search"
           maxLength={120}
           value={value}
-          placeholder="Search for products, brands and more"
+          placeholder={placeholder}
           aria-expanded={open}
           aria-autocomplete="list"
           aria-controls={
@@ -709,6 +710,7 @@ function SearchBox({
 }
 
 export default function Navbar({
+  storefront = false,
   cartCount = 0,
   wishlistCount = 0,
 }) {
@@ -1052,7 +1054,7 @@ export default function Navbar({
       }}
     >
       <nav className="shopping-help-bar" aria-label="Shopping information">
-        <GetApp showPromotion={location.pathname === "/"} />
+        <GetApp />
         <Link to="/orders">Track Order</Link>
         <Link to="/help">Help</Link>
       </nav>
@@ -1077,6 +1079,11 @@ export default function Navbar({
         >
           <Brand />
         </Link>
+
+        {storefront && <nav className="editorial-header-help" aria-label="Shopping information">
+          <Link to="/orders"><Truck aria-hidden="true" size={16} />Track Order</Link>
+          <Link to="/help"><CircleHelp aria-hidden="true" size={16} />Help</Link>
+        </nav>}
 
         <nav
           className="gn-desktop"
@@ -1147,6 +1154,7 @@ export default function Navbar({
         </nav>
 
         <SearchBox
+          placeholder={storefront ? "Search T-shirts, gym bags and more." : undefined}
           value={search}
           onChange={setSearch}
           onSubmit={performSearch}

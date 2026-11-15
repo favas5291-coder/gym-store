@@ -121,11 +121,11 @@ body:has(.gn-search-open) .gd-guide-reopen {
 
 .modal.gd-fitness-guide {
   --guide-gutter: 24px;
-  --guide-ink: var(--ink, #202321);
-  --guide-paper: var(--paper, #fcfcf9);
+  --guide-ink: var(--ink, #103d2b);
+  --guide-paper: var(--paper, #f8f5ec);
   --guide-muted: var(--muted, #686b66);
   --guide-line: var(--line, #dedfd9);
-  --guide-accent: var(--gd-accent, #0f3d3a);
+  --guide-accent: var(--gd-accent, #014421);
   width: min(930px, calc(100% - 32px));
   max-width: 930px;
   max-height: min(88dvh, 900px);
@@ -265,8 +265,8 @@ body:has(.gn-search-open) .gd-guide-reopen {
 }
 
 .gd-fitness-guide .button:not(.secondary) {
-  background: var(--guide-ink);
-  border-color: var(--guide-ink);
+  background: var(--guide-accent);
+  border-color: var(--guide-accent);
   color: #fff;
 }
 
@@ -346,22 +346,22 @@ body:has(.gn-search-open) .gd-guide-reopen {
   padding: 12px;
   min-height: 56px;
   box-sizing: border-box;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--guide-line);
   border-radius: 12px;
   cursor: pointer;
   overflow-wrap: anywhere;
 }
 
 .gd-guide-choices label:has(input:checked) {
-  border-color: #0f3d3a;
-  background: #eef3ef;
+  border-color: var(--guide-accent);
+  background: #e3ebdf;
 }
 
 .gd-guide-choices input {
   width: 19px;
   height: 19px;
   flex: 0 0 19px;
-  accent-color: #0f3d3a;
+  accent-color: var(--guide-accent);
 }
 
 .gd-guide-choices small {
@@ -390,8 +390,8 @@ body:has(.gn-search-open) .gd-guide-reopen {
 }
 
 .gd-guide-presets [aria-pressed="true"] {
-  border-color: #0f3d3a;
-  background: #eef3ef;
+  border-color: var(--guide-accent);
+  background: #e3ebdf;
   color: #0f3d3a;
 }
 
@@ -484,7 +484,7 @@ body:has(.gn-search-open) .gd-guide-reopen {
   grid-template-columns: 145px minmax(0, 1fr);
   gap: 20px;
   padding: 20px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--guide-line);
   border-radius: 16px;
 }
 

@@ -1,13 +1,13 @@
 /* Account-owned tokens and layout. Do not inherit the legacy wrapping tab rail. */
-#app .premium-storefront .gd-account-page{--account-ink:#252c27;--account-muted:#626a64;--account-line:#e2e5de;--account-surface:#fff;--account-tint:#f2f4ee;max-width:1120px;margin:0 auto;padding:32px 24px 40px;color:var(--account-ink)}
+#app .premium-storefront .gd-account-page{--account-ink:var(--ink);--account-muted:var(--muted);--account-line:var(--line);--account-surface:var(--brand-surface);--account-tint:var(--editorial-beige);max-width:1120px;margin:0 auto;padding:32px 24px 40px;color:var(--account-ink)}
 #app .premium-storefront .gd-account-page *{box-sizing:border-box}
 #app .premium-storefront .gd-account-header{display:flex;align-items:center;gap:16px;padding-bottom:28px;border-bottom:1px solid var(--account-line);margin-bottom:24px}
-#app .premium-storefront .gd-account-avatar{width:56px;height:56px;flex:none;border-radius:50%;display:grid;place-items:center;background:#e9eee5;color:#354337;font-size:19px;font-weight:600}
+#app .premium-storefront .gd-account-avatar{width:56px;height:56px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--brand-accent);color:var(--brand-green);font-size:19px;font-weight:600}
 #app .premium-storefront .gd-account-identity{min-width:0;flex:1}
 #app .premium-storefront .gd-account-identity p{margin:0 0 5px;font-size:13px;color:var(--account-muted);line-height:1.5;overflow-wrap:anywhere}
 #app .premium-storefront .gd-account-identity h1{margin:0;font-size:clamp(22px,3vw,30px);font-weight:600;letter-spacing:-.035em;line-height:1.25;overflow-wrap:anywhere}
 #app .premium-storefront .gd-account-identity .gd-account-contact{margin:6px 0 0;font-size:13px}
-#app .premium-storefront .gd-account-edit{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 14px;border:1px solid #cdd4ca;border-radius:8px;font-size:13px;font-weight:600;white-space:nowrap;text-decoration:none}
+#app .premium-storefront .gd-account-edit{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 14px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-weight:600;white-space:nowrap;text-decoration:none}
 #app .premium-storefront .gd-account-content{min-width:0}
 #app .premium-storefront .gd-account-content h2{margin:0 0 16px;font-size:18px;line-height:1.4;font-weight:600;letter-spacing:-.025em}
 #app .premium-storefront .gd-account-quick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 28px}
@@ -45,13 +45,13 @@
 #app .premium-storefront .gd-account-profile .profile-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;max-width:650px;margin:0 0 24px!important}
 #app .premium-storefront .gd-account-profile .field{display:flex;flex-direction:column;gap:8px;min-width:0}
 #app .premium-storefront .gd-account-profile label{font-size:13px;font-weight:500}
-#app .premium-storefront .gd-account-profile input{width:100%;min-width:0;min-height:46px;padding:10px 12px;border:1px solid #cdd4ca;border-radius:6px;font-size:16px;color:var(--account-ink);background:#fff}
+#app .premium-storefront .gd-account-profile input{width:100%;min-width:0;min-height:46px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;font-size:16px;color:var(--account-ink);background:#fff}
 #app .premium-storefront .gd-account-profile input[readonly]{background:#f4f5f1;color:#626a64}
 #app .premium-storefront .gd-account-profile small{font-size:12px;line-height:1.5}
 #app .premium-storefront .gd-account-profile .field-error{grid-column:1/-1}
 #app .premium-storefront .gd-account-profile button{min-height:44px;grid-column:1/-1}
 #app .premium-storefront .gd-account-signout{display:flex;align-items:center;gap:16px;flex-wrap:wrap;border-top:1px solid var(--account-line);padding-top:24px;margin-top:4px}
-#app .premium-storefront .gd-account-signout button,#app .premium-storefront .gd-account-notice button{cursor:pointer;min-height:44px;padding:10px 16px;border:1px solid #cdd4ca;border-radius:6px;background:#fff;font-size:13px;color:var(--account-ink)}
+#app .premium-storefront .gd-account-signout button,#app .premium-storefront .gd-account-notice button{cursor:pointer;min-height:44px;padding:10px 16px;border:1px solid var(--line);border-radius:6px;background:#fff;font-size:13px;color:var(--account-ink)}
 #app .premium-storefront .gd-account-signout p{margin:0;font-size:12px;color:var(--account-muted)}
 #app .premium-storefront .gd-account-admin{display:flex;align-items:center;gap:12px;padding-top:24px;margin-top:28px;border-top:1px solid var(--account-line);font-size:13px}
 #app .premium-storefront .gd-account-admin>div{flex:1;min-width:0}
@@ -65,7 +65,7 @@
 #app .premium-storefront .gd-account-empty p,#app .premium-storefront .gd-account-muted{font-size:13px;line-height:1.6;color:var(--account-muted)}
 #app .premium-storefront .gd-account-empty>a{display:inline-flex;align-items:center;gap:4px;min-height:44px;font-size:13px}
 #app .premium-storefront .gd-account-skeleton{padding:24px 16px;background:var(--account-tint);border-radius:10px;font-size:13px;color:var(--account-muted)}
-#app .premium-storefront .gd-account-page :is(a,button,summary,input):focus-visible{outline:2px solid #95482e;outline-offset:3px}
+#app .premium-storefront .gd-account-page :is(a,button,summary,input):focus-visible{outline:2px solid var(--brand-green);outline-offset:3px}
 #app .premium-storefront .gd-account-page :is(a,button,summary){-webkit-tap-highlight-color:transparent;transition:background-color .15s}
 #app .premium-storefront .gd-account-page :is(.gd-account-row,.gd-account-quick>a,.gd-account-edit):active{background:#e8eee3}
 #app .premium-storefront .gd-account-with-menu{display:grid;grid-template-columns:230px minmax(0,1fr);gap:32px}
@@ -99,9 +99,5 @@
  #app .premium-storefront .gd-account-profile .profile-form{grid-template-columns:minmax(0,1fr)}
  #app .premium-storefront .gd-account-order{gap:8px;padding:14px 12px}
  #app .premium-storefront .gd-account-admin{flex-wrap:wrap}
-}
-@media(max-width:1023px){
- #app .premium-storefront:has(.gd-account-page) .gd-nav .gn-bar{grid-template-rows:32px 44px;padding-top:4px;padding-bottom:8px;gap:4px}
- #app .premium-storefront:has(.gd-account-page) .gd-nav .gn-wordmark{font-size:24px}
 }
 @media(prefers-reduced-motion:reduce){#app .premium-storefront .gd-account-page :is(a,button,summary){transition:none}#app .premium-storefront .gd-account-page *{scroll-behavior:auto}}

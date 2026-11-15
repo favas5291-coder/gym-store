@@ -133,7 +133,7 @@ try{
   await keyboardUI.p.getByRole('button',{name:'Clear history'}).click();
   assert.equal(await keyboardUI.p.locator('.gn-results li').count(),0);
   assert.equal(await keyboardUI.p.locator('.gn-results').count(),1);
-  await keyboardUI.p.locator('.theme-category-grid').click({position:{x:10,y:180},force:true});
+  await keyboardUI.p.locator('.editorial-category-grid').click({position:{x:10,y:180},force:true});
   assert.equal(await keyboardUI.p.locator('.gn-results').count(),0);
  });await keyboardUI.c.close();
  // The detail hero should not letterbox square or landscape photos inside
@@ -351,54 +351,55 @@ try{
   const v=await context(width);
   await check(width+'px merchandising and responsive navigation',async()=>{
    await visit(v.p,'/');
-   assert.equal(await v.p.locator('.theme-category').count(),3);
-   assert.ok(await v.p.locator('.theme-category').first().isVisible());
+   assert.equal(await v.p.locator('.editorial-category').count(),3);
+   assert.ok(await v.p.locator('.editorial-category').first().isVisible());
    assert.ok(await v.p.getByRole('combobox',{name:'Search products'}).isVisible());
    assert.ok(await v.p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
-   if(width<=700) assert.ok(await v.p.getByRole('navigation',{name:'Shopping navigation'}).isVisible());
+   if(width<1024) assert.deepEqual(await v.p.getByRole('navigation',{name:'Shopping navigation'}).getByRole('link').allTextContents(),['Home','Categories','Wishlist','Cart','Account']);
   });await v.c.close();
  }
- await check('Photo-only carousel honours reduced motion and opens the visible product', async () => {
-  const view = await context(390);
+ await check('Editorial homepage shows the categories in the first mobile viewport and opens the shopping routes', async () => {
+  const view = await context(390, { browser: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } });
   try {
    await visit(view.p, '/');
-   const carousel = view.p.getByRole('region', { name: 'Featured GymDrobe products' });
-   const photo = carousel.locator('.home-carousel-photo');
-   await photo.waitFor();
-   assert.equal(await carousel.getByRole("button", { name: /pause|play/i }).count(), 0);
-   assert.equal(await photo.count(), 1);
-   const path = await photo.getAttribute('href');
-   assert.ok(path);
-   assert.equal(await photo.innerText(), '');
-   await carousel.getByRole('button', { name: 'Next product' }).press('ArrowRight');
-   await view.p.waitForFunction(url => document.querySelector('.home-carousel-photo')?.getAttribute('href') !== url, path);
-   await carousel.getByRole('button', { name: 'Previous product' }).click();
-   await view.p.waitForFunction(url => document.querySelector('.home-carousel-photo')?.getAttribute('href') === url, path);
-   await photo.click();
-   await view.p.waitForURL('**' + path);
+   const heading = view.p.getByRole('heading', { name: 'Gear for every workout.' });
+   assert.ok(await heading.isVisible());
+   assert.equal(await view.p.getByRole('combobox', { name: 'Search products' }).getAttribute('placeholder'), 'Search T-shirts, gym bags and more.');
+   const categoryHeading = await view.p.getByRole('heading', { name: 'Shop by category' }).boundingBox();
+   const navigation = await view.p.getByRole('navigation', { name: 'Shopping navigation' }).boundingBox();
+   assert.ok(categoryHeading.y + categoryHeading.height <= navigation.y);
+   const heroPhoto = view.p.locator('.editorial-hero-media img');
+   assert.equal(await heroPhoto.count(), 1);
+   assert.equal(await heroPhoto.getAttribute('fetchpriority'), 'high');
+   await heroPhoto.evaluate(img => img.decode());
+   assert.match(await heroPhoto.getAttribute('alt'), /Gymshark flat lay/);
+   await view.p.getByRole('link', { name: 'Shop workout gear' }).focus();
+   assert.equal(await view.p.getByRole('link', { name: 'Shop workout gear' }).evaluate(link => getComputedStyle(link).outlineStyle), 'solid');
+   await view.p.getByRole('link', { name: 'Shop workout gear' }).press('Enter');
+   await view.p.waitForURL('**/shop?department=workout');
+   for (const [name, route] of [
+    ['Workout Clothing', '/shop?department=workout'],
+    ['Accessories', '/shop?department=accessories'],
+    ['Starter Essentials', '/collections/gym-bags'],
+   ]) {
+    await visit(view.p, '/');
+    await view.p.getByRole('link', { name, exact: true }).click();
+    await view.p.waitForURL(url => url.pathname + url.search === route);
+   }
   } finally {
    await view.c.close();
   }
  });
- await check('Carousel resumes after arrow navigation and the story loops in view', async () => {
+ await check('The story loops only while in view', async () => {
   const v = await context(390, { browser: { reducedMotion: 'no-preference' } });
   try {
    await visit(v.p, '/');
-   const carousel = v.p.getByRole('region', { name: 'Featured GymDrobe products' });
-   const photo = carousel.locator('.home-carousel-photo');
-   await photo.waitFor();
-   const first = await photo.getAttribute('href');
-   assert.equal(await photo.locator('img').evaluate(img => getComputedStyle(img).objectFit), 'contain');
-   await carousel.getByRole('button', { name: 'Next product' }).click();
-   await v.p.waitForFunction(path => document.querySelector('.home-carousel-photo')?.getAttribute('href') !== path, first);
-   const selected = await photo.getAttribute('href');
-   await v.p.waitForFunction(path => document.querySelector('.home-carousel-photo')?.getAttribute('href') !== path, selected);
    await v.p.locator('.home-story-media').scrollIntoViewIfNeeded();
    await v.p.waitForFunction(() => {
     const player = document.querySelector('.home-story-media video');
     return player && player.loop && player.muted && player.playsInline && player.currentTime > 0;
    });
-   await carousel.scrollIntoViewIfNeeded();
+   await v.p.locator('.editorial-hero').scrollIntoViewIfNeeded();
    await v.p.waitForFunction(() => !document.querySelector('.home-story-media video'));
   } finally {
    await v.c.close();
@@ -414,7 +415,7 @@ try{
     }
    });
    await visit(view.p, '/');
-   await view.p.locator('.theme-category img').first().evaluate(image => image.decode());
+   await view.p.locator('.editorial-category img').first().evaluate(image => image.decode());
    await view.p.waitForLoadState('networkidle');
    assert.equal(await view.p.locator('main video').count(), 0);
    assert.deepEqual(videoRequests, []);
@@ -425,7 +426,7 @@ try{
   const shop=await context(390,{signedIn:true});
   try{
    await visit(shop.p,'/');
-   const cta=shop.p.locator('.theme-category').first();
+   const cta=shop.p.locator('.editorial-category').first();
    assert.ok(await cta.evaluate(el=>el.getBoundingClientRect().height>=44));
    await visit(shop.p,'/shop');
    const quick=shop.p.getByRole('button',{name:'Quick add Gym Training T-Shirt'}).first();

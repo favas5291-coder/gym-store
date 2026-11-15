@@ -23,7 +23,7 @@
     border-radius: 0;
     aspect-ratio: var(--gd-gallery-aspect, 0.8);
     overflow: hidden;
-    background: #f0f0ec;
+    background: var(--editorial-beige, #f0f0ec);
     position: relative;
     cursor: zoom-in;
   }
@@ -68,13 +68,13 @@
     min-width: 74px;
     min-height: 88px;
     padding: 3px;
-    background: #f4f4f0;
-    border: 1px solid #d9ddd5;
-    border-radius: 2px;
+    background: var(--brand-surface, #f4f4f0);
+    border: 1px solid var(--line, #d9ddd5);
+    border-radius: var(--ui-radius, 8px);
     cursor: pointer;
   }
   #app .premium-storefront .product-page .gd-color-gallery > .thumbnails > button[aria-pressed="true"] {
-    border-color: #273b2d;
+    border-color: var(--brand-green, #273b2d);
   }
   #app .premium-storefront .product-page .gd-color-gallery > .thumbnails > button > img {
     display: block;
