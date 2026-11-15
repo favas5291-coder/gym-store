@@ -49,8 +49,8 @@ try{
    await visit(view.p, '/login');
    assert.equal(await view.p.locator('.auth-banner h1').evaluate(el => getComputedStyle(el).color), 'rgb(255, 255, 255)');
    await view.p.locator('.auth-card').screenshot({path:path.join(output, `refinement-${width}-account.png`)});
-   await view.p.getByRole('button', {name:'Help me choose products', exact:true}).click();
-   await view.p.getByRole('button', {name:'Help me choose',exact:true}).click();
+   await visit(view.p, '/shop');
+   await view.p.getByRole('button', {name:'Help me choose products', exact:true}).click({timeout:20000});
    const guide = view.p.getByRole('dialog', {name:'Find your workout gear'});
    await guide.screenshot({path:path.join(output, `refinement-${width}-guide-categories.png`)});
    await guide.getByRole('button', {name:'Next', exact:true}).click();
