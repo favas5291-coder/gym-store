@@ -8,6 +8,7 @@ import {
 
 import {
   Link,
+  useLocation,
   useParams,
   useSearchParams,
 } from "react-router-dom";
@@ -71,6 +72,20 @@ import {
   supplierSizeChart,
 } from "../utils/productInformation.js";
 
+
+function DeliverySectionAnchor({ productId }) {
+  const { hash } = useLocation();
+
+  useEffect(() => {
+    if (hash !== "#delivery-returns") return;
+    const frame = requestAnimationFrame(() => {
+      document.getElementById("delivery-returns")?.scrollIntoView({ block: "start", behavior: "instant" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [hash, productId]);
+
+  return null;
+}
 
 function ProductDetail({
   product,
@@ -588,6 +603,7 @@ function ProductDetail({
             className="delivery-box"
             id="delivery-returns"
           >
+            <DeliverySectionAnchor productId={productId} />
             <h2>DELIVERY & RETURNS</h2>
 
             <DeliveryPincode
