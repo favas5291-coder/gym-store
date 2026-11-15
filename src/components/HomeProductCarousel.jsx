@@ -31,6 +31,7 @@ export default function HomeProductCarousel() {
   const prepared = useRef(new Map());
   const pendingMove = useRef(0);
   const [active, setActive] = useState(0);
+  const [loadedProduct, setLoadedProduct] = useState(null);
   const [visible, setVisible] = useState(false);
   const [hidden, setHidden] = useState(() => document.hidden);
   const [focused, setFocused] = useState(false);
@@ -59,10 +60,10 @@ export default function HomeProductCarousel() {
   }, [multiple]);
 
   useEffect(() => {
-    if (!multiple || hidden || !visible || reducedMotion || navigator.connection?.saveData) return;
+    if (!multiple || hidden || !visible || reducedMotion || navigator.connection?.saveData || loadedProduct !== product) return;
     const warmup = setTimeout(() => prepare((active + 1) % slides.length), 1000);
     return () => clearTimeout(warmup);
-  }, [active, slides, hidden, visible, reducedMotion]);
+  }, [active, slides, hidden, visible, reducedMotion, loadedProduct, product]);
 
   useEffect(() => {
     if (!multiple || reducedMotion || !visible || hidden || focused || interacting) return;
@@ -134,7 +135,8 @@ export default function HomeProductCarousel() {
             gesture.current = null;
           }}>
           <ProductImage key={product.id ?? product._id} product={product} decorative eager
-            fetchPriority={active === 0 ? "high" : "auto"} decoding="sync" sizes={photoSizes} />
+            fetchPriority={active === 0 ? "high" : "auto"} decoding="async" sizes={photoSizes}
+            onLoad={() => setLoadedProduct(product)} />
         </Link> : <div className="home-carousel-state" role="status">
           <p>{loading ? "Loading featured gear…" : error ? "Featured gear couldn’t load." : "Explore the full collection."}</p>
           {error ? <button type="button" className="button" onClick={refreshProducts}>Retry collection</button> :

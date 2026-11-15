@@ -523,9 +523,9 @@ export default function AuthForm({ reauthenticate = false, onAuthenticated } = {
     <div className="auth-page">
       <section className="auth-card">
         <div className="auth-banner">
-          <span>THE GYMDROBE CLUB</span>
+          <span>YOUR GYMDROBE ACCOUNT</span>
           <h1>Your favourites. All together.</h1>
-          <p>Good gear. Great sessions.</p>
+          <p>Your orders, saved gear and delivery details in one place.</p>
         </div>
 
         <div className="auth-form" aria-busy={busy}>
@@ -534,8 +534,7 @@ export default function AuthForm({ reauthenticate = false, onAuthenticated } = {
           </h2>
 
           <p className="muted">
-            Sign in to access your orders, saved addresses
-            and favourites. New here? Your account is created automatically.
+            Continue with Google to access your account. New here? Your account is created when you sign in.
           </p>
 
           {!linkRequired && (

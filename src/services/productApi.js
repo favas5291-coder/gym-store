@@ -665,3 +665,12 @@ export async function deleteProduct(
 ) {
   return archiveProduct(token, id, options);
 }
+
+export async function getBrandLogos(options = {}) {
+  const data = await request("/brands", { timeoutMs: 8000, ...options });
+  return Array.isArray(data.brands) ? data.brands : [];
+}
+
+export function brandLogoUrl(path) {
+  return `${API_URL}${path}`;
+}

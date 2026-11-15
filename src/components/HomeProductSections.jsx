@@ -6,7 +6,8 @@ import { getTotalStock } from "../utils/cartUtils.js";
 import { productImageSources } from "../utils/productImages.js";
 import { getFitnessKit, getFitnessKits } from "../services/kitApi.js";
 import { homeCollections, latestCollectionProduct, publicationTime } from "../utils/homeCollections.js";
-import { ProductImage } from "./StorefrontShared.jsx";
+import HomeBrandGrid from "./HomeBrandGrid.jsx";
+import { money, priceDetails, ProductImage } from "./StorefrontShared.jsx";
 import ProductRow from "./ProductRow.jsx";
 import HomeStoryMedia from "./HomeStoryMedia.jsx";
 import HomeProductVideo from "./HomeProductVideo.jsx";
@@ -68,7 +69,6 @@ export default function HomeProductSections() {
     );
   }
 
-  const brands = [...new Set(available.map(product => product.brand?.trim()).filter(Boolean))];
   const productPath = product => `/product/${encodeURIComponent(product.id || product._id)}`;
   return <>
     <ProductRow title={lead.some(product => product.isBestSeller) ? "Bestsellers" : "Featured Gear"} id="featured" products={lead} grid to="/shop" />
@@ -86,20 +86,14 @@ export default function HomeProductSections() {
       <div className="home-spotlight-grid">
         {available.slice(0, 6).map(product => <Link key={product.id || product._id} to={productPath(product)}>
           <div className="home-spotlight-media"><ProductImage product={product} decorative /></div>
-          <strong>{product.name}</strong>
+          <div className="home-spotlight-copy"><strong title={product.name}>{product.name}</strong><span>{money(priceDetails(product).selling)}</span></div>
         </Link>)}
       </div>
     </section>
     <section className="gm-section home-collections" aria-labelledby="home-collections-title">
       <h2 id="home-collections-title">Shop collections</h2>
       <HomeCollectionTiles available={available} />
-      {brands.length > 0 && <>
-        <h3 id="home-brands">Shop by brand</h3>
-        <div className="home-brand-grid">{brands.slice(0, 6).map(brand => <Link key={brand} to={`/shop?brand=${encodeURIComponent(brand)}`}>{brand}</Link>)}</div>
-        {brands.length > 6 && <details className="home-brand-more"><summary>View all brands</summary>
-          <div className="home-brand-grid">{brands.slice(6).map(brand => <Link key={brand} to={`/shop?brand=${encodeURIComponent(brand)}`}>{brand}</Link>)}</div>
-        </details>}
-      </>}
+      <HomeBrandGrid products={available} />
     </section>
     {fresh.length > 0 && <ProductRow title="New Arrivals" products={fresh} grid to="/shop?collection=new" />}
   </>;
