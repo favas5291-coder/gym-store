@@ -5,7 +5,7 @@ import { useCatalog } from "../context/CatalogContext.jsx";
 import { getDiscountedPrice } from "../utils/productPricing.js";
 import { getTotalStock } from "../utils/cartUtils.js";
 import { returnPolicyMarkup } from "../utils/returnPolicy.js";
-import { DEFAULT_DESCRIPTION, DEFAULT_SHARE_IMAGE, PAGES, cleanText, getImages, productBreadcrumbs, productMetadata } from "../utils/seoMetadata.js";
+import { DEFAULT_DESCRIPTION, DEFAULT_SHARE_IMAGE, PAGES, cleanText, getImages, listingFilters, productBreadcrumbs, productMetadata } from "../utils/seoMetadata.js";
 
 import { STOREFRONT_COLLECTIONS, collectionBreadcrumbs, collectionMatchesProduct, collectionPathForCategory } from "../utils/storefrontCollections.js";
 
@@ -141,7 +141,7 @@ export default function SEOController() {
       : null;
 
     const query = new URLSearchParams(search);
-    const filters = [...query.keys()].filter(key => !/^(utm_.+|gclid|fbclid)$/i.test(key));
+    const filters = listingFilters(query);
     const categoryAlias = path === "/shop" && filters.length === 1 && filters[0] === "category"
       ? collectionPathForCategory(query.get("category"))
       : undefined;
@@ -149,7 +149,7 @@ export default function SEOController() {
     const emptyCollection = collection && loaded && !loading && !error &&
       !catalog.some(product => collectionMatchesProduct(collection, product));
     const page = collection || (Object.hasOwn(PAGES, path) ? PAGES[path] : undefined);
-    const filteredListing = (path === "/shop" || collection) && filters.length > 0 && !categoryAlias;
+    const filteredListing = (path === "/shop" || collection) && filters.length > 0;
 
     const isPublicPage = Boolean(page || match);
 

@@ -2,6 +2,21 @@
 
 The canonical origin is `https://www.gymdrobe.com`. The homepage declares GymDrobe as its preferred site name through WebSite structured data. The linked OnlineStore entity uses the square green and cream logo. The web app's install page is at `/install` and gives browser-based installation instructions for iPhone, iPad and Android.
 
+## 15 November 2026 audit and follow-up
+
+| Check | Production baseline | Candidate |
+| --- | --- | --- |
+| Homepage name, title, branding and web app | Requested title and description, one WebSite/OnlineStore graph, green assets and a canonical install page were live after PR #65. | Reuse the existing implementation and verify the homepage graph in the built document. |
+| Crawl status | Apex returned a permanent redirect to www. A made-up storefront path returned 404. The cart had an HTTP noindex header. | Keep these rules and redirect the alternate `/index.html` path to `/`. |
+| Faceted URLs | `/shop?search=shirts` had no HTTP noindex header. React set robots after loading. | Send `X-Robots-Tag: noindex, follow` for storefront listing controls and keep clean pages and tracking-only URLs eligible. |
+| Product discovery | The built no-script Shop page linked the curated categories. | Add a bounded set of canonical product text links, including products outside those collections. Aliases and inactive products stay excluded. |
+| Product data | Canonical product pages have static Product and BreadcrumbList data. Current price and stock come from the public API in the browser. A missing product ID can return the generic HTTP 200 shell, then receive noindex on confirmed missing data. | Preserve fresh offers, product photos and support for new catalogue items before redeploy. The product-shell HTTP status remains open. |
+| Google visibility | The screenshot described in the brief reported a spelling substitution for “gymdrobe website.” Direct requests returned Google's challenge redirect for all 11 queries. | No ranking, titles, snippets, competitors or spelling verdict could be verified from those results. Search Console indexing and performance need authorized access. |
+
+The branded probe requested English India results (`gl=in`, `hl=en`, personalization off) from a desktop user agent over a workspace proxy on 15 November IST. It did not represent a physical user in India. The same challenge applied individually to **gymdrobe**, **GymDrobe**, **gymdrobe website**, **gymdrobe app**, **gymdrobe official**, **gymdrobe store**, **gymdrobe clothing**, **gymdrobe gym wear**, **gymdrobe fitness**, **gymdrobe.com**, and **site:gymdrobe.com**. Repeat on a signed-out phone and desktop using an Indian connection. Record the corrected query, result URL, title, snippet, favicon, and organic position if visible. A `site:` search can inform the check. Use URL Inspection for indexed status.
+
+No new native store listing, verified social profile or business address was established by this audit.
+
 ## Keyword and page map
 
 | Search intent | Canonical page |
