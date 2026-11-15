@@ -1,3 +1,4 @@
+import { whatsAppOrderOptInEnabled } from "../services/orderApi.js";
 import FreeShippingProgress from "../components/FreeShippingProgress.jsx";
 import { ensureGuestAccess, guestAccess } from "../utils/guestCheckout.js";
 
@@ -524,6 +525,7 @@ function Checkout({ auth, mode }) {
       : "razorpay",
   );
 
+  const [whatsappOrderUpdates, setWhatsAppOrderUpdates] = useState(false);
   const [giftMessage, setGiftMessage] =
     useState(
       text(
@@ -1625,6 +1627,7 @@ function Checkout({ auth, mode }) {
       shippingAddress:
         checkoutAddress(address),
 
+      ...(whatsappOrderUpdates && { whatsappOrderUpdates: true }),
       giftMessage:
         giftMessage.trim(),
 
@@ -3402,6 +3405,17 @@ function Checkout({ auth, mode }) {
             </p>
           </fieldset>
 
+          {whatsAppOrderOptInEnabled && (
+            <section className="panel">
+              <label>
+                <input type="checkbox" checked={whatsappOrderUpdates} disabled={frozen}
+                  onChange={event => setWhatsAppOrderUpdates(event.target.checked)} />
+                {" "}Send updates for this order to my delivery phone on WhatsApp
+              </label>
+              <p>You can turn this off from your order page.</p>
+            </section>
+          )}
+
           <details className="panel">
             <summary>
               Gift message & delivery
@@ -3571,6 +3585,9 @@ function Checkout({ auth, mode }) {
                     </p>
 
                     <p>{variants}</p>
+                    {quotedItem?.publicFulfilmentName && (
+                      <p>Ships from <strong>{quotedItem.publicFulfilmentName}</strong></p>
+                    )}
 
                     {Number.isFinite(
                       linePrice,

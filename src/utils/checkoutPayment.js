@@ -108,6 +108,7 @@ export function checkoutFingerprint(
 
     giftMessage: payload.giftMessage || "",
     orderNote: payload.orderNote || "",
+    ...(payload.whatsappOrderUpdates === true && { whatsappOrderUpdates: true }),
     expectedTotal: payload.expectedTotal,
 
     expectedReviewKey:

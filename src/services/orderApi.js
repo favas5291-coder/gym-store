@@ -451,3 +451,22 @@ export async function requestReturn(
     true,
   );
 }
+export const whatsAppOrderOptInEnabled = import.meta.env?.VITE_WHATSAPP_ORDER_OPT_IN === "true";
+
+export async function getOrderInbox(token, signal) {
+  const result = await request("/orders/updates", { token, signal });
+  return result.updates || [];
+}
+
+export function markOrderUpdateRead(orderNumber, eventId, token) {
+  return request(`/orders/${identifier(orderNumber)}/updates/read`, { token, method: "PUT", body: { eventId } });
+}
+
+export function stopWhatsAppUpdates(orderNumber, token) {
+  return request(`/orders/${identifier(orderNumber)}/whatsapp-updates`, { token, method: "DELETE" });
+}
+
+export async function getWhatsAppDeliveryStatus(orderNumber, token) {
+  const result = await request(`/orders/admin/orders/${identifier(orderNumber)}/whatsapp-deliveries`, { token });
+  return result.deliveries || [];
+}

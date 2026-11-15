@@ -1,3 +1,4 @@
+import { CustomerOrderInbox } from "../components/CustomerOrderUpdates.jsx";
 import { Link } from "react-router-dom";
 import { useShoppingTools } from "../context/ShoppingToolsContext.jsx";
 import { useCatalog } from "../context/CatalogContext.jsx";
@@ -11,6 +12,7 @@ export default function NotificationsPage() {
   const items = watchChanges(watches, products);
   return (
     <div className="page narrow">
+      <CustomerOrderInbox />
       <OrderNotificationSettings />
       <div className="page-heading">
         <h1>Price & stock watches</h1>

@@ -22,6 +22,8 @@ export function formatOrderStatus(value) {
     delivered: "Delivered",
     cancelled: "Cancelled",
     pending: "Pending",
+    accepted: "Accepted",
+    preparing: "Preparing",
     paid: "Paid",
     "partially-paid": "Advance paid",
     failed: "Failed",
@@ -311,4 +313,41 @@ export default function OrderPaymentDetails({
     </section>
   );
 }
-export function SupplierShipmentDetails({order={}}){if(!order.supplierShipments?.length)return null;return <section className="panel" aria-label="Separate shipments"><h2>Separate shipments</h2><p>Your items may arrive in separate shipments. Tracking is recorded separately for each group.</p>{order.supplierShipments.map(s=><article key={s.key}><h3>{s.itemIndices.map(i=>order.items?.[i]?.name||"Purchased item").join(", ")}</h3><p>{formatOrderStatus(s.status)}</p>{s.trackingNumber&&<p>{s.carrier} · {s.trackingNumber}</p>}{s.trackingUrl&&/^https:\/\//i.test(s.trackingUrl)&&<a href={s.trackingUrl} target="_blank" rel="noopener noreferrer">Track this shipment</a>}{s.deliveredAt&&<p>Recorded delivery: {formatOrderDate(s.deliveredAt)}</p>}</article>)}</section>;}
+export function SupplierShipmentDetails({ order = {} }) {
+  const shipments = order.supplierShipments || [];
+  const assignedItems = new Set(shipments.flatMap(shipment => shipment.itemIndices));
+  const otherItems = (order.items || []).filter((_, index) => !assignedItems.has(index));
+  if (!shipments.length && !otherItems.length) return null;
+
+  return (
+    <section className="panel" aria-label="Shipment details">
+      <h2>{shipments.length > 1 || (shipments.length && otherItems.length) ? "Separate shipments" : "Shipment details"}</h2>
+      {shipments.map(shipment => {
+        const dispatched = shipment.shippedAt || ["shipped", "out-for-delivery", "delivered"].includes(shipment.status);
+        const names = shipment.itemIndices.map(index => order.items?.[index]?.name || "Purchased item");
+        return (
+          <article className="gd-supplier-shipment" key={shipment.key}>
+            <h3>{names.join(", ")}</h3>
+            <p>{shipment.publicFulfilmentName
+              ? <>{dispatched ? "Shipped by" : "Ships from"} <strong>{shipment.publicFulfilmentName}</strong></>
+              : "Supplier details unavailable."}</p>
+            <p>{formatOrderStatus(shipment.status)}</p>
+            {shipment.carrier && <p>Courier: {shipment.carrier}{shipment.trackingNumber && ` · ${shipment.trackingNumber}`}</p>}
+            {/^https:\/\//i.test(shipment.trackingUrl || "") && (
+              <a className="text-link" href={shipment.trackingUrl} target="_blank" rel="noopener noreferrer">Track this shipment</a>
+            )}
+            {shipment.deliveredAt
+              ? <p>Recorded delivery: {formatOrderDate(shipment.deliveredAt)}</p>
+              : shipment.estimatedDeliveryAt && <p>Estimated delivery: {new Date(shipment.estimatedDeliveryAt).toLocaleDateString("en-IN", { dateStyle: "medium", timeZone: "UTC" })}</p>}
+          </article>
+        );
+      })}
+      {otherItems.length > 0 && (
+        <article className="gd-supplier-shipment">
+          {shipments.length > 0 && <h3>{otherItems.map(item => item.name || "Purchased item").join(", ")}</h3>}
+          <p>Supplier details unavailable.</p>
+        </article>
+      )}
+    </section>
+  );
+}

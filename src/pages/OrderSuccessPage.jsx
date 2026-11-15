@@ -1,3 +1,5 @@
+import { CustomerOrderUpdates } from "../components/CustomerOrderUpdates.jsx";
+import { SupplierShipmentDetails } from "../components/OrderPaymentDetails.jsx";
 import { useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
@@ -371,6 +373,8 @@ export default function OrderSuccessPage() {
       </header>
 
       <OrderPaymentDetails order={order} />
+      <SupplierShipmentDetails order={order} />
+      <CustomerOrderUpdates key={order.orderNumber || order.id} order={order} />
 
       <section className="panel">
         <h2>DELIVER TO</h2>

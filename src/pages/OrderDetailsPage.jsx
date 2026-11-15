@@ -1,3 +1,5 @@
+import { SupplierShipmentDetails } from "../components/OrderPaymentDetails.jsx";
+import { CustomerOrderUpdates } from "../components/CustomerOrderUpdates.jsx";
 import { guestAccess } from "../utils/guestCheckout.js";
 
 import KitFulfillmentTracking from "../components/KitFulfillmentTracking.jsx";
@@ -836,6 +838,8 @@ function OrderDetail({
           : "Refresh order"}
       </button>
 
+      <SupplierShipmentDetails order={order} />
+      <CustomerOrderUpdates key={order.orderNumber || order.id} order={order} />
       <KitFulfillmentTracking order={order} />
 
       <div className="checkout-layout">
