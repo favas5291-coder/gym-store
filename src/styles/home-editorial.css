@@ -74,3 +74,6 @@
 
 #app .premium-storefront .gd-guide-reopen { position:static; padding:16px var(--space); background:white; }
 #app .premium-storefront .gd-guide-reopen > button { box-shadow:none; border:1px solid #ddd; border-radius:2px; background:white; color:#171717; }
+
+/* Keep following content outside the first viewport while the catalogue loads. */
+#app .storefront-home .home-catalog-loading { min-height: 640px; }
