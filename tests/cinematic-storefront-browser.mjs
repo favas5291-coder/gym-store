@@ -29,23 +29,16 @@ try{
   const view = await context(width);
   await check(`${width}px editorial cards, account contrast and guide`, async () => {
    await visit(view.p, '/');
-   const spotlight = view.p.locator('.home-spotlight');
-   await spotlight.scrollIntoViewIfNeeded();
-   const cards = spotlight.locator('.home-spotlight-grid > a');
-   assert.ok(await cards.count() > 0);
-   const card = cards.first();
+   const featured = view.p.locator('#featured');
+   await featured.scrollIntoViewIfNeeded();
+   const card = featured.locator('.gm-product-card').first();
    assert.match(await card.innerText(), /₹/);
-   assert.equal(await card.locator('strong').evaluate(el => getComputedStyle(el).webkitLineClamp), '2');
-   await spotlight.screenshot({path:path.join(output, `refinement-${width}-spotlight.png`)});
-   await view.p.locator('.home-collections').screenshot({path:path.join(output, `refinement-${width}-collections-brands.png`)});
-   const story = view.p.locator('.home-story');
-   await story.scrollIntoViewIfNeeded();
-   if (width === 390) {
-    const bounds = await story.locator('.home-story-media').boundingBox();
-    assert.ok(bounds.width > 330, 'Story media must use the mobile content width');
-   }
-   await story.screenshot({path:path.join(output, `refinement-${width}-story.png`)});
-   await view.p.locator('.home-new').screenshot({path:path.join(output, `refinement-${width}-video.png`)});
+   assert.ok(await card.locator('h3').isVisible());
+   await featured.screenshot({path:path.join(output, `athletic-${width}-featured.png`)});
+   const categories = view.p.locator('.athletic-categories').first();
+   assert.ok(await categories.locator('a').count() > 0);
+   await categories.screenshot({path:path.join(output, `athletic-${width}-categories.png`)});
+   assert.equal(await view.p.locator('.home-story, .home-spotlight, .home-new').count(), 0);
    await visit(view.p, '/login');
    assert.equal(await view.p.locator('.auth-banner h1').evaluate(el => getComputedStyle(el).color), 'rgb(255, 255, 255)');
    await view.p.locator('.auth-card').screenshot({path:path.join(output, `refinement-${width}-account.png`)});
@@ -72,6 +65,7 @@ try{
   });
   await check(width+'px premium search focus, compact history and selection',async()=>{
    await visit(searchUI.p,'/');
+   if(width<1024) await searchUI.p.getByRole('button',{name:'Open search',exact:true}).click();
    const input=searchUI.p.getByRole('combobox',{name:'Search products'});
    await input.click();
    const dropdown=searchUI.p.locator('.gn-results');
@@ -103,6 +97,7 @@ try{
    await searchUI.p.locator('.gn-option').first().click();
    await searchUI.p.waitForURL(/\/shop\?search=shoes/);
    await visit(searchUI.p,'/');
+   if(width<1024) await searchUI.p.getByRole('button',{name:'Open search',exact:true}).click();
    await input.fill('gym');
    await input.press('Enter');
    await searchUI.p.waitForURL(/\/shop\?search=gym/);
@@ -112,6 +107,7 @@ try{
  await keyboardUI.c.addInitScript(()=>localStorage.setItem('gymdrobe-recent-searches',JSON.stringify(['shoes','gloves','training','shaker','yoga','bag'])));
  await check('390px iOS keyboard-sized viewport, outside dismissal and clear history',async()=>{
   await visit(keyboardUI.p,'/');
+  await keyboardUI.p.getByRole('button',{name:'Open search',exact:true}).click();
   const input=keyboardUI.p.getByRole('combobox',{name:'Search products'});
   await input.click();
   // Simulate the shrinking visualViewport that iOS provides when keyboard opens.
@@ -351,21 +347,22 @@ try{
   const v=await context(width);
   await check(width+'px merchandising and responsive navigation',async()=>{
    await visit(v.p,'/');
-   assert.equal(await v.p.locator('.editorial-category').count(),3);
-   assert.ok(await v.p.locator('.editorial-category').first().isVisible());
+   assert.ok(await v.p.locator('.athletic-category-grid a').count()>0);
+   assert.ok(await v.p.locator('.athletic-category-grid a').first().isVisible());
+   if(width<1024) await v.p.getByRole('button',{name:'Open search',exact:true}).click();
    assert.ok(await v.p.getByRole('combobox',{name:'Search products'}).isVisible());
    assert.ok(await v.p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
    if(width<1024) assert.deepEqual(await v.p.getByRole('navigation',{name:'Shopping navigation'}).getByRole('link').allTextContents(),['Home','Categories','Wishlist','Cart','Account']);
   });await v.c.close();
  }
- await check('Editorial homepage shows the categories in the first mobile viewport and opens the shopping routes', async () => {
+ await check('Athletic homepage shows featured gear in the first mobile viewport and opens real shopping routes', async () => {
   const view = await context(390, { browser: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } });
   try {
    await visit(view.p, '/');
    const heading = view.p.getByRole('heading', { name: 'Gear for every workout.' });
    assert.ok(await heading.isVisible());
-   assert.equal(await view.p.getByRole('combobox', { name: 'Search products' }).getAttribute('placeholder'), 'Search T-shirts, gym bags and more.');
-   const categoryHeading = await view.p.getByRole('heading', { name: 'Shop by category' }).boundingBox();
+   assert.equal(await view.p.locator('.gn-search input').getAttribute('placeholder'), 'Search T-shirts, gym bags and more.');
+   const categoryHeading = await view.p.getByRole('heading', { name: 'Featured gear', exact:true }).boundingBox();
    const navigation = await view.p.getByRole('navigation', { name: 'Shopping navigation' }).boundingBox();
    assert.ok(categoryHeading.y + categoryHeading.height <= navigation.y);
    const heroPhoto = view.p.locator('.editorial-hero-media img');
@@ -377,32 +374,13 @@ try{
    assert.equal(await view.p.getByRole('link', { name: 'Shop workout gear' }).evaluate(link => getComputedStyle(link).outlineStyle), 'solid');
    await view.p.getByRole('link', { name: 'Shop workout gear' }).press('Enter');
    await view.p.waitForURL('**/shop?department=workout');
-   for (const [name, route] of [
-    ['Workout Clothing', '/shop?department=workout'],
-    ['Accessories', '/shop?department=accessories'],
-    ['Starter Essentials', '/collections/gym-bags'],
-   ]) {
-    await visit(view.p, '/');
-    await view.p.getByRole('link', { name, exact: true }).click();
-    await view.p.waitForURL(url => url.pathname + url.search === route);
-   }
+   await visit(view.p, '/');
+   const category = view.p.locator('.athletic-category-grid a').first();
+   const route = await category.getAttribute('href');
+   await category.click();
+   await view.p.waitForURL(url => url.pathname + url.search === route);
   } finally {
    await view.c.close();
-  }
- });
- await check('The story loops only while in view', async () => {
-  const v = await context(390, { browser: { reducedMotion: 'no-preference' } });
-  try {
-   await visit(v.p, '/');
-   await v.p.locator('.home-story-media').scrollIntoViewIfNeeded();
-   await v.p.waitForFunction(() => {
-    const player = document.querySelector('.home-story-media video');
-    return player && player.loop && player.muted && player.playsInline && player.currentTime > 0;
-   });
-   await v.p.locator('.editorial-hero').scrollIntoViewIfNeeded();
-   await v.p.waitForFunction(() => !document.querySelector('.home-story-media video'));
-  } finally {
-   await v.c.close();
   }
  });
  for (const width of [390, 1440]) {
