@@ -129,7 +129,7 @@ try{
   await keyboardUI.p.getByRole('button',{name:'Clear history'}).click();
   assert.equal(await keyboardUI.p.locator('.gn-results li').count(),0);
   assert.equal(await keyboardUI.p.locator('.gn-results').count(),1);
-  await keyboardUI.p.locator('.editorial-category-grid').click({position:{x:10,y:180},force:true});
+  await keyboardUI.p.locator('.athletic-category-grid').click({position:{x:10,y:180},force:true});
   assert.equal(await keyboardUI.p.locator('.gn-results').count(),0);
  });await keyboardUI.c.close();
  // The detail hero should not letterbox square or landscape photos inside
@@ -393,7 +393,7 @@ try{
     }
    });
    await visit(view.p, '/');
-   await view.p.locator('.editorial-category img').first().evaluate(image => image.decode());
+   await view.p.locator('.athletic-category-grid img').first().evaluate(image => image.decode());
    await view.p.waitForLoadState('networkidle');
    assert.equal(await view.p.locator('main video').count(), 0);
    assert.deepEqual(videoRequests, []);
@@ -404,7 +404,7 @@ try{
   const shop=await context(390,{signedIn:true});
   try{
    await visit(shop.p,'/');
-   const cta=shop.p.locator('.editorial-category').first();
+   const cta=shop.p.locator('.athletic-category-grid a').first();
    assert.ok(await cta.evaluate(el=>el.getBoundingClientRect().height>=44));
    await visit(shop.p,'/shop');
    const quick=shop.p.getByRole('button',{name:'Quick add Gym Training T-Shirt'}).first();
