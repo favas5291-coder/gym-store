@@ -35,7 +35,7 @@ const RECENT_SEARCH_KEY =
 
 const MAX_RECENT_SEARCHES = 6;
 
-function buildNavigationGroups(products) {
+function buildDepartmentNavigationGroups(products) {
   const catalogue = catalogProducts(products);
 
   return SHOP_DEPARTMENTS.filter(department => catalogue.some(product => productDepartment(product) === department.id)).map((department) => {
@@ -122,6 +122,23 @@ function buildNavigationGroups(products) {
   });
 }
 
+function buildNavigationGroups(products) {
+  const catalogue = catalogProducts(products);
+  const departments = buildDepartmentNavigationGroups(products);
+  const genderGroups = ["Women", "Men"].flatMap(gender => {
+    const scoped = catalogue.filter(p => String(p.gender).toLowerCase() === gender.toLowerCase());
+    if (!scoped.length) return [];
+    return [{ id: gender.toLowerCase(), label: gender, scope: { gender }, columns: [{
+      title: `Shop ${gender.toLowerCase()}`,
+      links: [{ label: `All ${gender.toLowerCase()}`, gender }, ...catalogOptions(scoped, "category").map(category => ({ label: category, category, gender }))]
+    }] }];
+  });
+  const accessories = departments.find(group => group.id === "accessories");
+  return [...genderGroups, ...(accessories ? [accessories] : []), {
+    id: "explore", label: "Explore", scope: {}, columns: departments.map(group => ({ title: group.title, links: group.columns[0].links }))
+  }];
+}
+
 function normalizeText(value) {
   return String(value ?? "")
     .toLowerCase()
@@ -174,6 +191,7 @@ function shopPath(link) {
 
   for (const key of [
     "department",
+    "gender",
     "category",
     "subcategory",
     "brand",
@@ -736,6 +754,10 @@ export default function Navbar({
   const triggers = useRef({});
   const menuId = useId();
 
+  const [mobileSearch, setMobileSearch] = useState(false);
+  const searchToggle = useRef(null);
+  useEffect(() => { setMobileSearch(false); }, [location.pathname, location.search]);
+
   const [search, setSearch] = useState(
     () =>
       new URLSearchParams(location.search).get(
@@ -1023,7 +1045,7 @@ export default function Navbar({
   return (
     <header
       ref={header}
-      className={`gd-nav${
+      className={`gd-nav${mobileSearch ? " mobile-search-visible" : ""}${
         raised ? " gn-raised" : ""
       }`}
       onPointerLeave={(event) => {
@@ -1041,6 +1063,10 @@ export default function Navbar({
         }
       }}
       onKeyDown={(event) => {
+        if (event.key === "Escape" && mobileSearch) {
+          setMobileSearch(false);
+          searchToggle.current?.focus();
+        }
         if (
           event.key === "Escape" &&
           activeMenu
@@ -1059,6 +1085,10 @@ export default function Navbar({
         <Link to="/help">Help</Link>
       </nav>
       <div className="gn-bar">
+        <button ref={searchToggle} className="athletic-search-toggle gn-icon-button" type="button" aria-label={mobileSearch ? "Close search" : "Open search"} aria-expanded={mobileSearch} onClick={() => {
+          setMobileSearch(value => !value);
+          if (!mobileSearch) requestAnimationFrame(() => header.current?.querySelector('input[type="search"]')?.focus());
+        }}>{mobileSearch ? <X size={22} /> : <Search size={22} />}</button>
         <button
           type="button"
           className="gn-menu-toggle gn-icon-button"
@@ -1089,12 +1119,10 @@ export default function Navbar({
           className="gn-desktop"
           aria-label="Main categories"
         >
-          <Link to="/shop" className="gn-trigger" onClick={closeMenus}>SHOP ALL</Link>
+
           {navigationGroups.map((group) => (
             <Link
-              to={shopPath({
-                department: group.id,
-              })}
+              to={shopPath(group.scope || { department: group.id })}
               key={group.id}
               ref={(node) => {
                 triggers.current[group.id] =
@@ -1511,9 +1539,7 @@ export default function Navbar({
         {navigationGroups.map((group) => (
           <Link
             key={group.id}
-            to={shopPath({
-              department: group.id,
-            })}
+            to={shopPath(group.scope || { department: group.id })}
             onClick={closeMenus}
           >
             {group.label}
