@@ -1,7 +1,7 @@
 /* Athletic storefront: layout owns the new shopping presentation. */
 .editorial-header-help { display: none; }
 .department-campaign {
-  background: linear-gradient(145deg,#13484c,#102d24);
+  background: #0f3d3a;
   color:white;
   padding:clamp(28px,4vw,64px) clamp(14px,3vw,48px) clamp(16px,3vw,48px);
 }
@@ -11,6 +11,12 @@
   text-transform:uppercase; letter-spacing:-.025em; color:white; margin:0;
 }
 .department-campaign header p { color:white; margin:12px 0 0; }
+.department-campaign .opening-shop-link {
+  display:inline-flex; align-items:center; justify-content:center; min-height:44px; margin-top:16px;
+  padding:0 26px; background:#fff4df; color:#0f3d3a; font-weight:750; text-transform:uppercase;
+  text-decoration:none; border-radius:2px;
+}
+.opening-shop-link:focus-visible { outline:2px solid white; outline-offset:4px; }
 .department-tiles { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; max-width:1440px; margin:auto; }
 .department-tile { display:grid; place-items:center; aspect-ratio:1; overflow:hidden; position:relative; background:#ccc; }
 .department-tile img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
