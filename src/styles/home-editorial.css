@@ -122,3 +122,23 @@
 @media (min-width: 701px) and (max-width: 1023px) {
   .mobile-search-visible .gn-dismiss-search { display: none; }
 }
+@media (max-width: 700px) {
+  #app .premium-storefront .cart-page:has(.cart-checkout) { padding-bottom: 76px; }
+  #app .premium-storefront .cart-checkout {
+    position: fixed;
+    z-index: 99;
+    bottom: var(--shopping-nav-height);
+    inset-inline: 12px;
+    width: auto;
+    min-height: 48px;
+    margin-bottom: 6px;
+    background: #124b49;
+    color: white;
+    box-shadow: 0 0 0 6px white;
+  }
+  html:is(.shopping-keyboard-open,.native-keyboard-open) #app .premium-storefront .cart-checkout {
+    position: static;
+    width: 100%;
+  }
+  .page:has(.wishlist-grid) > details > summary { padding-block: 12px; min-height: 44px; cursor: pointer; }
+}

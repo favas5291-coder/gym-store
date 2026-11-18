@@ -694,7 +694,8 @@ export default function FitnessGuide() {
       view === "questions" ||
       view === "results"
     ) {
-      scroll.current?.scrollTo({ top: 0 });
+      const content = scroll.current?.querySelector(".gd-guide-step-content") || scroll.current;
+      content?.scrollTo({ top: 0 });
 
       heading.current?.focus({
         preventScroll: true,

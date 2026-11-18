@@ -1228,7 +1228,7 @@ export default function Cart() {
 
           <button
             type="button"
-            className="button full"
+            className="button full cart-checkout"
             disabled={!canCheckout}
             onClick={checkout}
           >
@@ -1240,7 +1240,7 @@ export default function Cart() {
                   ? "Checkout kit & review delivery"
                   : !review.canCheckout
                     ? "Check highlighted items"
-                    : "Proceed to checkout"}
+                    : "Checkout"}
           </button>
 
           {checkoutError && (

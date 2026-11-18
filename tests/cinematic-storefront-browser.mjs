@@ -92,8 +92,13 @@ try{
    assert.equal(await dropdown.locator('svg').count()>0,true,'Use vector icons');
    await searchUI.p.getByRole('button',{name:width < 1024 ? 'Close search' : 'Done',exact:true}).click();
    assert.equal(await dropdown.isVisible(),false);
-   assert.equal(await input.evaluate(el=>el===document.activeElement),false);
-   if(width < 1024) await searchUI.p.getByRole('button',{name:'Open search',exact:true}).click();
+   if(width < 1024) {
+     const toggle = searchUI.p.getByRole('button',{name:'Open search',exact:true});
+     assert.ok(await toggle.evaluate(el => el === document.activeElement));
+     await toggle.click();
+   } else {
+     assert.equal(await input.evaluate(el=>el===document.activeElement),false);
+   }
    await input.click();
    await searchUI.p.locator('.gn-option').first().click();
    await searchUI.p.waitForURL(/\/shop\?search=shoes/);
