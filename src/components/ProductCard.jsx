@@ -169,26 +169,6 @@ export default function ProductCard({
           <HeartIcon size={19} strokeWidth={1.7} fill={saved ? "currentColor" : "none"} aria-hidden="true" />
         </IconButton>
 
-        {count > 0 && (
-          <span
-            className="gm-rating"
-            aria-label={
-              `${rating} out of 5 ` +
-              `from ${count} reviews`
-            }
-          >
-            {rating}
-
-            <span aria-hidden="true">
-              ★
-            </span>
-
-            <i />
-
-            {count}
-          </span>
-        )}
-
         {!available && (
           <span className="gm-stock-label">
             OUT OF STOCK
@@ -197,6 +177,24 @@ export default function ProductCard({
       </div>
 
       <div className="gm-product-copy">
+        {count > 0 && (
+          <p className="gm-product-proof">
+            <span aria-hidden="true">
+              ★
+            </span>{" "}
+
+            <strong>{rating}</strong>{" "}
+
+            <span>
+              ({count}{" "}
+              {count === 1
+                ? "review"
+                : "reviews"})
+            </span>
+          </p>
+        )}
+
+
         <Link
           to={path}
           className="gm-product-info-link"
@@ -208,6 +206,7 @@ export default function ProductCard({
           <h3>{item.name}</h3>
         </Link>
 
+        <p className="gm-product-colour">{initialQuickColor || item.brand || "GymDrobe"}</p>
         <p className="gm-product-price">
           <strong>
             {money(price.selling)}
@@ -225,23 +224,6 @@ export default function ProductCard({
             </>
           )}
         </p>
-
-        {count > 0 && (
-          <p className="gm-product-proof">
-            <span aria-hidden="true">
-              ★
-            </span>{" "}
-
-            <strong>{rating}</strong>{" "}
-
-            <span>
-              ({count}{" "}
-              {count === 1
-                ? "review"
-                : "reviews"})
-            </span>
-          </p>
-        )}
 
         <p
           className={
@@ -279,11 +261,6 @@ export default function ProductCard({
 
         </div>
 
-        <TextLink
-          className="compare-toggle"
-          aria-pressed={isCompared}
-          onClick={() => toggleCompare(item)}
-        >{isCompared ? "Added to comparison" : "Compare"}</TextLink>
       </div>
 
       {quick && (
@@ -292,6 +269,7 @@ export default function ProductCard({
           onClose={() => setQuick(false)}
           className="quick-modal"
         >
+          <TextLink className="compare-toggle" aria-pressed={isCompared} onClick={() => toggleCompare(item)}>{isCompared ? "Added to comparison" : "Compare"}</TextLink>
           <div className="quick-layout">
             <ProductImage
               product={{

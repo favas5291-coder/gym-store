@@ -7,7 +7,7 @@ const HomeProductSections = lazy(() => import("../components/HomeProductSections
 export default function Home() {
   return <div className="cinematic-home">
     <HomeEditorial />
-    <Suspense fallback={<section className="gm-section catalog-status" role="status">Loading products…</section>}><HomeProductSections /></Suspense>
+    <Suspense fallback={<section className="gm-section catalog-status home-catalog-loading" role="status">Loading products…</section>}><HomeProductSections /></Suspense>
     {!isNativeApp() && <section className="gm-section home-app-discovery" aria-labelledby="home-app-title">
       <img src="/brand/external/gymdrobe-app-icon-1024.png" alt="" width="88" height="88" loading="lazy" />
       <div>

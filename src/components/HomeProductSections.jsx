@@ -1,100 +1,51 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useCatalog } from "../context/CatalogContext.jsx";
-import { asset } from "../data/assets.js";
-import { getTotalStock } from "../utils/cartUtils.js";
-import { productImageSources } from "../utils/productImages.js";
-import { getFitnessKit, getFitnessKits } from "../services/kitApi.js";
-import { homeCollections, latestCollectionProduct, publicationTime } from "../utils/homeCollections.js";
-import HomeBrandGrid from "./HomeBrandGrid.jsx";
-import { money, priceDetails, ProductImage } from "./StorefrontShared.jsx";
+import { homeCollections } from "../utils/homeCollections.js";
+import { productDepartment } from "../utils/catalog.js";
+import { ProductImage } from "./StorefrontShared.jsx";
 import ProductRow from "./ProductRow.jsx";
-import HomeStoryMedia from "./HomeStoryMedia.jsx";
-import HomeProductVideo from "./HomeProductVideo.jsx";
 
-function HomeCollectionTiles({ available }) {
-  const grid = useRef(null);
-  const [kitCover, setKitCover] = useState(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const observer = new IntersectionObserver(async ([entry]) => {
-      if (!entry.isIntersecting) return;
-      observer.disconnect();
-      const options = { signal: controller.signal };
-      try {
-        const kits = await getFitnessKits(options);
-        const kit = kits.filter(item => item.level === "beginner" && item.isActive !== false)
-          .sort((a, b) => publicationTime(b) - publicationTime(a) || b.id.localeCompare(a.id))[0];
-        if (!kit || controller.signal.aborted) return;
-        const details = await getFitnessKit(kit.id, options);
-        const defaults = new Set(details.kit.slots.map(slot => slot.defaultProduct));
-        const cover = details.products.find(product => defaults.has(product.id) &&
-          getTotalStock(product) > 0 && productImageSources(product).length > 0);
-        if (cover && !controller.signal.aborted) setKitCover({ to: `/kits/${kit.id}`, product: cover });
-      } catch { /* Keep the collection cover available if kits cannot be loaded. */ }
-    }, { rootMargin: "300px" });
-    observer.observe(grid.current);
-    return () => { observer.disconnect(); controller.abort(); };
-  }, []);
-
-  const collections = [
-    { title: "Your First Gym Kit", to: "/kits", image: asset("Towel.jpg"), ...kitCover },
-    { title: "Training Apparel", to: "/shop?department=workout", product: latestCollectionProduct(available, "workout"), image: asset("tshirt.jpg") },
-    { title: "Hydration", to: "/shop?department=hydration", product: latestCollectionProduct(available, "hydration"), image: asset("shaker.jpg") },
-    { title: "Gym Bag Essentials", to: "/shop?department=accessories", image: asset("Towel.jpg"),
-      product: latestCollectionProduct(available, "accessories", product => /\b(?:duffel|duffle|gym bag|sports bag)\b/i.test(product.name)) },
-  ];
-
-  return <div className="home-collection-grid" ref={grid}>
-    {collections.map(({ title, to, image, product }) => <Link key={title} to={to}>
-      <div className="home-collection-media">
-        {product ? <ProductImage product={product} decorative /> : <img src={image} alt="" loading="lazy" width="480" height="360" />}
-      </div>
-      <strong>{title}</strong>
-    </Link>)}
-  </div>;
+function CategorySection({ title, products, gender, departments, id }) {
+  const tiles = useMemo(() => {
+    const groups = new Map();
+    for (const product of products) {
+      if (gender && String(product.gender).toLowerCase() !== gender.toLowerCase()) continue;
+      if (departments && !departments.includes(productDepartment(product))) continue;
+      const category = product.category;
+      if (!category || groups.has(category)) continue;
+      const params = new URLSearchParams({ category });
+      if (gender) params.set("gender", gender);
+      groups.set(category, { product, to: `/shop?${params}` });
+    }
+    return [...groups.entries()].slice(0, 4);
+  }, [products, gender, departments]);
+  if (!tiles.length) return null;
+  return <section className="gm-section athletic-categories" id={id} aria-label={title}>
+    <h2>{title}</h2>
+    <div className="athletic-category-grid">
+      {tiles.map(([category, { product, to }]) => <Link key={category} to={to}>
+        <div className="athletic-category-image"><ProductImage product={product} decorative sizes="(max-width: 700px) 50vw, 25vw" /></div>
+        <span>{category}</span>
+      </Link>)}
+    </div>
+  </section>;
 }
 
 export default function HomeProductSections() {
   const { products, loading, error, refreshProducts } = useCatalog();
-  const { lead, available, fresh } = useMemo(() => homeCollections(products), [products]);
-
-  if (!lead.length) {
-    return (
-      <section className="gm-section catalog-status" aria-live="polite">
-        <h2>{loading ? "Loading featured gear…" : error ? "Featured gear couldn’t load." : "More gear is on the way."}</h2>
-        {error && <button type="button" className="button" onClick={refreshProducts}>Retry collection</button>}
-      </section>
-    );
-  }
-
-  const productPath = product => `/product/${encodeURIComponent(product.id || product._id)}`;
+  const { lead, available } = useMemo(() => homeCollections(products), [products]);
+  if (!lead.length) return <section className={`gm-section catalog-status${loading ? " home-catalog-loading" : ""}`} aria-live="polite">
+    <h2>{loading ? "Loading featured gear…" : error ? "Featured gear couldn’t load." : "More gear is on the way."}</h2>
+    {error && <button type="button" className="button" onClick={refreshProducts}>Retry collection</button>}
+  </section>;
   return <>
-    <ProductRow title={lead.some(product => product.isBestSeller) ? "Bestsellers" : "Featured Gear"} id="featured" products={lead} grid to="/shop" />
-    <section className="gm-section home-story" aria-labelledby="home-story-title">
-      <HomeStoryMedia />
-      <div>
-        <h2 id="home-story-title">Why GymDrobe</h2>
-        <p>We built GymDrobe to help people in India find workout clothing and gear for the way they train, from their first gym session to their everyday routine.</p>
-        <Link className="text-link" to="/shop">Explore workout gear</Link>
-      </div>
+    <ProductRow title="Featured gear" id="featured" products={lead} to="/shop" />
+    <CategorySection title="Women’s workout gear" products={available} gender="Women" id="categories" />
+    <CategorySection title="Men’s workout gear" products={available} gender="Men" />
+    <CategorySection title="Accessories & essentials" products={available} departments={["accessories", "hydration"]} />
+    <section className="gm-section athletic-support" aria-label="Shopping support">
+      <Link to="/orders">Track your order</Link><Link to="/help">Contact GymDrobe</Link><a href="/shipping-and-returns.html">Delivery & exchanges</a>
     </section>
-    <HomeProductVideo products={available} fallback={fresh[0] || lead[0]} />
-    <section className="gm-section home-spotlight" aria-labelledby="home-spotlight-title">
-      <h2 id="home-spotlight-title">In the Spotlight</h2>
-      <div className="home-spotlight-grid">
-        {available.slice(0, 6).map(product => <Link key={product.id || product._id} to={productPath(product)}>
-          <div className="home-spotlight-media"><ProductImage product={product} decorative /></div>
-          <div className="home-spotlight-copy"><strong title={product.name}>{product.name}</strong><span>{money(priceDetails(product).selling)}</span></div>
-        </Link>)}
-      </div>
-    </section>
-    <section className="gm-section home-collections" aria-labelledby="home-collections-title">
-      <h2 id="home-collections-title">Shop collections</h2>
-      <HomeCollectionTiles available={available} />
-      <HomeBrandGrid products={available} />
-    </section>
-    {fresh.length > 0 && <ProductRow title="New Arrivals" products={fresh} grid to="/shop?collection=new" />}
   </>;
 }
