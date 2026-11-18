@@ -340,6 +340,14 @@ export default function CartShippingReview({
         ),
     );
 
+  const delivery = quote?.deliveryReview;
+  const range = delivery?.estimatedDays;
+  const verified = amountsMatch && delivery?.ready && validPincode(pincode) && delivery.pincode === pincode;
+  const arrival = verified && Number.isInteger(range?.minimum) && Number.isInteger(range?.maximum)
+    && range.minimum >= 0 && range.maximum >= range.minimum
+    ? (range.minimum === range.maximum ? String(range.minimum) : `${range.minimum}–${range.maximum}`)
+    : "";
+
   return (
     <div id="bag-delivery">
       <form
@@ -448,6 +456,7 @@ export default function CartShippingReview({
             </>
           )}
 
+          {arrival && <p>Estimated arrival in {arrival} {arrival === "1" ? "day" : "days"}, including preparation.</p>}
           {amountsMatch && (
             <dl>
               <div>
@@ -465,7 +474,7 @@ export default function CartShippingReview({
               </div>
 
               <div className="total">
-                <dt>Estimated total</dt>
+                <dt>{verified && quote.shippingIsEstimate === false ? "Order total" : "Estimated total"}</dt>
 
                 <dd>
                   {money(
