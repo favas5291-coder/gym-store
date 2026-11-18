@@ -1016,7 +1016,6 @@ export default function Cart() {
             );
           })}
 
-          <CartAddons key={shopper} />
         </div>
 
         <aside
@@ -1252,6 +1251,7 @@ export default function Cart() {
             Continue shopping
           </Link>
         </aside>
+        <CartAddons key={shopper} />
       </div>
 
       {editingItem &&
