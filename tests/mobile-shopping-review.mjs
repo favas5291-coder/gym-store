@@ -29,6 +29,11 @@ const browser = await chromium.launch();
 try {
   const context = await browser.newContext({viewport:{width:390,height:844}, reducedMotion:'reduce'});
   await mockStorefront(context, catalogue);
+  // Permit read-only product photography while all checkout and account APIs stay isolated.
+  const photos = new Set(catalogue.flatMap(product => [product.image, ...(product.images || [])]).filter(Boolean).map(url => new URL(url, fixture.url).hostname));
+  await context.route(request => photos.has(request.hostname) && request.hostname !== "127.0.0.1", route =>
+    route.request().method() === "GET" && route.request().resourceType() === "image" ? route.continue() : route.fallback());
+
   await context.addInitScript(({tumbler,bag}) => {
     if (sessionStorage.getItem('review-seeded')) return;
     localStorage.setItem('gymdrobe-cart', JSON.stringify([{...tumbler, quantity:1, selectedColor:tumbler.colors[0], selectedSize:tumbler.sizes[0]}]));

@@ -306,6 +306,7 @@ function SearchBox({
   onOpen,
   routeKey,
   onRemember,
+  onDismiss,
   placeholder = "Search for products, brands and more",
 }) {
   const { products } = useCatalog();
@@ -512,6 +513,7 @@ function SearchBox({
       event.preventDefault();
       event.stopPropagation();
       close();
+      onDismiss?.();
       return;
     }
 
@@ -1186,6 +1188,12 @@ export default function Navbar({
           value={search}
           onChange={setSearch}
           onSubmit={performSearch}
+          onDismiss={() => {
+            if (mobileSearch) {
+              setMobileSearch(false);
+              searchToggle.current?.focus();
+            }
+          }}
           onRemember={remember}
           recent={recent}
           onClearHistory={clearHistory}

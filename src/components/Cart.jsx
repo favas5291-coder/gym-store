@@ -180,6 +180,7 @@ export default function Cart() {
 
   useEffect(() => {
     setEditingKey(null);
+    setRefreshMessage("");
     setActionError(null);
     setCheckoutError("");
     setRetrying(false);
@@ -879,7 +880,7 @@ export default function Cart() {
                     </p>
                   )}
 
-                  {!hasKits && <a className="text-link" href="#bag-delivery">Check delivery</a>}
+                  {!hasKits && totalsKnown && <a className="text-link" href="#bag-delivery">Check delivery</a>}
 
                   {ready && item.product && (
                     <details className="cart-returns">
