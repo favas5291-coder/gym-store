@@ -640,3 +640,20 @@
 
 @media (max-width: 359px) {
 }
+
+.wishlist-options > summary {
+  width: fit-content;
+  min-height: 44px;
+  padding: 12px 0;
+  cursor: pointer;
+  font-weight: 600;
+}
+@media (max-width: 640px) {
+  .wishlist-grid > :only-child {
+    grid-column: 1 / -1;
+    max-width: 28rem;
+  }
+  .wishlist-grid > :only-child .gm-product-image {
+    max-height: 48svh;
+  }
+}

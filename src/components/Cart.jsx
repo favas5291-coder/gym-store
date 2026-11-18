@@ -803,14 +803,7 @@ export default function Cart() {
                 <div className="cart-copy">
                   <div className="cart-head">
                     <div>
-                      <p className="eyebrow">
-                        {productText(
-                          product.brand,
-                        ) ||
-                          "Brand not recorded"}
-                      </p>
-
-                      {id && !unavailable ? (
+{id && !unavailable ? (
                         <Link
                           to={productPath(id)}
                         >
@@ -851,45 +844,9 @@ export default function Cart() {
                       "Standard option"}
                   </p>
 
-                  <p className="muted">
-                    {item.priceSafe
-                      ? `${money(
-                          item.unitPrice,
-                        )} each`
-                      : "Price unavailable"}
-
-                    {!ready
-                      ? " · Saved estimate"
-                      : ""}
-                  </p>
-
-                  {item.lineSavings > 0 && (
-                    <p className="positive">
-                      Product savings:{" "}
-                      {money(
-                        item.lineSavings,
-                      )}
-                    </p>
-                  )}
-
-                  {ready &&
-                    item.available &&
-                    information.estimate && (
-                      <p className="muted">
-                        Recorded delivery
-                        estimate:{" "}
-                        {information.estimate}
-                      </p>
-                    )}
-
-                  {ready &&
-                    item.available &&
-                    information.transit && (
-                      <p className="muted">
-                        Courier transit:{" "}
-                        {information.transit}
-                      </p>
-                    )}
+                  {item.quantity > 1 && item.priceSafe && <p className="muted">{money(item.unitPrice)} each</p>}
+                  {!ready && <p className="muted">Saved estimate</p>}
+                  {id && !unavailable && <Link className="cart-delivery-link" to={productPath(id) + "#delivery-returns"}>Check delivery</Link>}
 
                   {ready && item.product && (
                     <details className="cart-returns">
