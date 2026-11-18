@@ -756,3 +756,8 @@
     flex: 1 1 100%;
   }
 }
+.gd-daily-amounts { margin-block: 12px; }
+.gd-daily-amounts > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-block: 9px; border-bottom: 1px solid #ddd; }
+.gd-daily-amounts dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.gd-daily-amounts small { display: block; }
+.gd-admin-controls input[type=date] { min-height: 44px; padding-inline: 8px; font: inherit; }

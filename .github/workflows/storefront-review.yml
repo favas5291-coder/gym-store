@@ -63,6 +63,8 @@ jobs:
         env:
           GYMDROBE_SHOPPING_BACKEND_DIR: .qa-shopping-backend
         run: node tests/order-push-browser.mjs
+      - name: Daily operations report, source isolation and partial totals
+        run: node tests/daily-operations-browser.mjs
       - name: Shared navigation and photo-search UX contracts
         run: node tests/photo-search-browser.mjs
       - name: Account dashboard before and after, responsive and account regression checks

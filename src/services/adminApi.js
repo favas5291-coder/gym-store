@@ -107,6 +107,16 @@ export async function getAdminDashboard(
   return data;
 }
 
+export async function getDailyOperations(token, { date, source, signal }) {
+  const params = new URLSearchParams({ date, source });
+  const { report } = await request("/admin/reports/daily-operations?" + params, token, { signal });
+  if (report?.date !== date || report.source !== source || report.timezone !== "Asia/Kolkata" ||
+      !report.orders || !report.fulfilments) {
+    throw new Error("The server returned an incomplete daily report.");
+  }
+  return report;
+}
+
 export async function getAdminCustomers(
   token,
   {
