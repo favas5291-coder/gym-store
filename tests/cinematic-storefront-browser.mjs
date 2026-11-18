@@ -355,25 +355,29 @@ try{
    if(width<1024) assert.deepEqual(await v.p.getByRole('navigation',{name:'Shopping navigation'}).getByRole('link').allTextContents(),['Home','Categories','Wishlist','Cart','Account']);
   });await v.c.close();
  }
- await check('Athletic homepage shows featured gear in the first mobile viewport and opens real shopping routes', async () => {
+ await check('Athletic homepage shows the first department action in the mobile viewport and opens real shopping routes', async () => {
   const view = await context(390, { browser: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } });
   try {
    await visit(view.p, '/');
-   const heading = view.p.getByRole('heading', { name: 'Gear for every workout.' });
+   const heading = view.p.getByRole('heading', { name: /gear for every workout/i });
    assert.ok(await heading.isVisible());
    assert.equal(await view.p.locator('.gn-search input').getAttribute('placeholder'), 'Search T-shirts, gym bags and more.');
-   const categoryHeading = await view.p.getByRole('heading', { name: 'Featured gear', exact:true }).boundingBox();
+   const tiles = view.p.locator('.department-tile');
+   assert.deepEqual(await tiles.allTextContents(), ['Women’s','Men’s']);
+   const firstAction = await tiles.first().locator('span').boundingBox();
    const navigation = await view.p.getByRole('navigation', { name: 'Shopping navigation' }).boundingBox();
-   assert.ok(categoryHeading.y + categoryHeading.height <= navigation.y);
-   const heroPhoto = view.p.locator('.editorial-hero-media img');
-   assert.equal(await heroPhoto.count(), 1);
-   assert.equal(await heroPhoto.getAttribute('fetchpriority'), 'high');
-   await heroPhoto.evaluate(img => img.decode());
-   assert.match(await heroPhoto.getAttribute('alt'), /Gymshark flat lay/);
-   await view.p.getByRole('link', { name: 'Shop workout gear' }).focus();
-   assert.equal(await view.p.getByRole('link', { name: 'Shop workout gear' }).evaluate(link => getComputedStyle(link).outlineStyle), 'solid');
-   await view.p.getByRole('link', { name: 'Shop workout gear' }).press('Enter');
-   await view.p.waitForURL('**/shop?department=workout');
+   assert.ok(firstAction.y + firstAction.height <= navigation.y);
+   await view.p.screenshot({path:path.join(output,'campaign-390-first.png')});
+   await tiles.last().scrollIntoViewIfNeeded();
+   await view.p.screenshot({path:path.join(output,'campaign-390-men.png')});
+   for (const gender of ['Women','Men']) {
+    const tile = view.p.getByRole('link', {name:gender+'’s',exact:true});
+    await tile.locator('img').evaluate(image => image.decode());
+    await tile.focus();
+    await tile.press('Enter');
+    await view.p.waitForURL('**/shop?gender='+gender);
+    await visit(view.p, '/');
+   }
    await visit(view.p, '/');
    const category = view.p.locator('.athletic-category-grid a').first();
    const route = await category.getAttribute('href');
