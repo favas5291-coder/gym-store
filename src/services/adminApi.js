@@ -5,7 +5,9 @@ const API_URL = (
   .trim()
   .replace(/\/+$/, "");
 
-export async function adminRequest(
+export { request as adminRequest };
+
+async function request(
   path,
   token,
   {
@@ -87,7 +89,7 @@ export async function getAdminDashboard(
     source,
   });
 
-  const data = await adminRequest(
+  const data = await request(
     "/admin/dashboard?" + params,
     token,
     { signal },
@@ -124,7 +126,7 @@ export async function getAdminCustomers(
     limit: String(limit),
   });
 
-  const data = await adminRequest(
+  const data = await request(
     "/admin/customers?" + params,
     token,
     { signal },
@@ -145,7 +147,7 @@ export function setAdminCustomerStatus(
   isActive,
   { signal } = {},
 ) {
-  return adminRequest(
+  return request(
     "/admin/customers/" +
       encodeURIComponent(customer.id) +
       "/status",
