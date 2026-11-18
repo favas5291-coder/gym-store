@@ -66,6 +66,7 @@ export function checkoutAddressErrors(value) {
 }
 
 export function paymentAmounts(pricing, method) {
+  if (method === "cod") return { now: 0, due: pricing.finalTotal, paise: 0 };
   const now =
     method === "cod-partial"
       ? Math.round(
@@ -205,9 +206,8 @@ export function orderIsComplete(order) {
       "out-for-delivery",
       "delivered",
     ].includes(order?.status) &&
-    ["paid", "partially-paid"].includes(
-      order?.payment?.status,
-    ) &&
+    (["paid", "partially-paid"].includes(order?.payment?.status) ||
+      (order?.payment?.method === "cod" && order.payment.status === "pending")) &&
     ![
       "pending",
       "manual-required",
@@ -339,6 +339,7 @@ export function validateConfirmedOrder(
       method,
     );
 
+    const unpaidCod = method === "cod" && order.payment.status === "pending";
     const partial =
       method === "cod-partial" &&
       order.payment.status === "partially-paid";
@@ -358,7 +359,7 @@ export function validateConfirmedOrder(
       paid == null ||
       due == null ||
       paid + due !== total ||
-      (
+      (unpaidCod ? paid !== 0 || due !== total :
         partial
           ? collected == null ||
             paid !== expected.paise + collected ||

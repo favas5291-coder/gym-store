@@ -11,6 +11,7 @@ const API_URL = String(
   .replace(/\/+$/, "");
 
 const PAYMENT_METHODS = [
+  "cod",
   "razorpay",
   "cod-partial",
 ];
@@ -367,9 +368,20 @@ function validateCheckoutData(checkoutData) {
   }
 }
 
-export async function createRazorpayPaymentOrder(
+export function createRazorpayPaymentOrder(token, checkoutData) {
+  if (checkoutData?.paymentMethod === "cod") throw new Error("Use cash-on-delivery checkout for this order.");
+  return submitCheckoutOrder(token, checkoutData, "/payments/razorpay/order");
+}
+
+export function createCodOrder(token, checkoutData) {
+  if (checkoutData?.paymentMethod !== "cod") throw new Error("Cash-on-delivery payment method required.");
+  return submitCheckoutOrder(token, checkoutData, "/payments/cod/order");
+}
+
+async function submitCheckoutOrder(
   token,
   checkoutData,
+  path,
 ) {
   validateCheckoutData(checkoutData);
 
@@ -386,7 +398,7 @@ export async function createRazorpayPaymentOrder(
     body,
     () =>
       request(
-        "/payments/razorpay/order",
+        path,
         {
           token,
           method: "POST",

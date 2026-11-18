@@ -70,7 +70,7 @@ function confirmationText(order, remote, confirmed) {
     };
   }
 
-  if (confirmed) {
+  if (confirmed && order.payment?.method !== "cod") {
     return {
       heading: "Your order is confirmed!",
       message:
@@ -354,7 +354,7 @@ export default function OrderSuccessPage() {
 
         {order.metadata?.demo === true && (
           <p className="notice">
-            Test order · Razorpay test mode was used.
+            {order.payment?.method === "cod" ? "Test cash-on-delivery order." : "Test order · Razorpay test mode was used."}
           </p>
         )}
 
