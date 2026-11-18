@@ -65,10 +65,10 @@ try {
   await page.goto(fixture.url+'/shop');
   await page.getByRole('button',{name:'Help me choose products'}).click();
   await shot('needs');
-  await page.getByRole('button',{name:'Next',exact:true}).click();
+  await page.getByRole('dialog',{name:'Find your workout gear'}).getByRole('button',{name:'Next',exact:true}).click();
   await shot('budget');
   await page.locator('.gd-guide-budget input').fill('1500');
-  await page.getByRole('button',{name:'Next',exact:true}).click();
+  await page.getByRole('dialog',{name:'Find your workout gear'}).getByRole('button',{name:'Next',exact:true}).click();
   await shot('goal');
   await page.locator('.gd-guide-question-actions [type=submit]').click();
 } finally {

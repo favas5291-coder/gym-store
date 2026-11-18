@@ -119,3 +119,6 @@
   .mobile-search-visible .gn-form:has(input:focus-visible) { outline: 2px solid #124b49; outline-offset: 1px; }
   .mobile-search-visible .gn-form input:focus-visible { outline: 0; box-shadow: none; }
 }
+@media (min-width: 701px) and (max-width: 1023px) {
+  .mobile-search-visible .gn-dismiss-search { display: none; }
+}
