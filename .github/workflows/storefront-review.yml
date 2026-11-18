@@ -59,6 +59,8 @@ jobs:
         env:
           GYMDROBE_SHOPPING_BACKEND_DIR: .qa-shopping-backend
         run: node tests/shopping-sync-browser.mjs
+      - name: Verify analytics withdrawal across browser tabs
+        run: node tests/analytics-consent-browser.mjs
       - name: Opt-in native order notification UI and actual JWT API contract
         env:
           GYMDROBE_SHOPPING_BACKEND_DIR: .qa-shopping-backend
