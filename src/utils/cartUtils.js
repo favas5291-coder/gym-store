@@ -273,6 +273,11 @@ export function firstOptions(product) {
   };
 }
 
+export function initialCardColor(product) {
+  return Array.isArray(product.colors) && product.colors.includes(product.selectedColor)
+    ? product.selectedColor : firstOptions(product).selectedColor;
+}
+
 export function getKitGroup(item) {
   const group = item?.kitGroup;
 

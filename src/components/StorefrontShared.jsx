@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { preload } from "react-dom";
 
 
 import {
@@ -7,6 +8,7 @@ import {
 
 import {
   productImageSources,
+  cardImageSizes,
 } from "../utils/productImages.js";
 
 import {
@@ -22,6 +24,7 @@ import {
 
 import {
   getTotalStock,
+  initialCardColor,
 } from "../utils/cartUtils.js";
 
 import { collectionPathForCategory } from "../utils/storefrontCollections.js";
@@ -156,6 +159,12 @@ function imageCandidates(product) {
         .filter(Boolean),
     ),
   ];
+}
+
+export function preloadCardImage(product) {
+  const [source] = imageCandidates({ ...product, selectedColor: initialCardColor(product) });
+  if (source) preload(source, { as: "image", fetchPriority: "high",
+    imageSrcSet: responsiveProductImage(source) || undefined, imageSizes: cardImageSizes });
 }
 
 function ProductImageContent({

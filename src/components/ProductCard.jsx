@@ -9,10 +9,12 @@ import { PremiumButton, TextLink, IconButton } from "./PremiumControls.jsx";
 
 import {
   productImageSources,
+  cardImageSizes,
 } from "../utils/productImages.js";
 
 import {
   firstOptions,
+  initialCardColor,
 } from "../utils/cartUtils.js";
 
 import {
@@ -60,10 +62,7 @@ export default function ProductCard({
     useState(false);
 
   const initialQuickColor =
-    cardColor || (Array.isArray(item.colors) &&
-    item.colors.includes(item.selectedColor)
-      ? item.selectedColor
-      : firstOptions(item).selectedColor);
+    cardColor || initialCardColor(item);
 
   const changeQuickColor = useCallback(
     (color) => {
@@ -142,7 +141,7 @@ export default function ProductCard({
         >
           <ProductImage product={previewProduct}
             eager={priority} fetchPriority={priority ? "high" : "auto"}
-            sizes="(max-width: 600px) 50vw, (max-width: 1100px) 33vw, 300px" />
+            sizes={cardImageSizes} />
 
           {alternateImage && previewAlternate && (
             <ProductImage

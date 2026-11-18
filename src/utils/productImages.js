@@ -1,3 +1,5 @@
+export const cardImageSizes = "(max-width: 600px) 50vw, (max-width: 1100px) 33vw, 300px";
+
 // Colour galleries are shared by every size.
 // These helpers do not make network requests.
 
