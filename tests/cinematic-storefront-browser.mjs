@@ -353,8 +353,7 @@ try{
   const v=await context(width);
   await check(width+'px merchandising and responsive navigation',async()=>{
    await visit(v.p,'/');
-   assert.ok(await v.p.locator('.athletic-category-grid a').count()>0);
-   assert.ok(await v.p.locator('.athletic-category-grid a').first().isVisible());
+   await v.p.locator('.athletic-category-grid a').first().waitFor({state:'visible'});
    if(width<1024) await v.p.getByRole('button',{name:'Open search',exact:true}).click();
    assert.ok(await v.p.getByRole('combobox',{name:'Search products'}).isVisible());
    assert.ok(await v.p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
