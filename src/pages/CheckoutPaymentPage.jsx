@@ -1,4 +1,5 @@
 import FreeShippingProgress from "../components/FreeShippingProgress.jsx";
+import { standardCodEnabled } from "../utils/standardCod.js";
 import { ensureGuestAccess, guestAccess } from "../utils/guestCheckout.js";
 
 import {
@@ -86,6 +87,7 @@ import {
 
 import {
   createRazorpayPaymentOrder,
+  createCodOrder,
   verifyRazorpayPayment,
   checkRazorpayPayment,
 } from "../services/paymentApi.js";
@@ -518,9 +520,8 @@ function Checkout({ auth, mode }) {
     paymentMethod,
     setPaymentMethod,
   ] = useState(
-    savedAttempt?.payload
-      ?.paymentMethod === "cod-partial"
-      ? "cod-partial"
+    ["cod", "cod-partial"].includes(savedAttempt?.payload?.paymentMethod)
+      ? savedAttempt.payload.paymentMethod
       : "razorpay",
   );
 
@@ -644,6 +645,17 @@ function Checkout({ auth, mode }) {
   );
 
   const hasKits = containsKit(items);
+  const savedCodMethod = pending?.payload?.paymentMethod;
+  const standardCodOption = savedCodMethod === "cod" ||
+    (standardCodEnabled && savedCodMethod !== "cod-partial");
+
+  useEffect(() => {
+    if (pending || paymentMethod === "razorpay") return;
+    const eligibleMethod = standardCodEnabled
+      ? (hasKits ? "razorpay" : "cod")
+      : "cod-partial";
+    if (paymentMethod !== eligibleMethod) setPaymentMethod(eligibleMethod);
+  }, [pending, paymentMethod, hasKits]);
 
   const kitIssue = kitSelectionIssue(
     items,
@@ -713,7 +725,7 @@ function Checkout({ auth, mode }) {
     review.canCheckout &&
     review.rows.length <= 50 &&
     Number.isSafeInteger(amounts?.paise) &&
-    amounts.paise >= 100 &&
+    (paymentMethod === "cod" ? amounts.due > 0 && kitQuote?.purchaseEnabled === true : amounts.paise >= 100) &&
     Number.isSafeInteger(
       Math.round(
         pricing?.finalTotal * 100,
@@ -757,10 +769,9 @@ function Checkout({ auth, mode }) {
     }
 
     // Preparation creates no order or charge.
-    void timedCheckoutStep(
-      "razorpay_prepare",
-      loadRazorpay,
-    ).catch(() => {});
+    if (!standardCodEnabled && paymentMethod !== "cod") {
+      void timedCheckoutStep("razorpay_prepare", loadRazorpay).catch(() => {});
+    }
 
     if (!token) {
       void timedCheckoutStep(
@@ -771,6 +782,7 @@ function Checkout({ auth, mode }) {
   }, [
     ready,
     review.canCheckout,
+    paymentMethod,
     token,
     Boolean(pending),
   ]);
@@ -1288,6 +1300,7 @@ function Checkout({ auth, mode }) {
     }
 
     latest.store.notify(
+      savedOrder.payment.method === "cod" ? "Cash-on-delivery order confirmed." :
       savedOrder.payment.method ===
         "cod-partial" &&
       savedOrder.payment.status ===
@@ -1716,7 +1729,7 @@ function Checkout({ auth, mode }) {
               ensureGuestAccess,
             ),
 
-        checkOnly
+        checkOnly || record.payload.paymentMethod === "cod"
           ? Promise.resolve()
           : timedCheckoutStep(
               "razorpay_load",
@@ -1816,10 +1829,9 @@ function Checkout({ auth, mode }) {
           "order_create",
 
           () =>
-            createRazorpayPaymentOrder(
-              token,
-              record.payload,
-            ),
+            record.payload.paymentMethod === "cod"
+              ? createCodOrder(token, record.payload)
+              : createRazorpayPaymentOrder(token, record.payload),
         );
 
       if (!mounted.current) {
@@ -1836,6 +1848,9 @@ function Checkout({ auth, mode }) {
         return;
       }
 
+      if (record.payload.paymentMethod === "cod") {
+        throw new Error("The server did not confirm this COD order. Retry the saved order to check its status.");
+      }
       validateGateway(data, record);
 
       active = {
@@ -2268,7 +2283,7 @@ function Checkout({ auth, mode }) {
                   ensureGuestAccess,
                 ),
 
-            timedCheckoutStep(
+            paymentMethod === "cod" ? Promise.resolve() : timedCheckoutStep(
               "razorpay_load",
               loadRazorpay,
             ),
@@ -2342,7 +2357,7 @@ function Checkout({ auth, mode }) {
             ) ||
             latestQuote.reviewKey !==
               kitQuote.reviewKey
-          : latestQuote.deliveryReview
+          : (paymentMethod === "cod" && latestQuote.purchaseEnabled !== true) || latestQuote.deliveryReview
               ?.ready !== true ||
             JSON.stringify(
               latestQuote.pricing,
@@ -2915,7 +2930,7 @@ function Checkout({ auth, mode }) {
               </p>
 
               <div className="purchase-actions">
-                {pending.payload &&
+                {pending.payload && pending.payload.paymentMethod !== "cod" &&
                   pending.phase !==
                     "closed" && (
                     <button
@@ -2953,7 +2968,7 @@ function Checkout({ auth, mode }) {
                         )
                       }
                     >
-                      Resume payment
+                      {pending.payload.paymentMethod === "cod" ? "Retry saved COD order" : "Resume payment"}
                     </button>
                   )}
 
@@ -2994,12 +3009,12 @@ function Checkout({ auth, mode }) {
               {pending.phase !==
                 "closed" && (
                 <p className="muted">
-                  Resume checks this saved
+                  {pending.payload?.paymentMethod === "cod" ? "Retry checks the same checkout reference with the server." : <>Resume checks this saved
                   order with the server
                   before opening Razorpay
                   again. If money was
                   deducted, check payment
-                  status first.
+                  status first.</>}
                 </p>
               )}
             </>
@@ -3363,32 +3378,31 @@ function Checkout({ auth, mode }) {
               </span>
             </label>
 
-            <label className="check">
+            {(!standardCodEnabled || !hasKits || pending?.payload?.paymentMethod === "cod-partial") && <label className="check">
               <input
                 type="radio"
                 name="payment"
-                checked={
-                  paymentMethod ===
-                  "cod-partial"
-                }
+                checked={["cod", "cod-partial"].includes(paymentMethod)}
                 onChange={() =>
                   setPaymentMethod(
-                    "cod-partial",
+                    standardCodOption ? "cod" : "cod-partial",
                   )
                 }
               />
 
               <span>
                 <strong>
-                  COD with 10% advance
+                  {standardCodOption ? "Cash on delivery" : "COD with 10% advance"}
                 </strong>
 
                 <br />
 
-                Pay 10% of products after coupons now.
-                Pay the balance, including delivery, on arrival.
+                {standardCodOption
+                  ? "₹0 upfront. Pay the full order total on delivery where available."
+                  : "Pay 10% of products after coupons now. Pay the balance, including delivery, on arrival."}
               </span>
-            </label>
+            </label>}
+            {standardCodEnabled && hasKits && !pending && <p className="muted">Kits currently require online payment.</p>}
 
             <p className="muted">
               Review{" "}
@@ -3899,7 +3913,7 @@ function Checkout({ auth, mode }) {
                 }}
               >
                 {displayedPricing
-                  ? `Pay ${money(
+                  ? paymentMethod === "cod" ? "Place cash-on-delivery order" : `Pay ${money(
                       displayedAmounts?.now,
                     )} & Place Order`
                   : "Enter delivery pincode to check total"}
@@ -3935,7 +3949,7 @@ function Checkout({ auth, mode }) {
               {busy
                 ? paymentStage ||
                   "Preparing secure payment…"
-                : "You’ll receive your order number and tracking link after payment is verified."}
+                : paymentMethod === "cod" ? "Your order number will appear after confirmation." : "You’ll receive your order number and tracking link after payment is verified."}
             </p>
           </section>
         </aside>

@@ -1,3 +1,4 @@
+import { standardCodEnabled } from "../utils/standardCod.js";
 import {
   useEffect,
   useRef,
@@ -1236,9 +1237,9 @@ function Builder({
                     Online payment
                   </option>
 
-                  <option value="cod-partial">
+                  {!standardCodEnabled && <option value="cod-partial">
                     COD with 10% advance
-                  </option>
+                  </option>}
                 </select>
               </label>
 
