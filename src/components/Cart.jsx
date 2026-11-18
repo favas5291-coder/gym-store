@@ -807,6 +807,9 @@ export default function Cart() {
                   >
                     <ProductImage
                       product={product}
+                      eager={item.index === 0}
+                      fetchPriority={item.index === 0 ? "high" : "auto"}
+                      sizes="(max-width: 480px) 82px, 116px"
                     />
                   </Link>
                 )}

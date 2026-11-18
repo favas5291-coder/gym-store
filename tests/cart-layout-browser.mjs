@@ -37,6 +37,9 @@ try {
   const extras = page.getByRole("region", { name: "Complete your workout essentials" });
   await extras.waitFor();
   await page.locator(".cart-checkout").filter({ hasText: /^Checkout$/ }).waitFor();
+  const thumbnail = row.locator(".cart-thumb img");
+  assert.equal(await thumbnail.getAttribute("loading"), "eager");
+  assert.equal(await thumbnail.getAttribute("fetchpriority"), "high");
   const readyRow = await row.boundingBox();
   const readyCoupon = await coupon.boundingBox();
   assert.ok(Math.abs(readyRow.y - pendingRow.y) <= 4, "The catalog response moved the first cart row");
