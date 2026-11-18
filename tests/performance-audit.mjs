@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { preview } from 'vite';
-import { startStorefrontFixture, mockStorefront } from './storefront-fixture.mjs';
+import { startStorefrontFixture, mockStorefront, fixtureProductId } from './storefront-fixture.mjs';
 const { chromium } = await import(process.env.GYMDROBE_PLAYWRIGHT_MODULE || 'playwright');
 const output = process.env.PERFORMANCE_OUTPUT || 'test-results/performance';
 await fs.mkdir(output, { recursive: true });
@@ -103,6 +103,48 @@ try {
     assets: 'Identical local photographs with alternate photos; instant mocked APIs; public product, search, empty cart and guest login only',
     limitations: 'Lab only, no CDN compression. Cart is empty and login is signed-out; no checkout/payment/account journeys. No field INP, real API latency, physical-device or iOS-app claim.'
   }, entry, samples }, null, 2));
+  // Capture the approval views with identical data and viewport on both revisions.
+  const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: 'reduce' });
+  await mockStorefront(phone, products);
+  const page = await phone.newPage();
+  page.setDefaultTimeout(12000);
+  const visit = route => page.goto('http://127.0.0.1:4221' + route);
+  const snap = async name => {
+    await page.evaluate(() => document.fonts.ready);
+    await page.screenshot({ path: path.join(output, 'mobile-' + name + '.png'), animations: 'disabled' });
+  };
+  await visit('/product/' + fixtureProductId);
+  await page.getByRole('button', { name: 'Colour Black', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Size M', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Save to wishlist', exact: true }).click();
+  await page.getByRole('button', { name: /Add to (Cart|Bag)/i }).first().click();
+  await page.getByText('✓ Added to your bag').waitFor();
+  await visit('/cart');
+  await page.getByRole('combobox', { name: 'Quantity for Gym Training T-Shirt' }).waitFor();
+  await snap('bag');
+  await page.locator('.shopping-bottom-nav').screenshot({ path: path.join(output, 'mobile-navigation.png') });
+  await page.getByRole('button', { name: 'Open menu' }).click();
+  await snap('menu');
+  await visit('/wishlist');
+  await page.getByRole('heading', { name: 'Gym Training T-Shirt' }).waitFor();
+  await snap('wishlist');
+  await visit('/categories');
+  await page.locator('.native-collection').first().waitFor();
+  await snap('categories');
+  await page.getByRole('button', { name: 'Open search', exact: true }).click();
+  await page.locator('.gn-results').waitFor();
+  await snap('search');
+  await visit('/shop');
+  await page.getByRole('button', { name: 'Help me choose products', exact: true }).click();
+  const guide = page.getByRole('dialog', { name: 'Find your workout gear' });
+  await guide.waitFor();
+  await snap('guide-needs');
+  await guide.getByRole('button', { name: 'Next', exact: true }).click();
+  await guide.getByRole('button', { name: '₹1,000', exact: true }).click();
+  await snap('guide-budget');
+  await guide.getByRole('button', { name: 'Next', exact: true }).click();
+  await snap('guide-goal');
+  await phone.close();
 } finally {
   await browser.close();
   await new Promise(resolve => server.httpServer.close(resolve));

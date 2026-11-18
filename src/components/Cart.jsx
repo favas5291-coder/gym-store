@@ -244,7 +244,10 @@ export default function Cart() {
     setActionError(null);
 
     try {
-      await refreshProducts();
+      const refreshed = await refreshProducts();
+      if (refreshed?.length && mounted.current && shopperRef.current === startedFor) {
+        notify("Prices and stock refreshed.");
+      }
     } catch {
       if (
         mounted.current &&
@@ -803,7 +806,7 @@ export default function Cart() {
                 <div className="cart-copy">
                   <div className="cart-head">
                     <div>
-{id && !unavailable ? (
+                      {id && !unavailable ? (
                         <Link
                           to={productPath(id)}
                         >
