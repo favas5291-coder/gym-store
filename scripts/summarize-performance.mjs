@@ -9,7 +9,7 @@ const [before, after] = await Promise.all(
   ),
 );
 
-const metrics = ["lcp", "cls", "longTaskMs", "jsBytes", "imageBytes", "bytes", "apiRequests", "videoBytes", "videoRequests"];
+const metrics = ["lcp", "cls", "productContentMs", "longTaskMs", "jsBytes", "imageBytes", "bytes", "apiRequests", "videoBytes", "videoRequests"];
 
 function median(numbers) {
   const sorted = numbers.filter(Number.isFinite).sort((a, b) => a - b);
@@ -23,6 +23,7 @@ function sampleMetrics(sample) {
   return {
     lcp: sample.lcp,
     cls: sample.cls,
+    productContentMs: sample.productContentMs,
     longTaskMs: sample.longTaskMs,
     jsBytes: sample.jsBytes,
     imageBytes: sample.imageBytes,

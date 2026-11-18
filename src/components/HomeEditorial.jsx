@@ -1,34 +1,29 @@
-import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
-const workout = "/shop?department=workout";
+const departments = [
+  { gender: "Women", image: "women-hoodie" },
+  { gender: "Men", image: "men-hoodie" },
+];
+
 export default function HomeEditorial() {
   return (
-    <div className="home-editorial">
-      <section className="editorial-hero" aria-labelledby="editorial-heading">
-        <picture className="editorial-hero-media">
-          <source
-            media="(max-width: 719px)"
-            srcSet="/editorial/flat-lay-480.webp 480w, /editorial/flat-lay-800.webp 800w"
-            sizes="100vw"
-          />
-          <img
-            src="/editorial/flat-lay-800.webp"
-            srcSet="/editorial/flat-lay-800.webp 800w, /editorial/flat-lay-1280.webp 1280w"
-            sizes="(max-width: 1480px) 55vw, 802px"
-            width="1280"
-            height="1185"
-            fetchPriority="high"
-            alt="Gymshark flat lay with an open black gym bag, folded workout clothes, a bottle, towels and accessories"
-          />
-        </picture>
-        <div className="editorial-hero-copy">
-          <h1 id="editorial-heading">Gear for every workout.</h1>
-          <p>Workout clothing, accessories and starter essentials.</p>
-          <Link className="editorial-primary" to={workout}>Shop workout gear <ArrowRight aria-hidden="true" size={18} /></Link>
-        </div>
-      </section>
-
-    </div>
+    <section className="department-campaign" aria-labelledby="department-heading">
+      <header>
+        <h1 id="department-heading">Gear for every workout</h1>
+        <p>Workout clothing and training essentials.</p>
+      </header>
+      <div className="department-tiles">
+        {departments.map(({ gender, image }, index) => (
+          <Link key={gender} className="department-tile" to={`/shop?gender=${gender}`}>
+            <img src={`/media/campaign/${image}-736.webp`}
+              srcSet={`/media/campaign/${image}-432.webp 432w, /media/campaign/${image}-736.webp 736w`}
+              sizes="(max-width: 700px) 94vw, 47vw" alt="" width="640" height="640"
+              loading={index === 0 ? "eager" : "lazy"}
+              fetchPriority={index === 0 ? "high" : "auto"} />
+            <span>{gender}’s</span>
+          </Link>
+        ))}
+      </div>
+    </section>
   );
 }

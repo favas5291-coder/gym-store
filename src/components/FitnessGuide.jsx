@@ -662,9 +662,6 @@ export default function FitnessGuide() {
       if (browsingTime.current >= 10000) {
         setLauncherReady(true);
 
-        if (session.current.claim()) {
-          setView("intro");
-        }
       }
     }, 250);
 

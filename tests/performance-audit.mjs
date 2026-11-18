@@ -28,7 +28,7 @@ const samples = [];
 // Cover the routes shoppers actually open, not just the home and shop entry
 // points. All scenarios use the same isolated mock APIs and no customer data.
 const routes = [
-  { path: '/', label: 'home', ready: '.editorial-hero, .cinema-hero, .home-carousel-card, .home-carousel-photo' },
+  { path: '/', label: 'home', ready: '.department-campaign, .editorial-hero, .cinema-hero, .home-carousel-card, .home-carousel-photo' },
   { path: '/shop', label: 'shop', ready: '.gm-product-card' },
   { path: '/shop?search=training', label: 'search', ready: '.gm-product-card' },
   { path: `/product/${products[0].id}`, label: 'product', ready: '.product-detail-layout' },
@@ -42,6 +42,13 @@ try {
     const mock = await mockStorefront(context, products);
     await context.addInitScript(() => {
       window.lab = { lcp: 0, cls: 0, longTasks: 0, longTaskMs: 0, shifts: [], lcpCandidates: [] };
+      const products = new MutationObserver(() => {
+        if (document.querySelector('.gm-product-card h3, .product-detail-layout h1')) {
+          requestAnimationFrame(() => { window.lab.productContentMs = performance.now(); });
+          products.disconnect();
+        }
+      });
+      products.observe(document, { childList: true, subtree: true });
       new PerformanceObserver(list => { for (const entry of list.getEntries()) { window.lab.lcp = entry.startTime; window.lab.lcpCandidates.push({ time: entry.startTime, tag: entry.element?.tagName, parent: entry.element?.parentElement?.className, url: entry.url, size: entry.size }); } }).observe({ type: 'largest-contentful-paint', buffered: true });
       new PerformanceObserver(list => { for (const entry of list.getEntries()) if (!entry.hadRecentInput) {
         window.lab.cls += entry.value;
