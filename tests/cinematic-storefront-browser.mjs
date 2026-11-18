@@ -129,7 +129,7 @@ try{
   await keyboardUI.p.getByRole('button',{name:'Clear history'}).click();
   assert.equal(await keyboardUI.p.locator('.gn-results li').count(),0);
   assert.equal(await keyboardUI.p.locator('.gn-results').count(),1);
-  await keyboardUI.p.locator('.athletic-category-grid').click({position:{x:10,y:180},force:true});
+  await keyboardUI.p.locator('.athletic-category-grid').first().click({position:{x:10,y:180},force:true});
   assert.equal(await keyboardUI.p.locator('.gn-results').count(),0);
  });await keyboardUI.c.close();
  // The detail hero should not letterbox square or landscape photos inside
@@ -422,3 +422,4 @@ try{
  await browser.close();await f.server.close();
 }
 if(results.some(r=>!r.passed))process.exitCode=1;
+
