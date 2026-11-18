@@ -510,7 +510,6 @@ function SearchBox({
 
     if (event.key === "Escape") {
       event.preventDefault();
-      event.stopPropagation();
       close();
       return;
     }
