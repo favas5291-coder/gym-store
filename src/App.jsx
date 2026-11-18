@@ -25,7 +25,9 @@ import StoreProvider, {
   useStore,
 } from "./context/StoreContext.jsx";
 
-import CatalogProvider from "./context/CatalogContext.jsx";
+import CatalogProvider, { useCatalog } from "./context/CatalogContext.jsx";
+import { filterProducts } from "./utils/catalog.js";
+import { preloadCardImage } from "./components/StorefrontShared.jsx";
 import ShoppingToolsProvider from "./context/ShoppingToolsContext.jsx";
 
 import Navbar, { Brand } from "./components/Navbar.jsx";
@@ -49,6 +51,15 @@ import { isNativeApp } from "./native/platform.js";
 // the regular website's initial JavaScript. Native apps load them on boot.
 const NativeAppController = lazy(() => import("./native/NativeAppController.jsx"));
 const OrderPushController = lazy(() => import("./native/OrderPushController.jsx"));
+
+// This fallback exists only while the Shop chunk loads. Use the public live
+// catalogue and exactly the image/size selection the first card will render.
+function ShopLoading() {
+  const { products } = useCatalog();
+  const first = filterProducts(products)[0];
+  if (first) preloadCardImage(first);
+  return <PageLoading />;
+}
 
 const Shop = lazy(
   () => import("./pages/Shop.jsx"),
@@ -566,7 +577,7 @@ function Layout() {
           key={location.pathname}
         >
           <Suspense
-            fallback={<PageLoading />}
+            fallback={/^\/shop\/?$/.test(location.pathname) && !location.search ? <ShopLoading /> : <PageLoading />}
           >
             <Routes>
               <Route path="/categories" element={<NativeCategoriesPage />} />
