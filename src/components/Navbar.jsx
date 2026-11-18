@@ -602,7 +602,7 @@ function SearchBox({
             <span>
               {clean
                 ? "Product suggestions"
-                : "Recent searches"}
+                : recent.length ? "Recent searches" : "Search the shop"}
             </span>
 
             <div className="gn-results-actions">
@@ -1605,57 +1605,6 @@ export default function Navbar({
           </button>
         </div>
 
-        <div className="gn-welcome">
-          <strong>
-            {authLoading
-              ? "Checking your account…"
-              : signedIn
-                ? `Hi, ${
-                    firstName || "there"
-                  }.`
-                : "Your next workout starts here."}
-          </strong>
-
-          <p>
-            {authLoading
-              ? "Restoring your GymDrobe session."
-              : signedIn
-                ? "Your account, saved gear and order details."
-                : "Explore the collection and find your next training favourite."}
-          </p>
-
-          <div className="gn-welcome-links">
-            {authLoading ? (
-              <span aria-live="polite">
-                Checking account…
-              </span>
-            ) : signedIn ? (
-              <Link
-                to="/account"
-                onClick={closeMenus}
-              >
-                My account
-              </Link>
-            ) : (
-              <>
-                <Link
-                  to={loginHref}
-                  onClick={closeMenus}
-                >
-                  Sign in
-                </Link>
-
-                <Link
-                  to={signupHref}
-                  onClick={closeMenus}
-                >
-                  Create account
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-
         <nav aria-label="Mobile categories">
           {navigationGroups.map((group) => (
             <div
@@ -1756,6 +1705,12 @@ export default function Navbar({
           </Link>
         </nav>
 
+        <nav className="gn-drawer-links" aria-label="Help and account">
+          <Link to="/orders" onClick={closeMenus}>Track order</Link>
+          <Link to="/help" onClick={closeMenus}>Help</Link>
+          {!authLoading && <Link to={signedIn ? "/account" : loginHref} onClick={closeMenus}>{signedIn ? "My account" : "Sign in"}</Link>}
+          {!authLoading && !signedIn && <Link to={signupHref} onClick={closeMenus}>Create account</Link>}
+        </nav>
         {signedIn && (
           <nav
             className="gn-drawer-links"

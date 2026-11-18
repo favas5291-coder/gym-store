@@ -668,3 +668,8 @@ body:has(.gn-search-open) .gd-guide-reopen {
 .gd-guide-choices input { margin: 0; }
 .gd-guide-presets { gap: 8px; margin: 16px 0; }
 .gd-fitness-guide .gd-guide-body > form { margin: 0; }
+
+.gd-guide-body:has(> form) { display: flex; overflow: hidden; padding-bottom: 0; }
+.gd-guide-body > form { display: flex; flex-direction: column; min-height: 0; width: 100%; }
+.gd-guide-step-content { overflow-y: auto; overscroll-behavior: contain; min-height: 0; padding: 4px 2px 16px; }
+.gd-guide-question-actions { position: static; flex: none; margin: 0; background: white; }

@@ -341,7 +341,7 @@ export default function CartShippingReview({
     );
 
   return (
-    <div>
+    <div id="bag-delivery">
       <form
         onSubmit={save}
         noValidate

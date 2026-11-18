@@ -88,3 +88,14 @@
 
 /* Keep following content outside the first viewport while the catalogue loads. */
 #app .storefront-home .home-catalog-loading { min-height: 640px; }
+
+#bag-delivery { scroll-margin-top: 100px; }
+@media (max-width: 700px) {
+  #app .premium-storefront .wishlist-grid.single-saved { grid-template-columns: 1fr; }
+  .single-saved .gm-product-card { display: grid; grid-template-columns: minmax(100px, 38%) 1fr; gap: 12px; align-items: start; }
+  #app .premium-storefront .native-collection { padding: 8px 0; }
+  .native-collection > div { margin-top: 4px; }
+  .native-collection > a { min-height: 44px; }
+  .mobile-search-visible .gn-dismiss-search { display: none; }
+  #app .premium-storefront .cart-thumb { align-self: start; }
+}
