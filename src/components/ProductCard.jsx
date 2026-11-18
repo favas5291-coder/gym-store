@@ -117,8 +117,13 @@ export default function ProductCard({
     count,
   } = useProductReviews(item);
 
+  const previewProduct = { ...item, selectedColor: initialQuickColor };
+  const hasColourPhoto = item.colorImages?.some(row => row.color === initialQuickColor && row.images?.length);
+  const colourDescription = hasColourPhoto || item.colors?.length === 1
+    ? initialQuickColor
+    : item.colors?.length ? `${item.colors.length} colours` : "";
   const alternateImage =
-    productImageSources({ ...item, selectedColor: cardColor || item.selectedColor })[1] || null;
+    productImageSources(previewProduct)[1] || null;
 
   const path = productPath(item.id);
 
@@ -135,7 +140,7 @@ export default function ProductCard({
           to={path}
           aria-label={`View ${item.name}`}
         >
-          <ProductImage product={{ ...item, selectedColor: cardColor || item.selectedColor }}
+          <ProductImage product={previewProduct}
             eager={priority} fetchPriority={priority ? "high" : "auto"}
             sizes="(max-width: 600px) 50vw, (max-width: 1100px) 33vw, 300px" />
 
@@ -206,7 +211,7 @@ export default function ProductCard({
           <h3>{item.name}</h3>
         </Link>
 
-        <p className="gm-product-colour">{initialQuickColor || item.brand || "GymDrobe"}</p>
+        {colourDescription && <p className="gm-product-colour">{colourDescription}</p>}
         <p className="gm-product-price">
           <strong>
             {money(price.selling)}
