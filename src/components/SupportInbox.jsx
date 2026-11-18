@@ -63,7 +63,9 @@ function InboxWorkspace({ token, admin, revision }) {
       page: String(page),
     });
 
-    if (status) params.set("status", status);
+    const review = admin && status.startsWith("review:") ? status.slice(7) : "";
+    if (review) params.set("review", review);
+    else if (status) params.set("status", status);
 
     async function loadList() {
       try {
@@ -77,6 +79,10 @@ function InboxWorkspace({ token, admin, revision }) {
 
         if (!Array.isArray(data.tickets)) {
           throw new Error("The ticket list could not be read.");
+        }
+
+        if (review && data.review !== review) {
+          throw new Error("This server has not enabled the selected support review queue.");
         }
 
         const parsedPages = Number(data.pages);
@@ -115,6 +121,7 @@ function InboxWorkspace({ token, admin, revision }) {
   }, [
     token,
     prefix,
+    admin,
     page,
     status,
     revision,
@@ -341,7 +348,7 @@ function InboxWorkspace({ token, admin, revision }) {
 
       {admin && (
         <div className="field">
-          <label htmlFor="support-status-filter">Filter status</label>
+          <label htmlFor="support-status-filter">Inbox view</label>
           <select
             id="support-status-filter"
             disabled={busy}
@@ -355,6 +362,10 @@ function InboxWorkspace({ token, admin, revision }) {
             <option value="open">Open — needs attention</option>
             <option value="waiting">Waiting for customer</option>
             <option value="resolved">Resolved</option>
+            <optgroup label="Review queues">
+              <option value="review:first-reply">No first reply after 48 hours</option>
+              <option value="review:unresolved-month">Unresolved after one calendar month</option>
+            </optgroup>
           </select>
         </div>
       )}
@@ -383,6 +394,7 @@ function InboxWorkspace({ token, admin, revision }) {
               </p>
 
               {admin && <p>{item.email}</p>}
+              {admin && status.startsWith("review:") && <p>Opened {formatDate(item.createdAt)}</p>}
 
               <button
                 type="button"
