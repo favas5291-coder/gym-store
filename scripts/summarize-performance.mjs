@@ -23,6 +23,7 @@ function sampleMetrics(sample) {
   return {
     lcp: sample.lcp,
     cls: sample.cls,
+    productContentMs: sample.productContentMs,
     longTaskMs: sample.longTaskMs,
     jsBytes: sample.jsBytes,
     imageBytes: sample.imageBytes,
