@@ -1,0 +1,189 @@
+{
+  "baseline": "fa8a928a40ac2766e5c4b48a73ef21bcb6e7d38a",
+  "snapshot": "6e03b2270c55b0d65bc446074ee5d88380393382",
+  "tree": "d7341717db0de4fdd3d17413b220fb7f85f85c58",
+  "pulls": {
+    "74": "ecb4a7a80c8946490b962bae19f7243c2ba292c6",
+    "75": "d009fc934cdca964809ff889a620f779ff62e8e1",
+    "76": "8d421328033e29ac48361f5aec0a39856e648631",
+    "77": "05df3355860c363032bcbcbe8ec9e502e0152c98",
+    "78": "243109a7427b45b47ff23bd7269ed219c5f71bf0",
+    "79": "06721cf41ba9074c003bdcf9378a9ddc25789223",
+    "80": "8a186f14f01e8222647a7f0fe99167ef6549774d",
+    "81": "215dc9c3e570e9d763cccf84c598ba17f41d175a",
+    "82": "4a62cb20f753c7f3dfd255d45df8729344c8de22"
+  },
+  "conditions": {
+    "browser": "153.0.8010.0",
+    "viewport": "390 \u00d7 844, touch",
+    "network": "150 ms latency, 1.6 Mbps download and 0.75 Mbps upload",
+    "cpu": "4\u00d7 slowdown",
+    "cache": "3 fresh browser contexts for each route per revision, service workers blocked",
+    "server": "Vite production build and preview on loopback, instant synthetic API responses with external requests blocked",
+    "window": "Observe 5.5 seconds after the route selector appears. Cart contains one 1-unit product row in each sample."
+  },
+  "samples": [
+    {
+      "revision": "main-all-flags",
+      "route": "/",
+      "run": 1,
+      "lcpMs": 2200,
+      "contentReadyMs": 1606,
+      "cls": 0,
+      "routeGzipBytes": 199230
+    },
+    {
+      "revision": "main-all-flags",
+      "route": "/",
+      "run": 2,
+      "lcpMs": 2008,
+      "contentReadyMs": 1459,
+      "cls": 0,
+      "routeGzipBytes": 199230
+    },
+    {
+      "revision": "main-all-flags",
+      "route": "/",
+      "run": 3,
+      "lcpMs": 1988,
+      "contentReadyMs": 1487,
+      "cls": 0,
+      "routeGzipBytes": 199230
+    },
+    {
+      "revision": "main-all-flags",
+      "route": "/shop",
+      "run": 1,
+      "lcpMs": 2844,
+      "contentReadyMs": 2240,
+      "cls": 0,
+      "routeGzipBytes": 201576
+    },
+    {
+      "revision": "main-all-flags",
+      "route": "/shop",
+      "run": 2,
+      "lcpMs": 2612,
+      "contentReadyMs": 2050,
+      "cls": 0,
+      "routeGzipBytes": 201576
+    },
+    {
+      "revision": "main-all-flags",
+      "route": "/shop",
+      "run": 3,
+      "lcpMs": 3320,
+      "contentReadyMs": 2786,
+      "cls": 0,
+      "routeGzipBytes": 201576
+    },
+    {
+      "revision": "main-all-flags",
+      "route": "/cart",
+      "run": 1,
+      "lcpMs": 2688,
+      "contentReadyMs": 2585,
+      "cls": 0,
+      "routeGzipBytes": 191176
+    },
+    {
+      "revision": "main-all-flags",
+      "route": "/cart",
+      "run": 2,
+      "lcpMs": 1964,
+      "contentReadyMs": 1890,
+      "cls": 0,
+      "routeGzipBytes": 191176
+    },
+    {
+      "revision": "main-all-flags",
+      "route": "/cart",
+      "run": 3,
+      "lcpMs": 1996,
+      "contentReadyMs": 1982,
+      "cls": 0,
+      "routeGzipBytes": 191176
+    },
+    {
+      "revision": "nine",
+      "route": "/",
+      "run": 1,
+      "lcpMs": 2380,
+      "contentReadyMs": 1889,
+      "cls": 0,
+      "routeGzipBytes": 199480
+    },
+    {
+      "revision": "nine",
+      "route": "/",
+      "run": 2,
+      "lcpMs": 2024,
+      "contentReadyMs": 1501,
+      "cls": 0,
+      "routeGzipBytes": 199480
+    },
+    {
+      "revision": "nine",
+      "route": "/",
+      "run": 3,
+      "lcpMs": 2068,
+      "contentReadyMs": 1474,
+      "cls": 0,
+      "routeGzipBytes": 199480
+    },
+    {
+      "revision": "nine",
+      "route": "/shop",
+      "run": 1,
+      "lcpMs": 2780,
+      "contentReadyMs": 2140,
+      "cls": 0,
+      "routeGzipBytes": 201827
+    },
+    {
+      "revision": "nine",
+      "route": "/shop",
+      "run": 2,
+      "lcpMs": 3016,
+      "contentReadyMs": 2371,
+      "cls": 0,
+      "routeGzipBytes": 201827
+    },
+    {
+      "revision": "nine",
+      "route": "/shop",
+      "run": 3,
+      "lcpMs": 2624,
+      "contentReadyMs": 1919,
+      "cls": 0,
+      "routeGzipBytes": 201827
+    },
+    {
+      "revision": "nine",
+      "route": "/cart",
+      "run": 1,
+      "lcpMs": 2604,
+      "contentReadyMs": 2300,
+      "cls": 0,
+      "routeGzipBytes": 191539
+    },
+    {
+      "revision": "nine",
+      "route": "/cart",
+      "run": 2,
+      "lcpMs": 2508,
+      "contentReadyMs": 1908,
+      "cls": 0,
+      "routeGzipBytes": 191539
+    },
+    {
+      "revision": "nine",
+      "route": "/cart",
+      "run": 3,
+      "lcpMs": 2832,
+      "contentReadyMs": 2550,
+      "cls": 0,
+      "routeGzipBytes": 191539
+    }
+  ]
+}
