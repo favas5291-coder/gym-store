@@ -18,11 +18,12 @@ function completeWriteReply(path,d){
   return Boolean(d.account?.id);
 }
 export async function marketplaceRequest(path,{token,method="GET",body,signal,csv=false}={}){
+  const statementPreview=method==="POST"&&path==="/admin/remittances/preview";
   const controller=new AbortController(),abort=()=>controller.abort();signal?.addEventListener("abort",abort,{once:true});if(signal?.aborted)controller.abort();const timer=setTimeout(abort,30000);
   try{const r=await fetch(BASE+path,{method,cache:"no-store",signal:controller.signal,headers:{Accept:csv?"text/csv":"application/json",...(token?{Authorization:`Bearer ${token}`}:{ }),...(body?{"Content-Type":"application/json"}:{})},body:body?JSON.stringify(body):undefined});
     if(csv&&r.ok)return await r.blob();let d;try{d=await r.json();}catch{ /* An incomplete write is never called saved. */ }
-    if(!r.ok||d?.success!==true)throw Object.assign(new Error(d?.message||"Unable to confirm the supplier request. Reload before retrying."),{status:r.status,code:d?.code,outcomeUnknown:method!=="GET"&&(r.ok||r.status>=500)});if(method!=="GET"&&!completeWriteReply(path,d))throw Object.assign(new Error("The change could not be confirmed. Review the latest record before retrying."),{status:r.status,code:"MARKETPLACE_REPLY_INCOMPLETE",outcomeUnknown:true});return d;
-  }catch(e){if(signal?.aborted&&method==="GET")throw e;if(e.status)throw e;throw Object.assign(new Error("Connection interrupted. Reload to confirm the latest record before making another change."),{outcomeUnknown:method!=="GET"});}
+    if(!r.ok||d?.success!==true)throw Object.assign(new Error(d?.message||"Unable to confirm the supplier request. Reload before retrying."),{status:r.status,code:d?.code,outcomeUnknown:method!=="GET"&&!statementPreview&&(r.ok||r.status>=500)});if(method!=="GET"&&!statementPreview&&!completeWriteReply(path,d))throw Object.assign(new Error("The change could not be confirmed. Review the latest record before retrying."),{status:r.status,code:"MARKETPLACE_REPLY_INCOMPLETE",outcomeUnknown:true});return d;
+  }catch(e){if(signal?.aborted&&method==="GET")throw e;if(e.status)throw e;if(statementPreview)throw new Error("Courier statement comparison is temporarily unavailable. Try again.");throw Object.assign(new Error("Connection interrupted. Reload to confirm the latest record before making another change."),{outcomeUnknown:method!=="GET"});}
   finally{clearTimeout(timer);signal?.removeEventListener("abort",abort);}
 }
 export function parsePaise(value,label="Amount"){
