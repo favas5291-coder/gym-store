@@ -176,6 +176,17 @@
   outline-offset: 3px;
 }
 
+@media (min-width: 901px) {
+  .gd-storefront .cart-page .cart-summary {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .gd-storefront .cart-page .gd-cart-addons {
+    grid-column: 1;
+  }
+}
+
 @media (max-width: 900px) {
   .gd-storefront .cart-page .cart-layout {
     grid-template-columns: minmax(0, 1fr);
