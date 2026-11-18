@@ -510,7 +510,6 @@ function SearchBox({
 
     if (event.key === "Escape") {
       event.preventDefault();
-      event.stopPropagation();
       close();
       return;
     }
@@ -602,7 +601,7 @@ function SearchBox({
             <span>
               {clean
                 ? "Product suggestions"
-                : "Recent searches"}
+                : recent.length ? "Recent searches" : "Search the catalogue"}
             </span>
 
             <div className="gn-results-actions">
@@ -1605,57 +1604,6 @@ export default function Navbar({
           </button>
         </div>
 
-        <div className="gn-welcome">
-          <strong>
-            {authLoading
-              ? "Checking your account…"
-              : signedIn
-                ? `Hi, ${
-                    firstName || "there"
-                  }.`
-                : "Your next workout starts here."}
-          </strong>
-
-          <p>
-            {authLoading
-              ? "Restoring your GymDrobe session."
-              : signedIn
-                ? "Your account, saved gear and order details."
-                : "Explore the collection and find your next training favourite."}
-          </p>
-
-          <div className="gn-welcome-links">
-            {authLoading ? (
-              <span aria-live="polite">
-                Checking account…
-              </span>
-            ) : signedIn ? (
-              <Link
-                to="/account"
-                onClick={closeMenus}
-              >
-                My account
-              </Link>
-            ) : (
-              <>
-                <Link
-                  to={loginHref}
-                  onClick={closeMenus}
-                >
-                  Sign in
-                </Link>
-
-                <Link
-                  to={signupHref}
-                  onClick={closeMenus}
-                >
-                  Create account
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-
         <nav aria-label="Mobile categories">
           {navigationGroups.map((group) => (
             <div
@@ -1754,7 +1702,40 @@ export default function Navbar({
             Shopping bag{" "}
             <span>{bagCount}</span>
           </Link>
+          <Link to="/orders" onClick={closeMenus}>Track order</Link>
+          <Link to="/help" onClick={closeMenus}>Help</Link>
         </nav>
+          <div className="gn-welcome-links">
+            {authLoading ? (
+              <span aria-live="polite">
+                Checking account…
+              </span>
+            ) : signedIn ? (
+              <Link
+                to="/account"
+                onClick={closeMenus}
+              >
+                My account
+              </Link>
+            ) : (
+              <>
+                <Link
+                  to={loginHref}
+                  onClick={closeMenus}
+                >
+                  Sign in
+                </Link>
+
+                <Link
+                  to={signupHref}
+                  onClick={closeMenus}
+                >
+                  Create account
+                </Link>
+              </>
+            )}
+          </div>
+
 
         {signedIn && (
           <nav

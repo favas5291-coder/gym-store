@@ -875,7 +875,7 @@ export default function FitnessGuide() {
             )}
 
             {view === "questions" && (
-              <form onSubmit={next} noValidate>
+              <form id="guide-questions" onSubmit={next} noValidate>
                 <ol
                   className="gd-guide-progress"
                   aria-label="Your shopping preferences"
@@ -905,8 +905,7 @@ export default function FitnessGuide() {
                 </ol>
 
                 <p className="gd-guide-muted">
-                  Question {step + 1} of 3 · You can
-                  skip any question.
+                  Step {step + 1} of 3
                 </p>
 
                 <h3 ref={heading} tabIndex={-1}>
@@ -1124,40 +1123,6 @@ export default function FitnessGuide() {
                   </p>
                 )}
 
-                <div className="gd-guide-question-actions">
-                  <button
-                    type="button"
-                    className="button secondary"
-                    onClick={() => {
-                      setError("");
-
-                      if (step > 0) {
-                        setStep(step - 1);
-                      } else {
-                        setView("intro");
-                      }
-                    }}
-                  >
-                    Back
-                  </button>
-
-                  <button
-                    type="button"
-                    className="gd-guide-text"
-                    onClick={skip}
-                  >
-                    Skip this question
-                  </button>
-
-                  <button
-                    type="submit"
-                    className="button"
-                  >
-                    {step === 2
-                      ? "Show My Suggestions"
-                      : "Next"}
-                  </button>
-                </div>
               </form>
             )}
 
@@ -1344,6 +1309,42 @@ export default function FitnessGuide() {
               </>
             )}
           </div>
+          {view === "questions" && (
+                <div className="gd-guide-question-actions">
+                  {step > 0 && <button
+                    type="button"
+                    className="button secondary"
+                    onClick={() => {
+                      setError("");
+
+                      if (step > 0) {
+                        setStep(step - 1);
+                      } else {
+                        setView("intro");
+                      }
+                    }}
+                  >
+                    Back
+                  </button>}
+
+                  <button
+                    type="button"
+                    className="gd-guide-text"
+                    onClick={skip}
+                  >
+                    Skip this question
+                  </button>
+
+                  <button
+                    type="submit" form="guide-questions"
+                    className="button"
+                  >
+                    {step === 2
+                      ? "Show suggestions"
+                      : "Next"}
+                  </button>
+                </div>
+          )}
         </Modal>
       )}
     </>

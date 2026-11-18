@@ -662,7 +662,7 @@ body:has(.gn-search-open) .gd-guide-reopen {
 }
 
 .gd-guide-progress span { display: none; }
-.gd-guide-question-actions { position: sticky; bottom: -1px; background: var(--guide-paper); padding-bottom: max(10px, env(safe-area-inset-bottom)); z-index: 2; }
+.gd-guide-question-actions { position: static; flex: none; margin: 0; background: var(--guide-paper); padding: 12px 18px max(12px, env(safe-area-inset-bottom)); }
 .gd-guide-body { scrollbar-gutter: stable; }
 .gd-guide-choices label:has(input:focus-visible) { outline: 2px solid var(--guide-accent); outline-offset: 2px; }
 .gd-guide-choices input { margin: 0; }

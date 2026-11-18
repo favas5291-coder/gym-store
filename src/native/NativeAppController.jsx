@@ -53,6 +53,12 @@ export default function NativeAppController() {
         if (nativePaymentActive()) return;
         const dialog = [...document.querySelectorAll('[role="dialog"], dialog[open]')].find((element) => element.getAttribute("aria-hidden") !== "true" && element.getClientRects().length > 0);
         if (dialog) { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); return; }
+        const searchToggle = document.querySelector('.athletic-search-toggle[aria-expanded="true"]');
+        if (searchToggle?.getClientRects().length) {
+          searchToggle.click();
+          searchToggle.focus();
+          return;
+        }
         const focused = document.activeElement;
         if (focused?.matches("input, textarea, [contenteditable=true]")) {
           focused.blur();
