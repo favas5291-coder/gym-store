@@ -34,6 +34,19 @@ jobs:
         run: |
           npm install --no-save --package-lock=false playwright@1.62.1
           npx playwright install --with-deps chromium webkit
+      - name: Capture matched mobile shopping screens
+        if: github.head_ref == 'mobile-shopping-finish'
+        run: |
+          git fetch --depth=1 origin "${{ github.event.pull_request.base.sha }}"
+          git worktree add --detach ../shopping-before FETCH_HEAD
+          ln -s "$PWD/node_modules" ../shopping-before/node_modules
+          node tests/mobile-shopping-review.mjs ../shopping-before test-results/mobile-shopping/before
+          node tests/mobile-shopping-review.mjs . test-results/mobile-shopping/after
+      - uses: actions/upload-artifact@v4
+        if: always() && github.head_ref == 'mobile-shopping-finish'
+        with:
+          name: mobile-shopping-comparisons
+          path: test-results/mobile-shopping/*/*.png
       - name: Checkout the paired shopping API contract fixture
         uses: actions/checkout@v4
         with:

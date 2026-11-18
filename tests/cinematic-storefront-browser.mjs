@@ -90,9 +90,15 @@ try{
    if(width<=1279)assert.ok(bounds.fontSize>=16,'Prevent iOS input zoom');
    assert.ok(bounds.listScroll,'Six recent searches must scroll in a compact panel');
    assert.equal(await dropdown.locator('svg').count()>0,true,'Use vector icons');
-   await searchUI.p.getByRole('button',{name:'Done'}).click();
-   assert.equal(await dropdown.count(),0);
-   assert.equal(await input.evaluate(el=>el===document.activeElement),false);
+   await searchUI.p.getByRole('button',{name:width < 1024 ? 'Close search' : 'Done',exact:true}).click();
+   assert.equal(await dropdown.isVisible(),false);
+   if(width < 1024) {
+     const toggle = searchUI.p.getByRole('button',{name:'Open search',exact:true});
+     assert.ok(await toggle.evaluate(el => el === document.activeElement));
+     await toggle.click();
+   } else {
+     assert.equal(await input.evaluate(el=>el===document.activeElement),false);
+   }
    await input.click();
    await searchUI.p.locator('.gn-option').first().click();
    await searchUI.p.waitForURL(/\/shop\?search=shoes/);
@@ -347,8 +353,7 @@ try{
   const v=await context(width);
   await check(width+'px merchandising and responsive navigation',async()=>{
    await visit(v.p,'/');
-   assert.ok(await v.p.locator('.athletic-category-grid a').count()>0);
-   assert.ok(await v.p.locator('.athletic-category-grid a').first().isVisible());
+   await v.p.locator('.athletic-category-grid a').first().waitFor({state:'visible'});
    if(width<1024) await v.p.getByRole('button',{name:'Open search',exact:true}).click();
    assert.ok(await v.p.getByRole('combobox',{name:'Search products'}).isVisible());
    assert.ok(await v.p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));

@@ -29,12 +29,13 @@ export default function WishlistPage() {
       <ShoppingSyncNotice />
       <div className="page-heading">
         <h1>
-          My wishlist <span>{wishlist.length} items</span>
+          My wishlist <span>{wishlist.length} {wishlist.length === 1 ? "item" : "items"}</span>
         </h1>
         <Link className="text-link" to="/saved">
           Saved for later →
         </Link>
       </div>
+      <details open={wishlist.length > 4 || undefined}><summary>Search and filter</summary>
       <div className="browse-controls">
         <div className="field">
           <label htmlFor="wishlist-search">Search your wishlist</label>
@@ -63,9 +64,10 @@ export default function WishlistPage() {
           In stock only
         </label>
       </div>
-      <p className="muted">{result.length} matching items</p>
+      </details>
+      {result.length !== wishlist.length && <p className="muted">{result.length} matching {result.length === 1 ? "item" : "items"}</p>}
       {result.length ? (
-        <div className="product-grid wishlist-grid">
+        <div className={`product-grid wishlist-grid${wishlist.length === 1 ? " single-saved" : ""}`}>
           {result.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}

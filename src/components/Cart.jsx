@@ -98,6 +98,8 @@ export default function Cart() {
   const [retrying, setRetrying] =
     useState(false);
 
+  const [refreshMessage, setRefreshMessage] = useState("");
+
   const [actionError, setActionError] =
     useState(null);
 
@@ -178,6 +180,7 @@ export default function Cart() {
 
   useEffect(() => {
     setEditingKey(null);
+    setRefreshMessage("");
     setActionError(null);
     setCheckoutError("");
     setRetrying(false);
@@ -240,11 +243,27 @@ export default function Cart() {
     const startedFor = shopper;
 
     setRetrying(true);
+    setRefreshMessage("");
     setCheckoutError("");
     setActionError(null);
 
     try {
-      await refreshProducts();
+      const latest = await refreshProducts();
+      if (!mounted.current || shopperRef.current !== startedFor) return;
+      if (!latest.length) return;
+      const updated = reviewCart(cart, latest, true);
+      const changes = updated.rows.flatMap((row, index) => {
+        const previous = rows[index];
+        const details = [];
+        if (row.unitPrice !== previous.unitPrice && row.unitPrice != null) {
+          details.push(`now ${money(row.unitPrice)} each`);
+        }
+        if (row.maxQuantity !== previous.maxQuantity) {
+          details.push(`${row.maxQuantity} available for this selection`);
+        }
+        return details.length ? [`${row.product?.name || previous.product?.name || "Item"}: ${details.join(", ")}.`] : [];
+      });
+      setRefreshMessage(changes.join(" ") || "Prices and stock are up to date.");
     } catch {
       if (
         mounted.current &&
@@ -680,6 +699,8 @@ export default function Cart() {
           : "Refresh prices & stock"}
       </button>
 
+      {refreshMessage && <p role="status">{refreshMessage}</p>}
+
       <div className="cart-layout">
         <div className="cart-items">
           {groups.map((entry) => {
@@ -803,13 +824,7 @@ export default function Cart() {
                 <div className="cart-copy">
                   <div className="cart-head">
                     <div>
-                      <p className="eyebrow">
-                        {productText(
-                          product.brand,
-                        ) ||
-                          "Brand not recorded"}
-                      </p>
-
+                      {product.catalogueBrand && !product.brandNeedsReview && <p className="eyebrow">{product.catalogueBrand}</p>}
                       {id && !unavailable ? (
                         <Link
                           to={productPath(id)}
@@ -851,17 +866,10 @@ export default function Cart() {
                       "Standard option"}
                   </p>
 
-                  <p className="muted">
-                    {item.priceSafe
-                      ? `${money(
-                          item.unitPrice,
-                        )} each`
-                      : "Price unavailable"}
-
-                    {!ready
-                      ? " · Saved estimate"
-                      : ""}
-                  </p>
+                  {item.quantity > 1 && item.priceSafe && (
+                    <p className="muted">{money(item.unitPrice)} each</p>
+                  )}
+                  {!ready && <p className="muted">Saved estimate</p>}
 
                   {item.lineSavings > 0 && (
                     <p className="positive">
@@ -872,24 +880,7 @@ export default function Cart() {
                     </p>
                   )}
 
-                  {ready &&
-                    item.available &&
-                    information.estimate && (
-                      <p className="muted">
-                        Recorded delivery
-                        estimate:{" "}
-                        {information.estimate}
-                      </p>
-                    )}
-
-                  {ready &&
-                    item.available &&
-                    information.transit && (
-                      <p className="muted">
-                        Courier transit:{" "}
-                        {information.transit}
-                      </p>
-                    )}
+                  {!hasKits && totalsKnown && <a className="text-link" href="#bag-delivery">Check delivery</a>}
 
                   {ready && item.product && (
                     <details className="cart-returns">
@@ -1006,7 +997,7 @@ export default function Cart() {
                     >
                       {isSaved(product)
                         ? "Move to wishlist"
-                        : "Save & move to wishlist"}
+                        : "Move to wishlist"}
                     </button>
 
                     <button
@@ -1235,33 +1226,9 @@ export default function Cart() {
             </p>
           )}
 
-          <div className="panel cart-trust">
-            <p>
-              <strong>
-                Review before payment
-              </strong>
-            </p>
-
-            <p className="muted">
-              Product prices, variants and stock
-              are checked again before placing
-              your order.
-            </p>
-
-            <p className="muted">
-              If you choose COD with a 10%
-              advance, the advance is calculated
-              on products after coupons. The
-              remaining balance includes
-              delivery charges. Review
-              cancellation and refund terms
-              at checkout.
-            </p>
-          </div>
-
           <button
             type="button"
-            className="button full"
+            className="button full cart-checkout"
             disabled={!canCheckout}
             onClick={checkout}
           >
@@ -1273,7 +1240,7 @@ export default function Cart() {
                   ? "Checkout kit & review delivery"
                   : !review.canCheckout
                     ? "Check highlighted items"
-                    : "Proceed to checkout"}
+                    : "Checkout"}
           </button>
 
           {checkoutError && (

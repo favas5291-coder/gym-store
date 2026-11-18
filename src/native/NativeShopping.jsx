@@ -48,7 +48,7 @@ export function NativeShoppingNavigation() {
 export function NativeCategoriesPage() {
   const { products, loading, error } = useCatalog();
   return <div className="page native-discover">
-    <p className="eyebrow">FIND YOUR NEXT ESSENTIAL</p><h1>Shop by category</h1>
+    <h1>Shop by category</h1>
     {loading && <p role="status">Loading collections…</p>}
     {error && <p role="alert">Collections could not load. Check your connection and try again.</p>}
     {SHOP_DEPARTMENTS.map((department) => {
@@ -56,7 +56,7 @@ export function NativeCategoriesPage() {
       if (!scoped.length) return null;
       return <section className="native-collection" key={department.id}>
         <Link to={`/shop?department=${department.id}`}><h2>{department.title}</h2><ArrowUpRight aria-hidden="true" size={24}/></Link>
-        <div>{catalogOptions(scoped, "category").map((category) => <Link key={category} to={collectionPathForCategory(category) || `/shop?${new URLSearchParams({ department: department.id, category })}`}>{category}</Link>)}</div>
+        <div>{catalogOptions(scoped, "category").map((category) => <Link key={category} to={collectionPathForCategory(category) || `/shop?${new URLSearchParams({ department: department.id, category })}`}>{{ BAG: "Gym bags", SNEAKERS: "Sneakers", "Compression T-shirt": "Compression T-shirts" }[category] || category}</Link>)}</div>
       </section>;
     })}
     <Link className="button secondary" to="/shop">Explore all products</Link>

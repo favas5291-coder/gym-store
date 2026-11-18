@@ -88,3 +88,57 @@
 
 /* Keep following content outside the first viewport while the catalogue loads. */
 #app .storefront-home .home-catalog-loading { min-height: 640px; }
+
+#bag-delivery { scroll-margin-top: 100px; }
+@media (max-width: 700px) {
+  #app .premium-storefront .wishlist-grid.single-saved { grid-template-columns: 1fr; }
+  .single-saved .gm-product-card { display: grid; grid-template-columns: minmax(100px, 38%) 1fr; gap: 12px; align-items: start; }
+  #app .premium-storefront .native-collection { padding: 8px 0; }
+  .native-collection > div { margin-top: 4px; }
+  .native-collection > a { min-height: 44px; }
+  .mobile-search-visible .gn-dismiss-search { display: none; }
+  #app .premium-storefront .cart-thumb { align-self: start; }
+}
+@media (max-width: 700px) {
+  #app .premium-storefront .cart-page .cart-row:has(> .cart-thumb) {
+    display: grid;
+    grid-template-columns: 80px minmax(0, 1fr);
+    column-gap: 12px;
+    row-gap: 4px;
+  }
+  .cart-row:has(> .cart-thumb) > .cart-copy { display: contents; }
+  .cart-row:has(> .cart-thumb) > .cart-thumb { grid-row: 1 / span 2; }
+  .cart-row:has(> .cart-thumb) .cart-copy > * { grid-column: 1 / -1; margin-block: 2px; }
+  .cart-row:has(> .cart-thumb) .cart-copy > :is(.cart-head, .cart-head + p) { grid-column: 2; }
+  .cart-row .cart-copy .cart-head { gap: 4px; }
+  .cart-copy > .text-link { min-height: 44px; display: inline-flex; align-items: center; }
+  .cart-page .cart-refresh { padding-inline: 12px; border: 1px solid currentColor; border-radius: 4px; }
+  .shopping-bottom-nav > a.active { color: #124b49; font-weight: 700; }
+  .shopping-bottom-nav > a.active .shopping-tab-icon { background: #e1efec; }
+  .mobile-search-visible .gn-search:focus-within { outline: 0; }
+  .mobile-search-visible .gn-form:has(input:focus-visible) { outline: 2px solid #124b49; outline-offset: 1px; }
+  .mobile-search-visible .gn-form input:focus-visible { outline: 0; box-shadow: none; }
+}
+@media (min-width: 701px) and (max-width: 1023px) {
+  .mobile-search-visible .gn-dismiss-search { display: none; }
+}
+@media (max-width: 700px) {
+  #app .premium-storefront .cart-page:has(.cart-checkout) { padding-bottom: 76px; }
+  #app .premium-storefront .cart-checkout {
+    position: fixed;
+    z-index: 99;
+    bottom: var(--shopping-nav-height);
+    inset-inline: 12px;
+    width: auto;
+    min-height: 48px;
+    margin-bottom: 6px;
+    background: #124b49;
+    color: white;
+    box-shadow: 0 0 0 6px white;
+  }
+  html:is(.shopping-keyboard-open,.native-keyboard-open) #app .premium-storefront .cart-checkout {
+    position: static;
+    width: 100%;
+  }
+  .page:has(.wishlist-grid) > details > summary { padding-block: 12px; min-height: 44px; cursor: pointer; }
+}

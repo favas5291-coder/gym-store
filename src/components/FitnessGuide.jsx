@@ -694,7 +694,8 @@ export default function FitnessGuide() {
       view === "questions" ||
       view === "results"
     ) {
-      scroll.current?.scrollTo({ top: 0 });
+      const content = scroll.current?.querySelector(".gd-guide-step-content") || scroll.current;
+      content?.scrollTo({ top: 0 });
 
       heading.current?.focus({
         preventScroll: true,
@@ -876,9 +877,10 @@ export default function FitnessGuide() {
 
             {view === "questions" && (
               <form onSubmit={next} noValidate>
+                <div className="gd-guide-step-content">
                 <ol
                   className="gd-guide-progress"
-                  aria-label="Your shopping preferences"
+                  aria-label={`Step ${step + 1} of 3`}
                 >
                   {[
                     "Shopping needs",
@@ -903,11 +905,6 @@ export default function FitnessGuide() {
                     </li>
                   ))}
                 </ol>
-
-                <p className="gd-guide-muted">
-                  Question {step + 1} of 3 · You can
-                  skip any question.
-                </p>
 
                 <h3 ref={heading} tabIndex={-1}>
                   {QUESTIONS[step]}
@@ -1124,8 +1121,9 @@ export default function FitnessGuide() {
                   </p>
                 )}
 
+                </div>
                 <div className="gd-guide-question-actions">
-                  <button
+                  {step > 0 && <button
                     type="button"
                     className="button secondary"
                     onClick={() => {
@@ -1139,14 +1137,14 @@ export default function FitnessGuide() {
                     }}
                   >
                     Back
-                  </button>
+                  </button>}
 
                   <button
                     type="button"
                     className="gd-guide-text"
                     onClick={skip}
                   >
-                    Skip this question
+                    Skip
                   </button>
 
                   <button
@@ -1154,7 +1152,7 @@ export default function FitnessGuide() {
                     className="button"
                   >
                     {step === 2
-                      ? "Show My Suggestions"
+                      ? "Show suggestions"
                       : "Next"}
                   </button>
                 </div>

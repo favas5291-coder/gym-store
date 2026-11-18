@@ -78,6 +78,10 @@ function normalizeProduct(product) {
     subcategory: product.subcategory || "",
 
     brand: product.brand || "GymDrobe",
+    catalogueBrand: typeof product.brand === "string" ? product.brand.trim() : "",
+    // Catalogue review: the public tumbler title and COITONIC brand disagree.
+    brandNeedsReview: String(id) === "6ad26d85d8f991271e3d1fd3" &&
+      /^cult\b/i.test(product.name || "") && /^coitonic$/i.test(product.brand || ""),
     gender: product.gender || "Unisex",
 
     price: numeric(product.price),
