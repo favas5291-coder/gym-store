@@ -7,6 +7,16 @@ const dir = process.env.OUT || "film";
 await fs.mkdir(dir,{recursive:true});
 const browser = await webkit.launch({headless:true});
 const context = await browser.newContext({...devices["iPhone 13"], viewport:{width:390,height:844},deviceScaleFactor:2,recordVideo:{dir,size:{width:390,height:844}}});
+if (process.env.BUILD_DIR) {
+  const root = process.env.BUILD_DIR;
+  const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.webp':'image/webp','.ico':'image/x-icon','.svg':'image/svg+xml','.json':'application/json','.webmanifest':'application/manifest+json'};
+  await context.route(site+'/**',async route=>{
+    const req=route.request(), url=new URL(req.url());
+    const path=req.resourceType()==='document' ? '/index.html' : url.pathname;
+    try{const body=await fs.readFile(root+path);const suffix=path.match(/\.\w+$/)?.[0];return route.fulfill({status:200,body,contentType:mime[suffix]||'application/octet-stream'});}
+    catch{return route.abort();}
+  });
+}
 await context.addInitScript(() => {
   window.film = {start: performance.timeOrigin};
   const isFront = node => {

@@ -11,6 +11,19 @@ jobs:
     container: mcr.microsoft.com/playwright:v1.55.0-noble
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: af16ffbe926af9894dde0062c4de0c4b2761e6a1
+          path: candidate
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Build exact revision for the mobile opening check
+        working-directory: candidate
+        env:
+          VITE_SITE_URL: https://www.gymdrobe.com
+          VITE_API_URL: https://gym-drobe-backend.onrender.com/api
+        run: npm ci --no-audit --no-fund && npm run build
       - name: Install test client
         run: |
           cd /tmp
@@ -18,7 +31,8 @@ jobs:
           which ffmpeg || (apt-get update -qq && apt-get install -y -qq ffmpeg)
       - name: Record opening in WebKit
         env:
-          PHASE: before
+          PHASE: candidate
+          BUILD_DIR: candidate/dist
         run: |
           cp .github/film/journey.mjs /tmp/film-journey.mjs
           node /tmp/film-journey.mjs

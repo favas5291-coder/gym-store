@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import {webkit,devices} from 'playwright';
+const base='https://www.gymdrobe.com', browser=await webkit.launch();
+const ctx=await browser.newContext({...devices['iPhone 13'],viewport:{width:390,height:844},deviceScaleFactor:2});
+const p=await ctx.newPage();
+await p.addInitScript(()=>{window.hitInfo={};let run=()=>{if(!location.pathname||location.pathname==='/'){let a=document.querySelector('#app .department-tile');if(a){let r=a.getBoundingClientRect();const x=r.left+r.width/2,y=r.top+r.height/2;let h=document.elementFromPoint(x,y);if(r.width&&a.contains(h)&&!window.hitInfo.ready){window.hitInfo.ready=performance.now();window.hitInfo.point=[x,y];}}}requestAnimationFrame(run)};requestAnimationFrame(run);document.addEventListener('click',e=>{let a=e.target.closest?.('a');if(a?.href.includes('gender=Women'))window.hitInfo.tap=performance.now()},true)});
+let urls=[];p.on('request',r=>{if(new URL(r.url()).pathname==='/api/products')urls.push(r.url())});
+let res=await p.goto(base+'/',{waitUntil:'commit'});assert.equal(res.status(),200);
+const xy=await p.evaluate(()=>new Promise(resolve=>{const attempt=()=>{if(window.hitInfo?.point)resolve(window.hitInfo.point);else requestAnimationFrame(attempt)};attempt()}));
+await p.touchscreen.tap(...xy);
+await p.waitForURL(/gender=Women/);
+let card=p.locator('.gm-product-card').first();let expected=(await card.locator('h3').innerText({timeout:25000})).trim();let actual=await card.locator('a[href^="/product/"]').first().getAttribute('href',{timeout:25000});let f=await p.evaluate(()=>({...window.hitInfo,destination:location.href}));assert.equal(urls.length,1);assert.ok(f.tap-f.ready<200);
+const deep=await browser.newContext({...devices['iPhone 13'],viewport:{width:390,height:844}});await deep.addInitScript(()=>{window.introShown=false;let flag=()=>{if(document.documentElement.hasAttribute('data-opening-active'))window.introShown=true};new MutationObserver(flag).observe(document,{subtree:true,attributes:true,attributeFilter:['data-opening-active']});flag()});let detail=await deep.newPage();let dr=await detail.goto(base+actual,{waitUntil:'domcontentloaded'});assert.equal(dr.status(),200);let name=await detail.locator('h1').first().innerText({timeout:20000});assert.equal(name.trim(),expected);assert.equal(await detail.evaluate(()=>window.introShown),false);
+let out={engine:'WebKit iPhone 13 emulation',home:res.status(),...f,initialCatalogue:urls.length,product:actual,detailStatus:dr.status(),name,deepIntro:false};
+console.log('VERIFIED '+JSON.stringify(out));await fs.writeFile('film/production-smoke.json',JSON.stringify(out,null,2));await browser.close();
