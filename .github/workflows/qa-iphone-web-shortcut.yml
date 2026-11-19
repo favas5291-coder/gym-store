@@ -18,6 +18,12 @@ jobs:
           node-version: '24'
       - name: Build web revision
         run: npm ci --ignore-scripts && npx vite build
+      - name: Serve verified candidate before Simulator starts
+        run: |
+          mkdir -p evidence
+          python3 -m py_compile qa-iphone/probe.py
+          nohup python3 -u qa-iphone/probe.py > evidence/safari-server.log 2>&1 < /dev/null &
+          curl --fail --retry 40 --retry-delay 3 --retry-connrefused --max-time 10 http://127.0.0.1:4193/ -o /dev/null
       - name: Prepare iPhone Simulator
         run: |
           mkdir -p evidence
@@ -33,8 +39,7 @@ jobs:
           PY
       - name: Run Safari and native Home Screen UI
         run: |
-          python3 -u qa-iphone/probe.py > evidence/safari-server.log 2>&1 &
-          curl --retry 4 --retry-connrefused http://127.0.0.1:4193/ -o /dev/null
+          curl --fail --retry 40 --retry-delay 3 --retry-connrefused --max-time 10 http://127.0.0.1:4193/ -o /dev/null
           command -v xcodegen || brew install xcodegen
           (cd qa-iphone && xcodegen generate)
           set -o pipefail
