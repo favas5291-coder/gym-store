@@ -9,8 +9,9 @@ export default function HomeEditorial() {
   return (
     <section className="department-campaign" aria-labelledby="department-heading">
       <header>
-        <h1 id="department-heading">Gear for every workout</h1>
-        <p>Workout clothing and training essentials.</p>
+        <h1 id="department-heading">Gear for every workout.</h1>
+        <p>Workout clothing, accessories and essentials for every training journey.</p>
+        <Link className="opening-shop-link" to="/shop">Shop now</Link>
       </header>
       <div className="department-tiles">
         {departments.map(({ gender, image }, index) => (

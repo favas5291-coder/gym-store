@@ -12,11 +12,22 @@
         <scene sceneID="EHf-IW-A2E">
             <objects>
                 <viewController id="01J-lp-oVM" sceneMemberID="viewController">
-                    <imageView key="view" userInteractionEnabled="NO" contentMode="scaleAspectFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Splash" id="snD-IY-ifK">
-                        <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
-                        <autoresizingMask key="autoresizingMask"/>
-                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
-                    </imageView>
+                    <view key="view" contentMode="scaleToFill" id="snD-IY-ifK">
+                        <rect key="frame" x="0" y="0" width="375" height="667"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" image="LaunchWordmark" translatesAutoresizingMaskIntoConstraints="NO" id="gdw-im-ag1">
+                                <rect key="frame" x="79.5" y="313.5" width="216" height="40"/>
+                            </imageView>
+                        </subviews>
+                        <color key="backgroundColor" red="0.05882353" green="0.23921569" blue="0.22745098" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <constraints>
+                            <constraint firstItem="gdw-im-ag1" firstAttribute="centerX" secondItem="snD-IY-ifK" secondAttribute="centerX" id="gdw-cx-001"/>
+                            <constraint firstItem="gdw-im-ag1" firstAttribute="centerY" secondItem="snD-IY-ifK" secondAttribute="centerY" id="gdw-cy-002"/>
+                            <constraint firstItem="gdw-im-ag1" firstAttribute="width" constant="216" id="gdw-wd-003"/>
+                            <constraint firstItem="gdw-im-ag1" firstAttribute="height" constant="40" id="gdw-ht-004"/>
+                        </constraints>
+                    </view>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
             </objects>
@@ -24,9 +35,6 @@
         </scene>
     </scenes>
     <resources>
-        <image name="Splash" width="1366" height="1366"/>
-        <systemColor name="systemBackgroundColor">
-            <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
-        </systemColor>
+        <image name="LaunchWordmark" width="720" height="134"/>
     </resources>
 </document>

@@ -18,7 +18,7 @@
   },
   "android": {
     "allowMixedContent": false,
-    "backgroundColor": "#ffffff"
+    "backgroundColor": "#0F3D3A"
   },
   "plugins": {
     "SocialLogin": {
@@ -32,7 +32,7 @@
     },
     "SplashScreen": {
       "launchAutoHide": true,
-      "launchShowDuration": 800,
+      "launchShowDuration": 0,
       "backgroundColor": "#0F3D3A",
       "showSpinner": false
     },
@@ -41,5 +41,8 @@
       "initialViewportFitValueHint": "contain",
       "style": "LIGHT"
     }
+  },
+  "ios": {
+    "backgroundColor": "#0F3D3A"
   }
 }
