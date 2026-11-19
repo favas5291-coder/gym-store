@@ -165,3 +165,8 @@
 .department-campaign:has([data-opening-featured]) > header h1 { font-size: clamp(22px, 3vw, 38px); margin: 0; }
 .department-campaign:has([data-opening-featured]) > header :is(p,a) { display: none; }
 [data-opening-featured] .gm-product-visual { max-height: min(32vh, 320px); }
+.home-shop-search,.home-shop-shortcuts {display:flex;max-width:960px;margin:8px auto;padding:0 12px;gap:8px}
+.home-shop-search input {flex:1;min-width:0;border:1px solid #a7b4ac;border-radius:6px;padding:10px;font:inherit;color:#173d32;background:white}
+.home-shop-search button,.home-shop-shortcuts a {display:grid;place-items:center;padding:0 12px;min-height:44px;border-radius:6px;background:#123e36;color:#fff}
+.home-shop-shortcuts {overflow-x:auto}
+.home-shop-shortcuts a {background:#f2f1e9;color:#163e34;white-space:nowrap}
