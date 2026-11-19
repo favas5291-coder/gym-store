@@ -1,0 +1,54 @@
+name: Isolated iPhone Mobile Safari and web shortcut
+on:
+  push:
+    branches: [qa-web-opening-iphone-simulator]
+permissions:
+  contents: read
+jobs:
+  safari:
+    runs-on: macos-15
+    timeout-minutes: 21
+    env:
+      VITE_API_URL: https://gym-drobe-backend.onrender.com/api
+      VITE_SITE_URL: https://www.gymdrobe.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Build web revision
+        run: npm ci --ignore-scripts && npx vite build
+      - name: Prepare iPhone Simulator
+        run: |
+          mkdir -p evidence
+          python3 - <<'PY'
+          import json,subprocess,os
+          cmd=lambda *args:subprocess.check_output(args,text=True).strip()
+          devices=json.loads(cmd("xcrun","simctl","list","devices","available","-j"))["devices"]
+          phones=[(rt,d) for rt,rows in devices.items() for d in rows if "iOS" in rt and "iPhone" in d["name"]]
+          rt,phone=sorted(phones,key=lambda p:(p[0],"Pro" not in p[1]["name"],"Plus" not in p[1]["name"],p[1]["name"]),reverse=True)[0]
+          udid=phone["udid"];open("evidence/device.json","w").write(json.dumps([rt,phone]))
+          with open(os.environ["GITHUB_ENV"],"a") as f:f.write("PHONE="+udid+"\n")
+          cmd("xcrun","simctl","boot",udid);cmd("xcrun","simctl","bootstatus",udid,"-b")
+          PY
+      - name: Run Safari and native Home Screen UI
+        run: |
+          python3 -u qa-iphone/probe.py > evidence/safari-server.log 2>&1 &
+          curl --retry 4 --retry-connrefused http://127.0.0.1:4193/ -o /dev/null
+          command -v xcodegen || brew install xcodegen
+          (cd qa-iphone && xcodegen generate)
+          set -o pipefail
+          xcodebuild test -project qa-iphone/Probe.xcodeproj -scheme Probe -destination "platform=iOS Simulator,id=$PHONE" -parallel-testing-enabled NO -resultBundlePath "$RUNNER_TEMP/probe.xcresult" CODE_SIGNING_ALLOWED=NO 2>&1 | tee evidence/xctest.log
+          grep -F '"standalone":true' evidence/safari-server.log
+      - name: Export diagnostics
+        if: always()
+        run: |
+          xcrun simctl io "$PHONE" screenshot evidence/final.png || true
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/probe.xcresult" --output-path evidence/screenshots || true
+          cat evidence/safari-server.log | grep PHONE_RESULT || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-safari-and-shortcut
+          path: evidence/
+          retention-days: 7

@@ -1,0 +1,34 @@
+name: Probe
+options:
+  deploymentTarget:
+    iOS: "18.0"
+settings:
+  base:
+    CODE_SIGNING_ALLOWED: NO
+    SWIFT_VERSION: "5.0"
+    GENERATE_INFOPLIST_FILE: YES
+targets:
+  Probe:
+    type: application
+    platform: iOS
+    sources: [Fixture]
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.gymdrobe.qaprobe
+  ProbeUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [ProbeUITests]
+    dependencies:
+      - target: Probe
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.gymdrobe.qaprobe.tests
+      TEST_TARGET_NAME: Probe
+schemes:
+  Probe:
+    build:
+      targets:
+        Probe: all
+        ProbeUITests: [test]
+    test:
+      targets:
+        - ProbeUITests
