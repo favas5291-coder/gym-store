@@ -21,7 +21,6 @@
         document.documentElement.dataset.homeBoot = "";
         try {
           if (!localStorage.getItem("gymdrobe.web-opening.seen.v1")) {
-            document.documentElement.dataset.openingProducts = "true";
             document.documentElement.dataset.openingActive = "";
             document.querySelector('meta[name="theme-color"]').content = "#0f3d3a";
           }
@@ -31,19 +30,23 @@
     <style>
       #gymdrobe-opening, #home-boot-shell { display: none; }
       html[data-opening-active] { background: #0f3d3a; }
-      html[data-opening-products] #gymdrobe-opening {
+      html[data-opening-active] #gymdrobe-opening {
         position: fixed; inset: 0; z-index: 2147483647; display: grid;
         place-items: center; background: #0f3d3a;
       }
       #gymdrobe-opening img { width: min(216px, 62vw); height: auto; }
       html[data-home-boot] #home-boot-shell {
         position: fixed; inset: 0; z-index: 2147483646; display: block;
-        padding: max(20px, env(safe-area-inset-top)) 18px; background: #faf9f5;
-        color: #0f3d3a; font: 600 20px/1.4 system-ui, sans-serif;
+        overflow-y: auto; background: #0f3d3a; font: 600 16px/1.4 system-ui, sans-serif;
       }
-      html[data-home-boot]:not([data-style-pending]):has(#app:not(:empty)) #home-boot-shell { display: none; }
-      #home-boot-shell div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-      #home-boot-shell i { background: #e1e3dc; aspect-ratio: 1; border-radius: 8px; }
+      html[data-home-boot]:not([data-style-pending]):has(#app .department-tile, #app .page-error) #home-boot-shell { display: none; }
+      #home-boot-shell header { display: grid; place-items: center; padding-top: env(safe-area-inset-top); height: 58px; background: white; }
+      #home-boot-shell header img { width: 112px; height: auto; }
+      #home-boot-shell nav { display: grid; gap: 8px; padding: 8px 13px; margin: auto; max-width: 1440px; }
+      #home-boot-shell a { display: grid; position: relative; aspect-ratio: 1; place-items: center; overflow: hidden; background: #183e39; color: #171717; text-decoration: none; }
+      #home-boot-shell a img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+      #home-boot-shell span { position: relative; padding: 14px 24px; background: white; }
+      @media (min-width: 701px) { #home-boot-shell nav { grid-template-columns: repeat(2,minmax(0,1fr)); } }
     </style>
     <meta
       name="description"
@@ -218,18 +221,43 @@
 
   <body>
     <div id="gymdrobe-opening" aria-hidden="true"><img src="/brand/gymdrobe-wordmark-cream.png" alt="" width="216" height="40" /></div>
-    <div id="home-boot-shell" role="status"><strong>GymDrobe</strong><p>Loading featured gear…</p><div aria-hidden="true"><i></i><i></i></div></div>
+    <template id="home-boot-template">
+      <div id="home-boot-shell">
+        <header><img src="/brand/gymdrobe-wordmark-green.png" alt="GymDrobe" width="112" height="21" /></header>
+        <nav aria-label="Shop by department">
+          <a href="/shop?gender=Women"><img alt="" width="736" height="736" fetchpriority="high" src="/media/campaign/women-hoodie-736.webp" srcset="/media/campaign/women-hoodie-432.webp 432w, /media/campaign/women-hoodie-736.webp 736w" sizes="(max-width: 700px) calc(100vw - 26px), (max-width: 1466px) calc((100vw - 34px) / 2), 716px" /><span>Women’s</span></a>
+          <a href="/shop?gender=Men"><img alt="" width="736" height="736" fetchpriority="auto" src="/media/campaign/men-hoodie-736.webp" srcset="/media/campaign/men-hoodie-432.webp 432w, /media/campaign/men-hoodie-736.webp 736w" sizes="(max-width: 700px) calc(100vw - 26px), (max-width: 1466px) calc((100vw - 34px) / 2), 716px" /><span>Men’s</span></a>
+        </nav>
+      </div>
+    </template>
     <div id="app"></div>
     <script>
       (() => {
         const screen = document.getElementById("gymdrobe-opening");
-        if (document.documentElement.dataset.openingProducts !== "true") {
+        const root = document.documentElement;
+        if (root.hasAttribute("data-home-boot")) {
+          const template = document.getElementById("home-boot-template");
+          template.replaceWith(template.content);
+          const shell = document.getElementById("home-boot-shell");
+          const cleanup = new MutationObserver(() => {
+            if (location.pathname !== "/" || (!root.hasAttribute("data-style-pending") &&
+                document.querySelector("#app .department-tile, #app .page-error"))) {
+              shell.remove();
+              cleanup.disconnect();
+            }
+          });
+          cleanup.observe(document.getElementById("app"), { childList: true, subtree: true });
+          cleanup.observe(root, { attributes: true, attributeFilter: ["data-style-pending"] });
+        }
+        if (!root.hasAttribute("data-opening-active")) {
           screen.remove();
           return;
         }
         const seen = "gymdrobe.web-opening.seen.v1";
         const logo = screen.querySelector("img");
         const app = document.getElementById("app");
+        const shell = document.getElementById("home-boot-shell");
+        if (shell) shell.inert = true;
         app.inert = true;
         let timer;
         const close = () => {
@@ -237,6 +265,7 @@
           screen.remove();
           delete document.documentElement.dataset.openingActive;
           document.querySelector('meta[name="theme-color"]').content = "#ffffff";
+          if (shell) shell.inert = false;
           app.inert = false;
           window.removeEventListener("pagehide", close);
         };
@@ -251,17 +280,11 @@
           const deadline = Math.max(earliest, maximumWait);
           function revealWhenReady() {
             if (!screen.isConnected) return;
-            const row = document.querySelector("[data-opening-featured]");
-            const cards = Array.from(row?.querySelectorAll(".gm-product-card") || []).filter(card => {
-              const rect = card.getBoundingClientRect();
-              return rect.width && rect.left < innerWidth && rect.right > 0 && rect.top < innerHeight && rect.bottom > 0;
-            });
-            const ready = cards.length && cards.every(card => {
-              const image = card.querySelector(".gm-product-image[href] img:not(.alternate-photo)");
-              return image?.complete && image.naturalWidth && card.querySelector(".gm-product-info-link[href]")?.textContent.trim() &&
-                card.querySelector(".gm-product-price")?.textContent.trim();
-            });
-            if ((ready && !document.documentElement.hasAttribute("data-style-pending")) || row?.querySelector("[data-catalogue-settled]") || performance.now() >= deadline) close();
+            const tile = app.querySelector('.department-tiles .department-tile[href="/shop?gender=Women"]');
+            const photo = tile?.querySelector("img");
+            const ready = !root.hasAttribute("data-style-pending") && photo?.complete &&
+              photo.naturalWidth > 0 && tile.getBoundingClientRect().width > 0 && tile.textContent.trim();
+            if (ready || performance.now() >= deadline) close();
             else timer = setTimeout(revealWhenReady, Math.min(80, deadline - performance.now()));
           }
           clearTimeout(timer);

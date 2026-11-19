@@ -1,11 +1,13 @@
 import { lazy, Suspense } from "react";
+import HomeEditorial from "../components/HomeEditorial.jsx";
 import { Link } from "react-router-dom";
 import { isNativeApp } from "../native/platform.js";
 const HomeProductSections = lazy(() => import("../components/HomeProductSections.jsx"));
 
 export default function Home() {
   return <div className="cinematic-home">
-    <Suspense fallback={<section className="gm-section catalog-status home-catalog-loading" role="status">Loading products…</section>}><HomeProductSections opening /></Suspense>
+    <HomeEditorial />
+    <Suspense fallback={<section className="gm-section catalog-status home-catalog-loading" role="status">Loading products…</section>}><HomeProductSections /></Suspense>
     {!isNativeApp() && <section className="gm-section home-app-discovery" aria-labelledby="home-app-title">
       <img src="/brand/external/gymdrobe-app-icon-1024.png" alt="" width="88" height="88" loading="lazy" />
       <div>

@@ -65,7 +65,7 @@ try{
   });
   await check(width+'px premium search focus, compact history and selection',async()=>{
    await visit(searchUI.p,'/');
-   if(width<1024) await searchUI.p.getByRole('button',{name:'Open search',exact:true}).click();
+   await searchUI.p.getByRole('button',{name:'Open search',exact:true}).click();
    const input=searchUI.p.getByRole('combobox',{name:'Search products'});
    await input.click();
    const dropdown=searchUI.p.locator('.gn-results');
@@ -90,20 +90,16 @@ try{
    if(width<=1279)assert.ok(bounds.fontSize>=16,'Prevent iOS input zoom');
    assert.ok(bounds.listScroll,'Six recent searches must scroll in a compact panel');
    assert.equal(await dropdown.locator('svg').count()>0,true,'Use vector icons');
-   await searchUI.p.getByRole('button',{name:width < 1024 ? 'Close search' : 'Done',exact:true}).click();
+   await searchUI.p.getByRole('button',{name:'Close search',exact:true}).click();
    assert.equal(await dropdown.isVisible(),false);
-   if(width < 1024) {
-     const toggle = searchUI.p.getByRole('button',{name:'Open search',exact:true});
-     assert.ok(await toggle.evaluate(el => el === document.activeElement));
-     await toggle.click();
-   } else {
-     assert.equal(await input.evaluate(el=>el===document.activeElement),false);
-   }
+   const toggle = searchUI.p.getByRole('button',{name:'Open search',exact:true});
+   assert.ok(await toggle.evaluate(el => el === document.activeElement));
+   await toggle.click();
    await input.click();
    await searchUI.p.locator('.gn-option').first().click();
    await searchUI.p.waitForURL(/\/shop\?search=shoes/);
    await visit(searchUI.p,'/');
-   if(width<1024) await searchUI.p.getByRole('button',{name:'Open search',exact:true}).click();
+   await searchUI.p.getByRole('button',{name:'Open search',exact:true}).click();
    await input.fill('gym');
    await input.press('Enter');
    await searchUI.p.waitForURL(/\/shop\?search=gym/);
@@ -242,6 +238,7 @@ try{
  const x=await context();
  await check('Search and URL-preserving catalog filters',async()=>{
   await visit(x.p,'/');
+  await x.p.getByRole('button',{name:'Open search',exact:true}).click();
   const search=x.p.getByRole('combobox',{name:'Search products'});
   await search.fill('shoes');await search.press('Enter');await x.p.waitForURL('**/shop?**');
   await x.p.locator('.product-grid .gm-product-card').first().waitFor();assert.match(x.p.url(),/search=shoes/);
@@ -354,7 +351,7 @@ try{
   await check(width+'px merchandising and responsive navigation',async()=>{
    await visit(v.p,'/');
    await v.p.locator('.athletic-category-grid a').first().waitFor({state:'visible'});
-   if(width<1024) await v.p.getByRole('button',{name:'Open search',exact:true}).click();
+   await v.p.getByRole('button',{name:'Open search',exact:true}).click();
    assert.ok(await v.p.getByRole('combobox',{name:'Search products'}).isVisible());
    assert.ok(await v.p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
    if(width<1024) assert.deepEqual(await v.p.getByRole('navigation',{name:'Shopping navigation'}).getByRole('link').allTextContents(),['Home','Categories','Wishlist','Cart','Account']);

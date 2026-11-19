@@ -3,32 +3,17 @@
 .department-campaign {
   background: #0f3d3a;
   color:white;
-  padding:clamp(28px,4vw,64px) clamp(14px,3vw,48px) clamp(16px,3vw,48px);
+  padding:8px 13px;
 }
-.department-campaign header { text-align:center; margin-bottom:clamp(24px,3vw,48px); }
-#app .storefront-home .department-campaign h1 {
-  font:800 clamp(32px,5vw,68px)/1 var(--headline);
-  text-transform:uppercase; letter-spacing:-.025em; color:white; margin:0;
-}
-.department-campaign header p { color:white; margin:12px 0 0; }
-.department-campaign .opening-shop-link {
-  display:inline-flex; align-items:center; justify-content:center; min-height:44px; margin-top:16px;
-  padding:0 26px; background:#fff4df; color:#0f3d3a; font-weight:750; text-transform:uppercase;
-  text-decoration:none; border-radius:2px;
-}
-.opening-shop-link:focus-visible { outline:2px solid white; outline-offset:4px; }
 .department-tiles { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; max-width:1440px; margin:auto; }
-.department-tile { display:grid; place-items:center; aspect-ratio:1; overflow:hidden; position:relative; background:#ccc; }
+.department-tile { display:grid; place-items:center; aspect-ratio:1; overflow:hidden; position:relative; background:#174944; }
 .department-tile img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 .department-tile:first-child img { object-position:center 25%; }
 .department-tile:last-child img { object-position:center 44%; }
-.department-tile span { position:relative; padding:14px 24px; background:white; color:#171717; font-weight:650; }
+.department-tile span { position:relative; display:grid; place-items:center; min-height:48px; padding:10px 24px; background:white; color:#171717; font-weight:650; }
 .department-tile:focus-visible { outline:3px solid white; outline-offset:2px; }
 @media(max-width:700px) { .department-tiles { grid-template-columns:1fr; } }
-@media(max-width:1023px) {
-  #app .storefront-home .gd-nav:not(.gn-raised):not(.mobile-search-visible) .gn-bar { background:#13484c; }
-  #app .storefront-home .gd-nav:not(.gn-raised):not(.mobile-search-visible) .gn-bar :is(.gn-action,.gn-icon-button,.gn-wordmark) { color:white; filter:brightness(0) invert(1); }
-}
+#app .storefront-home .gd-nav .gn-bar { background:#fff; color:#171717; }
 #app .premium-storefront :is(.shop-title h1,.page-heading h1,.gm-section-head h2,.athletic-categories h2) { text-transform:uppercase; font-family:var(--headline); font-size:clamp(26px,3vw,40px); line-height:1.1; }
 #app .storefront-home .cinematic-home > .gm-section { padding-block:40px; }
 #app .premium-storefront .gm-product-card { border:0; border-radius:0; background:transparent; box-shadow:none; }
@@ -149,24 +134,37 @@
   .page:has(.wishlist-grid) > details > summary { padding-block: 12px; min-height: 44px; cursor: pointer; }
 }
 
-[data-opening-featured] { background:#fff; color:#18221d; margin:0 auto 1rem; max-width:1440px; }
-[data-opening-featured] .gm-section { padding:12px; }
-[data-opening-featured] .gm-product-visual { aspect-ratio:1; }
 .opening-placeholders { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
 .opening-placeholders i { display:block; aspect-ratio:1; background:#efefeb; }
 @media(max-width:700px) {
   .opening-placeholders {grid-template-columns:repeat(2,minmax(0,1fr))}
   .opening-placeholders i:nth-child(n+3) {display:none}
-  .department-campaign:has([data-opening-featured]) {padding-top:12px}
-  .department-campaign:has([data-opening-featured]) header {margin-bottom:12px}
 }
-.department-campaign:has([data-opening-featured]) { padding-block-start: 8px; }
-.department-campaign:has([data-opening-featured]) > header { margin: 0 auto; padding: 8px 12px; }
-.department-campaign:has([data-opening-featured]) > header h1 { font-size: clamp(22px, 3vw, 38px); margin: 0; }
-.department-campaign:has([data-opening-featured]) > header :is(p,a) { display: none; }
-[data-opening-featured] .gm-product-visual { max-height: min(32vh, 320px); }
-.home-shop-search,.home-shop-shortcuts {display:flex;max-width:960px;margin:8px auto;padding:0 12px;gap:8px}
-.home-shop-search input {flex:1;min-width:0;border:1px solid #a7b4ac;border-radius:6px;padding:10px;font:inherit;color:#173d32;background:white}
-.home-shop-search button,.home-shop-shortcuts a {display:grid;place-items:center;padding:0 12px;min-height:44px;border-radius:6px;background:#123e36;color:#fff}
-.home-shop-shortcuts {overflow-x:auto}
-.home-shop-shortcuts a {background:#f2f1e9;color:#163e34;white-space:nowrap}
+
+/* The Home campaign uses the same compact, balanced controls at every width. */
+html #app .premium-storefront.storefront-home .gd-nav .gn-bar {
+  width: 100%;
+  height: auto;
+  min-height: 56px;
+  grid-template-columns: 44px 44px minmax(0,1fr) 88px;
+  grid-template-areas: "toggle searchToggle brand actions";
+  grid-template-rows: 56px;
+  padding: 0 max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+  gap: 0;
+}
+#app .premium-storefront.storefront-home .gd-nav :is(.gn-desktop,.gn-search,.shopping-help-bar) { display: none; }
+#app .storefront-home .gd-nav .gn-actions > a[aria-label*="ishlist"] { display: none; }
+html #app .premium-storefront.storefront-home .gd-nav .gn-menu-toggle { display: inline-flex; grid-area: toggle; }
+#app .storefront-home .gd-nav .athletic-search-toggle { display: inline-flex; grid-area: searchToggle; }
+#app .storefront-home .gd-nav .gn-brand { justify-self: center; }
+html #app .premium-storefront.storefront-home .gd-nav .gn-actions { display:flex; visibility:visible; justify-content: end; gap: 0; }
+html #app .premium-storefront.storefront-home .gd-nav.mobile-search-visible .gn-bar {
+  grid-template-areas: "toggle searchToggle brand actions" "search search search search";
+  grid-template-rows: 56px auto;
+  padding-bottom: 8px;
+}
+html #app .premium-storefront.storefront-home .gd-nav.mobile-search-visible .gn-search { display: block; grid-area: search; }
+html.gymdrobe-native #app .premium-storefront.storefront-home { padding-top: 56px; }
+#app .storefront-home .shopping-bottom-nav { background: white; }
+#app .storefront-home .shopping-bottom-nav > a.active { color: #181b19; }
+#app .storefront-home .shopping-bottom-nav > a.active .shopping-tab-icon { background: #efefed; }

@@ -2,6 +2,8 @@ import {
   lazy,
   Suspense,
   useEffect,
+  useLayoutEffect,
+  useRef,
 } from "react";
 
 import {
@@ -11,6 +13,7 @@ import {
   Route,
   Routes,
   useLocation,
+  useNavigationType,
 } from "react-router-dom";
 
 import {
@@ -330,14 +333,22 @@ function LegacyLoginRedirect() {
 }
 
 function ScrollToTop() {
-  const { pathname } = useLocation();
+  const { pathname, key } = useLocation();
+  const navigation = useNavigationType();
+  const homePosition = useRef(null);
+  const homeKey = pathname === "/" ? key : null;
+  const backToHome = Boolean(homeKey) && navigation === "POP";
 
-  useEffect(() => {
-    window.scrollTo({
-      top: 0,
-      behavior: "instant",
-    });
-  }, [pathname]);
+  useLayoutEffect(() => {
+    const returningHome = backToHome && homePosition.current?.key === homeKey;
+    window.scrollTo({ top: returningHome ? homePosition.current.top : 0, behavior: "instant" });
+    if (homeKey) {
+      const remember = () => { homePosition.current = { key: homeKey, top: window.scrollY }; };
+      remember();
+      window.addEventListener("scroll", remember, { passive: true });
+      return () => window.removeEventListener("scroll", remember);
+    }
+  }, [pathname, homeKey, backToHome]);
 
   return null;
 }
