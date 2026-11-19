@@ -69,7 +69,13 @@ export default defineConfig(({ mode }) => ({
                 link.href = ${JSON.stringify(href)};
                 link.onload = link.onerror = event => {
                   link.onload = link.onerror = null;
-                  if (event.type === "load") link.media = "all";
+                  let usable = event.type === "load";
+                  if (!usable) {
+                    // A blocked font @import can signal an error even when the
+                    // same-origin storefront rules are available.
+                    try { usable = Boolean(link.sheet?.cssRules.length); } catch {}
+                  }
+                  if (usable) link.media = "all";
                   else root.dataset.homeStyleError = "";
                   const remaining = Number(root.dataset.stylePending) - 1;
                   if (remaining) root.dataset.stylePending = String(remaining);

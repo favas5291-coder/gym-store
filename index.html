@@ -20,7 +20,9 @@
             window.Capacitor?.isNativePlatform?.()) return;
         document.documentElement.dataset.homeBoot = String(performance.now());
         try {
-          if (!localStorage.getItem("gymdrobe.web-opening.seen.v1")) {
+          const seen = "gymdrobe.web-opening.seen.v1";
+          if (!localStorage.getItem(seen)) {
+            localStorage.setItem(seen, "1");
             document.documentElement.dataset.openingActive = "";
             document.querySelector('meta[name="theme-color"]').content = "#0f3d3a";
           }
@@ -261,6 +263,9 @@
         let minimumMet = !opening;
         let expired = false;
         let minimumTimer;
+        let visibleSince;
+        let minimumLeft = 3000;
+        let marked = false;
         let frame;
         app.inert = true;
         shell.inert = opening;
@@ -313,15 +318,27 @@
         }
 
         function visible() {
-          if (document.hidden || !opening || minimumTimer !== undefined) return;
-          // The second frame follows a paint opportunity for the decoded inline wordmark.
           cancelAnimationFrame(frame);
+          if (!opening || minimumMet) return;
+          if (document.hidden) {
+            if (visibleSince !== undefined) {
+              minimumLeft = Math.max(0, minimumLeft - (performance.now() - visibleSince));
+              visibleSince = undefined;
+              clearTimeout(minimumTimer);
+            }
+            return;
+          }
+          if (visibleSince !== undefined) return;
+          // The second frame follows a paint opportunity for the decoded inline wordmark.
           frame = requestAnimationFrame(() => {
             frame = requestAnimationFrame(() => {
               if (document.hidden || !opening) return;
-              performance.mark("gymdrobe-logo-visible");
-              try { localStorage.setItem("gymdrobe.web-opening.seen.v1", "1"); } catch {}
-              minimumTimer = setTimeout(() => { minimumMet = true; check(); }, 3000);
+              visibleSince = performance.now();
+              if (!marked) {
+                marked = true;
+                performance.mark("gymdrobe-logo-visible");
+              }
+              minimumTimer = setTimeout(() => { minimumMet = true; check(); }, minimumLeft);
             });
           });
         }
