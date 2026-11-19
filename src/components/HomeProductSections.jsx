@@ -5,6 +5,13 @@ import { homeCollections } from "../utils/homeCollections.js";
 import { productDepartment } from "../utils/catalog.js";
 import { ProductImage } from "./StorefrontShared.jsx";
 import ProductRow from "./ProductRow.jsx";
+import "../styles/home-womens-gear.css";
+
+const categoryCaptions = new Map([
+  ["CREATINE", "Creatine"],
+  ["HYGIENE", "Hygiene"],
+  ["BAG", "Bag"],
+]);
 
 function CategorySection({ title, products, gender, departments, id }) {
   const tiles = useMemo(() => {
@@ -21,12 +28,13 @@ function CategorySection({ title, products, gender, departments, id }) {
     return [...groups.entries()].slice(0, 4);
   }, [products, gender, departments]);
   if (!tiles.length) return null;
-  return <section className="gm-section athletic-categories" id={id} aria-label={title}>
+  const womensGear = gender === "Women";
+  return <section className={`gm-section athletic-categories${womensGear ? " womens-workout-gear" : ""}`} id={id} aria-label={title}>
     <h2>{title}</h2>
     <div className="athletic-category-grid">
       {tiles.map(([category, { product, to }]) => <Link key={category} to={to}>
-        <div className="athletic-category-image"><ProductImage product={product} decorative sizes="(max-width: 700px) 50vw, 25vw" /></div>
-        <span>{category}</span>
+        <div className="athletic-category-image"><ProductImage product={product} decorative homeGear={womensGear} sizes="(max-width: 700px) 50vw, 25vw" /></div>
+        <span>{(womensGear && categoryCaptions.get(category)) || category}</span>
       </Link>)}
     </div>
   </section>;
@@ -35,8 +43,13 @@ function CategorySection({ title, products, gender, departments, id }) {
 export default function HomeProductSections() {
   const { products, loading, error, refreshProducts } = useCatalog();
   const { lead, available } = useMemo(() => homeCollections(products), [products]);
-  const featured = lead.length
-    ? <ProductRow title="Featured gear" id="featured" products={lead} to="/shop" grid />
+  // Keep the existing lead selection, then fill the desktop rail with distinct gear.
+  const featuredProducts = useMemo(() => {
+    const leadIds = new Set(lead.map(product => product.id));
+    return [...lead, ...available.filter(product => !leadIds.has(product.id))].slice(0, 8);
+  }, [lead, available]);
+  const featured = featuredProducts.length
+    ? <ProductRow title="Featured gear" id="featured" products={featuredProducts} to="/shop" grid featured />
     : <section className="gm-section catalog-status" aria-live="polite">
         <h2>{loading ? "Loading featured gear…" : error ? "Featured gear couldn’t load." : "More gear is on the way."}</h2>
         {loading && <div className="opening-placeholders" aria-hidden="true"><i/><i/><i/><i/></div>}

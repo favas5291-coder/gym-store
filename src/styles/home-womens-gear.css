@@ -1,0 +1,48 @@
+#app .storefront-home .cinematic-home > .womens-workout-gear {
+  max-width: none;
+  padding-inline: clamp(24px, 2.7vw, 64px);
+}
+
+#app .storefront-home .womens-workout-gear > h2 {
+  margin: 0 0 16px;
+  color: #181818;
+  font: 700 clamp(18px, 1.5vw, 26px)/1.15 var(--headline);
+  letter-spacing: -.02em;
+}
+
+.womens-workout-gear .athletic-category-grid {
+  gap: 12px 4px;
+}
+
+.womens-workout-gear .athletic-category-grid > a {
+  display: flex;
+  flex-direction: column;
+}
+
+.womens-workout-gear .athletic-category-image {
+  width: 100%;
+  border-radius: 0;
+  background: #fff;
+}
+
+.womens-workout-gear .athletic-category-image img {
+  display: block;
+}
+
+.womens-workout-gear .athletic-category-grid > a > span {
+  padding-top: 14px;
+  font: 500 14px/20px Manrope, Arial, sans-serif;
+  letter-spacing: -.015em;
+}
+
+@media (max-width: 700px) {
+  #app .storefront-home .cinematic-home > .womens-workout-gear {
+    padding-inline: 14px;
+  }
+
+  #app .storefront-home .womens-workout-gear > h2 {
+    margin-bottom: 12px;
+    font-size: 16px;
+    line-height: 20px;
+  }
+}

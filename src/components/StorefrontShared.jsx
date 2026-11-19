@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { homeGearThumbnail } from "../utils/homeGearThumbnail.js";
 
 
 import {
@@ -160,6 +161,7 @@ function imageCandidates(product) {
 
 function ProductImageContent({
   product,
+  homeGear,
   sources,
   className,
   eager,
@@ -178,16 +180,16 @@ function ProductImageContent({
 
   const source = sources[index];
 
-  const srcSet =
-    failedResponsive === source
-      ? null
-      : responsiveProductImage(source);
+  const thumbnail = homeGear && failedResponsive !== source ? homeGearThumbnail(source) : null;
+  const srcSet = failedResponsive === source
+    ? null
+    : thumbnail?.srcSet || responsiveProductImage(source);
 
   if (source) {
     return (
       <img
         key={source}
-        src={source}
+        src={thumbnail?.src || source}
         srcSet={srcSet || undefined}
         sizes={sizes}
         className={className}
@@ -239,6 +241,7 @@ export function ProductImage({
   product,
   className = "",
   eager = false,
+  homeGear = false,
   decorative = false,
   fetchPriority = "auto",
   decoding = "async",
@@ -255,6 +258,7 @@ export function ProductImage({
       key={JSON.stringify(sources)}
       product={product}
       sources={sources}
+      homeGear={homeGear}
       className={className}
       eager={eager}
       decorative={decorative}
