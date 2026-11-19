@@ -51,6 +51,8 @@ jobs:
           PYMIRROR
           npm install --ignore-scripts --no-audit --no-fund --no-save --package-lock=false playwright@1.62.1 2>&1 | tee test-results/marketplace/tooling.log
           npx playwright install --with-deps chromium webkit 2>&1 | tee -a test-results/marketplace/tooling.log
+      - name: Supplier dispatch clock acceptance and isolated browser review
+        run: node tests/supplier-dispatch-browser.mjs
       - name: Start disposable replica set
         run: |
           docker run --detach --name gymdrobe-marketplace-browser -p 127.0.0.1:27018:27017 mongo:8.0 --replSet rs0 --bind_ip_all
