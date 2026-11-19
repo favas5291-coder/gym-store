@@ -186,6 +186,41 @@
   </head>
 
   <body>
+    <script>
+      (() => {
+        if (location.pathname !== "/" || location.hash ||
+            ["android", "ios"].includes("%MODE%") || window.Capacitor?.isNativePlatform?.()) return;
+        const seen = "gymdrobe.web-opening.seen.v1";
+        try {
+          if (localStorage.getItem(seen)) return;
+        } catch { return; }
+        const screen = document.createElement("div");
+        screen.id = "gymdrobe-opening";
+        screen.setAttribute("aria-hidden", "true");
+        screen.style.cssText = "position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;background:#0f3d3a;pointer-events:none";
+        const logo = new Image();
+        logo.alt = "";
+        logo.width = 216;
+        logo.height = 40;
+        logo.style.cssText = "width:min(216px,62vw);height:auto";
+        const close = () => {
+          screen.remove();
+          for (const event of ["pointerdown", "keydown", "pagehide"]) window.removeEventListener(event, close, true);
+        };
+        const stop = setTimeout(close, 2400);
+        logo.onload = () => {
+          if (!screen.isConnected) return;
+          try { localStorage.setItem(seen, "1"); } catch {}
+          clearTimeout(stop);
+          setTimeout(close, 1050);
+        };
+        logo.onerror = close;
+        screen.append(logo);
+        document.body.append(screen);
+        for (const event of ["pointerdown", "keydown", "pagehide"]) window.addEventListener(event, close, true);
+        logo.src = "/brand/gymdrobe-wordmark-cream.png";
+      })();
+    </script>
     <div id="app"></div>
 
     <script
