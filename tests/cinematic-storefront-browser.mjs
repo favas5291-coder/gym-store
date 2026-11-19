@@ -360,9 +360,10 @@ try{
    if(width<1024) assert.deepEqual(await v.p.getByRole('navigation',{name:'Shopping navigation'}).getByRole('link').allTextContents(),['Home','Categories','Wishlist','Cart','Account']);
   });await v.c.close();
  }
- await check('Athletic homepage shows the first department action in the mobile viewport and opens real shopping routes', async () => {
+ await check('Returning athletic homepage shows the first department action in the mobile viewport and opens real shopping routes', async () => {
   const view = await context(390, { browser: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } });
   try {
+   await view.p.addInitScript(() => localStorage.setItem('gymdrobe.web-opening.seen.v1', '1'));
    await visit(view.p, '/');
    const heading = view.p.getByRole('heading', { name: /gear for every workout/i });
    assert.ok(await heading.isVisible());

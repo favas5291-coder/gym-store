@@ -1,3 +1,4 @@
+import HomeEditorial from "./HomeEditorial.jsx";
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useCatalog } from "../context/CatalogContext.jsx";
@@ -32,15 +33,19 @@ function CategorySection({ title, products, gender, departments, id }) {
   </section>;
 }
 
-export default function HomeProductSections() {
+export default function HomeProductSections({ opening = false }) {
   const { products, loading, error, refreshProducts } = useCatalog();
   const { lead, available } = useMemo(() => homeCollections(products), [products]);
-  if (!lead.length) return <section className={`gm-section catalog-status${loading ? " home-catalog-loading" : ""}`} aria-live="polite">
-    <h2>{loading ? "Loading featured gear…" : error ? "Featured gear couldn’t load." : "More gear is on the way."}</h2>
-    {error && <button type="button" className="button" onClick={refreshProducts}>Retry collection</button>}
-  </section>;
+  const featured = lead.length
+    ? <ProductRow title="Featured gear" id="featured" products={lead} to="/shop" opening={opening} />
+    : <section className="gm-section catalog-status" aria-live="polite">
+        <h2>{loading ? "Loading featured gear…" : error ? "Featured gear couldn’t load." : "More gear is on the way."}</h2>
+        {loading && opening && <div className="opening-placeholders" aria-hidden="true"><i/><i/><i/><i/></div>}
+        {!loading && <span data-catalogue-settled="" />}
+        {error && <button type="button" className="button" onClick={refreshProducts}>Retry collection</button>}
+      </section>;
   return <>
-    <ProductRow title="Featured gear" id="featured" products={lead} to="/shop" />
+    {opening ? <HomeEditorial><div data-opening-featured="">{featured}</div></HomeEditorial> : featured}
     <CategorySection title="Women’s workout gear" products={available} gender="Women" id="categories" />
     <CategorySection title="Men’s workout gear" products={available} gender="Men" />
     <CategorySection title="Accessories & essentials" products={available} departments={["accessories", "hydration"]} />

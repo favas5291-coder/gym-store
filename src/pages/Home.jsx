@@ -5,9 +5,10 @@ import { isNativeApp } from "../native/platform.js";
 const HomeProductSections = lazy(() => import("../components/HomeProductSections.jsx"));
 
 export default function Home() {
+  const opening = !isNativeApp() && document.documentElement.dataset.openingProducts === "true";
   return <div className="cinematic-home">
-    <HomeEditorial />
-    <Suspense fallback={<section className="gm-section catalog-status home-catalog-loading" role="status">Loading products…</section>}><HomeProductSections /></Suspense>
+    {!opening && <HomeEditorial />}
+    <Suspense fallback={<section className="gm-section catalog-status home-catalog-loading" role="status">Loading products…</section>}><HomeProductSections opening={opening} /></Suspense>
     {!isNativeApp() && <section className="gm-section home-app-discovery" aria-labelledby="home-app-title">
       <img src="/brand/external/gymdrobe-app-icon-1024.png" alt="" width="88" height="88" loading="lazy" />
       <div>

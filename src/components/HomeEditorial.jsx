@@ -5,7 +5,7 @@ const departments = [
   { gender: "Men", image: "men-hoodie" },
 ];
 
-export default function HomeEditorial() {
+export default function HomeEditorial({ children }) {
   return (
     <section className="department-campaign" aria-labelledby="department-heading">
       <header>
@@ -13,14 +13,15 @@ export default function HomeEditorial() {
         <p>Workout clothing, accessories and essentials for every training journey.</p>
         <Link className="opening-shop-link" to="/shop">Shop now</Link>
       </header>
+      {children}
       <div className="department-tiles">
         {departments.map(({ gender, image }, index) => (
           <Link key={gender} className="department-tile" to={`/shop?gender=${gender}`}>
             <img src={`/media/campaign/${image}-736.webp`}
               srcSet={`/media/campaign/${image}-432.webp 432w, /media/campaign/${image}-736.webp 736w`}
               sizes="(max-width: 700px) 94vw, 47vw" alt="" width="640" height="640"
-              loading={index === 0 ? "eager" : "lazy"}
-              fetchPriority={index === 0 ? "high" : "auto"} />
+              loading={!children && index === 0 ? "eager" : "lazy"}
+              fetchPriority={!children && index === 0 ? "high" : "auto"} />
             <span>{gender}’s</span>
           </Link>
         ))}

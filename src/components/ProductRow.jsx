@@ -10,6 +10,7 @@ export default function ProductRow({
   products,
   id,
   grid = false,
+  opening = false,
   to = "/shop",
 }) {
   const trackRef = useRef(null);
@@ -89,9 +90,10 @@ export default function ProductRow({
         tabIndex={grid ? undefined : 0}
         onKeyDown={handleKeyDown}
       >
-        {rows.map((product) => (
+        {rows.map((product, index) => (
           <ProductCard
             key={product.id}
+            priority={opening && index < 2}
             product={product}
           />
         ))}
