@@ -26,16 +26,10 @@ jobs:
           }
           process.exit(1);
           JS
-      - name: Record opening in WebKit
-        env:
-          PHASE: production
+      - name: Verify returning visit on the deployed public site
         run: |
-          cp .github/film/journey.mjs /tmp/film-journey.mjs
-          node /tmp/film-journey.mjs
-      - name: Verify first-frame tap and direct product link
-        run: |
-          cp .github/film/smoke.mjs /tmp/opening-smoke.mjs
-          node /tmp/opening-smoke.mjs
+          cp .github/film/returning.mjs /tmp/returning.mjs
+          node /tmp/returning.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
