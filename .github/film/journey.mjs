@@ -2,19 +2,25 @@ import { chromium, webkit, devices } from "playwright";
 import fs from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 const phase = process.env.PHASE || "before";
-const site = (process.env.TARGET || "https://www.gymdrobe.com").replace(/\/$/, "");
+let site = (process.env.TARGET || "https://www.gymdrobe.com").replace(/\/$/, "");
 const dir = process.env.OUT || "film";
 await fs.mkdir(dir,{recursive:true});
 const browser = await webkit.launch({headless:true});
 const context = await browser.newContext({...devices["iPhone 13"], viewport:{width:390,height:844},deviceScaleFactor:2,recordVideo:{dir,size:{width:390,height:844}}});
+let server;
 if (process.env.BUILD_DIR) {
+  const http = await import('node:http');
   const root = process.env.BUILD_DIR;
-  const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.webp':'image/webp','.ico':'image/x-icon','.svg':'image/svg+xml','.json':'application/json','.webmanifest':'application/manifest+json'};
-  await context.route(site+'/**',async route=>{
-    const req=route.request(), url=new URL(req.url());
-    const path=req.resourceType()==='document' ? '/index.html' : url.pathname;
-    try{const body=await fs.readFile(root+path);const suffix=path.match(/\.\w+$/)?.[0];return route.fulfill({status:200,body,contentType:mime[suffix]||'application/octet-stream'});}
-    catch{return route.abort();}
+  const mime={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.png':'image/png','.webp':'image/webp','.jpg':'image/jpeg','.ico':'image/x-icon','.svg':'image/svg+xml','.json':'application/json','.webmanifest':'application/manifest+json'};
+  server=http.createServer(async(req,res)=>{
+    const pathname=new URL(req.url,'http://127.0.0.1').pathname;
+    const path=pathname.match(/\.[a-z0-9]+$/i)?pathname:'/index.html';
+    try{const body=await fs.readFile(root+path);res.writeHead(200,{'content-type':mime[path.match(/\.\w+$/)?.[0]]||'application/octet-stream','content-length':body.length});res.end(body);}
+    catch{console.log('static-miss '+path);res.writeHead(404).end();}
+  });
+  await new Promise(ok=>server.listen(0,'127.0.0.1',ok));site='http://127.0.0.1:'+server.address().port;
+  await context.route('https://gym-drobe-backend.onrender.com/**',async route=>{
+    try{const response=await route.fetch({headers:{...route.request().headers(),Origin:'https://www.gymdrobe.com'}});return route.fulfill({response,headers:{...response.headers(),'access-control-allow-origin':site,'access-control-allow-credentials':'true'}})}catch{return route.abort()}
   });
 }
 await context.addInitScript(() => {
@@ -44,6 +50,9 @@ await context.addInitScript(() => {
 });
 const page = await context.newPage();
 const vid=page.video();
+page.on('console',msg=>{if(msg.type()==='error')console.log('CONSOLE',msg.text().slice(0,500))});
+page.on('requestfailed',r=>console.log('FAILED',r.resourceType(),r.url().split('?')[0],r.failure()?.errorText));
+page.on('response',r=>{if(r.status()>=400)console.log('HTTP_FAILURE',r.status(),r.url().split('?')[0])});
 const requests=[];const errors=[];
 page.on("pageerror",e=>errors.push(e.message));
 page.on("request",r=>requests.push({url:r.url(),type:r.resourceType(),r}));
@@ -63,12 +72,14 @@ await page.waitForURL(/gender=Women/,{timeout:25000});
 await page.locator('h1').first().waitFor({timeout:15000});
 const outcome=await page.evaluate(()=>({url:location.href,heading:document.querySelector('h1')?.textContent,clock:performance.timeOrigin,...window.film}));
 measurement={...measurement,tapMs:outcome.clock===original?outcome.tap:null};
-await page.locator('.gm-product-card img').first().waitFor({timeout:15000}).catch(()=>{});
+const collection=page.locator('a[href^="/product/"]').first();
+await collection.waitFor({timeout:35000}).catch(async e=>{console.log('PAGE_END', (await page.locator('body').innerText()).slice(0,1500));await page.screenshot({path:dir+'/failure.png'});throw e;});
+const actualCollection={heading:await page.locator('h1').first().textContent(),firstProduct:await collection.getAttribute('href')};
+if(!actualCollection.firstProduct)throw Error('Missing real product link');
 await page.waitForTimeout(1200);
 const preloadImages=await gettingPreloadImages;const product=catalogue[0]?.r.timing();
 await context.close();const path=await vid.path();
-const encoded=spawnSync(process.env.FFMPEG || 'ffmpeg',['-hide_banner','-loglevel','error','-y','-i',path,'-c:v','libx264','-preset','fast','-crf','21','-pix_fmt','yuv420p','-movflags','+faststart',dir+'/'+phase+'.mp4'],{encoding:'utf8'});
-if(encoded.status!==0)throw new Error('ffmpeg failed '+encoded.stderr);
-const json={phase,engine:'Playwright mobile WebKit emulating iPhone 13, 390 × 844, DPR 2',site,status:response.status(),measurement,outcome,catalogue:catalogue.map(x=>x.url),catalogueMs:product?Math.round(product.startTime-original):null,errors,preloadImages,navUnix:nav};
+await fs.rename(path,dir+'/'+phase+'.webm');
+const json={phase,engine:'Playwright mobile WebKit emulating iPhone 13, 390 × 844, DPR 2',site,status:response.status(),actualCollection,measurement,outcome,catalogue:catalogue.map(x=>x.url),catalogueMs:product?Math.round(product.startTime-original):null,errors,preloadImages,navUnix:nav};
 console.log('FILM_RESULT '+JSON.stringify(json));await fs.writeFile(dir+'/'+phase+'.json',JSON.stringify(json,null,2));
-await browser.close();
+await browser.close();if(server)server.close();

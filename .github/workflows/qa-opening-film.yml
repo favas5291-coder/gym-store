@@ -28,7 +28,6 @@ jobs:
         run: |
           cd /tmp
           npm install --no-audit --no-fund playwright@1.55.0
-          which ffmpeg || (apt-get update -qq && apt-get install -y -qq ffmpeg)
       - name: Record opening in WebKit
         env:
           PHASE: candidate
