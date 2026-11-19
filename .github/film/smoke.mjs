@@ -6,7 +6,7 @@ const ctx=await browser.newContext({...devices['iPhone 13'],viewport:{width:390,
 const p=await ctx.newPage();
 await p.addInitScript(()=>{window.hitInfo={};let run=()=>{if(!location.pathname||location.pathname==='/'){let a=document.querySelector('#app .department-tile');if(a){let r=a.getBoundingClientRect();const x=r.left+r.width/2,y=r.top+r.height/2;let h=document.elementFromPoint(x,y);if(r.width&&a.contains(h)&&!window.hitInfo.ready){window.hitInfo.ready=performance.now();window.hitInfo.point=[x,y];}}}requestAnimationFrame(run)};requestAnimationFrame(run);document.addEventListener('click',e=>{let a=e.target.closest?.('a');if(a?.href.includes('gender=Women'))window.hitInfo.tap=performance.now()},true)});
 let urls=[];p.on('request',r=>{if(new URL(r.url()).pathname==='/api/products')urls.push(r.url())});
-let res=await p.goto(base+'/',{waitUntil:'commit'});assert.equal(res.status(),200);
+let res=await p.goto(base+'/',{waitUntil:'commit'});assert.equal(res.status(),200);const homeHTML=await res.text();assert.ok(homeHTML.includes('data-boot-reload') && homeHTML.includes('data-home-photo'),'New release HTML served');
 const xy=await p.evaluate(()=>new Promise(resolve=>{const attempt=()=>{if(window.hitInfo?.point)resolve(window.hitInfo.point);else requestAnimationFrame(attempt)};attempt()}));
 await p.touchscreen.tap(...xy);
 await p.waitForURL(/gender=Women/);

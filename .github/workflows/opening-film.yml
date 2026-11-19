@@ -1,0 +1,43 @@
+name: Mobile opening film
+on:
+  push:
+    branches: [qa-opening-film-20261119]
+permissions:
+  contents: read
+jobs:
+  film:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    container: mcr.microsoft.com/playwright:v1.55.0-noble
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install test client
+        run: |
+          cd /tmp
+          npm install --no-audit --no-fund playwright@1.55.0
+      - name: Wait for the new production HTML on the public domain
+        run: |
+          node --input-type=module - <<'JS'
+          for(let i=0;i<36;i++){
+            const r=await fetch('https://www.gymdrobe.com/',{headers:{'cache-control':'no-cache'}});
+            const t=await r.text();
+            if(r.status===200&&t.includes('data-boot-reload')&&t.includes('data-home-photo')) {console.log('New public HTML confirmed');process.exit(0);}
+            await new Promise(ok=>setTimeout(ok,5000));
+          }
+          process.exit(1);
+          JS
+      - name: Record opening in WebKit
+        env:
+          PHASE: production
+        run: |
+          cp .github/film/journey.mjs /tmp/film-journey.mjs
+          node /tmp/film-journey.mjs
+      - name: Verify first-frame tap and direct product link
+        run: |
+          cp .github/film/smoke.mjs /tmp/opening-smoke.mjs
+          node /tmp/opening-smoke.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: homepage-opening-films
+          path: film/
