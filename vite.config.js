@@ -61,15 +61,25 @@ export default defineConfig(({ mode }) => ({
             return `<script>
               if (document.documentElement.hasAttribute("data-home-boot")) {
                 const root = document.documentElement;
-                root.dataset.stylePending = "";
+                root.dataset.stylePending = String(Number(root.dataset.stylePending || 0) + 1);
                 const link = document.createElement("link");
                 link.rel = "stylesheet";
                 link.media = "print";
                 link.crossOrigin = "anonymous";
                 link.href = ${JSON.stringify(href)};
-                link.onload = link.onerror = () => {
-                  link.media = "all";
-                  delete root.dataset.stylePending;
+                link.onload = link.onerror = event => {
+                  link.onload = link.onerror = null;
+                  let usable = event.type === "load";
+                  if (!usable) {
+                    // A blocked font @import can signal an error even when the
+                    // same-origin storefront rules are available.
+                    try { usable = Boolean(link.sheet?.cssRules.length); } catch {}
+                  }
+                  if (usable) link.media = "all";
+                  else root.dataset.homeStyleError = "";
+                  const remaining = Number(root.dataset.stylePending) - 1;
+                  if (remaining) root.dataset.stylePending = String(remaining);
+                  else delete root.dataset.stylePending;
                 };
                 document.head.append(link);
               } else {
