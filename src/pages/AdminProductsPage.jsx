@@ -1,3 +1,4 @@
+import ProductSourceSuggestions from "../components/ProductSourceSuggestions.jsx";
 import ProductColorImagesEditor from "../components/ProductColorImagesEditor.jsx";
 
 import {
@@ -495,6 +496,7 @@ function InventoryEditor({
 }
 
 function ProductEditor({
+  token,
   draft,
   setDraft,
   options,
@@ -695,6 +697,22 @@ function ProductEditor({
               />
             </Field>
 
+            <ProductSourceSuggestions
+              url={draft.meeshoProductLink || ""}
+              token={token}
+              allowPrice={!Number(draft.discount)}
+              onPrice={value => change("price", String(value))}
+              onDetails={result => setDraft(current => ({
+                ...current,
+                name: current.name || result.name,
+                category: current.category || options.categories.find(category => category.toLowerCase() === result.category.toLowerCase()) || "",
+              }))}
+              onPhoto={url => setDraft(current => ({
+                ...current,
+                image: current.image || url,
+                imagesText: unique([...lines(current.imagesText), url]).join("\n"),
+              }))}
+            />
             {/^https?:\/\//i.test(draft.meeshoProductLink) && (
               <a href={draft.meeshoProductLink} target="_blank" rel="noopener noreferrer">Open original product</a>
             )}
@@ -2418,6 +2436,7 @@ function AdminProductsWorkspace({ token }) {
       <div ref={editorRef}>
         {draft && (
           <ProductEditor
+            token={token}
             key={draft.id || "new"}
             draft={draft}
             setDraft={setDraft}

@@ -674,3 +674,7 @@ export async function getBrandLogos(options = {}) {
 export function brandLogoUrl(path) {
   return `${API_URL}${path}`;
 }
+
+export function previewProductSource(token, url, kind, signal) {
+  return request("/products/source-preview", { token, method: "POST", body: { url, kind }, signal });
+}
