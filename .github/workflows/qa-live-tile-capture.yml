@@ -23,7 +23,7 @@ jobs:
           await mkdir(out,{recursive:true});
           const browser=await chromium.launch({channel:'chrome',headless:true});
           const results=[];
-          for(const [label,url] of [['gymdrobe','https://www.gymdrobe.com/'],['gymshark','https://row.gymshark.com/']]) {
+          for(const [label,url] of [['gymdrobe','https://gym-store-git-homepage-gear-framing-favaasz.vercel.app/'],['gymshark','https://row.gymshark.com/']]) {
            for(const [width,height] of [[390,844],[360,800],[1440,900],[2048,1152]]) {
             const tag=label+'-'+width;
             const context=await browser.newContext({viewport:{width,height},deviceScaleFactor:1,isMobile:width<500,hasTouch:width<500,locale:'en-GB',reducedMotion:'reduce'});
@@ -32,11 +32,11 @@ jobs:
               const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:25000});
               await page.waitForTimeout(6800);
               // Dismiss only optional consent dialogs with an explicit rejection control.
-              const reject=page.getByRole('button',{name:/^(reject all|decline all|reject optional cookies|only necessary cookies)$/i}).first();
+              const reject=page.getByRole('button',{name:/^(reject all|decline all|reject optional cookies|accept only essential cookies|only necessary cookies)$/i}).first();
               if(await reject.isVisible().catch(()=>false)) await reject.click({timeout:2000}).catch(()=>{});
               for(let y=0;y<4500;y+=550){await page.evaluate(y=>scrollTo(0,y),y);await page.waitForTimeout(200);}
               await page.evaluate(()=>scrollTo(0,0));
-              const headings=await page.locator('h1,h2,h3,[role=heading]').evaluateAll(es=>es.map(e=>e.textContent.trim()).filter(Boolean).slice(0,80));
+              console.log('FONTS',tag,JSON.stringify(await page.evaluate(()=>[...document.fonts].filter(f=>f.status==='loaded').map(f=>[f.family,f.weight])))); const headings=await page.locator('h1,h2,h3,[role=heading]').evaluateAll(es=>es.map(e=>e.textContent.trim()).filter(Boolean).slice(0,80));
               console.log('HEADINGS',tag,response?.status(),JSON.stringify(headings).slice(0,3000));
               if(label==='gymshark'){
                 const title=page.getByText('ARE YOU IN THE RIGHT PLACE?',{exact:true}).first();
