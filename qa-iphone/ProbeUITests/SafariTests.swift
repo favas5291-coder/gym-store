@@ -60,10 +60,15 @@ final class SafariTests: XCTestCase {
         XCTAssertTrue(addButton.waitForExistence(timeout: 4))
         addButton.tap()
         sleep(1)
-        XCUIDevice.shared.press(.home)
+        if spring.state != .runningForeground { XCUIDevice.shared.press(.home) }
         let icon = spring.icons.matching(NSPredicate(format: "label BEGINSWITH[c] %@", "GymDrobe")).firstMatch
-        if !icon.waitForExistence(timeout: 3) { spring.swipeLeft() }
-        XCTAssertTrue(icon.waitForExistence(timeout: 4), "Installed icon not found: \(spring.debugDescription.prefix(5000))")
+        _ = icon.waitForExistence(timeout: 3)
+        for _ in 0..<3 {
+            if icon.exists && !icon.frame.isEmpty && icon.isHittable { break }
+            spring.swipeLeft()
+            sleep(1)
+        }
+        XCTAssertTrue(icon.exists && !icon.frame.isEmpty && icon.isHittable, "Installed icon not found: \(spring.debugDescription.prefix(5000))")
         shot("Installed shortcut")
         icon.tap()
         sleep(1)
