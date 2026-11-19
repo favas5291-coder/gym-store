@@ -39,6 +39,8 @@ import useProductReviews from "../hooks/useProductReviews.js";
 export default function ProductCard({
   product,
   priority = false,
+  featured = false,
+  loadPhoto = true,
   ...legacy
 }) {
   const item = product || legacy;
@@ -117,6 +119,9 @@ export default function ProductCard({
     count,
   } = useProductReviews(item);
 
+  const photoSizes = featured
+    ? "(max-width: 700px) calc(50vw - 16px), (max-width: 1100px) 31vw, 19vw"
+    : "(max-width: 600px) 50vw, (max-width: 1100px) 33vw, 300px";
   const previewProduct = { ...item, selectedColor: initialQuickColor };
   const hasColourPhoto = item.colorImages?.some(row => row.color === initialQuickColor && row.images?.length);
   const colourDescription = hasColourPhoto || item.colors?.length === 1
@@ -140,13 +145,15 @@ export default function ProductCard({
           to={path}
           aria-label={`View ${item.name}`}
         >
-          <ProductImage product={previewProduct}
+          {loadPhoto && <ProductImage product={previewProduct} homeGear={featured}
             eager={priority} fetchPriority={priority ? "high" : "auto"}
-            sizes="(max-width: 600px) 50vw, (max-width: 1100px) 33vw, 300px" />
+            sizes={photoSizes} />}
 
-          {alternateImage && previewAlternate && (
+          {loadPhoto && alternateImage && previewAlternate && (
             <ProductImage
               className="alternate-photo"
+              homeGear={featured}
+              sizes={photoSizes}
               product={{
                 ...item,
                 colorImages: [],
@@ -159,9 +166,9 @@ export default function ProductCard({
           )}
         </Link>
 
-        {item.badge && (
+        {(item.badge || (featured && price.discount > 0)) && (
           <span className="gm-product-badge">
-            {item.badge}
+            {item.badge || `${price.discount}% off`}
           </span>
         )}
 
@@ -203,6 +210,7 @@ export default function ProductCard({
         <Link
           to={path}
           className="gm-product-info-link"
+          title={featured ? item.name : undefined}
         >
           <p className="gm-product-brand">
             {item.brand || "GymDrobe"}
@@ -223,9 +231,7 @@ export default function ProductCard({
                 {money(price.price)}
               </del>
 
-              <span>
-                {price.discount}% OFF
-              </span>
+              {!featured && <span>{price.discount}% OFF</span>}
             </>
           )}
         </p>
