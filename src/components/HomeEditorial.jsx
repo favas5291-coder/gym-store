@@ -12,8 +12,8 @@ export default function HomeEditorial() {
       <div className="department-tiles">
         {departments.map(({ gender, image }, index) => (
           <Link key={gender} className="department-tile" to={`/shop?gender=${gender}`}>
-            <img src={`/media/campaign/${image}-736.webp`}
-              srcSet={`/media/campaign/${image}-432.webp 432w, /media/campaign/${image}-736.webp 736w`}
+            <img src={`/media/campaign/${image}-736.webp?v=2`}
+              srcSet={`/media/campaign/${image}-432.webp?v=2 432w, /media/campaign/${image}-736.webp?v=2 736w`}
               sizes="(max-width: 700px) calc(100vw - 26px), (max-width: 1466px) calc((100vw - 34px) / 2), 716px" alt="" width="640" height="640"
               loading={index === 0 ? "eager" : "lazy"}
               onError={event => { event.currentTarget.style.visibility = "hidden"; }}
