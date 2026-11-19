@@ -67,11 +67,10 @@ export default defineConfig(({ mode }) => ({
                 link.media = "print";
                 link.crossOrigin = "anonymous";
                 link.href = ${JSON.stringify(href)};
-                link.onload = () => {
+                link.onload = link.onerror = () => {
                   link.media = "all";
                   delete root.dataset.stylePending;
                 };
-                link.onerror = () => delete root.dataset.stylePending;
                 document.head.append(link);
               } else {
                 document.write(${JSON.stringify(tag)});
