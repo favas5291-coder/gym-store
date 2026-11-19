@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 8a8d6366a2b8c8df01c62ee01c606ce22371a958
+          ref: 297fcd559578f5d35673c27c7f9a88165d47f80d
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -34,7 +34,7 @@ jobs:
           const {stat}=await import('node:fs/promises');
           const {resolve,sep}=await import('node:path');
           const dist=resolve('dist');
-          console.log('PR_BUILD 8a8d6366a2b8c8df01c62ee01c606ce22371a958 served via isolated browser fixture on public asset origin; public data/images untouched');
+          console.log('PR_BUILD 297fcd559578f5d35673c27c7f9a88165d47f80d served via isolated browser fixture on public asset origin; public data/images untouched');
           for(const [label,url] of [['gymdrobe','https://www.gymdrobe.com/']]) {
            for(const [width,height] of [[390,844],[360,800],[1440,900],[2048,1152]]) {
             const tag=label+'-'+width;
