@@ -889,7 +889,8 @@ export default function Navbar({
       "(min-width: 1280px)",
     );
 
-    if (!element || desktop.matches) {
+    const hideOnDesktop = location.pathname !== "/";
+    if (!element || (hideOnDesktop && desktop.matches)) {
       setDrawerOpen(false);
       return undefined;
     }
@@ -901,7 +902,7 @@ export default function Navbar({
     document.body.style.overflow = "hidden";
 
     function resize() {
-      if (desktop.matches) {
+      if (hideOnDesktop && desktop.matches) {
         setDrawerOpen(false);
       }
     }
@@ -931,7 +932,7 @@ export default function Navbar({
         previousFocus.focus();
       }
     };
-  }, [drawerOpen]);
+  }, [drawerOpen, location.pathname]);
 
   function closeMenus() {
     setActiveMenu(null);
