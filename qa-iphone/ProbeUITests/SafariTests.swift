@@ -34,11 +34,22 @@ final class SafariTests: XCTestCase {
         let women = safari.links.matching(NSPredicate(format: "label CONTAINS[c] %@", "Women")).firstMatch
         XCTAssertTrue(women.waitForExistence(timeout: 14), "Women's link inaccessible in Mobile Safari: \(safari.debugDescription.prefix(6500))")
         print("SAFARI_HOME_OK", women.label)
+        shot("Safari confirmed campaign")
         var share = named(safari, "Share")
-        if !share.exists || !share.isHittable {
-            let menu = safari.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@ OR label CONTAINS[c] %@", "More", "Page Menu")).firstMatch
-            if menu.exists && menu.isHittable { menu.tap() }
+        for _ in 0..<4 {
+            let tipClose = safari.buttons["xmark.circle.fill"]
+            if tipClose.exists && tipClose.isHittable { tipClose.tap() }
+            let tip = safari.otherElements["TipView"]
+            if tip.exists {
+                let close = tip.buttons["Close"]
+                if close.exists && close.isHittable { close.tap() }
+            }
             share = named(safari, "Share")
+            if share.exists && share.isHittable { break }
+            let more = safari.buttons.matching(NSPredicate(format: "label ==[c] %@", "More")).firstMatch
+            if more.exists && more.isHittable { more.tap() }
+            share = named(safari, "Share")
+            if share.waitForExistence(timeout: 2) && share.isHittable { break }
         }
         XCTAssertTrue(share.waitForExistence(timeout: 4) && share.isHittable, "Share menu unavailable: \(safari.debugDescription.prefix(6500))")
         share.tap()
@@ -73,8 +84,18 @@ final class SafariTests: XCTestCase {
         icon.tap()
         sleep(1)
         shot("Shortcut launch")
-        sleep(7)
+        sleep(12)
         shot("Shortcut storefront")
         print("HOME_SCREEN_ICON_LAUNCHED")
+        let webApp = XCUIApplication(bundleIdentifier: "com.apple.webapp")
+        if webApp.state == .runningForeground {
+            let link = webApp.links.matching(NSPredicate(format: "label ==[c] %@ OR label ==[c] %@", "Women’s", "Women's")).firstMatch
+            if link.waitForExistence(timeout: 5) && link.isHittable {
+                link.tap()
+                sleep(2)
+                shot("Shortcut Women collection")
+                print("HOME_SCREEN_WOMEN_TAPPED")
+            }
+        }
     }
 }
