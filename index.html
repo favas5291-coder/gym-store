@@ -14,6 +14,37 @@
       content="#ffffff"
     />
 
+    <script>
+      (() => {
+        if (location.pathname !== "/" || location.hash || ["android", "ios"].includes("%MODE%") ||
+            window.Capacitor?.isNativePlatform?.()) return;
+        document.documentElement.dataset.homeBoot = "";
+        try {
+          if (!localStorage.getItem("gymdrobe.web-opening.seen.v1")) {
+            document.documentElement.dataset.openingProducts = "true";
+            document.documentElement.dataset.openingActive = "";
+            document.querySelector('meta[name="theme-color"]').content = "#0f3d3a";
+          }
+        } catch {}
+      })();
+    </script>
+    <style>
+      #gymdrobe-opening, #home-boot-shell { display: none; }
+      html[data-opening-active] { background: #0f3d3a; }
+      html[data-opening-products] #gymdrobe-opening {
+        position: fixed; inset: 0; z-index: 2147483647; display: grid;
+        place-items: center; background: #0f3d3a;
+      }
+      #gymdrobe-opening img { width: min(216px, 62vw); height: auto; }
+      html[data-home-boot] #home-boot-shell {
+        position: fixed; inset: 0; z-index: 2147483646; display: block;
+        padding: max(20px, env(safe-area-inset-top)) 18px; background: #faf9f5;
+        color: #0f3d3a; font: 600 20px/1.4 system-ui, sans-serif;
+      }
+      html[data-home-boot]:not([data-style-pending]):has(#app:not(:empty)) #home-boot-shell { display: none; }
+      #home-boot-shell div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      #home-boot-shell i { background: #e1e3dc; aspect-ratio: 1; border-radius: 8px; }
+    </style>
     <meta
       name="description"
       content="Shop gym clothing, workout apparel and fitness accessories at GymDrobe. Find the right gear for every workout. Explore GymDrobe online."
@@ -186,40 +217,30 @@
   </head>
 
   <body>
+    <div id="gymdrobe-opening" aria-hidden="true"><img src="/brand/gymdrobe-wordmark-cream.png" alt="" width="216" height="40" /></div>
+    <div id="home-boot-shell" role="status"><strong>GymDrobe</strong><p>Loading featured gear…</p><div aria-hidden="true"><i></i><i></i></div></div>
     <div id="app"></div>
     <script>
       (() => {
-        if (location.pathname !== "/" || location.hash ||
-            ["android", "ios"].includes("%MODE%") || window.Capacitor?.isNativePlatform?.()) return;
+        const screen = document.getElementById("gymdrobe-opening");
+        if (document.documentElement.dataset.openingProducts !== "true") {
+          screen.remove();
+          return;
+        }
         const seen = "gymdrobe.web-opening.seen.v1";
-        try {
-          if (localStorage.getItem(seen)) return;
-        } catch { return; }
-        const screen = document.createElement("div");
-        screen.id = "gymdrobe-opening";
-        screen.setAttribute("aria-hidden", "true");
-        screen.style.cssText = "position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;background:#0f3d3a;pointer-events:none";
-        const logo = new Image();
-        logo.alt = "";
-        logo.width = 216;
-        logo.height = 40;
-        logo.style.cssText = "width:min(216px,62vw);height:auto";
+        const logo = screen.querySelector("img");
         const app = document.getElementById("app");
-        document.documentElement.dataset.openingProducts = "true";
-        screen.style.pointerEvents = "auto";
         app.inert = true;
         let timer;
         const close = () => {
           clearTimeout(timer);
           screen.remove();
+          delete document.documentElement.dataset.openingActive;
+          document.querySelector('meta[name="theme-color"]').content = "#ffffff";
           app.inert = false;
           window.removeEventListener("pagehide", close);
         };
         window.addEventListener("pagehide", close);
-        screen.append(logo);
-        document.body.append(screen);
-        // The production build embeds the approved wordmark so it needs no network round trip.
-        logo.src = "/brand/gymdrobe-wordmark-cream.png";
         const maximumWait = performance.now() + 6000;
         timer = setTimeout(close, 6000);
         logo.decode().then(() => requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -240,7 +261,7 @@
               return image?.complete && image.naturalWidth && card.querySelector(".gm-product-info-link[href]")?.textContent.trim() &&
                 card.querySelector(".gm-product-price")?.textContent.trim();
             });
-            if (ready || row?.querySelector("[data-catalogue-settled]") || performance.now() >= deadline) close();
+            if ((ready && !document.documentElement.hasAttribute("data-style-pending")) || row?.querySelector("[data-catalogue-settled]") || performance.now() >= deadline) close();
             else timer = setTimeout(revealWhenReady, Math.min(80, deadline - performance.now()));
           }
           clearTimeout(timer);
