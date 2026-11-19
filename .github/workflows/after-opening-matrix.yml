@@ -1,0 +1,33 @@
+name: Opening matrix after
+on:
+  push:
+    branches: ['qa/website-opening-matrix-after-20261119']
+permissions:
+  contents: read
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright/python:v1.56.0-noble
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: 'af16ffbe926af9894dde0062c4de0c4b2761e6a1'
+          path: storefront
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: cd storefront && npm ci --no-audit --no-fund && VITE_API_URL=https://fixture.gymdrobe.test/api VITE_SITE_URL=https://www.gymdrobe.com ./node_modules/.bin/vite build
+      - run: python -m pip install --disable-pip-version-check playwright==1.56.0
+      - name: WebKit and Chromium matrix on fixed build
+        run: |
+          python opening-matrix/matrix.py storefront/dist after webkit fresh,refresh,deep,return,shortcut,back,slowjs,blocked,slowphoto,failphoto,slowcss,cssfail,returncss,returncssfail,returnblocked,catalogslow,catfail,swipe,hidden
+          python opening-matrix/matrix.py storefront/dist after chromium fresh,swipe,hidden,deep,search,cart,checkout,tracking,payment
+          python opening-matrix/matrix.py storefront/dist after desktop fresh,return,deep
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: opening-matrix-after
+          path: opening-matrix/results/
+          retention-days: 14
