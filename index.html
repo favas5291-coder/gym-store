@@ -186,6 +186,7 @@
   </head>
 
   <body>
+    <div id="app"></div>
     <script>
       (() => {
         if (location.pathname !== "/" || location.hash ||
@@ -203,25 +204,51 @@
         logo.width = 216;
         logo.height = 40;
         logo.style.cssText = "width:min(216px,62vw);height:auto";
+        const app = document.getElementById("app");
+        document.documentElement.dataset.openingProducts = "true";
+        screen.style.pointerEvents = "auto";
+        app.inert = true;
+        let timer;
         const close = () => {
+          clearTimeout(timer);
           screen.remove();
-          for (const event of ["pointerdown", "keydown", "pagehide"]) window.removeEventListener(event, close, true);
+          app.inert = false;
+          window.removeEventListener("pagehide", close);
         };
-        const stop = setTimeout(close, 2400);
-        logo.onload = () => {
-          if (!screen.isConnected) return;
-          try { localStorage.setItem(seen, "1"); } catch {}
-          clearTimeout(stop);
-          setTimeout(close, 1050);
-        };
-        logo.onerror = close;
+        window.addEventListener("pagehide", close);
         screen.append(logo);
         document.body.append(screen);
-        for (const event of ["pointerdown", "keydown", "pagehide"]) window.addEventListener(event, close, true);
+        // The production build embeds the approved wordmark so it needs no network round trip.
         logo.src = "/brand/gymdrobe-wordmark-cream.png";
+        const maximumWait = performance.now() + 6000;
+        timer = setTimeout(close, 6000);
+        logo.decode().then(() => requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (!screen.isConnected) return;
+          performance.mark("gymdrobe-logo-visible");
+          try { localStorage.setItem(seen, "1"); } catch {}
+          const earliest = performance.now() + 3000;
+          const deadline = Math.max(earliest, maximumWait);
+          function revealWhenReady() {
+            if (!screen.isConnected) return;
+            const row = document.querySelector("[data-opening-featured]");
+            const cards = Array.from(row?.querySelectorAll(".gm-product-card") || []).filter(card => {
+              const rect = card.getBoundingClientRect();
+              return rect.width && rect.left < innerWidth && rect.right > 0 && rect.top < innerHeight && rect.bottom > 0;
+            });
+            const ready = cards.length && cards.every(card => {
+              const image = card.querySelector(".gm-product-image[href] img:not(.alternate-photo)");
+              return image?.complete && image.naturalWidth && card.querySelector(".gm-product-info-link[href]")?.textContent.trim() &&
+                card.querySelector(".gm-product-price")?.textContent.trim();
+            });
+            if (ready || row?.querySelector("[data-catalogue-settled]") || performance.now() >= deadline) close();
+            else timer = setTimeout(revealWhenReady, Math.min(80, deadline - performance.now()));
+          }
+          clearTimeout(timer);
+          timer = setTimeout(revealWhenReady, Math.max(0, earliest - performance.now()));
+        }))).catch(close);
       })();
     </script>
-    <div id="app"></div>
+
 
     <script
       type="module"

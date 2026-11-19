@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { STOREFRONT_COLLECTIONS } from "./src/utils/storefrontCollections.js";
@@ -41,7 +42,14 @@ function publicCatalogueStartup(env, mode) {
 }
 
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), publicCatalogueStartup(loadEnv(mode, process.cwd()), mode)],
+  plugins: [react(), {
+    name: "web-opening-wordmark",
+    transformIndexHtml(html) {
+      if (["ios", "android"].includes(mode)) return html;
+      const logo = readFileSync(new URL("./public/brand/gymdrobe-wordmark-cream.png", import.meta.url));
+      return html.replace('logo.src = "/brand/gymdrobe-wordmark-cream.png"', 'logo.src = "data:image/png;base64,' + logo.toString("base64") + '"');
+    },
+  }, publicCatalogueStartup(loadEnv(mode, process.cwd()), mode)],
   server: {
     allowedHosts: ["terminal.local"],
     port: 5173,
