@@ -55,6 +55,26 @@ async function simulatePrompt(page, outcome) {
 }
 
 try {
+  await check("failed homepage bundle leaves a usable recovery action", async () => {
+    const { c, page } = await context({ serviceWorkers: "block" });
+    const entry = "**/assets/index-*.js";
+    try {
+      await c.route(entry, route => route.abort());
+      await page.goto(origin, { waitUntil: "domcontentloaded" });
+      const fallback = page.locator("#home-boot-shell");
+      const reload = fallback.getByRole("link", { name: "Reload storefront" });
+      await reload.waitFor({ state: "visible" });
+      await page.locator("#gymdrobe-opening").waitFor({ state: "detached" });
+      assert.equal(await fallback.getByRole("link", { name: "Women’s", exact: true }).getAttribute("href"), "/shop?gender=Women");
+      await c.unroute(entry);
+      await reload.click();
+      await page.locator("#app .department-tile").first().waitFor();
+      await fallback.waitFor({ state: "detached" });
+      assert.equal(await page.locator("#gymdrobe-opening").count(), 0);
+    } finally {
+      await c.close();
+    }
+  });
   const mobile = await context();
   await check("production manifest, versioned worker and real installability", async () => {
     await visit(mobile.page);
@@ -179,6 +199,36 @@ try {
     await simulatePrompt(standalone.page, "accepted");
     assert.equal(await standalone.page.getByRole("button", { name: "Install GymDrobe", exact: true }).count(), 0);
     await standalone.c.close();
+  });
+
+  await check("downloaded campaign waits for decoding before the first tap", async () => {
+    const home = await context({ serviceWorkers: "block" });
+    try {
+      await home.page.addInitScript(() => {
+        const decode = HTMLImageElement.prototype.decode;
+        const held = new Promise(resolve => { window.releaseCampaignDecode = resolve; });
+        HTMLImageElement.prototype.decode = function () {
+          const decoded = decode.call(this);
+          return this.matches("#app .department-tile:first-child img")
+            ? decoded.then(() => held)
+            : decoded;
+        };
+      });
+      await home.page.goto(origin, { waitUntil: "domcontentloaded" });
+      const tile = home.page.locator('#app .department-tile[href="/shop?gender=Women"]');
+      await home.page.waitForFunction(() => {
+        const mark = performance.getEntriesByName("gymdrobe-logo-visible")[0];
+        const image = document.querySelector("#app .department-tile img");
+        return mark && performance.now() - mark.startTime >= 3100 && image?.complete && image.naturalWidth > 0;
+      });
+      assert.ok(await home.page.locator("#gymdrobe-opening").isVisible());
+      await home.page.evaluate(() => window.releaseCampaignDecode());
+      await home.page.locator("#gymdrobe-opening").waitFor({ state: "detached", timeout: 1500 });
+      await tile.tap();
+      await home.page.waitForURL("**/shop?gender=Women");
+    } finally {
+      await home.c.close();
+    }
   });
 
   await check("desktop layout and footer installation entry", async () => {

@@ -18,7 +18,7 @@
       (() => {
         if (location.pathname !== "/" || location.hash || ["android", "ios"].includes("%MODE%") ||
             window.Capacitor?.isNativePlatform?.()) return;
-        document.documentElement.dataset.homeBoot = "";
+        document.documentElement.dataset.homeBoot = String(performance.now());
         try {
           if (!localStorage.getItem("gymdrobe.web-opening.seen.v1")) {
             document.documentElement.dataset.openingActive = "";
@@ -29,23 +29,33 @@
     </script>
     <style>
       #gymdrobe-opening, #home-boot-shell { display: none; }
-      html[data-opening-active] { background: #0f3d3a; }
-      html[data-opening-active] #gymdrobe-opening {
-        position: fixed; inset: 0; z-index: 2147483647; display: grid;
-        place-items: center; background: #0f3d3a;
+      html[data-home-boot] body { margin: 0; }
+      html[data-home-boot] #app { visibility: hidden; }
+      html[data-opening-active], html[data-opening-active] body {
+        background: #0f3d3a; overflow: hidden; overscroll-behavior: none;
       }
-      #gymdrobe-opening img { width: min(216px, 62vw); height: auto; }
+      html[data-opening-active] #gymdrobe-opening {
+        position: fixed; inset: 0; z-index: 2147483647; display: block; background: #0f3d3a;
+      }
+      #gymdrobe-opening > div {
+        height: 100%; height: 100svh; box-sizing: border-box; display: grid; place-items: center;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      }
+      #gymdrobe-opening img { display: block; width: min(216px, 62vw); height: auto; }
       html[data-home-boot] #home-boot-shell {
         position: fixed; inset: 0; z-index: 2147483646; display: block;
         overflow-y: auto; background: #0f3d3a; font: 600 16px/1.4 system-ui, sans-serif;
       }
-      html[data-home-boot]:not([data-style-pending]):has(#app .department-tile, #app .page-error) #home-boot-shell { display: none; }
-      #home-boot-shell header { display: grid; place-items: center; padding-top: env(safe-area-inset-top); height: 58px; background: white; }
-      #home-boot-shell header img { width: 112px; height: auto; }
+      #home-boot-shell header { display: grid; place-items: center; position: relative; box-sizing: content-box; height: 56px; padding-top: env(safe-area-inset-top); background: white; color: #0f3d3a; }
+      #home-boot-shell header img { width: clamp(112px, 12vw, 154px); height: auto; }
+      #home-boot-shell [data-boot-reload] { position: absolute; right: max(10px, env(safe-area-inset-right)); color: inherit; font-size: 13px; padding: 12px 2px; }
+      #home-boot-shell [hidden] { display: none; }
       #home-boot-shell nav { display: grid; gap: 8px; padding: 8px 13px; margin: auto; max-width: 1440px; }
-      #home-boot-shell a { display: grid; position: relative; aspect-ratio: 1; place-items: center; overflow: hidden; background: #183e39; color: #171717; text-decoration: none; }
-      #home-boot-shell a img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-      #home-boot-shell span { position: relative; padding: 14px 24px; background: white; }
+      #home-boot-shell nav a { display: grid; position: relative; aspect-ratio: 1; place-items: center; overflow: hidden; background: #174944; color: #171717; text-decoration: none; }
+      #home-boot-shell nav img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 25%; }
+      #home-boot-shell nav a:last-child img { object-position: center 44%; }
+      #home-boot-shell nav span { position: relative; display: grid; place-items: center; box-sizing: border-box; min-height: 48px; padding: 10px 24px; background: white; }
+      @media (max-width: 700px) { #home-boot-shell header img { width: 120px; } }
       @media (min-width: 701px) { #home-boot-shell nav { grid-template-columns: repeat(2,minmax(0,1fr)); } }
     </style>
     <meta
@@ -220,10 +230,10 @@
   </head>
 
   <body>
-    <div id="gymdrobe-opening" aria-hidden="true"><img src="/brand/gymdrobe-wordmark-cream.png" alt="" width="216" height="40" /></div>
+    <div id="gymdrobe-opening" aria-hidden="true"><div><img src="/brand/gymdrobe-wordmark-cream.png" alt="" width="720" height="134" /></div></div>
     <template id="home-boot-template">
       <div id="home-boot-shell">
-        <header><img src="/brand/gymdrobe-wordmark-green.png" alt="GymDrobe" width="112" height="21" /></header>
+        <header><img src="/brand/gymdrobe-wordmark-green.png" alt="GymDrobe" width="720" height="134" /><a href="" data-boot-reload hidden>Reload storefront</a></header>
         <nav aria-label="Shop by department">
           <a href="/shop?gender=Women"><img alt="" width="736" height="736" fetchpriority="high" src="/media/campaign/women-hoodie-736.webp?v=3" srcset="/media/campaign/women-hoodie-432.webp?v=3 432w, /media/campaign/women-hoodie-736.webp?v=3 736w" sizes="(max-width: 700px) calc(100vw - 26px), (max-width: 1466px) calc((100vw - 34px) / 2), 716px" /><span>Women’s</span></a>
           <a href="/shop?gender=Men"><img alt="" width="736" height="736" fetchpriority="auto" src="/media/campaign/men-hoodie-736.webp?v=3" srcset="/media/campaign/men-hoodie-432.webp?v=3 432w, /media/campaign/men-hoodie-736.webp?v=3 736w" sizes="(max-width: 700px) calc(100vw - 26px), (max-width: 1466px) calc((100vw - 34px) / 2), 716px" /><span>Men’s</span></a>
@@ -233,63 +243,110 @@
     <div id="app"></div>
     <script>
       (() => {
-        const screen = document.getElementById("gymdrobe-opening");
         const root = document.documentElement;
-        if (root.hasAttribute("data-home-boot")) {
-          const template = document.getElementById("home-boot-template");
-          template.replaceWith(template.content);
-          const shell = document.getElementById("home-boot-shell");
-          const cleanup = new MutationObserver(() => {
-            if (location.pathname !== "/" || (!root.hasAttribute("data-style-pending") &&
-                document.querySelector("#app .department-tile, #app .page-error"))) {
-              shell.remove();
-              cleanup.disconnect();
-            }
-          });
-          cleanup.observe(document.getElementById("app"), { childList: true, subtree: true });
-          cleanup.observe(root, { attributes: true, attributeFilter: ["data-style-pending"] });
-        }
-        if (!root.hasAttribute("data-opening-active")) {
+        const screen = document.getElementById("gymdrobe-opening");
+        const template = document.getElementById("home-boot-template");
+        if (!root.hasAttribute("data-home-boot")) {
           screen.remove();
+          template.remove();
           return;
         }
-        const seen = "gymdrobe.web-opening.seen.v1";
-        const logo = screen.querySelector("img");
-        const app = document.getElementById("app");
+
+        template.replaceWith(template.content);
         const shell = document.getElementById("home-boot-shell");
-        if (shell) shell.inert = true;
+        const app = document.getElementById("app");
+        const logo = screen.querySelector("img");
+        const theme = document.querySelector('meta[name="theme-color"]');
+        let opening = root.hasAttribute("data-opening-active");
+        let minimumMet = !opening;
+        let expired = false;
+        let minimumTimer;
+        let frame;
         app.inert = true;
-        let timer;
-        const close = () => {
-          clearTimeout(timer);
+        shell.inert = opening;
+        if (!opening) screen.remove();
+
+        function uncover() {
+          if (!opening) return;
+          opening = false;
           screen.remove();
-          delete document.documentElement.dataset.openingActive;
-          document.querySelector('meta[name="theme-color"]').content = "#ffffff";
-          if (shell) shell.inert = false;
+          delete root.dataset.openingActive;
+          theme.content = "#ffffff";
+          shell.inert = false;
+          performance.mark("gymdrobe-opening-dismissed");
+        }
+
+        function handoff() {
+          const scrollTop = shell.scrollTop;
+          uncover();
+          observer.disconnect();
+          clearTimeout(minimumTimer);
+          clearTimeout(deadlineTimer);
+          cancelAnimationFrame(frame);
+          window.removeEventListener("pagehide", leave);
+          window.removeEventListener("popstate", check);
+          document.removeEventListener("visibilitychange", visible);
+          shell.remove();
+          delete root.dataset.homeBoot;
           app.inert = false;
-          window.removeEventListener("pagehide", close);
-        };
-        window.addEventListener("pagehide", close);
-        const maximumWait = performance.now() + 6000;
-        timer = setTimeout(close, 6000);
-        logo.decode().then(() => requestAnimationFrame(() => requestAnimationFrame(() => {
-          if (!screen.isConnected) return;
-          performance.mark("gymdrobe-logo-visible");
-          try { localStorage.setItem(seen, "1"); } catch {}
-          const earliest = performance.now() + 3000;
-          const deadline = Math.max(earliest, maximumWait);
-          function revealWhenReady() {
-            if (!screen.isConnected) return;
-            const tile = app.querySelector('.department-tiles .department-tile[href="/shop?gender=Women"]');
-            const photo = tile?.querySelector("img");
-            const ready = !root.hasAttribute("data-style-pending") && photo?.complete &&
-              photo.naturalWidth > 0 && tile.getBoundingClientRect().width > 0 && tile.textContent.trim();
-            if (ready || performance.now() >= deadline) close();
-            else timer = setTimeout(revealWhenReady, Math.min(80, deadline - performance.now()));
+          if (scrollTop && location.pathname === "/") window.scrollTo({ top: scrollTop, behavior: "instant" });
+        }
+
+        function check() {
+          if (location.pathname !== "/" || location.hash) return handoff();
+          if ((!minimumMet && !expired) || root.hasAttribute("data-style-pending") ||
+              root.hasAttribute("data-home-style-error")) return;
+          const tile = app.querySelector('a[data-home-lead][href="/shop?gender=Women"]');
+          if (tile && tile.textContent.trim() && tile.getBoundingClientRect().width &&
+              (!opening || tile.dataset.homePhoto === "ready")) {
+            handoff();
+          } else if (app.querySelector(".page-error")) {
+            handoff();
           }
-          clearTimeout(timer);
-          timer = setTimeout(revealWhenReady, Math.max(0, earliest - performance.now()));
-        }))).catch(close);
+        }
+
+        function leave() {
+          // A restored history entry should resume shopping, even if the intro was interrupted.
+          minimumMet = true;
+          uncover();
+          check();
+        }
+
+        function visible() {
+          if (document.hidden || !opening || minimumTimer !== undefined) return;
+          // The second frame follows a paint opportunity for the decoded inline wordmark.
+          cancelAnimationFrame(frame);
+          frame = requestAnimationFrame(() => {
+            frame = requestAnimationFrame(() => {
+              if (document.hidden || !opening) return;
+              performance.mark("gymdrobe-logo-visible");
+              try { localStorage.setItem("gymdrobe.web-opening.seen.v1", "1"); } catch {}
+              minimumTimer = setTimeout(() => { minimumMet = true; check(); }, 3000);
+            });
+          });
+        }
+
+        const observer = new MutationObserver(check);
+        observer.observe(app, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-home-photo"] });
+        observer.observe(root, { attributes: true, attributeFilter: ["data-style-pending", "data-home-style-error"] });
+        window.addEventListener("pagehide", leave);
+        window.addEventListener("popstate", check);
+        // Keep this independent of logo decode, paint scheduling, and the React bundle.
+        const deadlineTimer = setTimeout(() => {
+          expired = true;
+          uncover();
+          shell.querySelector("[data-boot-reload]").hidden = false;
+          check();
+        }, Math.max(0, 6000 - (performance.now() - Number(root.dataset.homeBoot))));
+
+        if (opening) logo.decode().then(() => {
+          if (!opening) return;
+          document.addEventListener("visibilitychange", visible);
+          visible();
+        }).catch(() => {
+          // The independent deadline still exposes the working shop links.
+        });
+        check();
       })();
     </script>
 
