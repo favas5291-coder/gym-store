@@ -1,0 +1,29 @@
+name: Mobile opening film
+on:
+  push:
+    branches: [qa-opening-film-20261119]
+permissions:
+  contents: read
+jobs:
+  film:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    container: mcr.microsoft.com/playwright:v1.55.0-noble
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install test client
+        run: |
+          cd /tmp
+          npm install --no-audit --no-fund playwright@1.55.0
+          which ffmpeg || (apt-get update -qq && apt-get install -y -qq ffmpeg)
+      - name: Record opening in WebKit
+        env:
+          PHASE: before
+        run: |
+          cp .github/film/journey.mjs /tmp/film-journey.mjs
+          node /tmp/film-journey.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: homepage-opening-films
+          path: film/
