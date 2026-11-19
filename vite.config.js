@@ -44,10 +44,40 @@ function publicCatalogueStartup(env, mode) {
 export default defineConfig(({ mode }) => ({
   plugins: [react(), {
     name: "web-opening-wordmark",
-    transformIndexHtml(html) {
-      if (["ios", "android"].includes(mode)) return html;
-      const logo = readFileSync(new URL("./public/brand/gymdrobe-wordmark-cream.png", import.meta.url));
-      return html.replace('logo.src = "/brand/gymdrobe-wordmark-cream.png"', 'logo.src = "data:image/png;base64,' + logo.toString("base64") + '"');
+    transformIndexHtml: {
+      order: "post",
+      handler(html) {
+        if (["ios", "android"].includes(mode)) return html;
+        const logo = readFileSync(new URL("./public/brand/gymdrobe-wordmark-cream.png", import.meta.url));
+        // Parse the static entrance before WebKit encounters module startup resources.
+        const resources = [];
+        html = html.replace(/<script type="module"[^>]* src="[^"]+"[^>]*><\/script>|<link rel="modulepreload"[^>]+>/g, tag => {
+          resources.push(tag);
+          return "";
+        }).replace("</body>", resources.join("\n") + "\n</body>");
+        return html.replace('src="/brand/gymdrobe-wordmark-cream.png"', 'src="data:image/png;base64,' + logo.toString("base64") + '"')
+          .replace(/<link rel="stylesheet" crossorigin href="([^"]+)">/g, (tag, href) => {
+            // On the homepage the inline opening and shell can paint while the main CSS downloads.
+            return `<script>
+              if (document.documentElement.hasAttribute("data-home-boot")) {
+                const root = document.documentElement;
+                root.dataset.stylePending = "";
+                const link = document.createElement("link");
+                link.rel = "stylesheet";
+                link.media = "print";
+                link.crossOrigin = "anonymous";
+                link.href = ${JSON.stringify(href)};
+                link.onload = link.onerror = () => {
+                  link.media = "all";
+                  delete root.dataset.stylePending;
+                };
+                document.head.append(link);
+              } else {
+                document.write(${JSON.stringify(tag)});
+              }
+            </script><noscript>${tag}</noscript>`;
+          });
+      },
     },
   }, publicCatalogueStartup(loadEnv(mode, process.cwd()), mode)],
   server: {
