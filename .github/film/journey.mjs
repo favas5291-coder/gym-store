@@ -42,6 +42,8 @@ const response = await page.goto(site+'/',{waitUntil:'commit',timeout:90000});
 await page.waitForFunction(()=>Boolean(window.film?.ready && (window.film.gone || window.film.logo == null)),{},{timeout:30000});
 const tile=page.locator('#app .department-tile').first();
 const frame=await tile.boundingBox();
+// Give the recording one deliberate human-length look at the campaign while recording the first hit-test separately.
+await page.waitForTimeout(420);
 let measurement=await page.evaluate(()=>({...window.film,current:performance.now()}));
 let catalogue = requests.filter(v=>new URL(v.url).pathname==='/api/products');
 const gettingPreloadImages=Promise.all(requests.filter(v=>v.type==='image').map(async v=>{try{let r=await Promise.race([v.r.response(),new Promise(ok=>setTimeout(()=>ok(null),500))]);let size=await Promise.race([r?.body(),new Promise(ok=>setTimeout(()=>ok(null),500))]);return {url:v.url,bytes:size?.length||null}}catch{return {url:v.url,bytes:null}}}));
@@ -51,7 +53,8 @@ await page.waitForURL(/gender=Women/,{timeout:25000});
 await page.locator('h1').first().waitFor({timeout:15000});
 const outcome=await page.evaluate(()=>({url:location.href,heading:document.querySelector('h1')?.textContent,clock:performance.timeOrigin,...window.film}));
 measurement={...measurement,tapMs:outcome.clock===original?outcome.tap:null};
-await page.waitForTimeout(700);
+await page.locator('.gm-product-card img').first().waitFor({timeout:15000}).catch(()=>{});
+await page.waitForTimeout(1200);
 const preloadImages=await gettingPreloadImages;const product=catalogue[0]?.r.timing();
 await context.close();const path=await vid.path();
 const encoded=spawnSync(process.env.FFMPEG || 'ffmpeg',['-hide_banner','-loglevel','error','-y','-i',path,'-c:v','libx264','-preset','fast','-crf','21','-pix_fmt','yuv420p','-movflags','+faststart',dir+'/'+phase+'.mp4'],{encoding:'utf8'});
