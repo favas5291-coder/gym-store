@@ -24,7 +24,7 @@ jobs:
           const browser=await chromium.launch({channel:'chrome',headless:true});
           const results=[];
           for(const [label,url] of [['gymdrobe','https://www.gymdrobe.com/'],['gymshark','https://row.gymshark.com/']]) {
-           for(const [width,height] of [[390,844],[360,800],[1440,900]]) {
+           for(const [width,height] of [[390,844],[360,800],[1440,900],[2048,1152]]) {
             const tag=label+'-'+width;
             const context=await browser.newContext({viewport:{width,height},deviceScaleFactor:1,isMobile:width<500,hasTouch:width<500,locale:'en-GB',reducedMotion:'reduce'});
             const page=await context.newPage();
@@ -38,22 +38,38 @@ jobs:
               await page.evaluate(()=>scrollTo(0,0));
               const headings=await page.locator('h1,h2,h3,[role=heading]').evaluateAll(es=>es.map(e=>e.textContent.trim()).filter(Boolean).slice(0,80));
               console.log('HEADINGS',tag,response?.status(),JSON.stringify(headings).slice(0,3000));
+              if(label==='gymshark'){
+                const title=page.getByText('ARE YOU IN THE RIGHT PLACE?',{exact:true}).first();
+                if(await title.isVisible().catch(()=>false)){
+                  const outer=title.locator("xpath=ancestor::*[.//button or .//a][1]");
+                  const parent=outer.locator("..");
+                  const details=await parent.evaluate(e=>({text:e.innerText.slice(0,1200),buttons:[...e.querySelectorAll("button,a")].map(b=>[b.tagName,b.innerText,b.ariaLabel])})).catch(()=>null);
+                  console.log('LOCATION_UI',tag,JSON.stringify(details));
+                  const dismiss=parent.getByRole("button",{name:/close|dismiss|stay|continue to (this|rest)|no, thanks/i}).first();
+                  if(await dismiss.isVisible().catch(()=>false)) await dismiss.click().catch(()=>{});
+                  if(await title.isVisible().catch(()=>false))await page.keyboard.press('Escape');
+                  if(await title.isVisible().catch(()=>false)){
+                    const close=page.locator('[role="dialog"] button[aria-label*="close" i], [data-testid*="close" i]').filter({visible:true}).first();
+                    if(await close.isVisible().catch(()=>false))await close.click({timeout:1500}).catch(()=>{});
+                  }
+                }
+              }
               const select=label==='gymdrobe'?[/women.s workout gear/i,/^featured gear$/i]:[/women.s sale|shop by category|women.s.*categor/i,/softsense|best of sale|bestsellers|best sellers|new releases/i];
               for(let n=0;n<2;n++){
                 const selected=headings.find(x=>select[n].test(x));
                 const rec={tag,section:n,url:page.url(),status:response?.status(),heading:selected||null};
                 if(!selected){rec.observedHeadings=headings.slice(0,18);results.push(rec);continue;}
                 const heading=page.getByRole('heading',{name:selected,exact:true}).first();
-                await heading.evaluate(e=>{e.scrollIntoView({block:'start'});window.scrollBy(0,-120);});
-                await page.waitForTimeout(1000);
+                await heading.evaluate(e=>{e.scrollIntoView({block:'start'});window.scrollBy({top:-120,behavior:'instant'});});
+                await page.waitForTimeout(1300);
                 rec.blocks=await heading.evaluate(el=>{
                   const box=e=>{const b=e.getBoundingClientRect();return [b.x,b.y,b.width,b.height].map(n=>Math.round(n*10)/10);};
                   let node=el.parentElement;
                   while(node.parentElement && node.querySelectorAll('img').length<2)node=node.parentElement;
                   const imgs=[...node.querySelectorAll('img')].filter(e=>e.getBoundingClientRect().width>45).slice(0,8);
-                  return {heading:box(el),headingFont:getComputedStyle(el).font,section:box(node),images:imgs.map(e=>({alt:e.alt,rect:box(e),parent:box(e.parentElement),fit:getComputedStyle(e).objectFit,pos:getComputedStyle(e).objectPosition,natural:[e.naturalWidth,e.naturalHeight],crop:new URL(e.currentSrc||e.src,location.href).search.slice(0,130)}))};
+                  const pic=imgs[0], y=pic?.getBoundingClientRect().bottom??0; const captions=[...node.querySelectorAll('h3,h4,a,span,p,strong')].filter(e=>{ const b=e.getBoundingClientRect();return b.height>7&&b.height<65&&b.top>=y-1&&b.left>=0&&e.childElementCount===0&&e.textContent.trim() }).slice(0,4).map(e=>({text:e.textContent.trim().slice(0,60),box:box(e),font:getComputedStyle(e).font})); return {captions,heading:box(el),headingFont:getComputedStyle(el).font,section:box(node),images:imgs.map(e=>({alt:e.alt,rect:box(e),parent:box(e.parentElement),fit:getComputedStyle(e).objectFit,pos:getComputedStyle(e).objectPosition,natural:[e.naturalWidth,e.naturalHeight],crop:new URL(e.currentSrc||e.src,location.href).search.slice(0,130)}))};
                 });
-                await page.screenshot({path:out+'/'+tag+'-'+n+'.png',animations:'disabled'});results.push(rec);
+                const shot=out+'/'+tag+'-'+n+'.png'; await page.screenshot({path:shot,animations:'disabled'});if(rec.blocks.heading[1]>height||rec.blocks.heading[1]<0){const crop=await heading.evaluateHandle(e=>{let p=e.parentElement;while(p.parentElement&&p.querySelectorAll('img').length<2)p=p.parentElement;return p;});await crop.asElement().screenshot({path:out+'/'+tag+'-'+n+'-element.png',animations:'disabled',timeout:5000}).catch(()=>{});}results.push(rec);
                 console.log('GEOMETRY',JSON.stringify(rec).slice(0,4000));
               }
               if(!results.some(x=>x.tag===tag && x.heading)) await page.screenshot({path:out+'/'+tag+'-observed.png',animations:'disabled'});
