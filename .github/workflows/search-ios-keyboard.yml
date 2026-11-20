@@ -1,0 +1,62 @@
+name: Search on iPhone Safari with soft keyboard
+on:
+  push:
+    branches: [qa-search-os-keyboard-20261120]
+    paths: ['.github/workflows/search-ios-keyboard.yml', '.qa-safari/**']
+permissions:
+  contents: read
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 23
+    env:
+      TARGET_REV: a0c46daf592f1b14b37e6d79bff659ab78d140f2
+      PHASE: before
+      VITE_API_URL: https://gym-drobe-backend.onrender.com/api
+      VITE_SITE_URL: https://www.gymdrobe.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_REV }}
+          path: source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Boot iPhone and enable the onscreen keyboard
+        run: |
+          mkdir -p evidence
+          defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
+          python3 - <<'PY'
+          import subprocess as s,json,os
+          devices=json.loads(s.check_output(['xcrun','simctl','list','devices','available','-j']))['devices']
+          phones=[(rt,p) for rt,ls in devices.items() for p in ls if 'iPhone' in p['name']]
+          rt,p=sorted(phones,key=lambda t:(t[1]['name'] in ('iPhone 16e','iPhone 14','iPhone 13','iPhone 12'),t[0],t[1]['name']=='iPhone 16',t[1]['name']),reverse=True)[0]
+          with open(os.environ['GITHUB_ENV'],'a') as f:f.write('PHONE='+p['udid']+'\n')
+          with open('evidence/device.json','w') as f:json.dump([rt,p],f)
+          s.run(['xcrun','simctl','boot',p['udid']],check=True)
+          PY
+      - name: Build exact revision and prepare captured public catalogue
+        run: |
+          (cd source && npm ci --ignore-scripts --no-audit --no-fund && npm run build)
+          curl -fsSL --retry 3 https://gym-drobe-backend.onrender.com/api/products -o /tmp/search-catalogue.json
+          nohup python3 -u .qa-safari/server.py > evidence/server.log 2>&1 < /dev/null &
+          curl -fsSL --retry 40 --retry-delay 2 --retry-connrefused http://127.0.0.1:4193/ -o /dev/null
+          command -v xcodegen || brew install xcodegen
+          (cd .qa-safari && xcodegen generate)
+          xcrun simctl bootstatus "$PHONE" -b
+      - name: Touch field, assert OS keyboard and open a real product
+        run: |
+          set -o pipefail
+          xcodebuild test -project .qa-safari/Probe.xcodeproj -scheme Probe -destination "platform=iOS Simulator,id=$PHONE" -parallel-testing-enabled NO -resultBundlePath "$RUNNER_TEMP/probe.xcresult" CODE_SIGNING_ALLOWED=NO 2>&1 | tee evidence/xctest.log
+      - name: Export keyboard screenshots
+        if: always()
+        run: |
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/probe.xcresult" --output-path evidence/screenshots || true
+          xcrun simctl io "$PHONE" screenshot evidence/last.png || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: iPhone-Safari-search-keyboard-${{env.PHASE}}
+          path: evidence/
+          retention-days: 14
