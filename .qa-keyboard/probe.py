@@ -66,6 +66,7 @@ def calltap(expr):
  if not before and expr==inp:
   # Observe two actual terms before tapping during the following transition.
   term="document.querySelector('.gs-terms strong')?.textContent"
+  print("Motion and visibility",ev("window.matchMedia('(prefers-reduced-motion: reduce)').matches"),ev("document.visibilityState"), flush=True)
   initial=wait(term)
   wait(term+" !== "+json.dumps(initial))
   current=ev(term)

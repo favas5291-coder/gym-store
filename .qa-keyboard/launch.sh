@@ -4,6 +4,9 @@ adb shell wm size 780x1688
 adb shell wm density 320
 adb shell settings put secure show_ime_with_hard_keyboard 1
 adb shell settings put system font_scale 1
+adb shell settings put global animator_duration_scale 1
+adb shell settings put global transition_animation_scale 1
+adb shell settings put global window_animation_scale 1
 adb reverse tcp:4183 tcp:4183
 adb shell pm list packages | grep -i chrome | tee evidence/chrome-package.log
 adb shell am set-debug-app --persistent com.android.chrome
