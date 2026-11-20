@@ -60,9 +60,6 @@ def wait(expr,t=15):
  raise AssertionError(expr+' : '+str(ev('document.body.innerText.slice(0,800)')))
 def calltap(expr):
  xy=wait('(()=>{const el='+expr+'; if(!el)return;const b=el.getBoundingClientRect();const x=b.x+b.width/2,y=b.y+b.height/2;return b.width&&b.height&&el.contains(document.elementFromPoint(x,y))?[x,y]:null})()')
- nodes=system_ui();wv=next((e for e in nodes.iter('node') if e.get('class')=='android.webkit.WebView'),None)
- scale=ev('devicePixelRatio');offset=round(scale*80)
- if wv is not None: offset=int(re.findall(r'\d+',wv.get('bounds'))[1])
  if not before and expr==inp:
   # Observe two actual terms before tapping during the following transition.
   term="document.querySelector('.gs-terms strong')?.textContent"
@@ -81,6 +78,10 @@ def calltap(expr):
  A('shell','input','tap',str(round(xy[0]*scale)),str(offset+round(xy[1]*scale)))
 
 dismiss_system_prompts()
+nodes=system_ui()
+webview=next((node for node in nodes.iter('node') if node.get('class')=='android.webkit.WebView'),None)
+scale=ev('devicePixelRatio')
+offset=int(re.findall(r'\d+',webview.get('bounds'))[1]) if webview is not None else round(80*scale)
 call('Fetch.enable',{'patterns':[{'urlPattern':'https://gym-drobe-backend.onrender.com/api/*'}]});ev("localStorage.removeItem('gymdrobe.web-opening.seen.v1')");rec=None
 if not before:
  # Let Chrome's transient first-install cookie and onboarding messages clear.
@@ -89,7 +90,7 @@ if not before:
  time.sleep(.2)
 call('Page.navigate',{'url':'http://localhost:4183/'})
 wait("document.querySelector('#app .department-tile') && !document.querySelector('#gymdrobe-opening') && !document.querySelector('#home-boot-shell')",21);sleepjs=lambda t: [ev('1') or 0 for _ in range(t) if not time.sleep(.2)]
-sleepjs(5);dismiss_system_prompts();screen('01-home');vp=ev('visualViewport.height');inp="[...document.querySelectorAll('input[type=search],input[role=combobox]')].find(el=>el.getBoundingClientRect().width>0)";result={'phase':phase,'closedKeyboardViewport':vp,'innerWidth':ev('innerWidth'),'chrome':ev('navigator.userAgent'),'catalogueEntries':len(products)}
+sleepjs(2);screen('01-home');vp=ev('visualViewport.height');inp="[...document.querySelectorAll('input[type=search],input[role=combobox]')].find(el=>el.getBoundingClientRect().width>0)";result={'phase':phase,'closedKeyboardViewport':vp,'innerWidth':ev('innerWidth'),'chrome':ev('navigator.userAgent'),'catalogueEntries':len(products)}
 if before: calltap("document.querySelector('button[aria-label=\"Open search\"]')")
 if not before:
  ev('''(()=>{let t;window.__focusTrace=[];const sample=(what,target)=>{const input=document.querySelector('[data-storefront-search]'),a=document.querySelector('.gs-category');let hit=false;if(a){const b=a.getBoundingClientRect();hit=!!b.width && b.bottom<=visualViewport.height && a.contains(document.elementFromPoint(b.x+b.width/2,b.y+b.height/2))}return {ms:Math.round(performance.now()-t),what,target:target?.outerHTML?.slice(0,90),active:document.activeElement?.outerHTML?.slice(0,120),focus:document.activeElement===input,expanded:input?.getAttribute('aria-expanded'),category:hit?a.innerText:null,vp:Math.round(visualViewport.height)}};const push=(name,e)=>{if(!t&&name==='pointerdown')t=performance.now();if(t)window.__focusTrace.push(sample(name,e?.target))};for(const n of ['pointerdown','focusin','pointerup','click','focusout','blur'])document.addEventListener(n,e=>push(n,e),true);visualViewport.addEventListener('resize',e=>push('viewport',e));window.__focusNow=()=>sample('poll');return true})()''')
