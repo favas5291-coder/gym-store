@@ -1,0 +1,51 @@
+name: Search on Android Chrome with soft keyboard
+on:
+  push:
+    branches: [qa-search-os-keyboard-20261120]
+    paths: ['.github/workflows/search-os-keyboard.yml', '.qa-keyboard/**']
+permissions:
+  contents: read
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    env:
+      TARGET_REV: a0c46daf592f1b14b37e6d79bff659ab78d140f2
+      PHASE: before
+      VITE_SITE_URL: https://www.gymdrobe.com
+      VITE_API_URL: https://gym-drobe-backend.onrender.com/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_REV }}
+          path: source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Build release frontend
+        working-directory: source
+        run: npm ci --ignore-scripts --no-audit --no-fund && npm run build
+      - name: Prepare keyboard check
+        run: |
+          mkdir -p evidence
+          curl -fsSL --retry 3 'https://gym-drobe-backend.onrender.com/api/products' -o /tmp/search-catalogue.json
+          python3 -m pip install --user --break-system-packages websocket-client
+          sudo chmod a+rw /dev/kvm
+          python3 .qa-keyboard/server.py > /tmp/search-server.log 2>&1 &
+          curl --retry 10 --retry-connrefused -fsS -o /dev/null http://localhost:4183/
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis_playstore
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: bash .qa-keyboard/launch.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Android-Chrome-search-keyboard-${{env.PHASE}}
+          path: evidence/
+          retention-days: 14
