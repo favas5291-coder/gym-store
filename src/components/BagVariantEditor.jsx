@@ -104,8 +104,8 @@ function Editor({ item, onClose }) {
     catalogReady,
   );
 
-  const unitPrice = productPriceAvailable(product)
-    ? getDiscountedPrice(product)
+  const unitPrice = productPriceAvailable(product, selectedSize, selectedColor)
+    ? getDiscountedPrice(product, selectedSize, selectedColor)
     : null;
 
   const canSave =
@@ -190,8 +190,8 @@ function Editor({ item, onClose }) {
         bagEditSignature(latestRows);
 
       const priceChanged =
-        !productPriceAvailable(latestProduct) ||
-        getDiscountedPrice(latestProduct) !== unitPrice;
+        !productPriceAvailable(latestProduct, selectedSize, selectedColor) ||
+        getDiscountedPrice(latestProduct, selectedSize, selectedColor) !== unitPrice;
 
       if (bagChanged || priceChanged) {
         throw new Error(

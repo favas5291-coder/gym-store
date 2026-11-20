@@ -119,7 +119,7 @@ export function inspectKitSelections(
       continue;
     }
 
-    const unitPrice = getDiscountedPrice(product);
+    const unitPrice = getDiscountedPrice(product, row.selectedSize, row.selectedColor);
 
     if (
       typeof product.price !== "number" ||
@@ -128,7 +128,8 @@ export function inspectKitSelections(
       typeof product.discount !== "number" ||
       !Number.isFinite(product.discount) ||
       product.discount < 0 ||
-      product.discount > 100
+      product.discount > 100 ||
+      !Number.isFinite(unitPrice)
     ) {
       errors.push(
         `${label}: pricing is unavailable.`,

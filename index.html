@@ -14,6 +14,7 @@
       content="#ffffff"
     />
 
+    <!-- home-entry -->
     <script>
       (() => {
         if (location.pathname !== "/" || location.hash || ["android", "ios"].includes("%MODE%") ||
@@ -79,6 +80,7 @@
       }
       @media (min-width: 701px) { #home-boot-shell nav { grid-template-columns: repeat(2,minmax(0,1fr)); } }
     </style>
+    <!-- /home-entry -->
     <meta
       name="description"
       content="Shop gym clothing, workout apparel and fitness accessories at GymDrobe. Find the right gear for every workout. Explore GymDrobe online."
@@ -251,6 +253,7 @@
   </head>
 
   <body>
+    <!-- home-entry -->
     <div id="gymdrobe-opening" aria-hidden="true"><div><img src="/brand/gymdrobe-wordmark-cream.png" alt="" width="720" height="134" /></div></div>
     <template id="home-boot-template">
       <div id="home-boot-shell">
@@ -268,7 +271,9 @@
         </nav>
       </div>
     </template>
+    <!-- /home-entry -->
     <div id="app"></div>
+    <!-- home-entry -->
     <script>
       (() => {
         const root = document.documentElement;
@@ -399,6 +404,7 @@
         check();
       })();
     </script>
+    <!-- /home-entry -->
 
 
     <script

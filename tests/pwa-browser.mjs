@@ -11,7 +11,8 @@ let server = await startServer();
 const origin = "http://127.0.0.1:4215";
 const output = path.resolve("test-results/pwa");
 await fs.mkdir(output, { recursive: true });
-const browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"], ...(process.env.GYMDROBE_CHROMIUM_PATH ? { executablePath: process.env.GYMDROBE_CHROMIUM_PATH } : {}) });
+const launchOptions = { headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"], ...(process.env.GYMDROBE_CHROMIUM_PATH ? { executablePath: process.env.GYMDROBE_CHROMIUM_PATH } : {}) };
+const browser = await chromium.launch(launchOptions);
 const errors = [];
 const results = [];
 const workerPath = path.resolve("dist/sw.js");
@@ -21,8 +22,13 @@ const check = async (name, run) => {
   catch (error) { results.push({ name, passed: false, error: error.stack }); console.error("FAIL", name, error.stack); }
 };
 
-async function context(options = {}) {
-  const c = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: "reduce", ...(options.isMobile === false ? {} : { userAgent: "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Mobile Safari/537.36" }), ...options });
+async function context({ regularProfile = false, ...options } = {}) {
+  const settings = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: "reduce", ...(options.isMobile === false ? {} : { userAgent: "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Mobile Safari/537.36" }), ...options };
+  // Installation is disabled in Incognito. An empty userDataDir gives this
+  // check a fresh regular profile that Playwright removes on context close.
+  const c = regularProfile
+    ? await chromium.launchPersistentContext("", { ...launchOptions, ...settings })
+    : await browser.newContext(settings);
   // Leave same-origin documents/assets unrouted so offline emulation reaches
   // the real worker/network. Mock only APIs and block other remote services.
   await c.route("https://**/*", (route) => route.abort());
@@ -75,23 +81,28 @@ try {
       await c.close();
     }
   });
-  const mobile = await context();
   await check("production manifest, versioned worker and real installability", async () => {
-    await visit(mobile.page);
-    assert.ok(!originalWorker.includes("__GYMDROBE_PWA_VERSION__"));
-    const cdp = await mobile.c.newCDPSession(mobile.page);
-    const manifest = await cdp.send("Page.getAppManifest");
-    assert.deepEqual(manifest.errors, []);
-    const data = JSON.parse(manifest.data);
-    assert.equal(data.id, "/");
-    assert.equal(data.display, "standalone");
-    assert.equal(data.icons.filter((i) => i.purpose === "maskable").length, 1);
-    const installability = await cdp.send("Page.getInstallabilityErrors");
-    assert.deepEqual(installability.installabilityErrors, []);
-    await cdp.detach();
+    const install = await context({ regularProfile: true });
+    try {
+      await visit(install.page);
+      assert.ok(!originalWorker.includes("__GYMDROBE_PWA_VERSION__"));
+      const cdp = await install.c.newCDPSession(install.page);
+      const manifest = await cdp.send("Page.getAppManifest");
+      assert.deepEqual(manifest.errors, []);
+      const data = JSON.parse(manifest.data);
+      assert.equal(data.id, "/");
+      assert.equal(data.display, "standalone");
+      assert.equal(data.icons.filter((i) => i.purpose === "maskable").length, 1);
+      const installability = await cdp.send("Page.getInstallabilityErrors");
+      assert.deepEqual(installability.installabilityErrors, []);
+    } finally {
+      await install.c.close();
+    }
   });
 
+  const mobile = await context();
   await check("mobile layout and browser-menu instructions", async () => {
+    await visit(mobile.page);
     assert.ok(await mobile.page.getByText("Add GymDrobe using your browser menu.", { exact: false }).isVisible());
     const size = await mobile.page.evaluate(() => ({ content: document.documentElement.scrollWidth, viewport: innerWidth }));
     assert.ok(size.content <= size.viewport, JSON.stringify(size));

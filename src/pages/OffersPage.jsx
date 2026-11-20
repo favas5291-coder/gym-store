@@ -4,18 +4,23 @@ import { useStore } from "../context/StoreContext.jsx";
 
 import {
   COUPONS,
-  FREE_SHIPPING_LIMIT,
   calculateSubtotal,
 } from "../utils/orderCalculations.js";
 
 import { money } from "../utils/productPricing.js";
 
 export default function OffersPage() {
-  const { cart, coupon, setCoupon, notify } = useStore();
+  const { cart, kitGroups, coupon, setCoupon, notify } = useStore();
   const subtotal = calculateSubtotal(cart);
+  const hasKits = kitGroups.length > 0;
 
   function selectCoupon(offer) {
     setCoupon(offer);
+
+    if (hasKits) {
+      notify(`${offer.code} selected. Check eligibility after kit discounts at checkout.`, "info");
+      return;
+    }
 
     const qualifies = subtotal >= offer.minimum;
 
@@ -49,9 +54,9 @@ export default function OffersPage() {
       </div>
 
       <p className="muted">
-        Coupon minimums use your item subtotal after product discounts.
-        One coupon per order. Standard delivery becomes free at{" "}
-        {money(FREE_SHIPPING_LIMIT)} after coupons.
+        Choose one coupon per order. Checkout confirms savings after product
+        and eligible kit discounts. Check delivery charges and free shipping
+        eligibility in your bag using your delivery pincode.
       </p>
 
       <div className="offer-grid">
@@ -79,7 +84,9 @@ export default function OffersPage() {
               </p>
 
               <p>
-                {qualifies
+                {hasKits
+                  ? "Checkout checks whether this coupon can be combined with your kit."
+                  : qualifies
                   ? "Your bag qualifies."
                   : `Add ${money(
                       offer.minimum - subtotal
@@ -88,7 +95,7 @@ export default function OffersPage() {
 
               {selected && (
                 <p className="muted">
-                  {qualifies
+                  {hasKits || qualifies
                     ? "Selected for your current bag."
                     : "Selected. Savings apply once you meet the minimum."}
                 </p>
@@ -99,15 +106,16 @@ export default function OffersPage() {
                   className="button compact"
                   type="button"
                   aria-pressed={selected}
+                  aria-label={`Use coupon ${offer.code}`}
                   onClick={() => selectCoupon(offer)}
                 >
-                  {selected ? "Coupon selected" : "Use coupon"}
+                  Use coupon
                 </button>
 
                 <button
                   className="button secondary compact"
                   type="button"
-                  aria-label={`Copy coupon code ${offer.code}`}
+                  aria-label={`Copy code ${offer.code}`}
                   onClick={() => copyCoupon(offer.code)}
                 >
                   Copy code

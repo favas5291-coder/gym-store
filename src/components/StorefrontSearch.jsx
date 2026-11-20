@@ -350,7 +350,11 @@ export default function StorefrontSearch({
       <div className="gs-panel-head">
         <h2>{caption}</h2>
         {!query && recent.length > 0 && <button type="button" className="gs-clear-all"
-          onMouseDown={event => event.preventDefault()} onClick={onClearHistory}>Clear all</button>}
+          onMouseDown={event => event.preventDefault()} onClick={() => {
+            onClearHistory();
+            setActive(-1);
+            input.current.focus({ preventScroll: true });
+          }}>Clear all</button>}
         {!query && <div className="gs-alternatives">
           <PhotoSearchButton restoreCamera />
           <VoiceSearch onText={next => { setQuery(next); input.current.focus({ preventScroll: true }); }} />

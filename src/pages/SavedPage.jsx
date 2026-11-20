@@ -1,13 +1,15 @@
 import { Link } from "react-router-dom";
 import { useShoppingTools } from "../context/ShoppingToolsContext.jsx";
 import { useCatalog } from "../context/CatalogContext.jsx";
-import { getCartItemKey, getVariantStock } from "../utils/cartUtils.js";
+import { getCartItemKey } from "../utils/cartUtils.js";
+import { latestPurchaseProduct, purchaseState } from "../utils/productPurchase.js";
 import { getDiscountedPrice, money } from "../utils/productPricing.js";
 import { ProductImage, productPath } from "../components/StorefrontShared.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 export default function SavedPage() {
   const { savedItems, removeSaved, moveSavedToBag } = useShoppingTools(),
-    { products } = useCatalog();
+    { products, loaded, loading, error, refreshProducts } = useCatalog();
+  const ready = loaded && !loading && !error;
   if (!savedItems.length)
     return (
       <EmptyState
@@ -29,13 +31,15 @@ export default function SavedPage() {
           Back to bag →
         </Link>
       </div>
+      {error && <p role="alert">Saved items are available on this device. <button className="text-link" onClick={() => refreshProducts().catch(() => {})}>Retry product information</button></p>}
       {savedItems.map((item) => {
-        const p = products.find((p) => String(p.id) === String(item.id)),
-          stock = getVariantStock(p, item.selectedSize, item.selectedColor);
+        const product = latestPurchaseProduct(products, item);
+        const state = purchaseState(product, item.selectedSize, item.selectedColor, item.quantity, ready);
+        const selectedProduct = product ? { ...product, selectedColor: item.selectedColor } : item;
         return (
           <article className="bag-item" key={getCartItemKey(item)}>
             <Link className="bag-photo" to={productPath(item.id)}>
-              <ProductImage product={p || item} />
+              <ProductImage product={selectedProduct} />
             </Link>
             <div className="bag-copy">
               <h2>{item.name}</h2>
@@ -46,18 +50,18 @@ export default function SavedPage() {
                 · Qty {item.quantity}
               </p>
               <strong>
-                {p ? money(getDiscountedPrice(p)) : "No longer available"}
+                {ready && state.priceAvailable ? money(getDiscountedPrice(product, item.selectedSize, item.selectedColor)) : !ready && Number.isFinite(item.price) ? `Saved estimate ${money(item.price)}` : "Price unavailable"}
               </strong>
               <p>
-                {stock >= item.quantity
+                {state.canBuy
                   ? "Your selection is available"
-                  : `Available quantity: ${stock}. Open the product to choose other options.`}
+                  : state.message}
               </p>
               <div className="bag-links">
                 <button
                   className="button compact"
                   type="button"
-                  disabled={stock < item.quantity}
+                  disabled={!state.canBuy}
                   onClick={() => moveSavedToBag(item)}
                 >
                   Move to bag

@@ -2074,3 +2074,69 @@ test(
     app.unmount();
   },
 );
+
+test("a refresh before payment preserves delivery, payment, gift and delivery instructions", async () => {
+  const local = storage();
+  const app = await application({ local, method: "cod-partial" });
+  const fields = () => nodes(app.render());
+  fields().find(node => node.props.name === "delivery" && !node.props.checked).props.onChange();
+  fields().find(node => node.props.id === "gift-message").props.onChange({ target: { value: "Enjoy!" } });
+  fields().find(node => node.props.id === "order-note").props.onChange({ target: { value: "Ring once" } });
+  app.render();
+  app.unmount();
+
+  const restored = await application({ local });
+  await restored.quote();
+  const quote = restored.events.find(event => event.name === "quote");
+  assert.equal(quote.body.deliveryMethod, "express");
+  assert.equal(quote.body.paymentMethod, "cod-partial");
+  const restoredFields = nodes(restored.render());
+  assert.equal(restoredFields.find(node => node.props.id === "gift-message").props.value, "Enjoy!");
+  assert.equal(restoredFields.find(node => node.props.id === "order-note").props.value, "Ring once");
+  restored.unmount();
+});
+
+test("an authorization or review found after a dismissed popup keeps payment in confirmation", async () => {
+  for (const [status, action] of [
+    ["authorized", "Resume payment"],
+    ["review", "Check payment status"],
+    ["authorized", "poll"],
+  ]) {
+    const app = await application();
+    await app.quote();
+    await app.submit();
+    app.settings.status = status;
+    if (action === "poll") {
+      await app.poll();
+    } else {
+      await app.button(action).props.onClick();
+    }
+    assert.equal(app.pending().phase, "confirming");
+    assert.equal(app.button("Resume payment"), undefined);
+    assert.equal(app.events.filter(event => event.name === "popup").length, 1);
+    app.unmount();
+  }
+});
+
+test("a completed checkout interrupted before navigation can reopen confirmation without cleaning the bag twice", async () => {
+  const local = storage();
+  const session = storage();
+  const original = await application({ local, session });
+  await original.quote();
+  await original.submit();
+  const record = { ...original.pending(), phase: "complete" };
+  session.setItem("gymdrobe-active-checkout-v2", JSON.stringify(record));
+  original.unmount();
+
+  const app = await application({ local, session });
+  await app.button("Check payment status").props.onClick();
+  assert.equal(app.pending().phase, "complete");
+  assert.equal(app.button("Resume payment"), undefined);
+  app.settings.status = "verified";
+  await app.button("Check payment status").props.onClick();
+  assert.ok(app.events.some(event => event.name === "navigate" && event.url.includes("order-success")));
+  assert.equal(app.pending(), null);
+  assert.equal(app.store.cart.length, 1);
+  assert.ok(app.events.every(event => !["popup", "order"].includes(event.name)));
+  app.unmount();
+});

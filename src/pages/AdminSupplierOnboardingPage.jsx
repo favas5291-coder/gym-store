@@ -82,13 +82,14 @@ export default function AdminSupplierOnboardingPage() {
 
   const load = useCallback(async () => {
     const request = ++epoch.current;
-    setLoading(true); setError(""); setLocked(true); setHistory([]); setInvitation(null);
+    setLoading(true); setError(""); setLocked(true); setHistory([]);
     try {
       const [result, existing, current] = await Promise.all([
         api.list(token, { page, status }), getSuppliers(token, { status: "draft", limit: 100 }),
         selectionRef.current ? api.get(token, selectionRef.current) : Promise.resolve(null),
       ]);
       if (request !== epoch.current) return;
+      if (page > result.pages) { setPage(result.pages); return; }
       setRows(result.workspaces); setPages(result.pages); setDrafts(existing.suppliers);
       setSelected(current?.workspace || null); setAvailable(true); setLocked(false);
     } catch (failure) { if (request === epoch.current) { setError(failure.message); setAvailable(false); } }
@@ -104,10 +105,18 @@ export default function AdminSupplierOnboardingPage() {
       const data = await action();
       if (request !== epoch.current) return;
       setSelected(data.workspace); selectionRef.current = data.workspace.id;
-      setRows((old) => old.some((row) => row.id === data.workspace.id)
-        ? old.map((row) => row.id === data.workspace.id ? data.workspace : row)
-        : [data.workspace, ...old].slice(0, 20));
       setInvitation(data.invitation || null); setHistory([]); setMessage(success);
+      try {
+        const result = await api.list(token, { page, status });
+        if (request !== epoch.current) return;
+        setRows(result.workspaces);
+        setPages(result.pages);
+        if (page > result.pages) setPage(result.pages);
+      } catch {
+        if (request !== epoch.current) return;
+        setAvailable(false);
+        setError("Your change was saved. Reload the latest records to refresh the application list.");
+      }
     } catch (failure) {
       if (request !== epoch.current) return;
       setError(failure.message);
@@ -130,7 +139,7 @@ export default function AdminSupplierOnboardingPage() {
   if (loading) return <PageLoading />;
   return <div className="page gd-suppliers-page">
     <div className="gd-supplier-heading"><div><p className="gd-supplier-muted">PARTNER OPERATIONS</p><h1>Supplier onboarding</h1></div>
-      <button className="button secondary" disabled={busy} onClick={() => setAttempt((v) => v + 1)}>Reload latest records</button></div>
+      <button className="button secondary" disabled={busy} onClick={() => { setInvitation(null); setAttempt((v) => v + 1); }}>Reload latest records</button></div>
     <nav className="gd-supplier-menu" aria-label="Supplier administration"><Link to="/admin">Overview</Link><Link to="/admin/suppliers">Supplier records</Link><Link to="/supplier">Supplier workspace</Link></nav>
     <p className="gd-portal-intro">Review applications, record explicit commercial offers and connect supplier accounts. Existing suppliers keep their current setup until you enroll them.</p>
     {error && <p className="gd-supplier-error" role="alert">{error}</p>}
@@ -149,10 +158,10 @@ export default function AdminSupplierOnboardingPage() {
           </fieldset>
         </form>
       </section>
-      <div className="gd-supplier-filters"><label>Application status<select disabled={busy} value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}><option value="">All statuses</option>{Object.entries(SUPPLIER_STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></div>
+      <div className="gd-supplier-filters"><label>Application status<select disabled={busy} value={status} onChange={(e) => { setInvitation(null); setStatus(e.target.value); setPage(1); }}><option value="">All statuses</option>{Object.entries(SUPPLIER_STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></div>
       <div className="gd-supplier-grid">{rows.map((row) => <article className="gd-supplier-card" key={row.id}><h3>{row.supplier.name}</h3><p>{SUPPLIER_STATUS[row.status]}</p><p className="gd-supplier-muted">{row.acceptedAgreement ? "Commercial terms accepted" : row.offeredAgreement ? "Awaiting acceptance" : "Terms not yet offered"}</p><button className="button secondary" disabled={busy || locked} onClick={() => select(row)}>Review {row.supplier.name}</button></article>)}</div>
       {!rows.length && <p className="gd-supplier-empty">No supplier applications match this view.</p>}
-      <nav className="gd-supplier-pagination" aria-label="Application pages"><button className="button secondary" disabled={page <= 1 || busy} onClick={() => setPage((v) => v - 1)}>Previous</button><span>Page {page} of {pages}</span><button className="button secondary" disabled={page >= pages || busy} onClick={() => setPage((v) => v + 1)}>Next</button></nav>
+      <nav className="gd-supplier-pagination" aria-label="Application pages"><button className="button secondary" disabled={page <= 1 || busy} onClick={() => { setInvitation(null); setPage((v) => v - 1); }}>Previous</button><span>Page {page} of {pages}</span><button className="button secondary" disabled={page >= pages || busy} onClick={() => { setInvitation(null); setPage((v) => v + 1); }}>Next</button></nav>
     </>}
     {selected && available && <section id="supplier-onboarding-detail" className="gd-supplier-panel gd-portal-detail">
       <SupplierWorkspaceSummary workspace={selected} />

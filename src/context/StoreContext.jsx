@@ -36,6 +36,7 @@ import {
   writeSession,
 } from "../utils/shopperStorage.js";
 
+import { bagQuantityMessage, purchaseState } from "../utils/productPurchase.js";
 import { resolveCoupon } from "../utils/orderCalculations.js";
 import { shoppingSyncEnabled, compactShopping, recordShoppingChange, initializeShoppingJournal, appendShopping, shoppingChanges, journalPrefix } from "../utils/shoppingJournal.js";
 
@@ -410,15 +411,17 @@ function ScopedStoreProvider({
   const rawWishlist = useCallback(() => memory.wishlistMemory
     ? memory.wishlist : wishlistIds(readArray(wishlistKey)), [memory, wishlistKey]);
 
-  const recordForSync = useCallback((beforeCart, beforeWishlist, nextCart, nextWishlist) => {
-    if (!shoppingSyncEnabled() || !user?.id) return;
+  const recordForSync = useCallback((beforeCart, beforeWishlist, nextCart, nextWishlist, transferQuantity = false) => {
+    if (!shoppingSyncEnabled() || !user?.id) return null;
     try {
-      const pending = recordShoppingChange(user, compactShopping(beforeCart, beforeWishlist), compactShopping(nextCart, nextWishlist));
+      const pending = recordShoppingChange(user, compactShopping(beforeCart, beforeWishlist), compactShopping(nextCart, nextWishlist), { transferQuantity });
       if (pending) setShoppingSyncStatus(navigator.onLine === false ? "offline" : "syncing");
+      return true;
     } catch {
       syncEngine.current?.pause();
       setShoppingSyncStatus("storage");
-      notify("Your changes are kept for this visit. Review account saving before syncing.", "warning");
+      notify("Review account saving before syncing your shopping lists.", "warning");
+      return false;
     }
   }, [user?.id, notify]);
 
@@ -477,26 +480,31 @@ function ScopedStoreProvider({
     };
   }, [user?.id, token, authLoading, catalogReady]);
 
-  const commitCart = useCallback((next) => {
+  const commitCart = useCallback((next, requirePersistence = false) => {
     if (!accountAvailable()) return false;
 
     const wishes = rawWishlist();
-    recordForSync(rawCart(), wishes, next, wishes);
+    const journaled = recordForSync(rawCart(), wishes, next, wishes, requirePersistence);
+    if (requirePersistence && journaled === false) return false;
 
     const saved = writeStorage(cartKey, next);
+    if (requirePersistence && !saved && !journaled) {
+      notify("Browser storage could not save the bag. Your item is still in its original list.", "error");
+      return false;
+    }
 
     memory.cart = next;
     memory.cartMemory = !saved;
     setCartState(next);
 
-    if (!saved) {
+    if (!saved && !journaled) {
       notify(
         "Bag updated for this visit. Browser storage is unavailable.",
         "warning",
       );
     }
 
-    return saved;
+    return saved || (requirePersistence && journaled === true);
   }, [accountAvailable, cartKey, memory, notify, rawCart, rawWishlist, recordForSync]);
 
   const refreshBuyNow = useCallback((item) => {
@@ -824,6 +832,38 @@ function ScopedStoreProvider({
     if (saved) notify("Added to your bag.");
 
     return true;
+  }
+
+  // Transfers span two lists. Compare just this variant and commit durably
+  // before its copy in the other list can be removed.
+  function changeBagForTransfer(item, expected, quantity) {
+    if (!requireCatalog() || item.kitGroup) return false;
+    const rows = latestCart();
+    const product = findProduct(latestProducts(), item);
+    if (!product) return false;
+    const size = item.selectedSize;
+    const color = item.selectedColor;
+    const key = getCartItemKey({ ...item, id: product.id });
+    const matches = row => getCartItemKey(row) === key;
+    const current = rows.find(matches);
+    if ((current?.quantity || 0) !== expected) {
+      notify("Your bag quantity changed. Review it before moving this item.", "info");
+      return false;
+    }
+
+    let next = rows.filter(row => !matches(row));
+    if (quantity > 0) {
+      const state = purchaseState(product, size, color, quantity);
+      const stock = validateBagQuantity(product, quantity, size, color, rows, key);
+      const limit = bagQuantityMessage(rows, product, size, color, quantity - expected);
+      if (!state.canBuy || !stock.valid || limit) {
+        notify(state.message || stock.message || limit, "error");
+        return false;
+      }
+      const updated = normalizeCartItem(product, quantity, size, color);
+      next = current ? rows.map(row => matches(row) ? updated : row) : [...rows, updated];
+    }
+    return commitCart(next, true);
   }
 
   function updateQuantity(itemKey, quantity) {
@@ -1226,6 +1266,7 @@ function ScopedStoreProvider({
           shoppingKey(name, user),
 
         latestCart,
+        changeBagForTransfer,
         catalogReady,
         shoppingSyncStatus,
         retryShoppingSync: () => syncEngine.current?.flush(),

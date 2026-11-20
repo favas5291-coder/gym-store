@@ -25,7 +25,7 @@ export function compactShopping(cart, wishlist) {
 }
 export const selectionKey = row => JSON.stringify([row.productId, row.selectedSize, row.selectedColor, row.kitGroup?.id || null, row.kitGroup?.slotKey || null]);
 const withoutQuantity = ({ quantity, ...row }) => row;
-export function shoppingChanges(before, after) {
+export function shoppingChanges(before, after, { transferQuantity = false } = {}) {
   const changes = [], old = new Map(before.cart.map(row => [selectionKey(row), row]));
   for (const row of after.cart) {
     const key = selectionKey(row), previous = old.get(key);
@@ -37,7 +37,11 @@ export function shoppingChanges(before, after) {
     }
     old.delete(key);
   }
-  for (const row of old.values()) changes.push({ type: "remove", line: withoutQuantity(row) });
+  for (const row of old.values()) {
+    const line = withoutQuantity(row);
+    // Moving units to Saved for later leaves concurrent additions in the bag.
+    changes.push(transferQuantity ? { type: "adjust", line, delta: -row.quantity } : { type: "remove", line });
+  }
   const wishes = new Set(after.wishlist), previousWishes = new Set(before.wishlist);
   for (const id of wishes) if (!previousWishes.has(id)) changes.push({ type: "wish", productId: id, saved: true });
   for (const id of previousWishes) if (!wishes.has(id)) changes.push({ type: "wish", productId: id, saved: false });
@@ -116,7 +120,7 @@ export function initializeShoppingJournal(user, options = {}) {
 }
 export function recordShoppingChange(user, before, after, options = {}) {
   initializeShoppingJournal(user, options);
-  return appendShopping(user, shoppingChanges(before, after), options);
+  return appendShopping(user, shoppingChanges(before, after, options), options);
 }
 export function acknowledgeShopping(user, entry, { storage = shoppingStorage() } = {}) {
   const key = journalPrefix(user) + "op:" + entry.id;

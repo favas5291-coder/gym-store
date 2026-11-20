@@ -508,8 +508,7 @@ function Checkout({ auth, mode }) {
   );
 
   const [method, setMethod] = useState(
-    savedAttempt?.payload
-      ?.deliveryMethod === "express"
+    (savedAttempt?.payload?.deliveryMethod ?? draft.deliveryMethod) === "express"
       ? "express"
       : "standard",
   );
@@ -518,8 +517,7 @@ function Checkout({ auth, mode }) {
     paymentMethod,
     setPaymentMethod,
   ] = useState(
-    savedAttempt?.payload
-      ?.paymentMethod === "cod-partial"
+    (savedAttempt?.payload?.paymentMethod ?? draft.paymentMethod) === "cod-partial"
       ? "cod-partial"
       : "razorpay",
   );
@@ -742,8 +740,8 @@ function Checkout({ auth, mode }) {
 
       quoteSubmit.current?.abort();
 
-      statusRequest.current
-        ?.controller.abort();
+      statusRequest.current?.controller.abort();
+      statusRequest.current = null;
     };
   }, []);
 
@@ -898,28 +896,15 @@ function Checkout({ auth, mode }) {
   }, [kitQuote, Boolean(pending)]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (
-        !mounted.current ||
-        pendingRef.current
-      ) {
-        return;
-      }
-
+    if (!pendingRef.current && !finished.current) {
       writeStorage(optionsKey, {
         deliveryMethod: method,
+        paymentMethod,
         giftMessage,
         orderNote,
       });
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [
-    method,
-    giftMessage,
-    orderNote,
-    optionsKey,
-  ]);
+    }
+  }, [optionsKey, method, paymentMethod, giftMessage, orderNote]);
 
   useEffect(() => {
     if (!user || !token) {
@@ -1114,6 +1099,7 @@ function Checkout({ auth, mode }) {
 
       {
         deliveryMethod: "standard",
+        paymentMethod: "razorpay",
         giftMessage: "",
         orderNote: "",
       },
@@ -1369,6 +1355,35 @@ function Checkout({ auth, mode }) {
     return false;
   }
 
+  function canResumeAfterStatus(record, { order, result }, checkOnly = false) {
+    if (acceptOrder(order, record)) {
+      return false;
+    }
+
+    const canResume =
+      record.phase !== "complete" &&
+      result?.state === "pending" &&
+      order.status === "payment-pending" &&
+      !order.payment?.verifiedAt;
+
+    if (canResume && !checkOnly) {
+      return true;
+    }
+
+    if (record.phase !== "complete") {
+      const phase = canResume ? "ready" : "confirming";
+      if (record.phase !== phase) {
+        remember({ ...record, phase });
+      }
+    }
+
+    setError(
+      result?.message ||
+        "Payment is not confirmed. Check this order again before paying.",
+    );
+    return canResume;
+  }
+
   function paymentStatus(record) {
     if (
       statusRequest.current &&
@@ -1506,10 +1521,7 @@ function Checkout({ auth, mode }) {
 
       try {
         if (record?.orderId) {
-          const { order } =
-            await paymentStatus(
-              record,
-            );
+          const status = await paymentStatus(record);
 
           if (
             !cancelled &&
@@ -1518,7 +1530,7 @@ function Checkout({ auth, mode }) {
             pendingRef.current ===
               record
           ) {
-            acceptOrder(order, record);
+            canResumeAfterStatus(record, status);
           }
         }
       } catch {
@@ -1665,7 +1677,7 @@ function Checkout({ auth, mode }) {
       !mounted.current ||
       !record?.payload ||
       record.phase === "closed" ||
-      record.phase === "complete"
+      (record.phase === "complete" && (!checkOnly || !record.orderId))
     ) {
       return;
     }
@@ -1708,48 +1720,29 @@ function Checkout({ auth, mode }) {
     let verificationStarted = false;
 
     try {
-      const preparing = Promise.all([
-        token
-          ? Promise.resolve()
-          : timedCheckoutStep(
-              "guest_access",
-              ensureGuestAccess,
-            ),
-
-        checkOnly
-          ? Promise.resolve()
-          : timedCheckoutStep(
-              "razorpay_load",
-              loadRazorpay,
-            ),
-      ]);
-
-      // Share a running recovery check before requesting another payment.
-      const recovering =
-        statusRequest.current &&
-        statusRequest.current.orderId ===
-          record.orderId
-          ? statusRequest.current.promise
-          : null;
-
-      const [, status] =
-        await Promise.all([
-          preparing,
-          recovering,
-        ]);
+      if (!token) {
+        await timedCheckoutStep("guest_access", ensureGuestAccess);
+      }
 
       if (!mounted.current) {
         return;
       }
 
-      if (
-        status &&
-        acceptOrder(
-          status.order,
-          record,
-        )
-      ) {
-        return;
+      if (record.orderId) {
+        setPaymentStage("Checking payment status…");
+        const status = await paymentStatus(record);
+        if (!mounted.current) {
+          return;
+        }
+
+        const canResume = canResumeAfterStatus(record, status, checkOnly);
+        if (checkOnly || !canResume) {
+          return;
+        }
+      }
+
+      if (!checkOnly) {
+        await timedCheckoutStep("razorpay_load", loadRazorpay);
       }
 
       if (!mounted.current) {
@@ -1758,53 +1751,6 @@ function Checkout({ auth, mode }) {
 
       if (firstRequest) {
         remember(record, true);
-      }
-
-      if (
-        checkOnly &&
-        record.orderId
-      ) {
-        setPaymentStage(
-          "Checking payment status…",
-        );
-
-        const { order, result } =
-          status ||
-          (
-            await paymentStatus(
-              record,
-            )
-          );
-
-        if (!mounted.current) {
-          return;
-        }
-
-        if (
-          !acceptOrder(
-            order,
-            record,
-          )
-        ) {
-          if (
-            result?.state === "pending" &&
-            order.status ===
-              "payment-pending" &&
-            !order.payment?.verifiedAt
-          ) {
-            remember({
-              ...record,
-              phase: "ready",
-            });
-          }
-
-          setError(
-            result?.message ||
-              "Payment is not confirmed. Check this saved order before paying again.",
-          );
-        }
-
-        return;
       }
 
       setPaymentStage(
@@ -2042,7 +1988,7 @@ function Checkout({ auth, mode }) {
       if (safeRejection) {
         remember(null);
       } else if (
-        pendingRef.current
+        pendingRef.current && pendingRef.current.phase !== "complete"
       ) {
         remember({
           ...pendingRef.current,
@@ -2852,7 +2798,7 @@ function Checkout({ auth, mode }) {
           </h1>
 
           <p className="muted">
-            {review.itemCount} items ·{" "}
+            {review.itemCount} {review.itemCount === 1 ? "item" : "items"} ·{" "}
 
             {mode === "buy-now"
               ? "Buy now"
@@ -2888,8 +2834,11 @@ function Checkout({ auth, mode }) {
           role="alert"
         >
           <p>
-            {error ||
-              "A checkout attempt is saved. Check its status before paying again."}
+            {error || (pending?.phase === "confirming"
+              ? "Your payment is awaiting confirmation. Check its status before paying again."
+              : pending?.phase === "complete"
+                ? "Your order was confirmed. Check its status to reopen your confirmation."
+                : "A checkout attempt is saved. Check its status before paying again.")}
           </p>
 
           {pending && (
@@ -2903,9 +2852,13 @@ function Checkout({ auth, mode }) {
               </p>
 
               <p>
-                <Link to="/orders">
-                  My orders
-                </Link>
+                {pending.orderId ? (
+                  <Link to={`/orders/${encodeURIComponent(pending.orderId)}`}>
+                    View this order
+                  </Link>
+                ) : (
+                  <Link to="/orders">My orders</Link>
+                )}
 
                 {" · "}
 
@@ -2994,12 +2947,8 @@ function Checkout({ auth, mode }) {
               {pending.phase !==
                 "closed" && (
                 <p className="muted">
-                  Resume checks this saved
-                  order with the server
-                  before opening Razorpay
-                  again. If money was
-                  deducted, check payment
-                  status first.
+                  If money was deducted, check the status of this order
+                  before attempting another payment.
                 </p>
               )}
             </>

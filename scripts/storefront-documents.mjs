@@ -8,6 +8,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const snapshotFile = path.join(root, "node_modules/.cache/gymdrobe-public-catalogue.json");
 const escape = value => String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 export function metadataHtml(template, metadata) {
+  // Only the homepage uses the inline wordmark, boot UI and its handoff script.
+  template = template.replace(/<!-- home-entry -->([\s\S]*?)<!-- \/home-entry -->/g,
+    (_, content) => metadata.homepage ? content : "");
   const end = template.toLowerCase().indexOf("</head>");
   if (end < 0) throw new Error("Built storefront head is missing");
   const body = template.slice(end);
