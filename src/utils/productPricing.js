@@ -5,26 +5,55 @@ export function number(value, fallback = 0) {
 export function roundMoney(value) {
   return Math.round((number(value) + Number.EPSILON) * 100) / 100;
 }
-export function marketplaceVariantPrice(product,size,color){
-  if(!Array.isArray(product?.variantPrices)||!product.variantPrices.length)return null;
-  size=size===undefined?product.selectedSize:size;color=color===undefined?product.selectedColor:color;
-  const row=size===undefined&&color===undefined?[...product.variantPrices].sort((a,b)=>a.customerUnitAmount-b.customerUnitAmount)[0]:product.variantPrices.find(r=>(r.size||null)===(size||null)&&(r.color||null)===(color||null));
-  return row&&Number.isSafeInteger(row.customerUnitAmount)&&row.customerUnitAmount>0?row:null;
+// Before all options are chosen, show the lowest price matching the current
+// selection. Once both axes are set, only that variant can supply its price.
+export function marketplaceVariantPrice(product, size = product?.selectedSize, color = product?.selectedColor) {
+  const prices = product?.variantPrices;
+  if (!Array.isArray(prices)) return null;
+
+  function matches(selected, value, options) {
+    if (selected === undefined) return true;
+    if (selected === null || selected === "") return !value || Boolean(options?.length);
+    return value === selected;
+  }
+
+  let lowest = null;
+  for (const row of prices) {
+    const amount = row?.customerUnitAmount;
+    const mrp = row?.mrpUnitAmount ?? amount;
+    if (!Number.isSafeInteger(amount) || amount <= 0 ||
+        !Number.isSafeInteger(mrp) || mrp < amount) continue;
+    if (!matches(size, row.size, product.sizes) || !matches(color, row.color, product.colors)) continue;
+    if (!lowest || amount < lowest.customerUnitAmount) lowest = row;
+  }
+  return lowest;
 }
-export function getOriginalPrice(product,size,color) {
-  const variant=marketplaceVariantPrice(product,size,color);if(variant)return (variant.mrpUnitAmount??variant.customerUnitAmount)/100;
+
+export function getOriginalPrice(product, size, color) {
+  if (product?.variantPrices?.length) {
+    const variant = marketplaceVariantPrice(product, size, color);
+    return variant ? (variant.mrpUnitAmount ?? variant.customerUnitAmount) / 100 : NaN;
+  }
   return Math.max(0, Math.round(number(product?.price)));
 }
-export function getDiscountPercentage(product,size,color) {
-  const variant=marketplaceVariantPrice(product,size,color);if(variant)return variant.mrpUnitAmount?Math.max(0,100*(1-variant.customerUnitAmount/variant.mrpUnitAmount)):0;
+
+export function getDiscountPercentage(product, size, color) {
+  if (product?.variantPrices?.length) {
+    const variant = marketplaceVariantPrice(product, size, color);
+    if (!variant?.mrpUnitAmount) return 0;
+    const savings = Math.max(0, variant.mrpUnitAmount - variant.customerUnitAmount);
+    return Math.round(savings * 10000 / variant.mrpUnitAmount) / 100;
+  }
   return Math.min(100, Math.max(0, number(product?.discount)));
 }
-// Product prices round to whole rupees, preserving your existing catalogue pricing.
-export function getDiscountedPrice(product,size,color) {
-  const variant=marketplaceVariantPrice(product,size,color);if(variant)return variant.customerUnitAmount/100;
-  return Math.round(
-    getOriginalPrice(product) * (1 - getDiscountPercentage(product) / 100),
-  );
+
+export function getDiscountedPrice(product, size, color) {
+  if (product?.variantPrices?.length) {
+    const variant = marketplaceVariantPrice(product, size, color);
+    return variant ? variant.customerUnitAmount / 100 : NaN;
+  }
+  // Legacy catalogue prices round to whole rupees.
+  return Math.round(getOriginalPrice(product) * (1 - getDiscountPercentage(product) / 100));
 }
 export function getDiscountAmount(product) {
   return getOriginalPrice(product) - getDiscountedPrice(product);

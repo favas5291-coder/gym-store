@@ -29,7 +29,9 @@ export async function startStorefrontFixture(port = 4210) {
 function quoteFor(body, products) {
   const items = body.items.map(row => {
     const p = products.find(p => p.id === row.id);
-    const price = Math.round(p.price * (1 - p.discount / 100));
+    const option = p.variantPrices?.find(v => (v.size ?? null) === (row.selectedSize ?? null)
+      && (v.color ?? null) === (row.selectedColor ?? null));
+    const price = option ? option.customerUnitAmount / 100 : Math.round(p.price * (1 - p.discount / 100));
     const paise = price * 100;
     return {product:p.id, name:p.name, price, quantity:row.quantity, selectedColor:row.selectedColor, selectedSize:row.selectedSize,
       priceAllocation:{quantity:row.quantity, lineSubtotalPaise:paise*row.quantity, kitDiscountPaise:0, couponDiscountPaise:0, linePaidPaise:paise*row.quantity, unitBasePaise:paise, extraPaiseUnits:0}};

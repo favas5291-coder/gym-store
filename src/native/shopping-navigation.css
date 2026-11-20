@@ -27,3 +27,33 @@ html.shopping-keyboard-open,html.gymdrobe-native.native-keyboard-open{--shopping
 @media(prefers-reduced-motion:reduce){.shopping-tab-icon{transition:none}}
 
 .native-discover{max-width:1000px;margin:auto;padding:32px 20px}.native-collection{padding:20px 0;border-bottom:1px solid #dedfd9}.native-collection>a{display:flex;justify-content:space-between;align-items:center}.native-collection>div{display:flex;gap:12px;flex-wrap:wrap}.native-collection>div>a{padding:12px 16px;border:1px solid #dedfd9;border-radius:24px;min-height:44px;box-sizing:border-box}.native-search-form{display:flex;gap:10px;margin:24px 0}.native-search-form input{flex:1;min-width:0;padding:14px;border:1px solid #dedfd9;border-radius:8px}.native-search-form button{min-width:48px}
+
+/* Keep search suggestions above the tab bar on both web and native. */
+.native-smart-panel {
+  margin: -12px 0 20px;
+  padding: 12px;
+  border: 1px solid #d8d8dc;
+  border-radius: 12px;
+  background: #fff;
+  color: #202024;
+  max-height: min(340px, 43dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.native-smart-panel ul { list-style: none; padding: 0; margin: 0; }
+.native-smart-panel li + li { border-top: 1px solid #eeeef0; }
+.native-smart-panel a, .native-smart-panel button {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  text-decoration: none;
+  font: inherit;
+}
+.native-smart-panel a[aria-selected="true"], .native-smart-panel a:focus-visible,
+.native-smart-panel button:focus-visible { outline: 2px solid #21463c; outline-offset: -2px; }
+.native-smart-panel small { display: block; color: #62626b; font-size: 12px; }

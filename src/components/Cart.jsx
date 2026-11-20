@@ -13,6 +13,7 @@ import {
 import { useAuth } from "../context/AuthContext.jsx";
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { useStore } from "../context/StoreContext.jsx";
+import { useShoppingTools } from "../context/ShoppingToolsContext.jsx";
 
 import BagVariantEditor from "./BagVariantEditor.jsx";
 
@@ -90,6 +91,7 @@ export default function Cart() {
     shoppingKey,
   } = useStore();
 
+  const { savedItems, saveForLater } = useShoppingTools();
   const navigate = useNavigate();
 
   const [editingKey, setEditingKey] =
@@ -630,6 +632,7 @@ export default function Cart() {
           >
             Shop GymDrobe
           </Link>
+          {savedItems.length > 0 && <Link className="text-link" to="/saved">View saved items ({savedItems.length})</Link>}
         </div>
       </div>
     );
@@ -640,6 +643,7 @@ export default function Cart() {
       <div className="page-heading">
         <div>
           <h1>Shopping bag</h1>
+          {savedItems.length > 0 && <Link className="text-link" to="/saved">View saved items ({savedItems.length})</Link>}
 
           <p
             className="muted"
@@ -991,9 +995,16 @@ export default function Cart() {
                         authLoading ||
                         unavailable
                       }
-                      onClick={() =>
-                        moveToWishlist(item)
-                      }
+                      onClick={() => saveForLater(item)}
+                    >
+                      Save for later
+                    </button>
+
+                    <button
+                      type="button"
+                      className="text-link"
+                      disabled={!ready || authLoading || unavailable}
+                      onClick={() => moveToWishlist(item)}
                     >
                       {isSaved(product)
                         ? "Move to wishlist"

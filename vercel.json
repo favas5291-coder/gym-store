@@ -55,6 +55,12 @@
     },
     {
       "src": "^/(?:shop|collections/[^/]+)/?$",
+      "has": [{ "type": "query", "key": "brandKey" }],
+      "headers": { "X-Robots-Tag": "noindex, follow" },
+      "continue": true
+    },
+    {
+      "src": "^/(?:shop|collections/[^/]+)/?$",
       "has": [{ "type": "query", "key": "category" }],
       "headers": { "X-Robots-Tag": "noindex, follow" },
       "continue": true

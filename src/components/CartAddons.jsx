@@ -211,7 +211,7 @@ function matchesQuote(
       return quoteSelection(
         row,
         product._id || productReference(product),
-        getDiscountedPrice(product),
+        getDiscountedPrice(product, row.selectedSize, row.selectedColor),
         getKitGroup(row),
       );
     })
@@ -483,6 +483,8 @@ function ScopedCartAddons({
       ),
     );
 
+    const selectedPrice = getDiscountedPrice(suggestion.product, size, color);
+
     const before = bagEditSignature(
       latestCart(),
     );
@@ -566,11 +568,7 @@ function ScopedCartAddons({
       }
 
       if (
-        Math.round(
-          getDiscountedPrice(
-            current,
-          ) * 100,
-        ) !== suggestion.pricePaise
+        getDiscountedPrice(current, size, color) !== selectedPrice
       ) {
         throw new Error(
           "This product's price changed. Review its updated price before adding.",
@@ -710,11 +708,7 @@ function ScopedCartAddons({
       if (
         !finalState.canBuy ||
         !remainsSuggested ||
-        Math.round(
-          getDiscountedPrice(
-            latestProduct,
-          ) * 100,
-        ) !== suggestion.pricePaise
+        getDiscountedPrice(latestProduct, size, color) !== selectedPrice
       ) {
         throw new Error(
           finalState.message ||
@@ -894,6 +888,7 @@ function AddonCard({
   const [error, setError] =
     useState("");
 
+  const selectedPrice = getDiscountedPrice(product, size, color);
   const sizeRef = useRef(null);
   const colorRef = useRef(null);
 
@@ -1006,9 +1001,9 @@ function AddonCard({
           </h3>
 
           <strong>
-            {money(
-              row.pricePaise / 100,
-            )}
+            {Number.isFinite(selectedPrice)
+              ? money(selectedPrice)
+              : "Price unavailable"}
           </strong>
         </div>
       </div>

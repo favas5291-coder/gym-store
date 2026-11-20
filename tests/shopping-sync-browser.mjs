@@ -98,6 +98,40 @@ try {
     await qty(website).waitFor();
     await waitFor(async () => await qty(website).inputValue() === "5", "Saved quantity did not survive reload");
   });
+  await check("saved transfers preserve a concurrent addition and journal each actual quantity", async () => {
+    await phone.page.bringToFront();
+    await phone.page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await waitFor(async () => await qty(phone).inputValue() === "5", "Phone did not see the current bag");
+    await phone.context.setOffline(true);
+    await phone.page.getByRole("button", {name: "Save for later", exact: true}).click();
+    await phone.page.getByRole("heading", {name: /Your bag is empty/i}).waitFor();
+    await qty(website).selectOption("6");
+    await waitFor(() => backend.state(backend.ids.alice).cart[0]?.quantity === 6, "Concurrent addition did not sync");
+    await phone.context.setOffline(false);
+    await waitFor(() => backend.state(backend.ids.alice).cart[0]?.quantity === 1, "Transferring five units removed the concurrent sixth unit");
+    await phone.page.getByRole("link", {name: /View saved items/}).click();
+    await phone.page.getByRole("button", {name: "Move to bag"}).click();
+    await waitFor(() => backend.state(backend.ids.alice).cart[0]?.quantity === 6, "Restoring five units did not preserve the concurrent item");
+  });
+  await check("a refused account journal keeps the source bag and removes the incomplete saved copy", async () => {
+    await website.page.bringToFront();
+    await website.page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await waitFor(async () => await qty(website).inputValue() === "6", "Website did not see the restored bag");
+    await website.page.evaluate(() => {
+      const write = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key, value) {
+        if (key.includes("gymdrobe-shopping-sync::") && key.includes(":op:")) throw new DOMException("Storage full", "QuotaExceededError");
+        return write.call(this, key, value);
+      };
+    });
+    await website.page.getByRole("button", {name: "Save for later", exact: true}).click();
+    await website.page.getByText("The move could not be completed. Your item is still in its original list.").waitFor();
+    await website.page.reload();
+    await qty(website).waitFor();
+    assert.equal(await qty(website).inputValue(), "6");
+    assert.equal(await website.page.getByRole("link", {name: /View saved items/}).count(), 0);
+    assert.equal(backend.state(backend.ids.alice).cart[0].quantity, 6);
+  });
   await check("another authenticated account cannot see the first account's saved lists", async () => {
     const other = await device("bob", 390);
     assert.equal(await qty(other).count(), 0);

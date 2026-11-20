@@ -298,6 +298,22 @@ try{
   });
   assert.ok(await gallery.locator('.main-photo img').getAttribute('src'));
  });await galleryChoice.c.close();
+ const offers = await context(390);
+ await check('Offers preserve the chosen coupon and defer delivery eligibility to the bag quote', async () => {
+  const { p } = offers;
+  await visit(p, '/offers');
+  const useCoupon = p.getByRole('button', {name: 'Use coupon GYM10', exact: true});
+  await useCoupon.click();
+  await p.reload();
+  await useCoupon.waitFor();
+  assert.equal(await useCoupon.getAttribute('aria-pressed'), 'true');
+  const offerText = await p.locator('main').innerText();
+  assert.match(offerText, /delivery pincode/i);
+  assert.doesNotMatch(offerText, /delivery becomes free at/i);
+  await p.getByRole('link', {name: 'Review your bag'}).click();
+  await p.waitForURL('**/cart');
+ });
+ await offers.c.close();
  const collectionCategory = "Compression T-shirt";
  const collection = await context(390, { catalogProducts: [
   { ...f.products[0], category: collectionCategory },

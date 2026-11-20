@@ -57,15 +57,17 @@ export function reviewCart(
       Number.isSafeInteger(quantity) &&
       quantity >= 1;
 
+    const size = item?.selectedSize;
+    const color = item?.selectedColor;
     const currentPriceKnown =
-      productPriceAvailable(product);
+      productPriceAvailable(product, size, color);
 
     const cachedPrice = amount(item?.price);
 
     const unitPrice =
       ready && product
         ? currentPriceKnown
-          ? getDiscountedPrice(product)
+          ? getDiscountedPrice(product, size, color)
           : null
         : cachedPrice;
 
@@ -73,7 +75,7 @@ export function reviewCart(
       ready && product && currentPriceKnown
         ? Math.max(
             unitPrice,
-            getOriginalPrice(product),
+            getOriginalPrice(product, size, color),
           )
         : unitPrice;
 

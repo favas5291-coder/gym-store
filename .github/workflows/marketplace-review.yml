@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: favas5291-coder/gym-drobe-backend
-          ref: 5406a8b66841ce44988db5754273755551849c19
+          ref: 45dfb076f55c96d586f619a2c9cf83a4247a9d07
           path: .qa-marketplace-backend
       - run: npm ci --prefix .qa-marketplace-backend
       - name: Isolated browser tooling
@@ -51,6 +51,10 @@ jobs:
           PYMIRROR
           npm install --ignore-scripts --no-audit --no-fund --no-save --package-lock=false playwright@1.62.1 2>&1 | tee test-results/marketplace/tooling.log
           npx playwright install --with-deps chromium webkit 2>&1 | tee -a test-results/marketplace/tooling.log
+      - name: Verify supplier onboarding status filters and list recovery
+        env:
+          GYMDROBE_BACKEND_DIR: ${{ github.workspace }}/.qa-marketplace-backend
+        run: node tests/supplier-onboarding-browser.mjs
       - name: Start disposable replica set
         run: |
           docker run --detach --name gymdrobe-marketplace-browser -p 127.0.0.1:27018:27017 mongo:8.0 --replSet rs0 --bind_ip_all
@@ -64,7 +68,7 @@ jobs:
         env:
           GYMDROBE_TEST_MONGO_URI: mongodb://127.0.0.1:27018/gymdrobe_fixture_marketplace_browser_ci?replicaSet=rs0&directConnection=true
           GYMDROBE_MARKETPLACE_BACKEND_DIR: .qa-marketplace-backend
-          GYMDROBE_MARKETPLACE_BACKEND_SHA: 5406a8b66841ce44988db5754273755551849c19
+          GYMDROBE_MARKETPLACE_BACKEND_SHA: 45dfb076f55c96d586f619a2c9cf83a4247a9d07
         run: node tests/marketplace-browser.mjs
       - uses: actions/upload-artifact@v4
         if: always()

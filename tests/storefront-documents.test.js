@@ -134,6 +134,14 @@ test("initial HTML scopes homepage identity, serves app instructions, and separa
       ["index.html", "install", "product/123", "storefront-shell.html", "404.html"].map(read),
     );
     assert.match(home, /<title>GymDrobe \| Gym Wear, Workout Clothing &amp; Fitness Gear<\/title>/);
+    for (const marker of ["gymdrobe-opening", "home-boot-template", "gymdrobe-logo-visible"]) {
+      assert.ok(home.includes(marker));
+      for (const page of [install, legacy, shell, missing]) assert.ok(!page.includes(marker));
+    }
+    for (const page of [home, install, legacy, shell, missing]) {
+      assert.ok(page.includes('<div id="app"></div>'));
+      assert.ok(!page.includes("<!-- home-entry -->"));
+    }
     assert.equal([...home.matchAll(/id="gymdrobe-site-schema"/g)].length, 1);
     const graph = JSON.parse(home.match(/id="gymdrobe-site-schema"\s+type="application\/ld\+json"\s*>(.*?)<\/script>/s)[1])["@graph"];
     const website = graph.find(node => node["@type"] === "WebSite");
@@ -177,7 +185,7 @@ test("filter noindex rules match storefront controls and leave campaign URLs ind
     return filters.find(rule => new RegExp(rule.src).test(pathname) &&
       rule.has.every(({ key }) => searchParams.has(key)))?.headers["X-Robots-Tag"];
   };
-  for (const url of ["/shop?search=shirt", "/shop?category=Joggers", "/collections/gym-bags?sort=price", "/shop?utm_source=profile&size=M"]) {
+  for (const url of ["/shop?search=shirt", "/shop?brandKey=lift%2C+inc", "/shop?category=Joggers", "/collections/gym-bags?sort=price", "/shop?utm_source=profile&size=M"]) {
     assert.equal(getHeader(url), "noindex, follow", url);
     assert.ok(listingFilters(new URL(url, origin).searchParams).length);
   }

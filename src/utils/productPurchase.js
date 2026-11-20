@@ -39,7 +39,7 @@ function numeric(value) {
   return Number.isFinite(number) ? number : null;
 }
 
-export function productPriceAvailable(product) {
+export function productPriceAvailable(product, size, color) {
   const price = numeric(product?.price);
 
   const discount =
@@ -52,7 +52,8 @@ export function productPriceAvailable(product) {
     price >= 0 &&
     discount != null &&
     discount >= 0 &&
-    discount <= 100
+    discount <= 100 &&
+    Number.isFinite(getDiscountedPrice(product, size, color))
   );
 }
 
@@ -93,7 +94,7 @@ export function purchaseState(
     Number.isSafeInteger(qty) && qty >= 1;
 
   const priceAvailable =
-    productPriceAvailable(product);
+    productPriceAvailable(product, size, color);
 
   let message = "";
 
@@ -171,8 +172,8 @@ export function purchaseKey(
     size ?? null,
     color ?? null,
     quantity,
-    productPriceAvailable(product)
-      ? getDiscountedPrice(product)
+    productPriceAvailable(product, size, color)
+      ? getDiscountedPrice(product, size, color)
       : null,
   ]);
 }

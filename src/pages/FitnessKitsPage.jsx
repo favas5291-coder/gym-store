@@ -839,6 +839,8 @@ function Builder({
                   row?.productId,
               );
 
+              const unitPrice = getDiscountedPrice(product, row?.selectedSize, row?.selectedColor);
+
               const choices = products.filter(
                 (value) =>
                   slot.allowedProducts.includes(
@@ -1011,11 +1013,7 @@ function Builder({
 
                             {" · "}
 
-                            {money(
-                              getDiscountedPrice(
-                                product,
-                              ),
-                            )} each
+                            {Number.isFinite(unitPrice) ? `${money(unitPrice)} each` : "Price unavailable"}
                           </p>
 
                           <Link
@@ -1136,11 +1134,7 @@ function Builder({
                           <p>
                             Item estimate:{" "}
 
-                            {money(
-                              getDiscountedPrice(
-                                product,
-                              ) * row.quantity,
-                            )}
+                            {Number.isFinite(unitPrice) ? money(unitPrice * row.quantity) : "Price unavailable"}
                           </p>
                         </>
                       )}

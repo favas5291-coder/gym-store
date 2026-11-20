@@ -14,7 +14,7 @@ export const STOREFRONT_DOCUMENT_ROUTES = ["/", "/shop", "/offers", "/help", "/i
 // Listing controls create alternate views of the same catalogue. Analytics
 // parameters and unknown keys do not change the result set.
 export const LISTING_FILTER_KEYS = [
-  "availability", "brand", "category", "collection", "color", "department",
+  "availability", "brand", "brandKey", "category", "collection", "color", "department",
   "discount", "gender", "literal", "maxPrice", "minPrice", "page", "rating",
   "search", "size", "sort", "subcategory",
 ];

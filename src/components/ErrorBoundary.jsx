@@ -6,7 +6,7 @@ export default class ErrorBoundary extends Component {
   }
   render() {
     return this.state.failed ? (
-      <div className="empty-state" role="alert">
+      <div className="empty-state page-error" role="alert">
         <h1>This page couldn’t load</h1>
         <p>Please reload to try again.</p>
         <button

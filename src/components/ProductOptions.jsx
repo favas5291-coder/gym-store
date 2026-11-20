@@ -486,7 +486,7 @@ function ProductOptionsContent({
     }
 
     if (
-      !productPriceAvailable(product) ||
+      !productPriceAvailable(product, size, color) ||
       getDiscountedPrice(latest, size, color) !== sellingPrice
     ) {
       setError(
@@ -640,7 +640,7 @@ function ProductOptionsContent({
       <div className="detail-price">
         <strong>
           {state.priceAvailable
-            ? money(sellingPrice)
+            ? `${optionsIncomplete && product.variantPrices?.length ? "From " : ""}${money(sellingPrice)}`
             : "Price unavailable"}
         </strong>
 
