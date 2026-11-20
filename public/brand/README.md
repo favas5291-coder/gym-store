@@ -6,7 +6,7 @@ Use the green and cream GymDrobe wordmark for the favicon family, Apple touch ic
 - `external/gymdrobe-maskable-512.png` keeps the full wordmark inside the web app icon safe area.
 - `external/gymdrobe-profile-1024.png` is the square social profile export.
 - `../gymdrobe-share-v2.png` is the 1200 × 630 homepage share image.
-- The browser favicons use the initial from the approved wordmark for legibility at 16, 32 and 48 pixels.
+- Browser favicons use the initial from the approved wordmark. The ICO contains 16, 32 and 48 pixel frames. The 96 pixel PNG gives search engines a larger square version at a stable URL.
 - The older black and orange SVGs are retained for references that already use their URLs. The build script reads the green and cream PNG master.
 
-To regenerate derived browser and Android launcher icons, install Pillow and run `python scripts/generate-transparent-favicons.py`. Run `node --test tests/favicon-assets.test.js tests/official-brand-identity.test.js` to check the output. The iOS AppIcon is stored separately under `ios/App/App/Assets.xcassets/AppIcon.appiconset`.
+To regenerate just the browser icons, install Pillow and run `python scripts/generate-transparent-favicons.py --browser-only`. The same command without the flag also regenerates the launcher and share artwork. Run `node --test tests/favicon-assets.test.js tests/official-brand-identity.test.js` to check the output. The iOS AppIcon is stored separately under `ios/App/App/Assets.xcassets/AppIcon.appiconset`.

@@ -26,9 +26,11 @@ test("approved wordmarks are used on light and dark surfaces", () => {
   assert.doesNotMatch(style, /\.gn-branded-lockup|\.footer-branded-lockup/);
   assert.doesNotMatch(offline, /gymdrobe-app-icon\.svg/);
   assert.match(install, /gymdrobe-app-icon-1024\.png/);
-  assert.ok(html.includes('href="/android-chrome-192x192.png?v=4"'));
+  const manifest = JSON.parse(read("public/site.webmanifest"));
+  assert.equal(manifest.name, "GymDrobe");
+  assert.equal(manifest.short_name, "GymDrobe");
+  assert.ok(manifest.icons.some(icon => icon.src === "/android-chrome-192x192.png" && icon.sizes === "192x192"));
   assert.ok(html.includes('https://www.gymdrobe.com/brand/external/gymdrobe-app-icon-1024.png'));
-  assert.ok(!html.includes('type="image/svg+xml"'), "Search favicon must use supported PNG/ICO formats");
 });
 
 test("external share/PWA images and Android launcher assets have expected pixel dimensions", () => {

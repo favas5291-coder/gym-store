@@ -15,16 +15,16 @@
     {
       "src": "^/favicon\\.jpeg$",
       "headers": {
-        "Location": "/favicon.ico?v=4"
+        "Location": "/favicon.ico"
       },
       "status": 308
     },
     {
-      "src": "^/favicon-64-v1\\.png$",
+      "src": "^/(?:favicon\\.ico|favicon-(?:16x16|32x32|48x48|64-v1|96x96)\\.png|apple-touch-icon\\.png|android-chrome-(?:192x192|512x512)\\.png)$",
       "headers": {
-        "Location": "/favicon-48x48.png?v=4"
+        "Cache-Control": "public, max-age=3600, must-revalidate"
       },
-      "status": 308
+      "continue": true
     },
     {
       "src": "/(product/[^/]+|collections/[^/]+|shop|offers|help|install)/$",

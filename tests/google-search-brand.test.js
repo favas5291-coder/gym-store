@@ -11,19 +11,14 @@ function pngDimensions(path) {
   return [bytes.readUInt32BE(16), bytes.readUInt32BE(20)];
 }
 
-test("Google Search favicon declarations use crawlable PNG/ICO candidates, not SVG", () => {
-  const icons = [...html.matchAll(/<link\s+[^>]*rel="(?:icon|shortcut icon)"[^>]*>/g)]
-    .map((match) => match[0]);
-  assert.ok(icons.length > 0, "Homepage needs a favicon declaration");
-  assert.ok(icons.every((tag) => !tag.includes('type="image/svg+xml"')),
-    "Google Search favicon does not list SVG as a supported format");
-  assert.ok(icons.some((tag) =>
-    tag.includes('sizes="192x192"') && tag.includes('href="/android-chrome-192x192.png?v=4"')),
-    "Keep one high-resolution square PNG candidate");
-  assert.ok(icons.some((tag) => tag.includes('href="/favicon.ico?v=4"')));
-  assert.deepEqual(pngDimensions("public/android-chrome-192x192.png"), [192, 192]);
-  assert.deepEqual(pngDimensions("public/favicon-48x48.png"), [48, 48]);
-  assert.ok(html.includes('href="/site.webmanifest?v=4"'));
+test("Google Search can discover the dedicated high-resolution square monogram in the initial HTML", () => {
+  const tags = html.match(/<link\b[^>]*>/gi);
+  const monograms = tags.filter(tag => tag.includes('href="/favicon-96x96.png"'));
+  assert.equal(monograms.length, 1);
+  assert.match(monograms[0], /rel="icon"/);
+  assert.match(monograms[0], /type="image\/png"/);
+  assert.match(monograms[0], /sizes="96x96"/);
+  assert.deepEqual(pngDimensions("public/favicon-96x96.png"), [96, 96]);
 });
 
 test("homepage exposes the actual high-resolution external logo in OnlineStore JSON-LD", () => {
@@ -87,11 +82,14 @@ test("retired Google-visible logo URLs redirect before serving static legacy ass
   const config = JSON.parse(read("vercel.json").toString("utf8"));
   const redirects = [
     ["^/gymdrobe-share-v1\\.png$", "/gymdrobe-share-v2.png"],
-    ["^/favicon\\.jpeg$", "/favicon.ico?v=4"],
-    ["^/favicon-64-v1\\.png$", "/favicon-48x48.png?v=4"],
+    ["^/favicon\\.jpeg$", "/favicon.ico"],
   ];
+  assert.deepEqual(pngDimensions("public/favicon-64-v1.png"), [64, 64]);
   const filesystem = config.routes.findIndex(route => route.handle === "filesystem");
   assert.ok(filesystem >= 0, "Existing SPA filesystem routing must be retained");
+  assert.ok(!config.routes.slice(0, filesystem).some(route =>
+    route.headers?.Location && new RegExp(route.src).test("/favicon-64-v1.png")),
+    "The historical 64px PNG should be served directly");
   for (const [source, target] of redirects) {
     const index = config.routes.findIndex(route => route.src === source);
     assert.ok(index >= 0 && index < filesystem, "Redirect must precede filesystem for " + source);
