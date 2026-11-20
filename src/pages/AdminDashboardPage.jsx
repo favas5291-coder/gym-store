@@ -6,7 +6,7 @@ import {
 
 import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import { getAdminDashboard } from "../services/adminApi.js";
+import { getAdminDashboard, getDailyOperations } from "../services/adminApi.js";
 
 import {
   formatOrderStatus,
@@ -578,6 +578,73 @@ function SalesChart({ points }) {
   );
 }
 
+const dailyMoney = [
+  ["confirmedOrderValue", "Confirmed order value"],
+  ["grossCollections", "Recorded customer collections"],
+  ["refunds", "Recorded refunds"],
+  ["codOutstanding", "COD still due from customers"],
+  ["codRecordedCollections", "Recorded COD collections, including advances"],
+];
+
+function DailyReportResults({ token, date, source }) {
+  const { data, loading, error, refresh } = useAdminData(getDailyOperations, token, { date, source });
+  if (!data) return <LoadNotice loading={loading} error={error} refresh={refresh} />;
+  return (
+    <div>
+      <p>{count(data.orders.all)} orders created on {date} (India). Current status as of {timestamp(data.generatedAt)} IST.</p>
+      <p>Confirmed {count(data.orders.confirmed)} · Payment pending {count(data.orders.paymentPending)} · Cancelled {count(data.orders.cancelled)} · Other {count(data.orders.other)}</p>
+      <dl className="gd-daily-amounts">
+        {dailyMoney.map(([key, label]) => {
+          const metric = data[key];
+          const valid = metric && [metric.knownPaise, metric.unknownOrders, metric.knownOrders].every(
+            value => Number.isSafeInteger(value) && value >= 0,
+          );
+          return <div key={key}>
+            <dt>{label}</dt>
+            <dd>{valid && (metric.knownOrders > 0 || metric.unknownOrders === 0)
+              ? currency.format(metric.knownPaise / 100) : "Unavailable"}
+              {valid && metric.unknownOrders > 0 &&
+                <small>Missing data for {count(metric.unknownOrders)} {metric.unknownOrders === 1 ? "order" : "orders"}</small>}
+            </dd>
+          </div>;
+        })}
+      </dl>
+      <p className="gd-admin-muted">COD collections can include advances. Courier remittances and net profit require separate evidence.</p>
+      <h3>Supplier fulfilment</h3>
+      <dl className="gd-daily-amounts">
+        {["pending","accepted","preparing","shipped","delivered","cancelled","unknown"].map(status =>
+          <div key={status}><dt>{status[0].toUpperCase() + status.slice(1)}</dt><dd>{count(data.fulfilments[status])}</dd></div>)}
+      </dl>
+    </div>
+  );
+}
+
+function DailyOperations({ token, source }) {
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date());
+  const [date, setDate] = useState(today);
+  const [request, setRequest] = useState(null);
+  return (
+    <section className="gd-admin-panel" aria-labelledby="daily-operations-title">
+      <h2 id="daily-operations-title">Daily operations</h2>
+      <form className="gd-admin-controls" onSubmit={event => {
+        event.preventDefault();
+        setRequest(previous => ({ date, attempt: (previous?.attempt || 0) + 1 }));
+      }}>
+        <label>Order creation date in India
+          <input type="date" value={date} max={today} required onChange={event => {
+            setRequest(null);
+            setDate(event.target.value);
+          }} />
+        </label>
+        <button type="submit" className="button secondary">Load daily report</button>
+      </form>
+      {request && <DailyReportResults key={request.attempt} token={token} date={request.date} source={source} />}
+    </section>
+  );
+}
+
 function Dashboard({ user, token }) {
   const [days, setDays] = useState("7");
   const [source, setSource] = useState("real");
@@ -721,6 +788,9 @@ function Dashboard({ user, token }) {
           You are viewing test orders. These figures are for testing.
         </p>
       )}
+
+      {import.meta.env.VITE_DAILY_OPERATIONS_ENABLED === "true" &&
+        <DailyOperations key={source} token={token} source={source} />}
 
       <LoadNotice
         loading={loading}
