@@ -231,6 +231,32 @@ try {
     }
   });
 
+  await check("typing during a returning Home startup survives the handoff", async () => {
+    const { c, page } = await context({ serviceWorkers: "block" });
+    let start;
+    const bundle = new Promise(resolve => { start = resolve; });
+    try {
+      await page.addInitScript(() => localStorage.setItem("gymdrobe.web-opening.seen.v1", "1"));
+      await c.route("**/assets/index-*.js", async route => { await bundle; await route.continue(); });
+      await page.goto(origin, { waitUntil: "commit" });
+      const shellInput = page.locator("[data-boot-search] input");
+      await shellInput.tap();
+      await shellInput.fill("black gym tee");
+      const firstBox = await shellInput.boundingBox();
+      start();
+      await page.locator("#home-boot-shell").waitFor({ state: "detached" });
+      const input = page.locator("input[data-storefront-search]");
+      assert.equal(await input.inputValue(), "black gym tee");
+      assert.ok(await input.evaluate(element => document.activeElement === element));
+      assert.ok(Math.abs((await input.boundingBox()).y - firstBox.y) <= 2);
+      await input.press("Enter");
+      await page.waitForURL(url => url.pathname === "/shop" && url.searchParams.get("search") === "black gym tee");
+    } finally {
+      start();
+      await c.close();
+    }
+  });
+
   await check("desktop layout and footer installation entry", async () => {
     const desktop = await context({ viewport: { width: 1440, height: 1000 }, isMobile: false, hasTouch: false });
     await visit(desktop.page);

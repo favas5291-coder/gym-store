@@ -48,9 +48,23 @@
         position: fixed; inset: 0; z-index: 2147483646; display: block;
         overflow-y: auto; background: #0f3d3a; font: 600 16px/1.4 system-ui, sans-serif;
       }
-      #home-boot-shell header { display: grid; place-items: center; position: relative; box-sizing: content-box; height: 56px; padding-top: env(safe-area-inset-top); background: white; color: #0f3d3a; }
+      #home-boot-shell header { display: grid; place-items: center; position: relative; grid-template-rows: 56px 48px; padding: env(safe-area-inset-top) 0 8px; background: white; color: #0f3d3a; }
       #home-boot-shell header img { width: clamp(112px, 12vw, 154px); height: auto; }
-      #home-boot-shell [data-boot-reload] { position: absolute; right: max(10px, env(safe-area-inset-right)); color: inherit; font-size: 13px; padding: 12px 2px; }
+      #home-boot-shell [data-boot-search] {
+        box-sizing: border-box; justify-self: stretch; position: relative; margin: 0 max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+        height: 48px; color: #43534c;
+      }
+      #home-boot-shell [data-boot-search] svg {
+        position: absolute; left: 12px; top: 14px; width: 20px; height: 20px; pointer-events: none;
+      }
+      #home-boot-shell [data-boot-search] input {
+        box-sizing: border-box; width: 100%; height: 100%; margin: 0; padding: 0 12px 0 44px;
+        appearance: none; border: 1px solid #cdd5cf; border-radius: 10px; background: #f6f7f4;
+        color: #171c1b; font: 400 16px/1.3 system-ui, sans-serif;
+      }
+      #home-boot-shell [data-boot-search] input:focus { outline: 2px solid #0f3d3a; outline-offset: -2px; }
+      #home-boot-shell [data-boot-search] input::placeholder { color: #526057; opacity: 1; }
+      #home-boot-shell [data-boot-reload] { position: absolute; top: calc(6px + env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); color: inherit; font-size: 13px; padding: 12px 2px; }
       #home-boot-shell [hidden] { display: none; }
       #home-boot-shell nav { display: grid; gap: 8px; padding: 8px 13px; margin: auto; max-width: 1440px; }
       #home-boot-shell nav a { display: grid; position: relative; aspect-ratio: 1; place-items: center; overflow: hidden; background: #174944; color: #171717; text-decoration: none; }
@@ -58,6 +72,11 @@
       #home-boot-shell nav a:last-child img { object-position: center 44%; }
       #home-boot-shell nav span { position: relative; display: grid; place-items: center; box-sizing: border-box; min-height: 48px; padding: 10px 24px; background: white; }
       @media (max-width: 700px) { #home-boot-shell header img { width: 120px; } }
+      @media (min-width: 1024px) {
+        #home-boot-shell header { grid-template-rows: 64px; padding-bottom: 0; }
+        #home-boot-shell [data-boot-search] { position: absolute; right: max(124px, calc((100% - 1600px) / 2 + 124px)); width: min(340px, calc(50% - 200px)); margin: 0; }
+        #home-boot-shell [data-boot-reload] { right: auto; left: 12px; }
+      }
       @media (min-width: 701px) { #home-boot-shell nav { grid-template-columns: repeat(2,minmax(0,1fr)); } }
     </style>
     <meta
@@ -235,7 +254,14 @@
     <div id="gymdrobe-opening" aria-hidden="true"><div><img src="/brand/gymdrobe-wordmark-cream.png" alt="" width="720" height="134" /></div></div>
     <template id="home-boot-template">
       <div id="home-boot-shell">
-        <header><img src="/brand/gymdrobe-wordmark-green.png" alt="GymDrobe" width="720" height="134" /><a href="" data-boot-reload hidden>Reload storefront</a></header>
+        <header>
+          <img src="/brand/gymdrobe-wordmark-green.png" alt="GymDrobe" width="720" height="134" />
+          <form data-boot-search role="search" action="/shop" method="get">
+            <input type="search" name="search" aria-label="Search products" placeholder="Search T-shirts, gym bags and more" enterkeyhint="search" autocomplete="off" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg>
+          </form>
+          <a href="" data-boot-reload hidden>Reload storefront</a>
+        </header>
         <nav aria-label="Shop by department">
           <a href="/shop?gender=Women"><img alt="" width="736" height="736" fetchpriority="high" src="/media/campaign/women-hoodie-736.webp?v=3" srcset="/media/campaign/women-hoodie-432.webp?v=3 432w, /media/campaign/women-hoodie-736.webp?v=3 736w" sizes="(max-width: 700px) calc(100vw - 26px), (max-width: 1466px) calc((100vw - 34px) / 2), 716px" /><span>Women’s</span></a>
           <a href="/shop?gender=Men"><img alt="" width="736" height="736" fetchpriority="auto" src="/media/campaign/men-hoodie-736.webp?v=3" srcset="/media/campaign/men-hoodie-432.webp?v=3 432w, /media/campaign/men-hoodie-736.webp?v=3 736w" sizes="(max-width: 700px) calc(100vw - 26px), (max-width: 1466px) calc((100vw - 34px) / 2), 716px" /><span>Men’s</span></a>
@@ -283,6 +309,8 @@
 
         function handoff() {
           const scrollTop = shell.scrollTop;
+          const search = shell.querySelector('input[name="search"]');
+          const focused = document.activeElement === search;
           uncover();
           observer.disconnect();
           clearTimeout(minimumTimer);
@@ -291,9 +319,14 @@
           window.removeEventListener("pagehide", leave);
           window.removeEventListener("popstate", check);
           document.removeEventListener("visibilitychange", visible);
-          shell.remove();
           delete root.dataset.homeBoot;
           app.inert = false;
+          if ((focused || search.value) && location.pathname === "/") {
+            window.dispatchEvent(new CustomEvent("gymdrobe:resume-search", { detail: {
+              query: search.value, focused, selectionStart: search.selectionStart, selectionEnd: search.selectionEnd
+            } }));
+          }
+          shell.remove();
           if (scrollTop && location.pathname === "/") window.scrollTo({ top: scrollTop, behavior: "instant" });
         }
 

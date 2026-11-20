@@ -29,6 +29,9 @@ try{
   await context.route('blob:**', r => r.continue());
   const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   try{
+   await page.goto(f.url+'/');
+   await page.getByRole('combobox',{name:'Search products'}).click();
+   await page.getByRole('button',{name:'Search by photo',exact:true}).waitFor();
    await page.goto(f.url+'/categories');await page.getByRole('heading',{name:'Shop by category',exact:true}).waitFor();
    for(const width of[320,360,390,414,430,480,768,1024,1280]){await page.setViewportSize({width,height:844});const nav=page.getByRole('navigation',{name:'Shopping navigation'});assert.equal(await nav.isVisible(),width<1024);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);if(width<1024){const boxes=await nav.getByRole('link').all();assert.equal(boxes.length,5);for(const link of boxes){const b=await link.boundingBox();assert.ok(b.width>=44&&b.height>=44);}}}
    await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Open search',exact:true}).click();await page.getByRole('button',{name:'Search by photo',exact:true}).click();const dialog=page.getByRole('dialog');await dialog.waitFor();await dialog.getByText('Checking photo search availability…',{exact:true}).waitFor({state:'hidden'});

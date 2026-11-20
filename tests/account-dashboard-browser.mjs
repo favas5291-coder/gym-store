@@ -140,6 +140,8 @@ try {
         ]);
         assert.ok(catalogueResponse.ok(), 'Order navigation refreshes the catalogue successfully');
         assert.equal(await catalogueResponse.finished(), null);
+        await p.getByRole('heading',{name:'Order details',exact:true}).waitFor();
+        await p.locator('.order-id').filter({hasText:mock.order.orderNumber}).first().waitFor();
         await p.waitForLoadState('networkidle');
         await p.goto(fixture.url+'/account#profile-details');await p.waitForLoadState('networkidle');await p.getByLabel('Full name',{exact:true}).waitFor();
         await p.getByLabel('Full name',{exact:true}).focus();

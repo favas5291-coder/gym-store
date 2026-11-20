@@ -1,11 +1,14 @@
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
 } from "react";
 
 import {
   Link,
+  useLocation,
+  useNavigationType,
   useSearchParams,
 } from "react-router-dom";
 
@@ -29,6 +32,7 @@ import ProductCard from "./ProductCard.jsx";
 import { createSearchIndex, searchCatalogue } from "../utils/smartSearch.js";
 import { ProductImage } from "./StorefrontShared.jsx";
 import Modal from "./Modal.jsx";
+import { isNativeApp } from "../native/platform.js";
 
 const PAGE_SIZE = 12;
 const SHOP_PREVIEW_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
@@ -573,6 +577,27 @@ export default function ProductSection({ storefrontCollection }) {
     error: loadError,
     refreshProducts,
   } = useCatalog();
+
+  const { key: historyKey } = useLocation();
+  const navigationType = useNavigationType();
+  useLayoutEffect(() => {
+    if (isNativeApp() || loading || loadError) return;
+    // Remember the offset on the results history entry before a product link
+    // changes it. That entry survives a reload on the product detail page.
+    const saved = window.history.state?.gymdrobeResultsY;
+    if (navigationType === "POP" && Number.isFinite(saved)) {
+      window.scrollTo({ top: saved, behavior: "instant" });
+    }
+    const remember = (event) => {
+      if (!event.target.closest?.('a[href]')) return;
+      const state = window.history.state;
+      if (state?.gymdrobeResultsY !== window.scrollY) {
+        window.history.replaceState({ ...state, gymdrobeResultsY: window.scrollY }, "");
+      }
+    };
+    document.addEventListener("click", remember, true);
+    return () => document.removeEventListener("click", remember, true);
+  }, [historyKey, navigationType, loading, loadError]);
 
   const [shopPreview] = useState(readShopPreview);
   const [query, setParams] = useSearchParams();
@@ -1136,7 +1161,14 @@ export default function ProductSection({ storefrontCollection }) {
                     : "Try another category or remove some filters to explore the collection."}
                 </p>
 
-                {searchQuery && searchData?.related?.length > 0 && (
+                {searchData?.broaderQuery && (
+                  <button type="button" className="button secondary"
+                    onClick={() => change({ search: searchData.broaderQuery, literal: "" })}>
+                    Search “{searchData.broaderQuery}” at any price
+                  </button>
+                )}
+
+                {searchQuery && !searchData?.broaderQuery && searchData?.related?.length > 0 && (
                   <div className="smart-search-recovery">
                     <p>Explore a related category:</p>
                     <div className="empty-actions">
