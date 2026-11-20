@@ -75,6 +75,8 @@ jobs:
         run: node tests/free-navigation-browser.mjs
       - name: Storefront interactions and responsive screenshots
         run: npm run test:storefront
+      - name: Check cart layout while the catalog loads
+        run: node tests/cart-layout-browser.mjs
       - name: PWA install, offline recovery and update checks
         run: node tests/pwa-browser.mjs
       - name: Android UI and native-adapter contracts

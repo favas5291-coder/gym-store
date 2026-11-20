@@ -667,16 +667,6 @@ export default function Cart() {
         </Link>
       </div>
 
-      {loading && (
-        <p
-          className="notice"
-          role="status"
-        >
-          Checking current prices and available
-          stock…
-        </p>
-      )}
-
       {catalogError && (
         <p
           className="field-error"
@@ -694,9 +684,9 @@ export default function Cart() {
         disabled={loading || retrying}
         onClick={retryCatalog}
       >
-        {loading || retrying
-          ? "Checking products…"
-          : "Refresh prices & stock"}
+        <span aria-live="polite">{loading || retrying
+          ? "Checking prices & stock…"
+          : "Refresh prices & stock"}</span>
       </button>
 
       {refreshMessage && <p role="status">{refreshMessage}</p>}
@@ -817,6 +807,9 @@ export default function Cart() {
                   >
                     <ProductImage
                       product={product}
+                      eager={item.index === 0}
+                      fetchPriority={item.index === 0 ? "high" : "auto"}
+                      sizes="(max-width: 480px) 82px, 116px"
                     />
                   </Link>
                 )}
@@ -882,17 +875,17 @@ export default function Cart() {
 
                   {!hasKits && totalsKnown && <a className="text-link" href="#bag-delivery">Check delivery</a>}
 
-                  {ready && item.product && (
+                  {(loading || (ready && item.product)) && (
                     <details className="cart-returns">
                       <summary>
                         Return conditions
                       </summary>
 
                       <p>
-                        {information.returns}
+                        {loading ? "Checking the current return conditions…" : information.returns}
                       </p>
 
-                      {information.returnDetails.map(
+                      {!loading && information.returnDetails.map(
                         (detail) => (
                           <p key={detail}>
                             {detail}
@@ -1046,8 +1039,6 @@ export default function Cart() {
               </article>
             );
           })}
-
-          <CartAddons key={shopper} />
         </div>
 
         <aside
@@ -1259,6 +1250,8 @@ export default function Cart() {
             Continue shopping
           </Link>
         </aside>
+
+        <CartAddons key={shopper} />
       </div>
 
       {editingItem &&
