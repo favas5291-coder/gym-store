@@ -19,10 +19,14 @@ final class SearchTests: XCTestCase {
   XCTAssertTrue(field.waitForExistence(timeout:8),safari.debugDescription.prefix(6500).description);field.tap()
   let keys=safari.keyboards.firstMatch
   XCTAssertTrue(keys.waitForExistence(timeout:10),safari.debugDescription.prefix(6500).description)
+  let category=w.descendants(matching:.any).matching(NSPredicate(format:"label ==[c] %@", "Shop by category")).firstMatch
+  XCTAssertTrue(category.waitForExistence(timeout:10),safari.debugDescription.prefix(6500).description)
+  XCTAssertLessThan(category.frame.maxY,keys.frame.minY)
   sleep(1);shot("02-focused-keyboard")
   safari.typeText("black gym tee");sleep(2);shot("03-product-suggestions-keyboard")
-  let row=w.descendants(matching:.any).matching(NSPredicate(format:"label CONTAINS[c] %@ AND label CONTAINS %@", "Compression", "₹")).firstMatch
+  let row=w.descendants(matching:.any).matching(NSPredicate(format:"label BEGINSWITH[c] %@", "Compression")).firstMatch
   print("KEYBOARD_FRAME",keys.frame,"FIELD_FRAME",field.frame)
-  if row.exists && row.isHittable{XCTAssertLessThanOrEqual(row.frame.maxY,keys.frame.minY+1);row.tap();sleep(2);shot("04-product-detail");print("PRODUCT_TAPPED")}
+  XCTAssertTrue(row.waitForExistence(timeout:10) && row.isHittable,safari.debugDescription.prefix(8500).description)
+  XCTAssertLessThanOrEqual(row.frame.maxY,keys.frame.minY+1);row.tap();sleep(2);shot("04-product-detail");print("PRODUCT_TAPPED")
  }
 }

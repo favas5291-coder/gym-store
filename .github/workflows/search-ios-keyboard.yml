@@ -5,17 +5,16 @@ on:
     paths: ['.github/workflows/search-ios-keyboard.yml', '.qa-safari/**']
 permissions:
   contents: read
+env:
+  TARGET_REV: ec88b8e54e4717ee94c7c5bb3a7db291a2177c56
+  PHASE: after
+  VITE_API_URL: https://gym-drobe-backend.onrender.com/api
+  VITE_SITE_URL: https://www.gymdrobe.com
 jobs:
-  ios:
-    runs-on: macos-15
-    timeout-minutes: 23
-    env:
-      TARGET_REV: 6672987b3174b5e2087a815d4a797b50fe18a42c
-      PHASE: after
-      VITE_API_URL: https://gym-drobe-backend.onrender.com/api
-      VITE_SITE_URL: https://www.gymdrobe.com
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
-      - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.TARGET_REV }}
@@ -23,6 +22,25 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - name: Build release frontend and capture public stock
+        run: |
+          (cd source && npm ci --ignore-scripts --no-audit --no-fund && npm run build)
+          curl -fsSL --retry 3 https://gym-drobe-backend.onrender.com/api/products -o search-catalogue.json
+          tar czf safari-site.tgz source/dist search-catalogue.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: search-ios-release-assets
+          path: safari-site.tgz
+          retention-days: 1
+  ios:
+    needs: build
+    runs-on: macos-15
+    timeout-minutes: 23
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: search-ios-release-assets
       - name: Boot iPhone and enable the onscreen keyboard
         run: |
           mkdir -p evidence
@@ -38,17 +56,18 @@ jobs:
           PY
       - name: Build exact revision and prepare captured public catalogue
         run: |
-          (cd source && npm ci --ignore-scripts --no-audit --no-fund && npm run build)
-          curl -fsSL --retry 3 https://gym-drobe-backend.onrender.com/api/products -o /tmp/search-catalogue.json
+          tar xzf safari-site.tgz
+          mv search-catalogue.json /tmp/search-catalogue.json
           nohup python3 -u .qa-safari/server.py > evidence/server.log 2>&1 < /dev/null &
           curl -fsSL --retry 40 --retry-delay 2 --retry-connrefused http://127.0.0.1:4193/ -o /dev/null
           command -v xcodegen || brew install xcodegen
           (cd .qa-safari && xcodegen generate)
           xcrun simctl bootstatus "$PHONE" -b
+          xcrun simctl status_bar "$PHONE" override --time 9:41
       - name: Touch field, assert OS keyboard and open a real product
         run: |
           set -o pipefail
-          xcodebuild test -project .qa-safari/Probe.xcodeproj -scheme Probe -destination "platform=iOS Simulator,id=$PHONE" -parallel-testing-enabled NO -resultBundlePath "$RUNNER_TEMP/probe.xcresult" CODE_SIGNING_ALLOWED=NO 2>&1 | tee evidence/xctest.log
+          xcodebuild test -project .qa-safari/Probe.xcodeproj -scheme Probe -destination "platform=iOS Simulator,id=$PHONE" -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 300 -resultBundlePath "$RUNNER_TEMP/probe.xcresult" CODE_SIGNING_ALLOWED=NO 2>&1 | tee evidence/xctest.log
       - name: Export keyboard screenshots
         if: always()
         run: |
