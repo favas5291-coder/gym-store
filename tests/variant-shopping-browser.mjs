@@ -71,10 +71,14 @@ async function verify(width) {
     assert.match(await line.innerText(), /1,300\.00/);
     assert.equal(await quantity.inputValue(), "2");
 
+    const rollback = page.getByRole("alert").filter({
+      hasText: "The move could not be completed. Your item is still in its original list.",
+    });
     const save = page.getByRole("button", {name: "Save for later", exact: true});
     // Refuse only the second write. The customer must retain their original bag.
     await page.evaluate(() => { window.rejectedStorageKey = "gymdrobe-cart"; });
     await save.click();
+    await rollback.waitFor();
     await page.reload();
     assert.match(await line.innerText(), /1,300\.00/);
     assert.equal(await page.getByRole("link", {name: /View saved items/}).count(), 0);
@@ -88,12 +92,32 @@ async function verify(width) {
     assert.match(await saved.innerText(), /L \/ Black[\s\S]*Qty 2/);
 
     const restore = saved.getByRole("button", {name: "Move to bag"});
+    // A reload can cancel a transfer while another tab holds the account lock.
+    const otherTab = await context.newPage();
+    try {
+      await otherTab.goto(fixture.url + "/robots.txt");
+      await otherTab.evaluate(() => new Promise(acquired => {
+        // Closing this document releases the lock.
+        navigator.locks.request("gymdrobe-saved-transfer", () => new Promise(() => acquired()));
+      }));
+      await restore.click();
+      await page.waitForFunction(async () => (await navigator.locks.query()).pending.some(
+        lock => lock.name === "gymdrobe-saved-transfer",
+      ));
+      await page.reload();
+    } finally {
+      await otherTab.close();
+    }
+    assert.match(await saved.innerText(), /Qty 2/);
+    assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem("gymdrobe-cart"))), []);
+
     await page.evaluate(() => {
       const [large] = JSON.parse(localStorage.getItem("gymdrobe-saved-for-later"));
       window.concurrentBagRow = { ...large, selectedSize: "M", quantity: 1, price: 550.09 };
       window.rejectedStorageKey = "gymdrobe-saved-for-later";
     });
     await restore.click();
+    await rollback.waitFor();
     await page.reload();
     assert.match(await saved.innerText(), /Qty 2/);
     assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem("gymdrobe-cart")).map(row => [row.selectedSize, row.quantity])), [["M", 1]]);
