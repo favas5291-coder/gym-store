@@ -63,6 +63,19 @@ def calltap(expr):
  nodes=system_ui();wv=next((e for e in nodes.iter('node') if e.get('class')=='android.webkit.WebView'),None)
  scale=ev('devicePixelRatio');offset=round(scale*80)
  if wv is not None: offset=int(re.findall(r'\d+',wv.get('bounds'))[1])
+ if not before and expr==inp:
+  # Observe two actual terms before tapping during the following transition.
+  term="document.querySelector('.gs-terms strong')?.textContent"
+  initial=wait(term)
+  wait(term+" !== "+json.dumps(initial))
+  current=ev(term)
+  print('Idle terms',initial,current)
+  deadline=time.monotonic()+6
+  while time.monotonic()<deadline:
+   if ev(term)!=current:break
+   time.sleep(.02)
+  assert ev(term)!=current
+  time.sleep(.05)
  print('OS touch',xy,'offset',offset,'scale',scale)
  A('shell','input','tap',str(round(xy[0]*scale)),str(offset+round(xy[1]*scale)))
 

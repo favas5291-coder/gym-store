@@ -1,12 +1,12 @@
 name: Search on iPhone Safari with soft keyboard
 on:
   push:
-    branches: [qa-search-os-keyboard-20261120]
+    branches: [qa-hint-keyboards-20261120]
     paths: ['.github/workflows/search-ios-keyboard.yml', '.qa-safari/**']
 permissions:
   contents: read
 env:
-  TARGET_REV: ec88b8e54e4717ee94c7c5bb3a7db291a2177c56
+  TARGET_REV: 0e09cbe1b711d6ae704aa3413e7e3191270525a0
   PHASE: after
   VITE_API_URL: https://gym-drobe-backend.onrender.com/api
   VITE_SITE_URL: https://www.gymdrobe.com
