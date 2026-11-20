@@ -5,6 +5,8 @@ const API_URL = (
   .trim()
   .replace(/\/+$/, "");
 
+export { request as adminRequest };
+
 async function request(
   path,
   token,

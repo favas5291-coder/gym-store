@@ -126,6 +126,7 @@ function Phone({ value }) {
 function AdminMenu() {
   const links = [
     ["/admin", "Overview"],
+    ...(import.meta.env.VITE_AUTOMATION_ENGINE_ENABLED === "true" ? [["/admin/automation", "Automation"]] : []),
     ["/admin/orders", "Orders"],
     ["/admin/products", "Products"],
     ["/admin/customers", "Customers"],
