@@ -4,6 +4,18 @@ from websocket import create_connection
 E=Path('evidence');phase=os.environ['PHASE'];before=phase=='before';n=0
 A=lambda *args:subprocess.check_output(['adb',*args],timeout=15)
 def screen(label): (E/(label+'.png')).write_bytes(A('exec-out','screencap','-p'))
+def system_ui():
+ A('shell','uiautomator','dump','/sdcard/search-ui.xml')
+ return ET.fromstring(A('shell','cat','/sdcard/search-ui.xml'))
+def dismiss_system_prompts():
+ for attempt in range(7):
+  try: nodes=system_ui()
+  except Exception as ex: print('UI dump:',ex);continue
+  allow=['wait','no thanks','not now','use without an account','continue without an account','got it','dismiss','skip','close app']
+  options=[node for node in nodes.iter('node') if node.get('text','').strip().lower() in allow or 'signin_fre_dismiss_button' in node.get('resource-id','').lower()]
+  if not options: return
+  node=sorted(options,key=lambda x:allow.index(x.get('text','').lower()) if x.get('text','').lower() in allow else 0)[0]; x,y,x1,y1=map(int,re.findall(r'\d+',node.get('bounds')));print('system dialog',node.get('text'),node.get('package'))
+  A('shell','input','tap',str((x+x1)//2),str((y+y1)//2));time.sleep(.8)
 def tabs(): return json.load(urllib.request.urlopen('http://localhost:9222/json',timeout=3))
 for attempt in range(22):
  try:
@@ -48,12 +60,24 @@ def wait(expr,t=15):
  raise AssertionError(expr+' : '+str(ev('document.body.innerText.slice(0,800)')))
 def calltap(expr):
  xy=wait('(()=>{const el='+expr+'; if(!el)return;const b=el.getBoundingClientRect();const x=b.x+b.width/2,y=b.y+b.height/2;return b.width&&b.height&&el.contains(document.elementFromPoint(x,y))?[x,y]:null})()')
- call('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[{'x':xy[0],'y':xy[1]}]});call('Input.dispatchTouchEvent',{'type':'touchEnd','touchPoints':[]})
-call('Fetch.enable',{'patterns':[{'urlPattern':'https://gym-drobe-backend.onrender.com/api/*'}]});ev("localStorage.removeItem('gymdrobe.web-opening.seen.v1')");call('Page.navigate',{'url':'http://localhost:4183/'})
+ nodes=system_ui();wv=next((e for e in nodes.iter('node') if e.get('class')=='android.webkit.WebView'),None)
+ scale=ev('devicePixelRatio');offset=round(scale*80)
+ if wv is not None: offset=int(re.findall(r'\d+',wv.get('bounds'))[1])
+ print('OS touch',xy,'offset',offset,'scale',scale)
+ A('shell','input','tap',str(round(xy[0]*scale)),str(offset+round(xy[1]*scale)))
+
+dismiss_system_prompts()
+call('Fetch.enable',{'patterns':[{'urlPattern':'https://gym-drobe-backend.onrender.com/api/*'}]});ev("localStorage.removeItem('gymdrobe.web-opening.seen.v1')");rec=None
+if not before:
+ rec=subprocess.Popen(['adb','shell','screenrecord','--size','780x1688','--bit-rate','2000000','--time-limit','85','/sdcard/search-journey.mp4'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+ time.sleep(.2)
+call('Page.navigate',{'url':'http://localhost:4183/'})
 wait("document.querySelector('#app .department-tile') && !document.querySelector('#gymdrobe-opening') && !document.querySelector('#home-boot-shell')",21);sleepjs=lambda t: [ev('1') or 0 for _ in range(t) if not time.sleep(.2)]
-sleepjs(3);screen('01-home');vp=ev('visualViewport.height');inp="[...document.querySelectorAll('input[type=search],input[role=combobox]')].find(el=>el.getBoundingClientRect().width>0)";result={'phase':phase,'closedKeyboardViewport':vp,'innerWidth':ev('innerWidth'),'chrome':ev('navigator.userAgent'),'catalogueEntries':len(products)}
+sleepjs(3);dismiss_system_prompts();screen('01-home');vp=ev('visualViewport.height');inp="[...document.querySelectorAll('input[type=search],input[role=combobox]')].find(el=>el.getBoundingClientRect().width>0)";result={'phase':phase,'closedKeyboardViewport':vp,'innerWidth':ev('innerWidth'),'chrome':ev('navigator.userAgent'),'catalogueEntries':len(products)}
 if before: calltap("document.querySelector('button[aria-label=\"Open search\"]')")
 calltap(inp);wait('visualViewport.height<'+str(vp-90));sleepjs(2);result['keyboardViewport']=ev('visualViewport.height');screen('02-focused');print('keyboard',vp,result['keyboardViewport']);A('shell','input','text','black%sgym%stee');sleepjs(7);screen('03-typed');result['typed']=ev('document.activeElement.value');result['visibleOptions']=ev("[...document.querySelectorAll('[role=option], .gn-results a')].filter(e=>{const b=e.getBoundingClientRect();return b.width&&b.top<visualViewport.height&&b.bottom>0}).map(e=>e.innerText)")
 if not before:
  p="[...document.querySelectorAll('a[href^=\"/product/\"]')].find(el=>{const b=el.getBoundingClientRect();return b.width&&b.top>0&&b.bottom<=visualViewport.height&&el.contains(document.elementFromPoint(b.x+b.width/2,b.y+b.height/2))})";r=wait('(()=>{const a='+p+';return a && [a.href,a.innerText]})()');result['product']=r;assert '₹' in r[1];calltap(p);wait("location.pathname.startsWith('/product/') && document.querySelector('h1')");sleepjs(6);screen('04-product');result['destination']=ev('location.href');result['title']=ev('document.querySelector("h1")?.innerText')
+if rec:
+ subprocess.run(['adb','shell','pkill','-2','screenrecord'],check=False);rec.wait(timeout=8);A('pull','/sdcard/search-journey.mp4',str(E/'journey.mp4'))
 (E/'result.json').write_text(json.dumps(result,indent=2));print(json.dumps(result))

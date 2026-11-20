@@ -10,8 +10,8 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 23
     env:
-      TARGET_REV: a0c46daf592f1b14b37e6d79bff659ab78d140f2
-      PHASE: before
+      TARGET_REV: 6672987b3174b5e2087a815d4a797b50fe18a42c
+      PHASE: after
       VITE_API_URL: https://gym-drobe-backend.onrender.com/api
       VITE_SITE_URL: https://www.gymdrobe.com
     steps:

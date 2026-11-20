@@ -8,10 +8,18 @@ permissions:
 jobs:
   search:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - phase: before
+            sha: a0c46daf592f1b14b37e6d79bff659ab78d140f2
+          - phase: after
+            sha: 6672987b3174b5e2087a815d4a797b50fe18a42c
     timeout-minutes: 22
     env:
-      TARGET_REV: a0c46daf592f1b14b37e6d79bff659ab78d140f2
-      PHASE: before
+      TARGET_REV: ${{ matrix.sha }}
+      PHASE: ${{ matrix.phase }}
       VITE_SITE_URL: https://www.gymdrobe.com
       VITE_API_URL: https://gym-drobe-backend.onrender.com/api
     steps:
