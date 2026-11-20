@@ -1,15 +1,20 @@
-import { lazy, Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, ChevronRight, Clock3, Mic, Search, Tag, X } from "lucide-react";
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { getTotalStock } from "../utils/cartUtils.js";
-import { getDiscountedPrice } from "../utils/productPricing.js";
 import { createSearchIndex, searchCatalogue } from "../utils/smartSearch.js";
 import PhotoSearchButton from "./PhotoSearchButton.jsx";
+import { ProductImage } from "./StorefrontShared.jsx";
 import "./StorefrontSearch.css";
 
-const ProductPhoto = lazy(() => import("./StorefrontShared.jsx").then(module => ({ default: module.ProductImage })));
 const searchPath = query => "/shop?" + new URLSearchParams({ search: query });
+
+function categoryLabel(value) {
+  // Keep catalogue keys intact in links; legacy categories were often entered in capitals.
+  return value.replace(/\b[A-Z]{2,}\b/g, word =>
+    /^(BCAA|EAA|HIIT|UV|XL|XXL)$/.test(word) ? word : word[0] + word.slice(1).toLowerCase());
+}
 
 function categorySuggestions(products) {
   const counts = new Map();
@@ -20,18 +25,21 @@ function categorySuggestions(products) {
     }
   }
   return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 5)
-    .map(([label]) => ({ type: "category", label, href: "/shop?" + new URLSearchParams({ category: label }) }));
+    .map(([key]) => ({ type: "category", label: categoryLabel(key), href: "/shop?" + new URLSearchParams({ category: key }) }));
 }
 
 function suggestions(query, result) {
   if (!result) return [];
-  const products = result.products.map(product => ({
-    type: "product", label: product.name, product, href: "/product/" + encodeURIComponent(product.id),
+  const products = result.matches.map(({ product, price, available }) => ({
+    type: "product", label: product.name, product, price, available, href: "/product/" + encodeURIComponent(product.id),
   }));
   const sections = [
     ...result.categories.slice(0, 2).map(label => ({ type: "category", label })),
     ...result.brands.slice(0, 1).map(label => ({ type: "brand", label })),
-  ].map(item => ({ ...item, href: "/shop?" + new URLSearchParams({ [item.type]: item.label, search: query }) }));
+  ].map(item => ({
+    ...item, label: item.type === "category" ? categoryLabel(item.label) : item.label,
+    href: "/shop?" + new URLSearchParams({ [item.type]: item.label, search: query }),
+  }));
   const phrases = [...new Set([result.correctedQuery, ...(result.suggestedQueries || [])])]
     .filter(phrase => phrase && phrase.toLowerCase() !== query.toLowerCase()).slice(0, 2)
     .map(label => ({ type: "phrase", label, href: searchPath(label), query: label }));
@@ -104,8 +112,16 @@ export default function StorefrontSearch({
   if (query && !waiting && !unavailable) {
     if (!entries.length) {
       const broader = result?.broaderQuery;
-      entries.push({ type: "broaden", label: broader ? 'Search for “' + broader + '” without this filter' : "Browse all products",
-        href: broader ? searchPath(broader) : "/shop", query: broader || undefined });
+      const relatedCategory = result?.related[0];
+      if (broader) {
+        entries.push({ type: "broaden", label: 'Search for “' + broader + '” without this filter',
+          href: searchPath(broader), query: broader });
+      } else if (relatedCategory) {
+        entries.push({ type: "broaden", label: "Browse all " + categoryLabel(relatedCategory),
+          href: "/shop?" + new URLSearchParams({ category: relatedCategory }) });
+      } else {
+        entries.push({ type: "broaden", label: "Browse all products", href: "/shop" });
+      }
     }
     entries.push({ type: "all", label: 'See all results for “' + query + '”', query, href: searchPath(query) });
   }
@@ -189,7 +205,11 @@ export default function StorefrontSearch({
 
   function saveDraft() {
     // React Router owns the rest of the history entry, including the scroll key.
-    window.history.replaceState({ ...window.history.state, gymdrobeSearchDraft: value }, "");
+    try {
+      window.history.replaceState({ ...window.history.state, gymdrobeSearchDraft: value }, "");
+    } catch {
+      // Some browser modes restrict history writes; navigating to the product still works.
+    }
   }
 
   function finish() {
@@ -240,10 +260,17 @@ export default function StorefrontSearch({
       if (event.relatedTarget && !root.current.contains(event.relatedTarget)) setOpen(false);
     }}
     onKeyDown={event => {
-      if (open && event.key === "Escape") { event.preventDefault(); event.stopPropagation(); dismiss(); }
+      if (open && event.key === "Escape" && !event.target.closest("dialog")) {
+        event.preventDefault();
+        event.stopPropagation();
+        dismiss();
+      }
     }}>
     <div className="gs-input-row">
-      <form className="gn-form" action="/shop" role="search" onSubmit={event => {
+      <form className="gn-form" action="/shop" role="search"
+        onClick={event => {
+          if (event.target === event.currentTarget) input.current.focus({ preventScroll: true });
+        }} onSubmit={event => {
         event.preventDefault();
         if (!query) { input.current.focus(); return; }
         finish();
@@ -297,13 +324,14 @@ export default function StorefrontSearch({
                 if (option.query) onRemember(option.query);
               }}>
               {option.product ? <span className="gs-thumbnail">
-                <Suspense fallback={null}><ProductPhoto product={option.product} homeGear decorative eager sizes="48px" /></Suspense>
+                <ProductImage product={option.product} homeGear decorative eager sizes="48px" />
               </span> : option.type === "recent" ? <Clock3 size={17} /> :
                 option.type === "category" || option.type === "brand" ? <Tag size={17} /> : <Search size={17} />}
               <span className="gs-copy">
                 <strong>{option.label}</strong>
-                {option.product && <small>₹{getDiscountedPrice(option.product).toLocaleString("en-IN")}
-                  {getTotalStock(option.product) <= 0 ? " · Out of stock" : ""}</small>}
+                {option.product && <small>{option.price == null ? "Price unavailable" : "₹" + option.price.toLocaleString("en-IN")}
+                  {option.product.gender && <span className="gs-variant"> · {option.product.gender}</span>}
+                  {!option.available ? " · Out of stock" : ""}</small>}
               </span>
               {option.type === "brand" || (query && option.type === "category") ?
                 <span className="gs-option-kind">{option.type === "brand" ? "Brand" : "Category"}</span> : null}

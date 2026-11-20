@@ -170,6 +170,7 @@
   margin-top: 3px;
   line-height: 1.3;
 }
+#app .gs-results .gs-variant { font-weight: 500; color: #53665b; }
 #app .gs-results .gs-thumbnail {
   display: grid;
   place-items: center;

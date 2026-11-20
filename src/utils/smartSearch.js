@@ -6,6 +6,7 @@
 
 import { getDiscountedPrice } from "./productPricing.js";
 import { optionLabels } from "./productInformation.js";
+import { getVariantStock } from "./cartUtils.js";
 
 const SYNONYMS = Object.freeze({
   tshirt: ["tee", "tees", "shirt", "shirts", "tshirts", "teeshirt", "jersey", "trainingtop"],
@@ -65,6 +66,7 @@ export function normalizeSearchText(value) {
     .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
     .toLowerCase().replace(/\b(men|women)['’]s\b/g, "$1s").replace(/[^a-z0-9]+/g, " ")
     .replace(/\bt\s*shirts?\b/g, "tshirt")
+    .replace(/\bt\s+(s|sh|shi|shir)\b/g, "t$1")
     .replace(/\s+/g, " ").trim();
 }
 
@@ -145,11 +147,11 @@ export function createSearchIndex(products) {
     // Use complete catalogue options for constraints. "PUMA Black" is a
     // colour, but "PUMA" alone is a brand. Flavours are searchable separately.
     const labels = optionLabels(item.product);
-    if (labels.color === "Colour") {
-      for (const color of item.product.colors || []) colors.add(normalizeSearchText(color));
+    if (labels.color === "Colour" && Array.isArray(item.product.colors)) {
+      for (const color of item.product.colors) colors.add(normalizeSearchText(color));
     }
-    if (labels.size === "Size") {
-      for (const size of item.product.sizes || []) sizes.add(normalizeSearchText(size));
+    if (labels.size === "Size" && Array.isArray(item.product.sizes)) {
+      for (const size of item.product.sizes) sizes.add(normalizeSearchText(size));
     }
   }
   return { entries, vocabulary: [...vocabulary].slice(0, 10000), vocabularySet: vocabulary, colors, sizes };
@@ -213,11 +215,11 @@ function resolveTokens(index, query, strict) {
   };
 }
 
-function tokenScore(fieldData, token, weight) {
+function tokenScore(fieldData, token, weight, minimumPrefix = 2) {
   if (fieldData.tokens.has(token)) return weight;
   // A complete department or product type is not a partial word: "bag"
   // must never return "baggy joggers".
-  if (token.length >= 2 && !Object.hasOwn(SYNONYMS, token)) {
+  if (token.length >= minimumPrefix && !Object.hasOwn(SYNONYMS, token)) {
     for (const value of fieldData.tokens) {
       if (value.startsWith(token)) return Math.floor(weight * 0.65);
     }
@@ -237,10 +239,11 @@ function score(item, terms, queryText, originalQuery, index) {
     // Descriptions often mention other equipment, e.g. a shaker that fits a gym bag.
     const descriptionMatch = !attribute && !Object.hasOwn(SYNONYMS, token)
       ? tokenScore(item.description, token, 12) : 0;
+    const minimumPrefix = !attribute && token === terms.at(-1) ? 1 : 2;
     const best = Math.max(
-      tokenScore(item.name, token, 140),
-      tokenScore(item.brand, token, 110),
-      tokenScore(item.category, token, 105),
+      tokenScore(item.name, token, 140, minimumPrefix),
+      tokenScore(item.brand, token, 110, minimumPrefix),
+      tokenScore(item.category, token, 105, minimumPrefix),
       tokenScore(item.subcategory, token, 95),
       tokenScore(item.aliases, token, 90),
       tokenScore(item.tags, token, 65),
@@ -261,17 +264,39 @@ function score(item, terms, queryText, originalQuery, index) {
   return total;
 }
 
-function belowBudget(product, ceiling, colors, sizes) {
+function matchingOptions(options, terms, query) {
+  if (!Array.isArray(options) || !options.length) return [null];
+  const fullMatches = options.filter(option => {
+    const name = normalizeSearchText(option);
+    return name.includes(" ") && (" " + query + " ").includes(" " + name + " ");
+  });
+  return fullMatches.length ? fullMatches : options.filter(option =>
+    terms.every(term => words(option).includes(term)));
+}
+
+function matchingOffer(product, colors, sizes, query) {
+  const matchingColors = matchingOptions(product.colors, colors, query);
+  const matchingSizes = matchingOptions(product.sizes, sizes, query);
   if (Array.isArray(product.variantPrices) && product.variantPrices.length) {
-    return product.variantPrices.some(row => (
-      Number.isSafeInteger(row?.customerUnitAmount) && row.customerUnitAmount > 0 &&
-      row.customerUnitAmount < ceiling * 100 &&
-      colors.every(color => words(row.color).includes(color)) &&
-      sizes.every(size => words(row.size).includes(size))
-    ));
+    let cheapest = Infinity;
+    let cheapestAvailable = Infinity;
+    for (const row of product.variantPrices) {
+      if (!Number.isSafeInteger(row?.customerUnitAmount) || row.customerUnitAmount <= 0 ||
+        !matchingColors.includes(row.color || null) || !matchingSizes.includes(row.size || null)) continue;
+      cheapest = Math.min(cheapest, row.customerUnitAmount);
+      if (getVariantStock(product, row.size, row.color) > 0) {
+        cheapestAvailable = Math.min(cheapestAvailable, row.customerUnitAmount);
+      }
+    }
+    if (!Number.isFinite(cheapest)) return null;
+    const available = Number.isFinite(cheapestAvailable);
+    return { price: (available ? cheapestAvailable : cheapest) / 100, available };
   }
-  return product.price != null && product.price !== "" && Number.isFinite(Number(product.price)) &&
-    getDiscountedPrice(product) < ceiling;
+  const price = product.price != null && product.price !== "" && Number.isFinite(Number(product.price))
+    ? getDiscountedPrice(product) : null;
+  const available = matchingColors.some(color =>
+    matchingSizes.some(size => getVariantStock(product, size, color) > 0));
+  return { price, available };
 }
 
 export function searchCatalogue(productsOrIndex, query, { strict = false, limit = Infinity } = {}) {
@@ -296,9 +321,14 @@ export function searchCatalogue(productsOrIndex, query, { strict = false, limit 
   const textMatches = index.entries
     .map((item) => ({ product: item.product, score: score(item, resolved.tokens, queryText, clean, index) }))
     .filter((item) => item.score > 0);
-  const relevant = textMatches
-    .filter(({ product }) => !budget || belowBudget(product, ceiling, colors, sizes))
-    .sort((a, b) => b.score - a.score);
+  const relevant = [];
+  for (const match of textMatches) {
+    const offer = matchingOffer(match.product, colors, sizes, clean);
+    if (offer && (!budget || (offer.price != null && offer.price < ceiling))) {
+      relevant.push({ ...match, ...offer });
+    }
+  }
+  relevant.sort((a, b) => b.score - a.score);
   const counts = (property) => {
     const tally = new Map();
     for (const { product } of relevant) {

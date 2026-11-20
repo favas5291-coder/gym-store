@@ -109,6 +109,7 @@ const apparel = [
 test("search suggestions and submitted results respect colours, department, sizes and typos", () => {
   for (const [query, expected] of [
     ["black gym t shirt", ["black"]],
+    ["black gym t sh", ["black"]],
     ["black gym tee", ["black"]],
     ["womens jogers", ["wj"]],
     ["Women's joggers size M", ["wj"]],
@@ -146,6 +147,23 @@ test("a cheap variant cannot qualify an expensive colour or size for a budget se
   assert.deepEqual(searchCatalogue([bag], "black gym bag under ₹999").products, []);
   assert.deepEqual(searchCatalogue([bag], "gym bag size L under ₹999").products, []);
   assert.deepEqual(searchCatalogue([bag], "blue gym bag size S under ₹999").products, [bag]);
+});
+
+test("suggestion price and availability describe the cheapest purchasable matching variant", () => {
+  const shirt = { name: "Club tee", category: "Training", colors: ["Black", "Blue"], sizes: ["S", "M"],
+    variants: { Black: { S: 0, M: 4 }, Blue: { S: 2 } },
+    variantPrices: [
+      { color: "Blue", size: "S", customerUnitAmount: 49900 },
+      { color: "Black", size: "S", customerUnitAmount: 69900 },
+      { color: "Black", size: "M", customerUnitAmount: 89900 },
+    ] };
+  const search = query => searchCatalogue([shirt], query).matches[0];
+  assert.equal(search("black tee under 999").price, 899);
+  assert.equal(search("black tee under 999").available, true);
+  assert.equal(search("black tee under 800"), undefined);
+  assert.equal(search("black tee size S").price, 699);
+  assert.equal(search("black tee size S").available, false);
+  assert.equal(search("tee").price, 499);
 });
 
 test("brand and product names remain searchable when they also appear in a multiword colour or flavour", () => {

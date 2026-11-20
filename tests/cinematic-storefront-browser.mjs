@@ -83,7 +83,7 @@ try{
    for(const term of ['shoes','tshirt','gloves','gym bag','shaker','training']){
     assert.equal(await panel.getByRole('option',{name:term,exact:true}).count(),1);
    }
-   const field=await form.boundingBox(), suggestions=await panel.boundingBox();
+   const field=await page.locator('.gs-input-row').boundingBox(), suggestions=await panel.boundingBox();
    assert.ok(suggestions.x>=-1 && suggestions.x+suggestions.width<=width+1,JSON.stringify(suggestions));
    assert.ok(suggestions.y>=field.y+field.height-1,JSON.stringify({field,suggestions}));
    if(width>=1024){
