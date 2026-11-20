@@ -12,10 +12,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - phase: before
-            sha: a0c46daf592f1b14b37e6d79bff659ab78d140f2
           - phase: after
-            sha: 6672987b3174b5e2087a815d4a797b50fe18a42c
+            sha: ec88b8e54e4717ee94c7c5bb3a7db291a2177c56
     timeout-minutes: 22
     env:
       TARGET_REV: ${{ matrix.sha }}

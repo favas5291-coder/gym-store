@@ -1,5 +1,5 @@
 set -euo pipefail
-trap 'adb exec-out screencap -p > evidence/last.png || true; adb shell dumpsys input_method | grep -E "mInputShown|mImeWindowVis|mCurMethodId" > evidence/keyboard-last.log || true' EXIT
+trap 'adb shell pkill -2 screenrecord >/dev/null 2>&1 || true; sleep 1; if [[ -z "$(ls -s evidence/journey.mp4 2>/dev/null)" ]]; then adb pull /sdcard/search-journey.mp4 evidence/journey.mp4 >/dev/null 2>&1 || true; fi; adb exec-out screencap -p > evidence/last.png || true; adb shell dumpsys input_method | grep -E "mInputShown|mImeWindowVis|mCurMethodId" > evidence/keyboard-last.log || true' EXIT
 adb shell wm size 780x1688
 adb shell wm density 320
 adb shell settings put secure show_ime_with_hard_keyboard 1
