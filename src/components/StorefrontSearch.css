@@ -19,6 +19,7 @@
 #app .premium-storefront .gd-nav.web-search-header .gs-search .gn-form {
   display: flex;
   align-items: center;
+  position: relative;
   height: 48px;
   min-height: 48px;
   flex: 1 1 0;
@@ -26,9 +27,9 @@
   margin: 0;
   padding: 0 2px 0 0;
   gap: 0;
-  border: 1px solid #cdd5cf;
+  border: 1px solid #d7d8ce;
   border-radius: 10px;
-  background: #f6f7f4;
+  background: #f8f7f2;
   outline: none;
   box-shadow: none;
 }
@@ -227,7 +228,7 @@ html #app .premium-storefront.storefront-home .gd-nav.web-search-header .athleti
     grid-template-columns: 88px minmax(0,1fr) 88px;
     grid-template-rows: 56px 48px;
     grid-template-areas: "toggle brand actions" "search search search";
-    padding: 0 max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
+    padding: 0 max(13px, env(safe-area-inset-right)) 8px max(13px, env(safe-area-inset-left));
     gap: 0;
   }
   html #app .premium-storefront .gd-nav.web-search-header.mobile-search-visible .gn-bar {
@@ -239,8 +240,8 @@ html #app .premium-storefront.storefront-home .gd-nav.web-search-header .athleti
   html #app .premium-storefront.storefront-home .gd-nav.web-search-header .gn-menu-toggle { justify-self: start; }
   html #app .premium-storefront .gd-nav.web-search-header .gs-search .gs-results {
     top: calc(100% + 8px);
-    left: calc(0px - max(12px, env(safe-area-inset-left)));
-    right: calc(0px - max(12px, env(safe-area-inset-right)));
+    left: calc(0px - max(13px, env(safe-area-inset-left)));
+    right: calc(0px - max(13px, env(safe-area-inset-right)));
     width: auto;
     height: max(0px, calc(var(--gs-space, 60dvh) - 8px));
     max-height: none;
@@ -281,3 +282,26 @@ html #app .premium-storefront.storefront-home .gd-nav.web-search-header .athleti
     margin-left: auto;
   }
 }
+
+.gs-idle-hint {
+  position: absolute;
+  inset: 0 12px 0 44px;
+  display: flex;
+  align-items: center;
+  gap: .3em;
+  overflow: hidden;
+  pointer-events: none;
+  white-space: nowrap;
+  color: #59645b;
+  font-size: 16px;
+  font-weight: 400;
+}
+.gs-terms { display: grid; min-width: 0; color: #244138; font-weight: 650; }
+.gs-terms > * { grid-area: 1 / 1; overflow: hidden; text-overflow: ellipsis; font-weight: inherit; }
+.gs-outgoing { opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .gs-outgoing { animation: gs-hint-out 240ms ease-out both; }
+  .gs-incoming { animation: gs-hint-in 240ms ease-out both; }
+}
+@keyframes gs-hint-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes gs-hint-in { from { opacity: 0; } to { opacity: 1; } }
