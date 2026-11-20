@@ -2,7 +2,7 @@ from http.server import SimpleHTTPRequestHandler,ThreadingHTTPServer
 from urllib.parse import urlsplit
 from pathlib import Path
 import json,os
-phase=os.environ['PHASE']
+phase=os.environ['PHASE']; latest={}
 doc=Path('source/dist/index.html').read_text()
 # Keep the released app, inputs, layout and focus untouched. Use a read-only
 # public-catalogue capture so the localhost simulator never needs cross-origin cookies.
@@ -17,10 +17,14 @@ class Handler(SimpleHTTPRequestHandler):
  def reply(self,body,kind):
   self.send_response(200);self.send_header('Content-type',kind);self.send_header('Content-length',str(len(body)));self.end_headers();self.wfile.write(body)
  def do_POST(self):
-  if self.path=='/probe':print('PHONE',self.rfile.read(int(self.headers.get('Content-Length','0'))).decode(),flush=True)
+  if self.path=='/probe':
+   global latest
+   latest=json.loads(self.rfile.read(int(self.headers.get('Content-Length','0'))))
+   print('PHONE',json.dumps(latest,ensure_ascii=False),flush=True)
   self.send_response(204);self.end_headers()
  def do_GET(self):
   p=urlsplit(self.path).path;id=p.rsplit('/',1)[-1]
+  if p=='/qa-state':return self.reply(json.dumps(latest).encode(),'application/json')
   if p.startswith('/fixture/api/'):
    r=next((x for x in rows if str(x.get('_id') or x.get('id'))==id),None)
    val=catalogue if p=='/fixture/api/products' else json.dumps({'success':True,'product':r} if r else {'success':True,'products':[],'config':{},'settings':{}}).encode()
