@@ -98,3 +98,65 @@ test("index can be reused across autocomplete requests without new server calls"
   assert.ok(searchCatalogue(index, "protien", { limit: 1 }).products.length <= 1);
   assert.deepEqual(searchCatalogue(index, "shooes").categories, ["Footwear"]);
 });
+
+const apparel = [
+  { id: "black", name: "Compression Half Sleeves T-shirt", category: "Compression T-shirt", gender: "Men", colors: ["Black", "Navy"], sizes: ["S", "M"], price: 799, stock: 4 },
+  { id: "white", name: "Compression Half Sleeves T-shirt", category: "Compression T-shirt", gender: "Women", colors: ["White"], sizes: ["M"], description: "Pair with black joggers.", price: 599, stock: 3 },
+  { id: "wj", name: "Training Joggers", category: "Joggers", gender: "Women", colors: ["Navy"], sizes: ["M"], price: 899, stock: 3 },
+  { id: "mj", name: "Training Joggers", category: "Joggers", gender: "Men", colors: ["Black"], sizes: ["L"], price: 899, stock: 2 },
+];
+
+test("search suggestions and submitted results respect colours, department, sizes and typos", () => {
+  for (const [query, expected] of [
+    ["black gym t shirt", ["black"]],
+    ["black gym tee", ["black"]],
+    ["womens jogers", ["wj"]],
+    ["Women's joggers size M", ["wj"]],
+    ["men’s joggers size M", []],
+    ["gym tee size S", ["black"]],
+  ]) {
+    const data = searchCatalogue(apparel, query);
+    assert.deepEqual(data.products.map(p => p.id), expected, query);
+    assert.deepEqual(filterProducts(apparel, new URLSearchParams({ search: query })).map(p => p.id), expected);
+  }
+  assert.equal(searchCatalogue(apparel, "womens jogers").correctedQuery, "womens joggers");
+  assert.ok(searchCatalogue(apparel, "comp").suggestedQueries.includes("Compression Half Sleeves T-shirt"));
+});
+
+test("under uses the strictly lower storefront selling price and offers deliberate broadening", () => {
+  const bags = [
+    { id: "sale", name: "Gym Duffel", category: "BAG", price: 1200, discount: 25 },
+    { id: "edge", name: "Gym Bag", category: "BAG", price: 999 },
+    { id: "other", name: "Sports Bottle", category: "Bottles", description: "Fits in your gym bag", price: 199 },
+    { id: "joggers", name: "Pro Flex Baggy Fit Joggers", category: "Joggers", price: 899 },
+    { id: "unknown", name: "Small Gym Bag", category: "BAG" },
+  ];
+  assert.deepEqual(searchCatalogue(bags, "gym bag under 999").products.map(p => p.id), ["sale"]);
+  assert.deepEqual(filterProducts(bags, new URLSearchParams({ search: "gym bag under ₹999" })).map(p => p.id), ["sale"]);
+  assert.equal(searchCatalogue(bags, "gym bag under ₹800").broaderQuery, "gym bag");
+  assert.equal(searchCatalogue(bags, "shoes under ₹800").broaderQuery, "");
+  assert.deepEqual(searchCatalogue(bags, "under INR 1,000").products.map(p => p.id), ["sale", "edge", "other", "joggers"]);
+});
+
+test("a cheap variant cannot qualify an expensive colour or size for a budget search", () => {
+  const bag = { name: "Gym Bag", category: "BAG", colors: ["Blue", "Black"], sizes: ["S", "L"], variantPrices: [
+    { color: "Blue", size: "S", customerUnitAmount: 89900 },
+    { color: "Black", size: "L", customerUnitAmount: 99900 },
+  ] };
+  assert.deepEqual(searchCatalogue([bag], "black gym bag under ₹999").products, []);
+  assert.deepEqual(searchCatalogue([bag], "gym bag size L under ₹999").products, []);
+  assert.deepEqual(searchCatalogue([bag], "blue gym bag size S under ₹999").products, [bag]);
+});
+
+test("brand and product names remain searchable when they also appear in a multiword colour or flavour", () => {
+  const bags = [
+    { name: "Gym Duffel", brand: "PUMA", colors: ["Light Lavender"] },
+    { name: "Small Sports Bag", brand: "PUMA", colors: ["PUMA Black"] },
+  ];
+  assert.deepEqual(new Set(searchCatalogue(bags, "PUMA").products), new Set(bags));
+  const powders = [
+    { name: "Whey Protein", colors: ["Vanilla"], optionLabels: { color: "Flavour" } },
+    { name: "Protein Strawberry", colors: ["Performance Whey"], optionLabels: { color: "Flavour" } },
+  ];
+  assert.equal(searchCatalogue(powders, "whey protein").products.length, 2);
+});

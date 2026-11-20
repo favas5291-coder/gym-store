@@ -55,85 +55,143 @@ try{
   });
   await view.c.close();
  }
- // Search must remain compact and attached to the input across iPhone, tablet and desktop.
- for (const width of [320,375,390,430,768,1024,1440]) {
+ // The same visible Home input serves touch and keyboard shoppers at every breakpoint.
+ for (const width of [320,360,390,430,768,1024,1440]) {
   const searchUI=await context(width,{browser:{isMobile:width<=430,hasTouch:width<=430}});
   await searchUI.c.addInitScript(()=>{
-   localStorage.setItem('gymdrobe-recent-searches',JSON.stringify([
-    'shoes','tshirt','gloves','gym bag','shaker','training'
-   ]));
-  });
-  await check(width+'px premium search focus, compact history and selection',async()=>{
-   await visit(searchUI.p,'/');
-   await searchUI.p.getByRole('button',{name:'Open search',exact:true}).click();
-   const input=searchUI.p.getByRole('combobox',{name:'Search products'});
-   await input.click();
-   const dropdown=searchUI.p.locator('.gn-results');
-   await dropdown.waitFor();
-   const rowCount=await dropdown.locator('li').count();
-   assert.equal(rowCount,6,'All saved searches remain available');
-   const bounds=await searchUI.p.evaluate(()=>{
-    const field=document.querySelector('.gn-form').getBoundingClientRect();
-    const panel=document.querySelector('.gn-results').getBoundingClientRect();
-    const input=document.querySelector('.gn-form input');
-    const list=document.querySelector('.gn-results ul');
-    return {field:{x:field.x,width:field.width,bottom:field.bottom},panel:{x:panel.x,width:panel.width,top:panel.top,height:panel.height,bottom:panel.bottom},fontSize:parseFloat(getComputedStyle(input).fontSize),
-      outline:getComputedStyle(input).outlineStyle,viewport:innerWidth,listScroll:list.scrollHeight>list.clientHeight,
-      focusBorder:getComputedStyle(document.querySelector('.gn-form')).borderTopColor};
-   });
-   assert.ok(Math.abs(bounds.panel.x-bounds.field.x)<=1.5,JSON.stringify(bounds));
-   assert.ok(Math.abs(bounds.panel.width-bounds.field.width)<=2,JSON.stringify(bounds));
-   assert.ok(Math.abs(bounds.panel.top-bounds.field.bottom)<=1.5,JSON.stringify(bounds));
-   assert.ok(bounds.panel.x>=-1&&bounds.panel.x+bounds.panel.width<=width+1,JSON.stringify(bounds));
-   assert.ok(bounds.panel.height<=312,JSON.stringify(bounds));
-   assert.equal(bounds.outline,'none','No stacked native input outline');
-   if(width<=1279)assert.ok(bounds.fontSize>=16,'Prevent iOS input zoom');
-   assert.ok(bounds.listScroll,'Six recent searches must scroll in a compact panel');
-   assert.equal(await dropdown.locator('svg').count()>0,true,'Use vector icons');
-   await searchUI.p.getByRole('button',{name:'Close search',exact:true}).click();
-   assert.equal(await dropdown.isVisible(),false);
-   const toggle = searchUI.p.getByRole('button',{name:'Open search',exact:true});
-   assert.ok(await toggle.evaluate(el => el === document.activeElement));
-   await toggle.click();
-   await input.click();
-   await searchUI.p.locator('.gn-option').first().click();
-   await searchUI.p.waitForURL(/\/shop\?search=shoes/);
-   await visit(searchUI.p,'/');
-   await searchUI.p.getByRole('button',{name:'Open search',exact:true}).click();
-   await input.fill('gym');
-   await input.press('Enter');
-   await searchUI.p.waitForURL(/\/shop\?search=gym/);
-  });await searchUI.c.close();
- }
- const keyboardUI=await context(390,{browser:{isMobile:true,hasTouch:true}});
- await keyboardUI.c.addInitScript(()=>localStorage.setItem('gymdrobe-recent-searches',JSON.stringify(['shoes','gloves','training','shaker','yoga','bag'])));
- await check('390px iOS keyboard-sized viewport, outside dismissal and clear history',async()=>{
-  await visit(keyboardUI.p,'/');
-  await keyboardUI.p.getByRole('button',{name:'Open search',exact:true}).click();
-  const input=keyboardUI.p.getByRole('combobox',{name:'Search products'});
-  await input.click();
-  // Simulate the shrinking visualViewport that iOS provides when keyboard opens.
-  await keyboardUI.p.evaluate(()=>{
-   const vv=window.visualViewport;
-   if(vv){
-    Object.defineProperty(vv,'height',{configurable:true,value:340});
-    vv.dispatchEvent(new Event('resize'));
+   if (!localStorage.getItem('gymdrobe-recent-searches')) {
+    localStorage.setItem('gymdrobe-recent-searches',JSON.stringify(['shoes','tshirt','gloves','gym bag','shaker','training']));
    }
   });
-  await keyboardUI.p.waitForTimeout(120);
-  const geometry=await keyboardUI.p.evaluate(()=>{
-   const vv=window.visualViewport;
-   const panel=document.querySelector('.gn-results').getBoundingClientRect();
-   return {bottom:panel.bottom,visibleBottom:vv.offsetTop+vv.height,height:panel.height};
+  await check(width+'px visible Home search, recent searches and keyboard navigation',async()=>{
+   const page=searchUI.p;
+   await visit(page,'/');
+   const input=page.getByRole('combobox',{name:'Search products'});
+   assert.equal(await input.count(),1);
+   assert.equal(await input.getAttribute('aria-expanded'),'false');
+   assert.equal(await input.evaluate(el=>el===document.activeElement),false);
+   assert.equal(await page.getByRole('button',{name:'Open search',exact:true}).count(),0);
+   const form=page.locator('.gn-form');
+   if(width<1024){
+    const field=await form.boundingBox();
+    assert.ok(field.width>=width-36 && field.height>=47,JSON.stringify(field));
+    assert.ok(parseFloat(await input.evaluate(el=>getComputedStyle(el).fontSize))>=16);
+   }
+   await input.click();
+   const panel=page.locator('.gn-results');
+   await panel.getByRole('option',{name:'shoes',exact:true}).waitFor();
+   for(const term of ['shoes','tshirt','gloves','gym bag','shaker','training']){
+    assert.equal(await panel.getByRole('option',{name:term,exact:true}).count(),1);
+   }
+   const field=await form.boundingBox(), suggestions=await panel.boundingBox();
+   assert.ok(suggestions.x>=-1 && suggestions.x+suggestions.width<=width+1,JSON.stringify(suggestions));
+   assert.ok(suggestions.y>=field.y+field.height-1,JSON.stringify({field,suggestions}));
+   if(width>=1024){
+    assert.ok(Math.abs(suggestions.x-field.x)<=2 && Math.abs(suggestions.width-field.width)<=2,JSON.stringify({field,suggestions}));
+   }
+   await page.getByRole('button',{name:'Cancel',exact:true}).click();
+   await panel.waitFor({state:'hidden'});
+   assert.ok(await page.getByRole('button',{name:'Focus search',exact:true}).evaluate(el=>el===document.activeElement));
+   await input.click();
+   await input.press('ArrowDown');
+   assert.equal(await input.getAttribute('aria-activedescendant'),await panel.getByRole('option',{name:'shoes',exact:true}).getAttribute('id'));
+   await input.press('Enter');
+   await page.waitForURL(/\/shop\?search=shoes/);
+   await visit(page,'/');
+   await input.fill('gym');
+   await input.press('Enter');
+   await page.waitForURL(/\/shop\?search=gym/);
+  });await searchUI.c.close();
+ }
+ const keyboardUI=await context(390,{browser:{viewport:{width:390,height:844},isMobile:true,hasTouch:true}});
+ await keyboardUI.c.addInitScript(()=>localStorage.setItem('gymdrobe-recent-searches',JSON.stringify(['shoes','gloves','training','shaker','yoga','bag'])));
+ await check('390px keyboard viewport, removable history and a shoppable product suggestion',async()=>{
+  const page=keyboardUI.p;
+  await visit(page,'/');
+  const input=page.getByRole('combobox',{name:'Search products'});
+  await input.click();
+  // A controlled visual viewport tests keyboard geometry reproducibly in headless Chrome.
+  await page.evaluate(()=>{
+   Object.defineProperty(visualViewport,'height',{configurable:true,value:340});
+   visualViewport.dispatchEvent(new Event('resize'));
   });
-  assert.ok(geometry.bottom<=geometry.visibleBottom+1,JSON.stringify(geometry));
-  assert.ok(geometry.height>45 && geometry.height<=290,JSON.stringify(geometry));
-  await keyboardUI.p.getByRole('button',{name:'Clear history'}).click();
-  assert.equal(await keyboardUI.p.locator('.gn-results li').count(),0);
-  assert.equal(await keyboardUI.p.locator('.gn-results').count(),1);
-  await keyboardUI.p.locator('.athletic-category-grid').first().click({position:{x:10,y:180},force:true});
-  assert.equal(await keyboardUI.p.locator('.gn-results').count(),0);
+  const panel=page.locator('.gn-results');
+  await page.waitForFunction(()=>{
+   const rect=document.querySelector('.gn-results')?.getBoundingClientRect();
+   return rect && rect.bottom<=visualViewport.offsetTop+visualViewport.height+1 && rect.height>=44;
+  });
+  const first=await panel.getByRole('option').first().boundingBox();
+  assert.ok(first.y+first.height<=341,JSON.stringify(first));
+  await page.getByRole('button',{name:'Remove shoes',exact:true}).click();
+  assert.equal(await panel.getByRole('option',{name:'shoes',exact:true}).count(),0);
+  await page.getByRole('button',{name:'Clear all',exact:true}).click();
+  await panel.getByRole('option').first().waitFor();
+  assert.equal(await panel.getByRole('option',{name:'gloves',exact:true}).count(),0);
+  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('gymdrobe-recent-searches')||'[]').length),0);
+  await input.fill('shoes');
+  await input.fill('black gym tee');
+  const product=panel.locator('a[role="option"][href^="/product/"]').filter({hasText:'Gym Training T-Shirt'});
+  await product.waitFor();
+  const productHref=await product.getAttribute('href');
+  assert.equal(productHref,'/product/'+fixtureProductId);
+  assert.match(await product.innerText(),/₹/);
+  await product.locator('img').evaluate(img=>img.decode());
+  const box=await product.boundingBox();
+  assert.ok(box.y+box.height<=341,JSON.stringify(box));
+  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('gymdrobe-recent-searches')||'[]').length),0);
+  await product.click();
+  await page.waitForURL('**'+productHref);
+  await page.getByRole('heading',{name:'Gym Training T-Shirt',exact:true}).waitFor();
+  assert.equal(keyboardUI.mock.requests.filter(r=>r.path==='/api/products' && r.method==='GET').length,1);
  });await keyboardUI.c.close();
+ const recovery=await context(390,{browser:{isMobile:true,hasTouch:true}});
+ await check('Search Retry preserves the query and recovers real suggestions',async()=>{
+  let attempts=0;
+  await recovery.c.route('**/api/products',async route=>{
+   attempts++;
+   if(attempts===1) {
+    return route.fulfill({status:503,json:{success:false,message:'Catalogue unavailable'}});
+   }
+   return route.fallback();
+  });
+  await visit(recovery.p,'/');
+  const input=recovery.p.getByRole('combobox',{name:'Search products'});
+  await input.fill('black gym tee');
+  const panel=recovery.p.locator('.gn-results');
+  const retry=panel.getByRole('button',{name:/retry/i});
+  await retry.waitFor();
+  assert.equal(attempts,1);
+  await retry.click();
+  await panel.locator('a[role="option"][href^="/product/"]').filter({hasText:'Gym Training T-Shirt'}).waitFor();
+  assert.equal(await input.inputValue(),'black gym tee');
+  assert.equal(attempts,2);
+ });await recovery.c.close();
+ const historyProducts=Array.from({length:12},(_,i)=>{
+  const id=String(i+1).padStart(24,'0');
+  return {...f.products[0],id,_id:id,name:'Black training tee '+(i+1)};
+ });
+ const history=await context(390,{catalogProducts:historyProducts,browser:{viewport:{width:390,height:844},isMobile:true,hasTouch:true}});
+ await check('Back from a product restores the exact search, filters, sort and results position',async()=>{
+  const page=history.p;
+  const params=new URLSearchParams({search:'black gym tee',category:'Workout Clothes',sort:'price-low'});
+  const resultsURL=f.url+'/shop?'+params;
+  await page.goto(resultsURL);
+  const product=page.locator('.shop-results .gm-product-info-link').nth(5);
+  await product.waitFor();
+  await product.evaluate(el=>el.scrollIntoView({block:'center',behavior:'instant'}));
+  await page.waitForFunction(()=>window.scrollY>200);
+  const offset=await page.evaluate(()=>window.scrollY);
+  const title=await product.innerText();
+  await product.click();
+  await page.getByRole('heading',{name:title.trim(),exact:true}).waitFor();
+  await page.goBack();
+  await page.waitForURL(resultsURL);
+  await product.waitFor();
+  await page.waitForFunction(y=>Math.abs(window.scrollY-y)<=3,offset);
+  assert.equal(await page.getByLabel('Sort by:').inputValue(),'price-low');
+  await page.getByRole('button',{name:'Open search',exact:true}).click();
+  assert.equal(await page.getByRole('combobox',{name:'Search products'}).inputValue(),'black gym tee');
+ });await history.c.close();
  // The detail hero should not letterbox square or landscape photos inside
  // a fixed portrait frame. No image pixels may be cropped to achieve the fill.
  for (const width of [320,360,375,390,430,768,1024,1440]) {
@@ -238,7 +296,6 @@ try{
  const x=await context();
  await check('Search and URL-preserving catalog filters',async()=>{
   await visit(x.p,'/');
-  await x.p.getByRole('button',{name:'Open search',exact:true}).click();
   const search=x.p.getByRole('combobox',{name:'Search products'});
   await search.fill('shoes');await search.press('Enter');await x.p.waitForURL('**/shop?**');
   await x.p.locator('.product-grid .gm-product-card').first().waitFor();assert.match(x.p.url(),/search=shoes/);
@@ -351,7 +408,6 @@ try{
   await check(width+'px merchandising and responsive navigation',async()=>{
    await visit(v.p,'/');
    await v.p.locator('.athletic-category-grid a').first().waitFor({state:'visible'});
-   await v.p.getByRole('button',{name:'Open search',exact:true}).click();
    assert.ok(await v.p.getByRole('combobox',{name:'Search products'}).isVisible());
    assert.ok(await v.p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
    if(width<1024) assert.deepEqual(await v.p.getByRole('navigation',{name:'Shopping navigation'}).getByRole('link').allTextContents(),['Home','Categories','Wishlist','Cart','Account']);
@@ -364,7 +420,7 @@ try{
    await visit(view.p, '/');
    const heading = view.p.getByRole('heading', { name: /gear for every workout/i });
    assert.ok(await heading.isVisible());
-   assert.equal(await view.p.locator('.gn-search input').getAttribute('placeholder'), 'Search T-shirts, gym bags and more.');
+   assert.equal(await view.p.locator('.gn-search input').getAttribute('placeholder'), 'Search T-shirts, gym bags and more');
    const tiles = view.p.locator('.department-tile');
    assert.deepEqual(await tiles.allTextContents(), ['Women’s','Men’s']);
    const firstAction = await tiles.first().locator('span').boundingBox();
