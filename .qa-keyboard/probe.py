@@ -77,11 +77,21 @@ call('Page.navigate',{'url':'http://localhost:4183/'})
 wait("document.querySelector('#app .department-tile') && !document.querySelector('#gymdrobe-opening') && !document.querySelector('#home-boot-shell')",21);sleepjs=lambda t: [ev('1') or 0 for _ in range(t) if not time.sleep(.2)]
 sleepjs(5);dismiss_system_prompts();screen('01-home');vp=ev('visualViewport.height');inp="[...document.querySelectorAll('input[type=search],input[role=combobox]')].find(el=>el.getBoundingClientRect().width>0)";result={'phase':phase,'closedKeyboardViewport':vp,'innerWidth':ev('innerWidth'),'chrome':ev('navigator.userAgent'),'catalogueEntries':len(products)}
 if before: calltap("document.querySelector('button[aria-label=\"Open search\"]')")
+if not before:
+ ev('''(()=>{let t;window.__focusTrace=[];const sample=(what,target)=>{const input=document.querySelector('[data-storefront-search]'),a=document.querySelector('.gs-category');let hit=false;if(a){const b=a.getBoundingClientRect();hit=!!b.width && b.bottom<=visualViewport.height && a.contains(document.elementFromPoint(b.x+b.width/2,b.y+b.height/2))}return {ms:Math.round(performance.now()-t),what,target:target?.outerHTML?.slice(0,90),active:document.activeElement?.outerHTML?.slice(0,120),focus:document.activeElement===input,expanded:input?.getAttribute('aria-expanded'),category:hit?a.innerText:null,vp:Math.round(visualViewport.height)}};const push=(name,e)=>{if(!t&&name==='pointerdown')t=performance.now();if(t)window.__focusTrace.push(sample(name,e?.target))};for(const n of ['pointerdown','focusin','pointerup','click','focusout','blur'])document.addEventListener(n,e=>push(n,e),true);visualViewport.addEventListener('resize',e=>push('viewport',e));window.__focusNow=()=>sample('poll');return true})()''')
 calltap(inp);wait('visualViewport.height<'+str(vp-90))
 if not before:
  viscat='''(()=>{const a=document.querySelector('.gs-category');if(!a)return false;const b=a.getBoundingClientRect();return b.width>0 && b.top>0 && b.bottom<=visualViewport.height && a.contains(document.elementFromPoint(b.x+b.width/2,b.y+b.height/2))})()'''
- wait(viscat,12)
-sleepjs(5);result['keyboardViewport']=ev('visualViewport.height');screen('02-focused');print('keyboard',vp,result['keyboardViewport']);A('shell','input','text','black%sgym%stee');sleepjs(7);screen('03-typed');result['typed']=ev('document.activeElement.value');result['visibleOptions']=ev("[...document.querySelectorAll('[role=option], .gn-results a')].filter(e=>{const b=e.getBoundingClientRect();return b.width&&b.top<visualViewport.height&&b.bottom>0}).map(e=>e.innerText)")
+ end=time.time()+12;points=[]
+ while time.time()<end:
+  state=ev("window.__focusNow()")
+  points.append(state)
+  if state['category'] and state['focus'] and state['expanded']=='true':break
+  time.sleep(.12)
+ trace={'events':ev("window.__focusTrace"),'samples':points}
+ (E/'focus-trace.json').write_text(json.dumps(trace,indent=2));print('FIRST_TAP',points[0],points[-1])
+ assert points[-1]['category'] and points[-1]['focus'] and points[-1]['expanded']=='true',json.dumps(trace)
+sleepjs(10);result['keyboardViewport']=ev('visualViewport.height');screen('02-focused');print('keyboard',vp,result['keyboardViewport']);A('shell','input','text','black%sgym%stee');sleepjs(7);screen('03-typed');result['typed']=ev('document.activeElement.value');result['visibleOptions']=ev("[...document.querySelectorAll('[role=option], .gn-results a')].filter(e=>{const b=e.getBoundingClientRect();return b.width&&b.top<visualViewport.height&&b.bottom>0}).map(e=>e.innerText)")
 if not before:
  p="[...document.querySelectorAll('a[href^=\"/product/\"]')].find(el=>{const b=el.getBoundingClientRect();return b.width&&b.top>0&&b.bottom<=visualViewport.height&&el.contains(document.elementFromPoint(b.x+b.width/2,b.y+b.height/2))})";r=wait('(()=>{const a='+p+';return a && [a.href,a.innerText]})()');result['product']=r;assert '₹' in r[1];calltap(p);wait("location.pathname.startsWith('/product/') && !!document.querySelector('h1')");sleepjs(8);screen('04-product');result['destination']=ev('location.href');result['title']=ev('document.querySelector("h1")?.innerText');assert result['destination']==r[0] and result['title'].strip() in r[1]
 (E/'result.json').write_text(json.dumps(result,indent=2));print(json.dumps(result))
