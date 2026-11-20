@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 
 const root = new URL("../dist/", import.meta.url);
-const files = ["offline.html", "offline.js", "brand/external/gymdrobe-maskable-512.png"];
+const files = ["offline.html", "offline.js", "favicon-96x96.png", "brand/external/gymdrobe-maskable-512.png"];
 const hash = createHash("sha256");
 for (const file of files) hash.update(await readFile(new URL(file, root)));
 const worker = await readFile(new URL("sw.js", root), "utf8");

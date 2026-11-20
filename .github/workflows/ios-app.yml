@@ -1,7 +1,7 @@
 name: iPhone app
 on:
   pull_request:
-    paths: ['ios/**', 'capacitor.config.json', '.env.ios', 'src/**', 'scripts/**', 'public/**', 'tests/**', 'package*.json', 'index.html', 'vite.config.js', '.github/workflows/ios-app.yml']
+    paths: ['ios/**', 'capacitor.config.json', '.env.ios', 'src/**', 'scripts/**', 'public/**', 'tests/**', 'package*.json', 'index.html', 'vercel.json', 'vite.config.js', '.github/workflows/ios-app.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -14,6 +14,19 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Select live Safari evidence for branding changes
+        id: live_safari
+        run: |
+          set -eu
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            # PR checkout is the merge ref. Its first parent is the base.
+            changes=$(git diff --name-only HEAD^1 HEAD -- index.html vercel.json 'public/favicon*' 'public/brand/**' 'public/apple-touch-icon*' 'public/android-chrome-*' public/site.webmanifest public/robots.txt 'scripts/*favicon*' scripts/verify-live-safari.py .github/workflows/ios-app.yml)
+            if [ -n "$changes" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; fi
+          fi
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -43,12 +56,18 @@ jobs:
           mkdir -p test-results/ios
           xcodebuild -quiet -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/DerivedData CODE_SIGNING_ALLOWED=NO build-for-testing 2>&1 | tee test-results/ios/build.log
       - name: Prepare iPhone simulator for native launch and navigation tests
+        id: simulator_ready
         timeout-minutes: 14
         run: |
           python3 scripts/smoke-ios.py --prepare-only
       - name: Native iPhone shopping tab tests
         timeout-minutes: 10
         run: python3 scripts/test-ios-ui.py
+      - name: Capture live HTTPS and Safari evidence on this Mac and iPhone
+        if: "!cancelled() && steps.simulator_ready.outcome == 'success' && steps.live_safari.outputs.run == 'true'"
+        continue-on-error: true
+        timeout-minutes: 5
+        run: python3 scripts/verify-live-safari.py
       - name: Package simulator build (requires a Mac; not installable on a physical iPhone)
         if: always() && steps.compile.outcome == 'success'
         run: |

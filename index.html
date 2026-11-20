@@ -8,11 +8,7 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
 
-
-    <meta
-      name="theme-color"
-      content="#ffffff"
-    />
+    <meta name="theme-color" content="#0F3D3A" />
 
     <script>
       (() => {
@@ -24,7 +20,6 @@
           if (!localStorage.getItem(seen)) {
             localStorage.setItem(seen, "1");
             document.documentElement.dataset.openingActive = "";
-            document.querySelector('meta[name="theme-color"]').content = "#0f3d3a";
           }
         } catch {}
       })();
@@ -102,15 +97,13 @@
       GymDrobe | Gym Wear, Workout Clothing &amp; Fitness Gear
     </title>
 
-    <!-- External brand identity only. Google Search favicon candidates must use supported
-         image formats (PNG/ICO); the in-store navigation/footer remain unchanged. -->
-    <link rel="shortcut icon" href="/favicon.ico?v=4" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=4" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=4" />
-    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png?v=4" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png?v=4" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=4" />
-    <link rel="manifest" href="/site.webmanifest?v=4" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
 
     <meta
       property="og:site_name"
@@ -284,7 +277,6 @@
         const shell = document.getElementById("home-boot-shell");
         const app = document.getElementById("app");
         const logo = screen.querySelector("img");
-        const theme = document.querySelector('meta[name="theme-color"]');
         let opening = root.hasAttribute("data-opening-active");
         let minimumMet = !opening;
         let expired = false;
@@ -302,7 +294,6 @@
           opening = false;
           screen.remove();
           delete root.dataset.openingActive;
-          theme.content = "#ffffff";
           shell.inert = false;
           performance.mark("gymdrobe-opening-dismissed");
         }
