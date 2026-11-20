@@ -25,6 +25,37 @@ async function capture(p,name){
 }
 async function choose(p){await p.getByRole('button',{name:'Colour Black',exact:true}).first().click();await p.getByRole('button',{name:'Size M',exact:true}).first().click();}
 try{
+ await check('Idle hints rotate once through purchasable categories without entering a query', async () => {
+  const products = ['BAG', 'Compression T-shirt', 'Sneakers', 'Sold out'].map((category, index) => ({
+    ...f.products[0], id: String(index + 1).padStart(24, '0'), _id: String(index + 1).padStart(24, '0'),
+    category, stockStatus: index === 3 ? 'out-of-stock' : 'in-stock',
+  }));
+  const view = await context(390, {catalogProducts: products, browser: {reducedMotion: 'no-preference'}});
+  const page = view.p;
+  try {
+   await view.c.addInitScript(() => localStorage.setItem('gymdrobe.web-opening.seen.v1','1'));
+   await page.clock.install();
+   await visit(page, '/');
+   const term = page.locator('.gs-terms strong');
+   await term.waitFor();
+   const labels = [await term.innerText()];
+   for (let index = 1; index < 3; index++) {
+    await page.clock.fastForward(4010);
+    labels.push(await term.innerText());
+   }
+   assert.deepEqual(labels, ['Compression T-shirts', 'Gym bags', 'Sneakers']);
+   await page.clock.fastForward(10000);
+   assert.equal(await term.innerText(), 'Sneakers');
+   const field = page.getByRole('combobox', {name: 'Search products'});
+   assert.equal(await field.inputValue(), '');
+   await field.click();
+   assert.equal(await term.count(), 0);
+   assert.equal(await page.getByRole('option', {name: 'Sold out'}).count(), 0);
+   await page.getByRole('option', {name:'Gym bags', exact:true}).click();
+   await page.waitForURL(url => url.searchParams.get('category') === 'BAG');
+   assert.equal(await page.evaluate(() => localStorage.getItem('gymdrobe-recent-searches')), null);
+  } finally {await view.c.close();}
+ });
  for (const width of [390, 1440]) {
   const view = await context(width);
   await check(`${width}px editorial cards, account contrast and guide`, async () => {
