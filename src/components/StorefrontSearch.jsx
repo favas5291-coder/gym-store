@@ -2,8 +2,8 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "re
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, ChevronRight, Clock3, Mic, Search, Tag, X } from "lucide-react";
 import { useCatalog } from "../context/CatalogContext.jsx";
-import { getTotalStock } from "../utils/cartUtils.js";
-import { createSearchIndex, searchCatalogue } from "../utils/smartSearch.js";
+import { productDepartment, normalizeCatalogText } from "../utils/catalog.js";
+import { createSearchIndex, matchingOffer, searchCatalogue } from "../utils/smartSearch.js";
 import PhotoSearchButton from "./PhotoSearchButton.jsx";
 import { ProductImage } from "./StorefrontShared.jsx";
 import "./StorefrontSearch.css";
@@ -16,16 +16,63 @@ function categoryLabel(value) {
     /^(BCAA|EAA|HIIT|UV|XL|XXL)$/.test(word) ? word : word[0] + word.slice(1).toLowerCase());
 }
 
+const hintLabels = new Map([["bag", "Gym bags"], ["compression t-shirt", "Compression T-shirts"]]);
+
 function categorySuggestions(products) {
-  const counts = new Map();
+  const groups = new Map();
   for (const product of products) {
-    const category = product.category?.trim();
-    if (category && product.isActive !== false && getTotalStock(product) > 0) {
-      counts.set(category, (counts.get(category) || 0) + 1);
-    }
+    const key = product?.category?.trim();
+    if (!key || product.isActive === false) continue;
+    const offer = matchingOffer(product);
+    if (!offer?.available || !(offer.price > 0)) continue;
+    const id = normalizeCatalogText(key);
+    const entry = groups.get(id) || { key, department: productDepartment(product), count: 0 };
+    entry.count++;
+    groups.set(id, entry);
   }
-  return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 5)
-    .map(([key]) => ({ type: "category", label: categoryLabel(key), href: "/shop?" + new URLSearchParams({ category: key }) }));
+  const ranked = [...groups.values()].sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
+  const firstByDepartment = ["workout", "accessories", "shoes", "hydration", "supplements"]
+    .map(department => ranked.find(entry => entry.department === department)).filter(Boolean);
+  return [...new Set([...firstByDepartment, ...ranked])].slice(0, 5).map(({ key }) => ({
+    type: "category",
+    label: hintLabels.get(key.toLowerCase()) || categoryLabel(key),
+    href: "/shop?" + new URLSearchParams({ category: key }),
+  }));
+}
+
+function IdleHint({ categories, rotate }) {
+  const [position, setPosition] = useState(0);
+  useEffect(() => {
+    if (!rotate || position >= categories.length - 1) return;
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const root = document.documentElement;
+    let timer;
+    function schedule() {
+      clearTimeout(timer);
+      if (!motion.matches && !document.hidden && !root.hasAttribute("data-home-boot")) {
+        timer = setTimeout(() => setPosition(position + 1), 4000);
+      }
+    }
+    const handoff = new MutationObserver(schedule);
+    if (root.hasAttribute("data-home-boot")) handoff.observe(root, { attributes: true, attributeFilter: ["data-home-boot"] });
+    motion.addEventListener("change", schedule);
+    document.addEventListener("visibilitychange", schedule);
+    schedule();
+    return () => {
+      clearTimeout(timer);
+      handoff.disconnect();
+      motion.removeEventListener("change", schedule);
+      document.removeEventListener("visibilitychange", schedule);
+    };
+  }, [categories, position, rotate]);
+
+  const index = Math.min(position, categories.length - 1);
+  return <span className="gs-idle-hint" aria-hidden="true">
+    Search for <span className="gs-terms" key={categories[index].href}>
+      {index > 0 && <span className="gs-outgoing">{categories[index - 1].label}</span>}
+      <strong className={index > 0 ? "gs-incoming" : undefined}>{categories[index].label}</strong>
+    </span>
+  </span>;
 }
 
 function suggestions(query, result) {
@@ -103,12 +150,14 @@ export default function StorefrontSearch({
   const query = value.trim();
   const index = useMemo(() => open ? createSearchIndex(products) : null, [open, products]);
   const result = useMemo(() => query && index ? searchCatalogue(index, query, { limit: 4 }) : null, [index, query]);
-  const categories = useMemo(() => open && !query && !recent.length ? categorySuggestions(products) : [],
-    [open, query, products, recent.length]);
+  const categories = useMemo(() => categorySuggestions(products), [products]);
+  const [interacted, setInteracted] = useState(false);
+  const showHint = !open && !value && categories.length > 0;
   const waiting = !products.length && (loading || refreshing);
   const unavailable = !products.length && error && !waiting;
   const entries = query ? suggestions(query, result) : recent.length
-    ? recent.map(label => ({ type: "recent", label, query: label, href: searchPath(label) })) : categories;
+    ? [...recent.map(label => ({ type: "recent", label, query: label, href: searchPath(label) })),
+      ...categories.slice(0, Math.max(0, Math.min(2, Math.floor(((space || 0) - 48) / 52) - recent.length)))] : categories;
   if (query && !waiting && !unavailable) {
     if (!entries.length) {
       const broader = result?.broaderQuery;
@@ -185,6 +234,7 @@ export default function StorefrontSearch({
   function activate() {
     if (!open) {
       entryScroll.current = [window.scrollX, window.scrollY];
+      setInteracted(true);
       onOpen();
       setActive(-1);
       setOpen(true);
@@ -284,9 +334,10 @@ export default function StorefrontSearch({
           aria-label="Search products" aria-autocomplete="list" aria-expanded={open}
           aria-controls={open ? listId : undefined}
           aria-activedescendant={open && entries[active] ? listId + "-" + active : undefined}
-          placeholder={placeholder} autoComplete="off" autoCapitalize="none" spellCheck={false}
+          placeholder={showHint ? "" : placeholder} autoComplete="off" autoCapitalize="none" spellCheck={false}
           enterKeyHint="search" maxLength={120} value={value}
           onClick={activate} onFocus={activate} onChange={event => { activate(); setQuery(event.target.value); }} onKeyDown={handleKey} />
+        {showHint && <IdleHint categories={categories} rotate={!interacted} />}
         {value && <button type="button" className="gn-icon-button" aria-label="Clear search"
           onMouseDown={event => event.preventDefault()}
           onClick={() => { setQuery(""); input.current.focus({ preventScroll: true }); activate(); }}>
@@ -333,7 +384,7 @@ export default function StorefrontSearch({
                   {option.product.gender && <span className="gs-variant"> · {option.product.gender}</span>}
                   {!option.available ? " · Out of stock" : ""}</small>}
               </span>
-              {option.type === "brand" || (query && option.type === "category") ?
+              {option.type === "brand" || ((query || recent.length > 0) && option.type === "category") ?
                 <span className="gs-option-kind">{option.type === "brand" ? "Brand" : "Category"}</span> : null}
               {option.type !== "recent" && (option.type === "all" ? <ArrowRight size={18} /> : <ChevronRight size={16} />)}
             </Link>

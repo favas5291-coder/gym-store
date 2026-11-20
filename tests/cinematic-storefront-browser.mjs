@@ -420,7 +420,7 @@ try{
    await visit(view.p, '/');
    const heading = view.p.getByRole('heading', { name: /gear for every workout/i });
    assert.ok(await heading.isVisible());
-   assert.equal(await view.p.locator('.gn-search input').getAttribute('placeholder'), 'Search T-shirts, gym bags and more');
+   assert.equal(await view.p.locator('.gs-idle-hint').getAttribute('aria-hidden'), 'true');
    const tiles = view.p.locator('.department-tile');
    assert.deepEqual(await tiles.allTextContents(), ['Women’s','Men’s']);
    const firstAction = await tiles.first().locator('span').boundingBox();

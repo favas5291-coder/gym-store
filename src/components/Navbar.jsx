@@ -749,7 +749,7 @@ export default function Navbar({
         </nav>
 
         <Suspense fallback={null}><SearchBox
-          placeholder={webSearch ? "Search T-shirts, gym bags and more" : storefront ? "Search T-shirts, gym bags and more." : undefined}
+          placeholder={webSearch ? "Search GymDrobe" : storefront ? "Search T-shirts, gym bags and more." : undefined}
           value={search}
           onChange={setSearch}
           onSubmit={performSearch}

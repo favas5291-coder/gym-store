@@ -51,7 +51,7 @@
       #home-boot-shell header { display: grid; place-items: center; position: relative; grid-template-rows: 56px 48px; padding: env(safe-area-inset-top) 0 8px; background: white; color: #0f3d3a; }
       #home-boot-shell header img { width: clamp(112px, 12vw, 154px); height: auto; }
       #home-boot-shell [data-boot-search] {
-        box-sizing: border-box; justify-self: stretch; position: relative; margin: 0 max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+        box-sizing: border-box; justify-self: stretch; position: relative; margin: 0 max(13px, env(safe-area-inset-right)) 0 max(13px, env(safe-area-inset-left));
         height: 48px; color: #43534c;
       }
       #home-boot-shell [data-boot-search] svg {
@@ -59,7 +59,7 @@
       }
       #home-boot-shell [data-boot-search] input {
         box-sizing: border-box; width: 100%; height: 100%; margin: 0; padding: 0 12px 0 44px;
-        appearance: none; border: 1px solid #cdd5cf; border-radius: 10px; background: #f6f7f4;
+        appearance: none; border: 1px solid #d7d8ce; border-radius: 10px; background: #f8f7f2;
         color: #171c1b; font: 400 16px/1.3 system-ui, sans-serif;
       }
       #home-boot-shell [data-boot-search] input:focus { outline: 2px solid #0f3d3a; outline-offset: -2px; }
@@ -257,7 +257,7 @@
         <header>
           <img src="/brand/gymdrobe-wordmark-green.png" alt="GymDrobe" width="720" height="134" />
           <form data-boot-search role="search" action="/shop" method="get">
-            <input type="search" name="search" aria-label="Search products" placeholder="Search T-shirts, gym bags and more" enterkeyhint="search" autocomplete="off" />
+            <input type="search" name="search" aria-label="Search products" placeholder="Search GymDrobe" enterkeyhint="search" autocomplete="off" />
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg>
           </form>
           <a href="" data-boot-reload hidden>Reload storefront</a>

@@ -274,7 +274,7 @@ function matchingOptions(options, terms, query) {
     terms.every(term => words(option).includes(term)));
 }
 
-function matchingOffer(product, colors, sizes, query) {
+export function matchingOffer(product, colors = [], sizes = [], query = "") {
   const matchingColors = matchingOptions(product.colors, colors, query);
   const matchingSizes = matchingOptions(product.sizes, sizes, query);
   if (Array.isArray(product.variantPrices) && product.variantPrices.length) {
