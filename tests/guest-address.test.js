@@ -184,6 +184,7 @@ async function application({
       module,
       h,
       Fragment: "fragment",
+      standardCodEnabled: false,
       EMPTY_ADDRESS,
       normalizeAddress,
       checkoutAddress,

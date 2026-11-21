@@ -1,3 +1,4 @@
+import { standardCodEnabled } from "../utils/standardCod.js";
 import { useRef, useState, useEffect } from "react";
 import { Link, useSearchParams, useLocation } from "react-router-dom";
 
@@ -35,7 +36,9 @@ const faqs = [
   ],
   [
     "Can I pay online?",
-    "Checkout supports Razorpay online payment and COD with a 10% online advance when available. Review the amount payable now and any delivery balance before proceeding. Your order details show the recorded payment status.",
+    standardCodEnabled
+      ? "Pay online or choose cash on delivery for an eligible order. Standard COD costs ₹0 upfront. Checkout confirms availability and the full amount due."
+      : "Checkout supports Razorpay online payment and COD with a 10% online advance when available. Review the amount payable now and any delivery balance before proceeding. Your order details show the recorded payment status.",
   ],
   [
     "How do I contact GymDrobe support?",

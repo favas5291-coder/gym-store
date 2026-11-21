@@ -371,6 +371,10 @@ function AdminOrderCard({
     current?.payment?.method === "cod-partial" ||
     current?.paymentMethod === "cod-partial";
 
+  const isStandardCod =
+    current?.payment?.method === "cod" &&
+    current?.metadata?.version === "cod-1";
+
   const isFullOnline =
     current?.payment?.method === "razorpay" ||
     current?.paymentMethod === "razorpay";
@@ -397,7 +401,7 @@ function AdminOrderCard({
   );
 
   const codBalancePending =
-    isPartialCod &&
+    (isPartialCod || isStandardCod) &&
     current?.payment?.balanceStatus === "pending" &&
     amountDue > 0;
 
@@ -523,7 +527,6 @@ function AdminOrderCard({
       onUpdated(updated);
 
       notify?.(
-        isPartialCod &&
         draft.status === "delivered" &&
         codBalancePending
           ? `Order ${id} delivered and COD balance recorded.`
@@ -1393,7 +1396,7 @@ function AdminOrderCard({
                           current?.delivery?.deliveredAt,
                         )}
 
-                        {isPartialCod &&
+                        {(isPartialCod || isStandardCod) &&
                           current?.payment?.balanceStatus ===
                             "collected" && (
                             <>
