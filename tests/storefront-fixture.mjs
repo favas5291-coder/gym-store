@@ -38,7 +38,7 @@ function quoteFor(body, products) {
   const shipping = body.deliveryMethod === 'express' ? 149 : 79;
   const finalTotal = subtotal + shipping;
   const cod = body.paymentMethod === 'cod-partial';
-  const now = cod ? Math.round(subtotal * 10) / 100 : finalTotal;
+  const now = body.paymentMethod === "cod" ? 0 : cod ? Math.round(subtotal * 10) / 100 : finalTotal;
   const ready = /^[1-9]\d{5}$/.test(body.pincode || '');
   const validUntil = new Date(Date.now()+600000).toISOString();
   return {previewOnly:true, purchaseEnabled:ready, inventoryReserved:false, shippingIsEstimate:!ready, reviewKey:'a'.repeat(64), items, kitSnapshots:[], method:body.deliveryMethod,

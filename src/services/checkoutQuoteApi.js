@@ -170,13 +170,13 @@ function verify(
     quote.payment.amountDue,
   );
 
-  const expectedNow =
+  const expectedNow = paymentMethod === "cod" ? 0 :
     paymentMethod === "cod-partial"
       ? Math.round(totals[3] / 10)
       : totals[5];
 
   if (
-    now < 100 ||
+    (paymentMethod === "cod" ? totals[5] <= 0 : now < 100) ||
     now + due !== totals[5] ||
     now !== expectedNow ||
     quote.payment.advancePercentage !==
@@ -362,7 +362,7 @@ export async function getCheckoutQuote(
     !["standard", "express"].includes(
       deliveryMethod,
     ) ||
-    !["razorpay", "cod-partial"].includes(
+    !["razorpay", "cod-partial", "cod"].includes(
       paymentMethod,
     ) ||
     typeof coupon !== "string" ||

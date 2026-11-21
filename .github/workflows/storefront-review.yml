@@ -34,6 +34,8 @@ jobs:
         run: |
           npm install --no-save --package-lock=false playwright@1.62.1
           npx playwright install --with-deps chromium webkit
+      - name: Verify zero-advance COD checkout with isolated APIs
+        run: node tests/standard-cod-browser.mjs
       - name: Capture matched mobile shopping screens
         if: github.head_ref == 'mobile-shopping-finish'
         run: |
@@ -59,10 +61,14 @@ jobs:
         env:
           GYMDROBE_SHOPPING_BACKEND_DIR: .qa-shopping-backend
         run: node tests/shopping-sync-browser.mjs
+      - name: Verify analytics withdrawal across browser tabs
+        run: node tests/analytics-consent-browser.mjs
       - name: Opt-in native order notification UI and actual JWT API contract
         env:
           GYMDROBE_SHOPPING_BACKEND_DIR: .qa-shopping-backend
         run: node tests/order-push-browser.mjs
+      - name: Daily operations report, source isolation and partial totals
+        run: node tests/daily-operations-browser.mjs
       - name: Shared navigation and photo-search UX contracts
         run: node tests/photo-search-browser.mjs
       - name: Account dashboard before and after, responsive and account regression checks
@@ -75,6 +81,8 @@ jobs:
         run: node tests/free-navigation-browser.mjs
       - name: Storefront interactions and responsive screenshots
         run: npm run test:storefront
+      - name: Check cart layout while the catalog loads
+        run: node tests/cart-layout-browser.mjs
       - name: PWA install, offline recovery and update checks
         run: node tests/pwa-browser.mjs
       - name: Android UI and native-adapter contracts

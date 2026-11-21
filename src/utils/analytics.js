@@ -18,6 +18,7 @@ let initialized = false;
 let lastPath = "";
 let visit = 0;
 let consent = null;
+let memoryOnly = false;
 
 export const analyticsConfigured = !isNativeApp() && /^G-[A-Z0-9]+$/.test(ID);
 
@@ -27,18 +28,39 @@ function normalizeConsent(value) {
     : null;
 }
 
-export function getAnalyticsConsent() {
-  try {
-    return (
-      normalizeConsent(localStorage.getItem(CONSENT_KEY)) ||
-      consent
-    );
-  } catch {
-    return consent;
+function applyConsent(value) {
+  if (value === consent) return;
+  consent = value;
+  if (!analyticsConfigured || typeof window === "undefined") return;
+  window[`ga-disable-${ID}`] = value !== "granted";
+  if (initialized) {
+    gtag("consent", "update", { analytics_storage: value === "granted" ? "granted" : "denied" });
   }
 }
 
-consent = getAnalyticsConsent();
+export function getAnalyticsConsent() {
+  try {
+    const saved = normalizeConsent(localStorage.getItem(CONSENT_KEY));
+    if (!memoryOnly || (saved === "denied" && consent === "granted")) {
+      applyConsent(saved);
+    }
+  } catch {
+    // Preserve the current tab's choice if preference storage is unavailable.
+  }
+  return consent;
+}
+
+getAnalyticsConsent();
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (event) => {
+    if (event.key !== CONSENT_KEY && event.key !== null) return;
+    if (memoryOnly && consent === "granted" && event.newValue !== "granted") {
+      applyConsent(normalizeConsent(event.newValue));
+    }
+    getAnalyticsConsent();
+    window.dispatchEvent(new Event("gymdrobe-analytics-ready"));
+  });
+}
 
 function amount(value) {
   if (
@@ -114,7 +136,7 @@ function gtag() {
 export function initAnalytics() {
   if (
     !analyticsConfigured ||
-    consent !== "granted" ||
+    getAnalyticsConsent() !== "granted" ||
     initialized
   ) {
     return;
@@ -154,19 +176,14 @@ export function initAnalytics() {
 }
 
 export function setAnalyticsConsent(value) {
-  consent = value === "granted" ? "granted" : "denied";
-
+  const next = value === "granted" ? "granted" : "denied";
   try {
-    localStorage.setItem(CONSENT_KEY, consent);
+    localStorage.setItem(CONSENT_KEY, next);
+    memoryOnly = false;
   } catch {
-    // Retain the preference in memory for this visit.
+    memoryOnly = true;
   }
-
-  if (initialized) {
-    gtag("consent", "update", {
-      analytics_storage: consent,
-    });
-  }
+  applyConsent(next);
 
   initAnalytics();
 
@@ -178,7 +195,7 @@ export function setAnalyticsConsent(value) {
 export function trackEvent(name, parameters = {}) {
   try {
     if (
-      consent !== "granted" ||
+      getAnalyticsConsent() !== "granted" ||
       !analyticsConfigured ||
       typeof name !== "string" ||
       !/^[a-zA-Z][a-zA-Z0-9_]{0,39}$/.test(name)

@@ -460,7 +460,7 @@ async function application({
         method,
 
         status:
-          method === "cod-partial"
+          method === "cod" ? "pending" : method === "cod-partial"
             ? "partially-paid"
             : "paid",
 
@@ -489,6 +489,7 @@ async function application({
       h,
       Fragment: "fragment",
 
+      standardCodEnabled: method === "cod",
       ...payment,
       ...kit,
 
@@ -782,6 +783,7 @@ async function application({
         return {
           pricing,
 
+          purchaseEnabled: true,
           deliveryReview: {
             ready: true,
             pincode: body.pincode,
@@ -796,6 +798,12 @@ async function application({
           items: [],
           kitSnapshots: [],
         };
+      },
+
+      async createCodOrder(token, body) {
+        events.push({name: "cod-order", token, body: clone(body)});
+        if (settings.failCreate) throw settings.failCreate;
+        return {order: completedOrder()};
       },
 
       async createRazorpayPaymentOrder(
@@ -2074,3 +2082,32 @@ test(
     app.unmount();
   },
 );
+
+test("standard COD places guest and account orders without loading or opening Razorpay", async () => {
+  for (const user of [null, {id: "customer-01"}]) {
+    const app = await application({user, method: "cod"});
+    await app.quote();
+    await app.submit();
+    const calls = app.events.map(event => event.name);
+    assert.equal(calls.filter(name => name === "cod-order").length, 1);
+    assert.ok(calls.includes("navigate"));
+    assert.ok(!calls.some(name => ["sdk", "order", "popup", "verify"].includes(name)));
+    assert.equal(app.pending(), null);
+    app.unmount();
+  }
+});
+
+test("retrying COD after a lost response reuses the identical checkout request", async () => {
+  const app = await application({method: "cod"});
+  await app.quote();
+  app.settings.failCreate = Error("Connection interrupted");
+  await app.submit();
+  const token = app.pending().payload.checkoutToken;
+  app.settings.failCreate = null;
+  await app.button("Retry saved COD order").props.onClick();
+  const attempts = app.events.filter(event => event.name === "cod-order");
+  assert.deepEqual(attempts.map(event => event.body.checkoutToken), [token, token]);
+  assert.deepEqual(attempts[0].body, attempts[1].body);
+  assert.equal(app.pending(), null);
+  app.unmount();
+});

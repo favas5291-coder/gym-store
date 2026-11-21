@@ -170,6 +170,8 @@ const AdminSuppliersPage = lazy(
 const SupplierPortalPage = lazy(() => import("./pages/SupplierPortalPage.jsx"));
 const AdminSupplierOnboardingPage = lazy(() => import("./pages/AdminSupplierOnboardingPage.jsx"));
 const supplierPortalEnabled = import.meta.env.VITE_SUPPLIER_PORTAL_ENABLED === "true";
+const automationEnabled = import.meta.env.VITE_AUTOMATION_ENGINE_ENABLED === "true";
+const AdminAutomationPage = lazy(() => import("./pages/AdminAutomationPage.jsx"));
 const marketplaceEnabled = import.meta.env.VITE_MARKETPLACE_ENABLED === "true";
 const MarketplaceSupplierPage = lazy(() => import("./pages/MarketplaceSupplierPage.jsx"));
 const MarketplaceAdminPage = lazy(() => import("./pages/MarketplaceAdminPage.jsx"));
@@ -498,6 +500,7 @@ function Layout() {
                 Admin dashboard
               </Link>
 
+              {automationEnabled && <Link className="text-link" to="/admin/automation">Automation</Link>}
               <Link
                 className="text-link"
                 to="/admin/customers"
@@ -733,6 +736,7 @@ function Layout() {
               ))}
 
               {[
+                ...(automationEnabled ? [["/admin/automation", AdminAutomationPage]] : []),
                 ...(supplierPortalEnabled ? [["/admin/supplier-onboarding", AdminSupplierOnboardingPage]] : []),
                 ...(marketplaceEnabled ? [["/admin/marketplace/*", MarketplaceAdminPage]] : []),
                 [
