@@ -476,8 +476,8 @@ try{
   const v=await context(width,{signedIn:true});
   const routes=[['home','/'],['shop','/shop'],['product',`/product/${fixtureProductId}`],['account','/account'],['addresses','/addresses'],['orders','/orders'],['order',`/orders/${fixtureOrderId}`],['tracking',`/orders/${fixtureOrderId}/track`],['success',`/order-success?orderId=${fixtureOrderId}`],['returns',`/orders/${fixtureOrderId}/return`],['help','/help'],['kits','/kits']];
   for(const [name,route]of routes)await check(`${width}px ${name}: layout and rendered state`,async()=>{
-   await visit(v.p,route);await v.p.waitForTimeout(150);
-   assert.ok(await v.p.locator('main h1,main h2,main .page-heading').count(), 'Page heading is present');
+   await visit(v.p,route);
+   await v.p.locator('main h1,main h2,main .page-heading').first().waitFor({state:'visible',timeout:8000});
    const dimensions=await v.p.evaluate(()=>({page:document.documentElement.scrollWidth,viewport:innerWidth}));assert.ok(dimensions.page<=dimensions.viewport+1,JSON.stringify(dimensions));
    if([390,1440].includes(width)||(width===768&&name==='home'))await capture(v.p,`${name}-${width}`);
   });await v.c.close();

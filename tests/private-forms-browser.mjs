@@ -33,6 +33,32 @@ async function guestDelivery(browser) {
   } finally { await context.close(); }
 }
 
+async function customerForms(browser) {
+  const cases = [
+    {route:"/help", field:"#help-message", text:"Which size can I exchange this for?"},
+    {route:"/account", field:"#profile-name", text:"Customer fixture name"},
+    {route:"/addresses", field:'input[name="addressLine"]', text:"42 Customer fixture street"},
+  ];
+  for (const {route,field,text} of cases) {
+    const context = await browser.newContext({viewport:{width:390,height:844}});
+    try {
+      await mockStorefront(context,fixture.products,{signedIn:true});
+      await context.route("**/api/auth/draft-key",r=>r.fulfill({json:{success:true,key:Buffer.alloc(32,4).toString("base64")}}));
+      const page = await context.newPage();
+      await page.goto(fixture.url+route);
+      if (route==="/account") await page.locator("#profile-details summary").click();
+      if (route==="/addresses") await page.getByRole("button",{name:"+ Add new address"}).click();
+      await page.locator(field).fill(text);
+      await page.getByText("Draft saved on this device.",{exact:true}).waitFor();
+      await page.reload();
+      if (route==="/account") await page.locator("#profile-details summary").click();
+      await page.getByRole("button",{name:"Resume draft"}).click();
+      assert.equal(await page.locator(field).inputValue(),text);
+      console.log("PASS",browser.browserType().name(),route,"recovers the customer's own field");
+    } finally { await context.close(); }
+  }
+}
+
 async function supplierPhotos(browser) {
   const context=await browser.newContext({viewport:{width:390,height:844}});
   const account="507f1f77bcf86cd799439011";
@@ -87,6 +113,7 @@ try {
     try {
       await guestDelivery(browser);
       console.log("PASS",engine.name(),"guest address encrypted, restored and discarded");
+      await customerForms(browser);
       await supplierPhotos(browser);
       console.log("PASS",engine.name(),"interrupted supplier upload recovered identical photo bytes and a single gallery image");
     } finally { await browser.close(); }
