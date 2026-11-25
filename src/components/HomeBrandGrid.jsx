@@ -37,7 +37,7 @@ export default function HomeBrandGrid({ products }) {
 
   function tiles(entries) {
     return entries.map(brand => {
-      const logo = brand.key === "gymdrobe" ? "/brand/gymdrobe-wordmark-green.png" : logos[brand.key];
+      const logo = brand.key === "gymdrobe" ? "/brand/gymdrobe-wordmark-green.webp" : logos[brand.key];
       return <BrandTile key={`${brand.key}:${logo || ""}`} brand={brand} logo={logo} />;
     });
   }

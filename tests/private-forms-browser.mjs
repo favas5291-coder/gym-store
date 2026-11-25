@@ -45,8 +45,14 @@ async function supplierPhotos(browser) {
     const id="507f1f77bcf86cd799439fff";
     let finishUpload;
     const release=new Promise(resolve=>{finishUpload=resolve;});
+    const uploads=[];
     await context.route("**/api/marketplace/media",async r=>{
-      await release;
+      uploads.push(r.request().postDataJSON().base64);
+      if (uploads.length === 1) {
+        await release;
+        await r.abort().catch(()=>{});
+        return;
+      }
       await r.fulfill({json:{success:true,media:{id,url:"/api/marketplace/media/"+id,preview:"/brand/app-icon-192.webp"}}});
     });
     const page=await context.newPage();
@@ -58,13 +64,19 @@ async function supplierPhotos(browser) {
     await sending;
     const other=await context.newPage();
     await other.goto("about:blank"); await other.bringToFront();
-    finishUpload(); await page.bringToFront();
-    const photo=page.getByAltText("Product photo 1",{exact:true});
+    // Destroy the WebView while the first HTTP response is outstanding.
+    await page.close(); finishUpload(); await other.bringToFront();
+    await other.goto(fixture.url+"/supplier/new");
+    await other.getByRole("button",{name:"Resume draft"}).click();
+    await other.getByRole("button",{name:"Continue photo uploads"}).click();
+    const photo=other.getByAltText("Product photo 1",{exact:true});
     await photo.waitFor();
     assert.equal(await photo.getAttribute("src"),"/brand/app-icon-192.webp");
-    await page.getByText("Draft saved on this device.",{exact:true}).waitFor();
-    await page.reload(); await page.getByRole("button",{name:"Resume draft"}).click();
-    assert.equal(await name.inputValue(),"Fixture supplier shirt");
+    assert.deepEqual(uploads,[uploads[0],uploads[0]]);
+    assert.ok(uploads[0].length>1000);
+    await other.getByText("Draft saved on this device.",{exact:true}).waitFor();
+    await other.reload(); await other.getByRole("button",{name:"Resume draft"}).click();
+    assert.equal(await other.getByLabel("Product name",{exact:true}).inputValue(),"Fixture supplier shirt");
     assert.equal(await photo.getAttribute("src"),"/brand/app-icon-192.webp");
   } finally { await context.close(); }
 }
@@ -76,7 +88,7 @@ try {
       await guestDelivery(browser);
       console.log("PASS",engine.name(),"guest address encrypted, restored and discarded");
       await supplierPhotos(browser);
-      console.log("PASS",engine.name(),"supplier photo upload, background switch and recovery");
+      console.log("PASS",engine.name(),"interrupted supplier upload recovered identical photo bytes and a single gallery image");
     } finally { await browser.close(); }
   }
 } finally { await fixture.server.close(); }
