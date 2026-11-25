@@ -71,6 +71,8 @@ jobs:
           node tests/account-dashboard-browser.mjs
       - name: Mobile saved-session recovery checks
         run: node tests/mobile-session-browser.mjs
+      - name: Foreground editing and encrypted draft recovery
+        run: node tests/editor-recovery-browser.mjs
       - name: Free mobile navigation and hidden photo-search checks
         run: node tests/free-navigation-browser.mjs
       - name: Storefront interactions and responsive screenshots

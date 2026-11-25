@@ -311,7 +311,7 @@ export default function Navbar({
 
   const [search, setSearch] = useState(
     () =>
-      new URLSearchParams(location.search).get(
+      (storefront && window.history.state?.gymdrobeSearchDraft) || new URLSearchParams(location.search).get(
         "search",
       ) || "",
   );

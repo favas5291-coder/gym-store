@@ -751,6 +751,8 @@ test(
       {
         ...runtime.globals,
         ...api,
+        useMemo: fn => fn(),
+        useEditorRecovery: () => ({ notice: null, clear: async () => {} }),
 
         useAuth: () => ({
           token: "admin",

@@ -63,11 +63,14 @@ async function request(
     signal,
     timeoutMs = REQUEST_TIMEOUT,
     earlyRequest,
+    requestId,
   } = {},
 ) {
   const headers = {
     Accept: "application/json",
   };
+
+  if (requestId) headers["Idempotency-Key"] = requestId;
 
   let serializedBody;
 

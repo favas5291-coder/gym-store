@@ -254,6 +254,8 @@ export default function CatalogProvider({
 }) {
   const { user, token } = useAuth();
   const { pathname } = useLocation();
+  // These workspaces load their own authoritative records and options.
+  const separateCatalogue = /^\/supplier(?:\/|$)|^\/admin\/marketplace(?:\/|$)/.test(pathname);
 
   const [products, setProducts] = useState([]);
 
@@ -407,12 +409,13 @@ export default function CatalogProvider({
         )
       );
 
-    if (needsRefresh) {
+    if (!separateCatalogue && needsRefresh) {
       refreshProducts();
     }
-  }, [pathname, refreshProducts]);
+  }, [pathname, separateCatalogue, refreshProducts]);
 
   useEffect(() => {
+    if (separateCatalogue) return;
     let timer;
 
     function scheduleRefresh(event) {
@@ -526,7 +529,7 @@ export default function CatalogProvider({
         scheduleRefresh,
       );
     };
-  }, [refreshProducts]);
+  }, [refreshProducts, separateCatalogue]);
 
   const getLatestProducts = useCallback(
     () => productsRef.current,

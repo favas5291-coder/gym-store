@@ -1,3 +1,4 @@
+import useEditorRecovery from "../hooks/useEditorRecovery.jsx";
 import FreeShippingProgress from "../components/FreeShippingProgress.jsx";
 import { ensureGuestAccess, guestAccess } from "../utils/guestCheckout.js";
 
@@ -698,6 +699,31 @@ function Checkout({ auth, mode }) {
   const frozen =
     busy || Boolean(pending);
 
+  const deliveryRecovery = useEditorRecovery({
+    user, token, entity: ["checkout-address"], value: address,
+    dirty: !frozen && Boolean(addressTouched.current || addressDraft?.addressLine),
+    restore(saved) {
+      if (frozen) return;
+      addressTouched.current = true;
+      setAddress(checkoutAddress(saved));
+    },
+    onPersist() {
+      // Migrate only this authenticated owner's old plaintext address, after
+      // encrypted IndexedDB confirms the replacement is durable.
+      const keys = new Set([addressKey]);
+      if (user.id || user.email) keys.add(userKey("gymdrobe-checkout-address", user));
+      for (const key of keys) {
+        checkoutAddressDrafts.delete(key);
+        for (const target of ["localStorage", "sessionStorage"]) {
+          try {
+            globalThis[target].removeItem(key);
+            globalThis[target].removeItem(key + ":draft-v2");
+          } catch { /* Storage can become unavailable mid-session. */ }
+        }
+      }
+    },
+  });
+
   const canPay =
     !kitIssue &&
     (
@@ -1297,6 +1323,7 @@ function Checkout({ auth, mode }) {
       "success",
     );
 
+    void deliveryRecovery.clear().catch(() => {});
     navigate(
       `/order-success?orderId=${encodeURIComponent(
         savedOrder.id,
@@ -2405,10 +2432,7 @@ function Checkout({ auth, mode }) {
             fresh.pricingRows,
           );
 
-        writeAddressDraft(
-          addressKey,
-          clean,
-        );
+        if (!user) writeAddressDraft(addressKey, clean);
 
         const previousAttempt =
           readSession(
@@ -2712,20 +2736,12 @@ function Checkout({ auth, mode }) {
         ...EMPTY_ADDRESS,
       };
 
-    const stored =
-      writeAddressDraft(
-        addressKey,
-        next,
-      );
-
-    setAddressNotice(
-      stored.local
-        ? ""
-        : stored.session
-          ? "Delivery details are saved in this tab. Browser storage prevented saving them for a later visit."
-          : "Browser storage is unavailable. Your details stay on this page, but may be lost after refreshing or leaving checkout.",
-    );
-
+    if (!user) {
+      const stored = writeAddressDraft(addressKey, next);
+      setAddressNotice(stored.local ? "" : stored.session
+        ? "Delivery details are saved in this tab. Browser storage prevented saving them for a later visit."
+        : "Browser storage is unavailable. Your details stay on this page, but may be lost after refreshing or leaving checkout.");
+    }
     const pinKey =
       store.shoppingKey(
         "gymdrobe-delivery-pincode",
@@ -3128,6 +3144,7 @@ function Checkout({ auth, mode }) {
               </div>
             )}
 
+            {!frozen && deliveryRecovery.notice}
             <AddressForm
               value={address}
               errors={errors}

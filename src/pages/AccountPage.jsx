@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import useEditorRecovery from "../hooks/useEditorRecovery.jsx";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Package, MapPin, Heart, Bookmark, ChevronRight } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -27,7 +28,20 @@ export default function AccountPage() {
   const [reloadAttempt, setReloadAttempt] = useState(0);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState("");
-  useEffect(() => { setProfile({ name: user?.name || "", phone: user?.phone || "" }); }, [user?.id, user?.name, user?.phone]);
+  const serverProfile = useMemo(() => ({ name: user?.name || "", phone: user?.phone || "" }), [user?.name, user?.phone]);
+  const originalProfile = useRef(serverProfile);
+  const sameProfile = (a, b) => a.name === b.name && a.phone === b.phone;
+  const profileDirty = !sameProfile(profile, originalProfile.current);
+  const snapshot = useMemo(() => ({ profile, original: originalProfile.current }), [profile]);
+  const profileRecovery = useEditorRecovery({ user, token, entity: ["profile"], value: snapshot, dirty: profileDirty,
+    restore(saved) { originalProfile.current = saved.original; setProfile(saved.profile); openProfile(); },
+  });
+  useEffect(() => {
+    if (!profileDirty) {
+      originalProfile.current = serverProfile;
+      setProfile(serverProfile);
+    }
+  }, [serverProfile, profileDirty]);
   useEffect(() => { if (window.location.hash === "#profile-details") openProfile(); }, []);
 
   useEffect(() => {
@@ -61,10 +75,15 @@ export default function AccountPage() {
     if (name.length < 2) { setProfileError("Enter a valid full name."); return; }
     if (name.length > 60) { setProfileError("Name cannot exceed 60 characters."); return; }
     if (phone && !/^[6-9]\d{9}$/.test(phone)) { setProfileError("Enter a valid 10-digit mobile number."); return; }
+    if (!sameProfile(originalProfile.current, serverProfile)) { setProfileError("Your profile changed in another session. Review the current details before updating."); return; }
     setSavingProfile(true);
     try {
       const result = await updateProfile({ name, phone });
-      if (result?.user) setProfile({ name: result.user.name || "", phone: result.user.phone || "" });
+      await profileRecovery.clear().catch(() => {});
+      if (result?.user) {
+        originalProfile.current = { name: result.user.name || "", phone: result.user.phone || "" };
+        setProfile(originalProfile.current);
+      }
       notify(result?.message || "Profile updated successfully.");
     } catch (error) { setProfileError(error.message || "Unable to update your profile."); }
     finally { setSavingProfile(false); }
@@ -96,6 +115,7 @@ export default function AccountPage() {
     <AccountMenu/>
     <details className="gd-account-profile" id="profile-details">
       <summary>Personal information<span>Edit your name and mobile number</span></summary>
+        {profileRecovery.notice}
         <form
           className="profile-form"
           onSubmit={

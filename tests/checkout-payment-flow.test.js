@@ -519,6 +519,7 @@ async function application({
         },
       },
 
+      useEditorRecovery: () => ({notice:null, clear:async () => {}}),
       useState(value) {
         const i = si++;
 

@@ -29,7 +29,7 @@ import {
 
 import { STOREFRONT_COLLECTIONS, collectionMatchesProduct } from "../utils/storefrontCollections.js";
 import ProductCard from "./ProductCard.jsx";
-import { createSearchIndex, searchCatalogue } from "../utils/smartSearch.js";
+import { indexForCatalogue, searchCatalogue } from "../utils/smartSearch.js";
 import { ProductImage } from "./StorefrontShared.jsx";
 import Modal from "./Modal.jsx";
 import { isNativeApp } from "../native/platform.js";
@@ -619,7 +619,7 @@ export default function ProductSection({ storefrontCollection }) {
     [catalogue, storefrontCollection],
   );
 
-  const searchIndex = useMemo(() => createSearchIndex(products), [products]);
+  const searchIndex = useMemo(() => indexForCatalogue(products), [products]);
 
   const searchData = useMemo(() => {
     const term = params.get("search") || "";

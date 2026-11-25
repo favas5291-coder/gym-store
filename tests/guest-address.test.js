@@ -83,6 +83,8 @@ const content = (node) =>
     ? node.children.map(content).join(" ")
     : String(node ?? "");
 
+const fixtureJournals = new WeakMap();
+
 async function application({
   local = storage(),
   session = storage(),
@@ -177,6 +179,9 @@ async function application({
     exports: {},
   };
 
+  let recover;
+  if (!fixtureJournals.has(local)) fixtureJournals.set(local, new Map());
+  const journals = fixtureJournals.get(local);
   vm.runInNewContext(
     output.code +
       "\nmodule.exports={Checkout};",
@@ -192,6 +197,12 @@ async function application({
       sessionStorage: session,
       AbortController,
 
+      useEditorRecovery({user, value, dirty, restore}) {
+        const id = user?.id || user?._id;
+        if (id && dirty) journals.set(id, clone(value));
+        recover = () => { if (id && journals.has(id)) restore(clone(journals.get(id))); };
+        return {notice: null, clear: async () => journals.delete(id)};
+      },
       useState(value) {
         const i = si++;
 
@@ -398,6 +409,7 @@ async function application({
     local,
     session,
 
+    resume() { recover(); },
     edit(value) {
       nodes(render())
         .find(
@@ -735,6 +747,8 @@ test(
         fullName: "Account Customer",
       });
 
+      assert.equal(account.address().fullName, "Account Customer");
+      assert.equal(local.getItem("gymdrobe-checkout-address:" + (user.id || user._id)), null);
       account.unmount();
 
       const restored = await application({
@@ -743,6 +757,8 @@ test(
         user,
       });
 
+      restored.address();
+      restored.resume();
       assert.equal(
         restored.address().fullName,
         "Account Customer",

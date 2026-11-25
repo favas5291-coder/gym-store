@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, ChevronRight, Clock3, Mic, Search, Tag, X } from "lucide-react";
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { productDepartment, normalizeCatalogText } from "../utils/catalog.js";
-import { createSearchIndex, matchingOffer, searchCatalogue } from "../utils/smartSearch.js";
+import { indexForCatalogue, matchingOffer, searchCatalogue } from "../utils/smartSearch.js";
 import PhotoSearchButton from "./PhotoSearchButton.jsx";
 import { ProductImage } from "./StorefrontShared.jsx";
 import "./StorefrontSearch.css";
@@ -148,7 +148,7 @@ export default function StorefrontSearch({
   const [active, setActive] = useState(-1);
   const [space, setSpace] = useState(null);
   const query = value.trim();
-  const index = useMemo(() => open ? createSearchIndex(products) : null, [open, products]);
+  const index = useMemo(() => open ? indexForCatalogue(products) : null, [open, products]);
   const result = useMemo(() => query && index ? searchCatalogue(index, query, { limit: 4 }) : null, [index, query]);
   const categories = useMemo(() => categorySuggestions(products), [products]);
   const [interacted, setInteracted] = useState(false);
@@ -261,6 +261,19 @@ export default function StorefrontSearch({
       // Some browser modes restrict history writes; navigating to the product still works.
     }
   }
+
+  useEffect(() => {
+    if (!open) return;
+    const hidden = () => { if (document.hidden) saveDraft(); };
+    const timer = setTimeout(saveDraft, 160);
+    document.addEventListener("visibilitychange", hidden);
+    window.addEventListener("pagehide", saveDraft);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", hidden);
+      window.removeEventListener("pagehide", saveDraft);
+    };
+  }, [open, value]);
 
   function finish() {
     saveDraft();

@@ -157,6 +157,15 @@ export function createSearchIndex(products) {
   return { entries, vocabulary: [...vocabulary].slice(0, 10000), vocabularySet: vocabulary, colors, sizes };
 }
 
+// Catalogue context publishes a new array on refresh. Keep the built index
+// across search panel closes, while letting superseded catalogues be collected.
+const catalogueIndexes = new WeakMap();
+export function indexForCatalogue(products) {
+  if (!Array.isArray(products)) return createSearchIndex([]);
+  if (!catalogueIndexes.has(products)) catalogueIndexes.set(products, createSearchIndex(products));
+  return catalogueIndexes.get(products);
+}
+
 function resolveTokens(index, query, strict) {
   const original = significant(INTENTS[normalizeSearchText(query)] || query);
   let changed = false;
