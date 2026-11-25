@@ -108,6 +108,7 @@
 }
 
 .footer-wordmark {
+  height: auto;
   width: clamp(136px, 19vw, 224px);
 }
 

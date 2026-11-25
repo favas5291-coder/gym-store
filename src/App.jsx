@@ -610,7 +610,7 @@ function Layout() {
           key={location.pathname}
         >
           <Suspense
-            fallback={<PageLoading />}
+            fallback={<PageLoading compactLabel={{ "/cart": "Loading your bag", "/login": "Loading sign-in" }[currentPath]} />}
           >
             <Routes>
               <Route path="/categories" element={<NativeCategoriesPage />} />
