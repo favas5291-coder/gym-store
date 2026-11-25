@@ -248,3 +248,28 @@ export function restoreGuestAccess(code) {
 
   return sessionRequest("GET", token);
 }
+const guestDraftReads = new Map();
+
+export async function guestDraftKey() {
+  const { token } = await ensureGuestAccess();
+  if (!guestDraftReads.has(token)) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    const pending = fetch(API_URL + "/payments/guest-draft-key", {
+      cache:"no-store", headers:{"X-GymDrobe-Guest":token, Accept:"application/json"},
+      signal: controller.signal,
+    }).then(async response => {
+      if (!response.ok) throw new Error("Guest draft recovery is unavailable.");
+      const data = await response.json();
+      if (!/^[a-f0-9]{24}$/i.test(data.owner) || typeof data.key !== "string" || guestAccess()?.token !== token) {
+        throw new Error("Guest session changed. Reload checkout.");
+      }
+      return data;
+    }).finally(() => {
+      clearTimeout(timer);
+      guestDraftReads.delete(token);
+    });
+    guestDraftReads.set(token,pending);
+  }
+  return guestDraftReads.get(token);
+}

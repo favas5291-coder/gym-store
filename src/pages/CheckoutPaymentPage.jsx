@@ -308,68 +308,19 @@ function readAddressDraft(
   };
 }
 
-function writeAddressDraft(
-  key,
-  value,
-  clear = false,
-) {
-  const address =
-    editableAddress(value) || {
-      ...EMPTY_ADDRESS,
-    };
-
-  const previous =
-    checkoutAddressDrafts.get(key);
-
-  const record = {
-    version: ADDRESS_DRAFT_VERSION,
-
-    savedAt: Math.max(
-      Date.now(),
-      (previous?.savedAt || 0) + 1,
-    ),
-
-    address,
-  };
-
-  const saved = {
-    local: false,
-    session: false,
-  };
-
-  checkoutAddressDrafts.set(
-    key,
-    record,
-  );
-
-  for (const [name, field] of [
-    ["localStorage", "local"],
-    ["sessionStorage", "session"],
-  ]) {
+function removeLegacyAddress(key) {
+  checkoutAddressDrafts.delete(key);
+  let failure;
+  for (const storageName of ["localStorage", "sessionStorage"]) {
     try {
-      const target = globalThis[name];
-
-      target.setItem(
-        `${key}:draft-v2`,
-        JSON.stringify(record),
-      );
-
-      if (clear) {
-        target.removeItem(key);
-      } else {
-        target.setItem(
-          key,
-          JSON.stringify(address),
-        );
-      }
-
-      saved[field] = true;
-    } catch {
-      // Editing remains usable without browser storage.
+      const storage = globalThis[storageName];
+      storage.removeItem(key);
+      storage.removeItem(key + ":draft-v2");
+    } catch (error) {
+      failure = error;
     }
   }
-
-  return saved;
+  if (failure) throw failure;
 }
 
 export default function CheckoutPage() {
@@ -382,6 +333,19 @@ export default function CheckoutPage() {
   ].includes(params.get("mode"))
     ? params.get("mode")
     : "cart";
+
+  const [guestGeneration, setGuestGeneration] = useState(0);
+  useEffect(() => {
+    if (auth.user) return;
+    let previous = guestAccess()?.token;
+    function changed() {
+      const next = guestAccess()?.token;
+      if (previous && previous !== next) setGuestGeneration(n => n + 1);
+      previous = next;
+    }
+    window.addEventListener("gymdrobe-guest-access-changed", changed);
+    return () => window.removeEventListener("gymdrobe-guest-access-changed", changed);
+  }, [auth.user]);
 
   if (auth.loading) {
     return (
@@ -402,7 +366,7 @@ export default function CheckoutPage() {
 
   return (
     <Checkout
-      key={`${identity}:${mode}:${auth.token || ""}`}
+      key={`${identity}:${mode}:${auth.token || ""}:${guestGeneration}`}
       auth={auth}
       mode={mode}
     />
@@ -699,27 +663,24 @@ function Checkout({ auth, mode }) {
   const frozen =
     busy || Boolean(pending);
 
+  const hasLegacyAddress = Object.entries(addressDraft || {}).some(([field, value]) => field !== "label" && Boolean(value));
   const deliveryRecovery = useEditorRecovery({
     user, token, entity: ["checkout-address"], value: address,
-    dirty: !frozen && Boolean(addressTouched.current || addressDraft?.addressLine),
+    guest: !user && (ready && review.canCheckout || Boolean(addressTouched.current || hasLegacyAddress || guestAccess())),
+    autoResume: !user && !frozen,
+    dirty: !frozen && Boolean(addressTouched.current || hasLegacyAddress),
     restore(saved) {
       if (frozen) return;
       addressTouched.current = true;
       setAddress(checkoutAddress(saved));
     },
     onPersist() {
-      // Migrate only this authenticated owner's old plaintext address, after
+      // Migrate only this checkout owner's old plaintext address, after
       // encrypted IndexedDB confirms the replacement is durable.
       const keys = new Set([addressKey]);
-      if (user.id || user.email) keys.add(userKey("gymdrobe-checkout-address", user));
+      if (user && (user.id || user.email)) keys.add(userKey("gymdrobe-checkout-address", user));
       for (const key of keys) {
-        checkoutAddressDrafts.delete(key);
-        for (const target of ["localStorage", "sessionStorage"]) {
-          try {
-            globalThis[target].removeItem(key);
-            globalThis[target].removeItem(key + ":draft-v2");
-          } catch { /* Storage can become unavailable mid-session. */ }
-        }
+        try { removeLegacyAddress(key); } catch { /* Encrypted replacement is already durable. */ }
       }
     },
   });
@@ -2432,7 +2393,7 @@ function Checkout({ auth, mode }) {
             fresh.pricingRows,
           );
 
-        if (!user) writeAddressDraft(addressKey, clean);
+
 
         const previousAttempt =
           readSession(
@@ -2736,12 +2697,6 @@ function Checkout({ auth, mode }) {
         ...EMPTY_ADDRESS,
       };
 
-    if (!user) {
-      const stored = writeAddressDraft(addressKey, next);
-      setAddressNotice(stored.local ? "" : stored.session
-        ? "Delivery details are saved in this tab. Browser storage prevented saving them for a later visit."
-        : "Browser storage is unavailable. Your details stay on this page, but may be lost after refreshing or leaving checkout.");
-    }
     const pinKey =
       store.shoppingKey(
         "gymdrobe-delivery-pincode",
@@ -2780,7 +2735,7 @@ function Checkout({ auth, mode }) {
     setError("");
   }
 
-  function clearGuestAddress() {
+  async function clearGuestAddress() {
     if (
       user ||
       frozen ||
@@ -2789,18 +2744,15 @@ function Checkout({ auth, mode }) {
       return;
     }
 
-    addressTouched.current = true;
-
     const blank = {
       ...EMPTY_ADDRESS,
     };
 
-    const stored =
-      writeAddressDraft(
-        addressKey,
-        blank,
-        true,
-      );
+    addressTouched.current = false;
+    const removed = deliveryRecovery.clear().then(() => {
+      removeLegacyAddress(addressKey);
+      setAddressNotice("Saved delivery details cleared.");
+    }).catch(() => setAddressNotice("Your form is clear. The saved copy could not be removed. Retry after reconnecting."));
 
     clearPincode(
       store.shoppingKey(
@@ -2811,12 +2763,9 @@ function Checkout({ auth, mode }) {
     setAddress(blank);
     setErrors({});
     setError("");
+    await removed;
 
-    setAddressNotice(
-      stored.local
-        ? "Saved delivery details cleared."
-        : "This form was cleared, but browser storage prevented permanently clearing older details. They may return in another tab or after a later visit.",
-    );
+
   }
 
   if (

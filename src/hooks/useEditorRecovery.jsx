@@ -1,10 +1,11 @@
+import { guestDraftKey } from "../utils/guestCheckout.js";
 import { useLayoutEffect, useRef, useState } from "react";
 import { getEditorDraftKey } from "../services/authApi.js";
 import { openEditorJournal } from "../utils/editorJournal.js";
 
-export default function useEditorRecovery({ user, token, entity, value, dirty, restore, onPersist }) {
+export default function useEditorRecovery({ user, token, entity, value, dirty, restore, onPersist, guest = false, autoResume = false }) {
   const owner = user?.id || user?._id;
-  const scope = owner && entity && JSON.stringify([owner, user.role, ...entity]);
+  const scope = entity && (owner ? JSON.stringify([owner, user.role, ...entity]) : guest ? JSON.stringify(["guest", ...entity]) : null);
   const current = useRef(null);
   const latest = useRef(null);
   const [state, setState] = useState({});
@@ -12,19 +13,20 @@ export default function useEditorRecovery({ user, token, entity, value, dirty, r
 
   useLayoutEffect(() => {
     setState({});
-    if (!scope || !token) return;
-    const session = { journal: null, pending: null, timer: null, blocked: false, live: true };
+    if (!scope || (!token && !guest)) return;
+    const session = { journal: null, pending: null, timer: null, blocked: false, live: true, lastValue: null, lastEncoded: undefined, writes: 0 };
     current.current = session;
     const show = data => { if (session.live) setState(data); };
     session.onPersist = onPersist;
     session.write = async (snapshot, message) => {
+      const sequence = ++session.writes;
       clearTimeout(session.timer);
       session.pending = null;
       if (!session.journal || session.blocked) throw new Error("Wait for draft recovery before continuing.");
       try {
         await session.journal.write(snapshot);
         if (snapshot !== null) session.onPersist?.();
-        show({ message });
+        if (!session.pending && session.writes === sequence) show({ message });
       } catch (error) {
         session.blocked = true;
         show({ error: error.message || "Draft could not be saved on this device." });
@@ -37,21 +39,39 @@ export default function useEditorRecovery({ user, token, entity, value, dirty, r
       }
     };
     session.queue = () => {
-      clearTimeout(session.timer);
       if (!session.journal || session.blocked) return;
       const input = latest.current;
-      if (!input.dirty) { session.pending = null; return; }
+      if (!input.dirty) {
+        clearTimeout(session.timer);
+        session.pending = null;
+        session.lastValue = null;
+        session.lastEncoded = undefined;
+        return;
+      }
+      if (session.lastValue === input.value) return;
+      session.lastValue = input.value;
+      const encoded = JSON.stringify(input.value);
+      if (encoded === session.lastEncoded) return;
+      session.lastEncoded = encoded;
+      clearTimeout(session.timer);
       session.pending = input.value;
+      show({ message: "Saving draft…" });
       session.timer = setTimeout(session.flush, 250);
     };
-    session.ready = getEditorDraftKey(token).then(data => openEditorJournal(scope, data.key)).then(journal => {
+    const access = guest ? guestDraftKey() : getEditorDraftKey(token);
+    session.ready = access.then(data => openEditorJournal(
+      guest ? JSON.stringify(["guest", data.owner, ...entity]) : scope, data.key,
+    )).then(journal => {
       if (!session.live) {
         // A route change can beat key acquisition on the first edit.
         if (session.detached && journal.value === null) return journal.write(session.detached);
         return;
       }
       session.journal = journal;
-      if (journal.value !== null) {
+      if (journal.value !== null && latest.current.autoResume && !latest.current.dirty) {
+        latest.current.restore(journal.value);
+        show({ message: "Saved delivery details restored." });
+      } else if (journal.value !== null) {
         session.blocked = true;
         show({ recovered: journal.value });
       } else {
@@ -72,10 +92,10 @@ export default function useEditorRecovery({ user, token, entity, value, dirty, r
       window.removeEventListener("pagehide", session.flush);
       window.removeEventListener("online", session.flush);
     };
-  }, [scope, token, attempt]);
+  }, [scope, token, attempt, guest]);
 
   useLayoutEffect(() => {
-    latest.current = { value, dirty };
+    latest.current = { value, dirty, restore, autoResume };
     current.current?.queue();
   }, [scope, value, dirty]);
 

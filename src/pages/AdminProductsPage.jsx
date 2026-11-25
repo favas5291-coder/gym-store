@@ -1945,6 +1945,8 @@ function AdminProductsWorkspace({ token }) {
             draft.id,
           );
 
+        if (fresh.updatedAt) payload.expectedUpdatedAt = fresh.updatedAt;
+
         const conflict = conflictFor(
           draft,
           original,
