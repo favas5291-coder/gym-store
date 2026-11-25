@@ -76,7 +76,7 @@ export default function NativeAppController() {
       const { App } = await import("@capacitor/app");
       if (disposed) return;
       await listen(App, "appUrlOpen", openLink);
-      await listen(App, "appStateChange", event => { if (event?.isActive === false) remember(); });
+      await listen(App, "pause", remember);
       // A keyboard plugin failure must not stop app links or payment recovery.
       import("@capacitor/keyboard").then(async ({ Keyboard }) => {
         await listen(Keyboard, "keyboardWillShow", () => document.documentElement.classList.add("native-keyboard-open"));

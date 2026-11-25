@@ -21,7 +21,7 @@ try {
       await context.route("**/api/auth/draft-key", route => route.fulfill({json:{success:true,key:Buffer.alloc(32,owner.endsWith("1")?1:2).toString("base64")}}));
       await context.route("**/api/products/admin**", route => route.fulfill({json:{success:true,products:[],total:0,pages:1,categories:["Clothing"],brands:[],subcategories:{},suppliers:[]}}));
       const page = await context.newPage();
-      await page.goto(fixture.url+"/login");
+      await page.goto(fixture.url+"/robots.txt");
       await page.evaluate(()=>localStorage.setItem("gymdrobe-auth-token","test-session"));
       await page.goto(fixture.url+"/admin/products");
       await page.getByRole("button",{name:"+ Add product"}).click();
@@ -66,6 +66,7 @@ try {
       status=401; await page.evaluate(()=>window.dispatchEvent(new Event("focus")));
       await page.waitForFunction(()=>localStorage.getItem("gymdrobe-auth-token")===null);
       assert.equal(await name.count(),0);
+      await page.locator(".auth-card").waitFor();
       owner="507f1f77bcf86cd799439012";status=200;
       await page.evaluate(()=>localStorage.setItem("gymdrobe-auth-token","second-account"));
       await page.goto(fixture.url+"/admin/products");
@@ -74,6 +75,26 @@ try {
       assert.equal(await name.inputValue(),"");
       assert.equal(await page.getByRole("button",{name:"Resume draft"}).count(),0);
       console.log("PASS",engine.name(),"foreground, outage, reload, ciphertext, concurrent tabs, expiration and account isolation");
+      const product={...fixture.products[0],isActive:true};
+      await context.route("**/api/products/admin**", route => {
+        const path=new URL(route.request().url()).pathname;
+        if(path.endsWith("/"+product.id))return route.fulfill({json:{success:true,product}});
+        if(path.endsWith("/options"))return route.fulfill({json:{success:true,categories:[product.category],subcategories:{},brands:[product.brand],suppliers:[]}});
+        return route.fulfill({json:{success:true,products:[product],total:1,pages:1}});
+      });
+      await page.reload();
+      await page.getByRole("button",{name:"Edit product",exact:true}).first().click();
+      await name.fill("Existing edited fixture");
+      await page.getByText("Draft saved on this device.",{exact:true}).waitFor();
+      await page.evaluate(()=>window.dispatchEvent(new Event("focus")));
+      await page.waitForTimeout(350);
+      assert.equal(await name.inputValue(),"Existing edited fixture");
+      await page.reload();
+      await page.getByRole("button",{name:"Resume draft"}).click();
+      assert.equal(await name.inputValue(),"Existing edited fixture");
+      assert.equal(new URL(page.url()).searchParams.get("editor"),product.id);
+      console.log("PASS",engine.name(),"existing product survives focus, reload and entity-scoped recovery");
+
     } finally { await browser.close(); }
   }
 } finally { await fixture.server.close(); }

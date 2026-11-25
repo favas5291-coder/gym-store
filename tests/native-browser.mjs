@@ -134,8 +134,8 @@ try {
   });
   await check("a fresh native WebView restores a backgrounded product without replaying private query values", async () => {
     await page.goto(f.url+"/product/"+fixtureProductId+"?size=M&debug=unrelated");
-    await page.waitForFunction(()=>Boolean(window.__nativeListeners.appStateChange));
-    await page.evaluate(()=>window.__nativeListeners.appStateChange({isActive:false}));
+    await page.waitForFunction(()=>Boolean(window.__nativeListeners.pause));
+    await page.evaluate(()=>window.__nativeListeners.pause());
     await page.goto(f.url+"/");
     await page.waitForURL(url=>url.pathname==="/product/"+fixtureProductId && url.searchParams.get("size")==="M");
     assert.equal(new URL(page.url()).searchParams.has("debug"),false);

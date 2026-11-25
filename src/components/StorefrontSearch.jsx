@@ -148,9 +148,9 @@ export default function StorefrontSearch({
   const [active, setActive] = useState(-1);
   const [space, setSpace] = useState(null);
   const query = value.trim();
-  const index = useMemo(() => open ? indexForCatalogue(products) : null, [open, products]);
-  const result = useMemo(() => query && index ? searchCatalogue(index, query, { limit: 4 }) : null, [index, query]);
   const hintProducts = products.length ? products : homeProducts;
+  const index = useMemo(() => open ? indexForCatalogue(hintProducts) : null, [open, hintProducts]);
+  const result = useMemo(() => query && index ? searchCatalogue(index, query, { limit: 4 }) : null, [index, query]);
   const categories = useMemo(() => categorySuggestions(hintProducts), [hintProducts]);
   const [interacted, setInteracted] = useState(false);
   const showHint = !open && !value && categories.length > 0;
@@ -372,7 +372,7 @@ export default function StorefrontSearch({
         </div>}
       </div>
       <div className="gs-scroll" ref={list}>
-        {waiting && <p className="gs-message" role="status">Loading products…</p>}
+        {waiting && !(query ? result?.matches.length : categories.length || recent.length) && <p className="gs-message" role="status">Loading products…</p>}
         {unavailable && <div className="gs-message" role="status">Couldn’t load products.
           <button type="button" onClick={() => refreshProducts()}>Retry</button>
         </div>}
