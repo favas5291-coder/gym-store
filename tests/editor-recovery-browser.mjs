@@ -75,15 +75,20 @@ try {
       assert.equal(await name.inputValue(),"");
       assert.equal(await page.getByRole("button",{name:"Resume draft"}).count(),0);
       console.log("PASS",engine.name(),"foreground, outage, reload, ciphertext, concurrent tabs, expiration and account isolation");
-      const product={...fixture.products[0],isActive:true};
+      const list=fixture.products.slice(0,8).map(product=>({...product,isActive:true}));
+      const product=list.at(-1);
       await context.route("**/api/products/admin**", route => {
         const path=new URL(route.request().url()).pathname;
         if(path.endsWith("/"+product.id))return route.fulfill({json:{success:true,product}});
         if(path.endsWith("/options"))return route.fulfill({json:{success:true,categories:[product.category],subcategories:{},brands:[product.brand],suppliers:[]}});
-        return route.fulfill({json:{success:true,products:[product],total:1,pages:1}});
+        return route.fulfill({json:{success:true,products:list,total:list.length,pages:1}});
       });
-      await page.reload();
-      await page.getByRole("button",{name:"Edit product",exact:true}).first().click();
+      await page.goto(fixture.url+"/admin/products");
+      const edit=page.getByRole("button",{name:"Edit product",exact:true}).last();
+      await edit.scrollIntoViewIfNeeded();
+      const listY=await page.evaluate(()=>window.scrollY);
+      assert.ok(listY>300);
+      await edit.click();
       await name.fill("Existing edited fixture");
       await page.getByText("Draft saved on this device.",{exact:true}).waitFor();
       await page.evaluate(()=>window.dispatchEvent(new Event("focus")));
@@ -93,7 +98,13 @@ try {
       await page.getByRole("button",{name:"Resume draft"}).click();
       assert.equal(await name.inputValue(),"Existing edited fixture");
       assert.equal(new URL(page.url()).searchParams.get("editor"),product.id);
-      console.log("PASS",engine.name(),"existing product survives focus, reload and entity-scoped recovery");
+      await page.goBack();
+      await page.waitForFunction(()=>!new URLSearchParams(location.search).has("editor"));
+      await page.waitForFunction(y=>Math.abs(window.scrollY-y)<=2,listY);
+      await page.goForward();
+      await page.getByRole("button",{name:"Resume draft"}).click();
+      assert.equal(await name.inputValue(),"Existing edited fixture");
+      console.log("PASS",engine.name(),"existing edit survives reload; Back restores the list position and Forward recovers the same item");
 
     } finally { await browser.close(); }
   }
