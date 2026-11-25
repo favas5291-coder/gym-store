@@ -1,3 +1,4 @@
+import useFulfilmentDraft from "../hooks/useFulfilmentDraft.jsx";
 import {
   useCallback,
   useEffect,
@@ -223,6 +224,13 @@ function RequestCard({
     request.response || "",
   );
 
+  const responseRecovery = useFulfilmentDraft({
+    entity: ["requested", "approved"].includes(request.status) ? ["admin-return-response", id, request.id] : null,
+    revision: order.updatedAt || JSON.stringify([request.status,request.response]),
+    fields: {response}, original: {response:request.response || ""}, labels: {response:"Message to customer"},
+    restore(changes) { if ("response" in changes) setResponse(changes.response); },
+  });
+
   const [reference, setReference] = useState("");
   const [refundSent, setRefundSent] = useState(false);
 
@@ -253,13 +261,12 @@ function RequestCard({
     ? request.inspectionItems
     : [];
 
-  const action = kind =>
-    onAction(order, kind, {
+  const action = kind => onAction(order, kind, {
       response,
       reference,
       refundSent,
       draft,
-    });
+    }, responseRecovery.clear);
 
   function updateRow(index, changes) {
     setDraft(current => ({
@@ -679,6 +686,7 @@ function RequestCard({
               : "Receive and inspect"}
           </h3>
 
+          {responseRecovery.notice}
           <label className="ar-field">
             Message visible to the customer
 
@@ -936,7 +944,7 @@ function ReturnsWorkspace({ token }) {
     loadRequests();
   }, [loadRequests]);
 
-  async function act(order, action, details) {
+  async function act(order, action, details, clearResponse) {
     if (
       lock.current ||
       loading ||
@@ -1104,6 +1112,9 @@ function ReturnsWorkspace({ token }) {
         );
       }
 
+      if (!mounted.current) return;
+
+      await clearResponse().catch(() => {});
       if (!mounted.current) return;
 
       const message =

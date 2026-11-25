@@ -11,7 +11,9 @@ export function resumableRoute(path, role) {
   } else if (url.pathname === "/admin/products" && role === "admin") {
     const id = url.searchParams.get("editor");
     if (id === "new" || /^[a-f\d]{24}$/i.test(id || "")) params = ["editor"];
-  } else if (role === "supplier" && /^\/supplier\/(?:new|products|profile|products\/[a-f\d]{24})$/.test(url.pathname)) {
+  } else if (role === "admin" && /^\/admin(?:\/(?:dashboard|orders|returns|customers|support|marketplace|suppliers|kits|packing-locations|shipping-profiles|shipping-settings|cart-addons|package-plans))?$/.test(url.pathname)) {
+    params = [];
+  } else if (role === "supplier" && /^\/supplier(?:\/(?:new|products|profile|orders|earnings|payouts|settings|products\/[a-f\d]{24}))?$/.test(url.pathname)) {
     params = [];
   } else if (!/^\/(?:categories|cart|wishlist|offers|collections\/[a-z\d-]+)$/.test(url.pathname)) return null;
 

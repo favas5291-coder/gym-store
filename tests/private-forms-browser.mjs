@@ -59,6 +59,62 @@ async function customerForms(browser) {
   }
 }
 
+async function fulfilmentForms(browser) {
+  const context = await browser.newContext({viewport:{width:390,height:844}});
+  try {
+    const {user,order} = await mockStorefront(context,fixture.products,{signedIn:true});
+    let role = "admin";
+    let updatedAt = "2026-11-01T09:00:00.000Z";
+    const note = "Please verify the parcel measurement before collection";
+    const initialCarrier = "Current fixture carrier";
+    const record = () => ({...order, updatedAt, tracking:{...order.tracking,carrier:initialCarrier},
+      returnRequest:{id:"fixture-return",status:"requested",type:"return",response:"",items:[]},
+    });
+    const commands = [];
+    context.on("request", req => {if (["PATCH","PUT","POST"].includes(req.method())) commands.push(req.url());});
+    await context.route("**/api/auth/me",r=>r.fulfill({json:{success:true,user:{...user,role}}}));
+    await context.route("**/api/auth/draft-key",r=>r.fulfill({json:{success:true,key:Buffer.alloc(32,5).toString("base64")}}));
+    await context.route("**/api/orders/admin/**",r=>{
+      const path=new URL(r.request().url()).pathname;
+      return r.fulfill({json:(path.endsWith(order.id)||path.endsWith(order.orderNumber))?{success:true,order:record()}:
+        {success:true,orders:[record()],total:1,pages:1,page:1}});
+    });
+    await context.route("**/api/marketplace/me",r=>r.fulfill({json:{success:true,account:{id:user.id,status:"active",business:{displayName:"Fixture"}}}}));
+    await context.route("**/api/marketplace/orders",r=>r.fulfill({json:{success:true,orders:[{
+      id:order.id,orderNumber:"GD-FIXTURE",items:[],status:"preparing",revision:1,carrier:initialCarrier,trackingNumber:"",trackingUrl:""
+    }]}}));
+    const page=await context.newPage();
+    page.setDefaultTimeout(8000);
+    const manage=page.getByRole("button",{name:"Manage order"});
+    const resume=page.getByRole("button",{name:"Resume draft"});
+    const saved=page.getByText("Draft saved on this device.",{exact:true});
+    await page.goto(fixture.url+"/admin/orders");
+    await manage.click();
+    const carrier=page.getByLabel("Courier / carrier");
+    await carrier.fill("Edited fixture carrier"); await saved.waitFor();
+    await page.reload(); await manage.click(); await resume.click();
+    assert.equal(await carrier.inputValue(),"Edited fixture carrier");
+    await saved.waitFor();
+    updatedAt="2026-11-02T09:00:00.000Z";
+    await page.reload(); await manage.click(); await resume.click();
+    await page.getByRole("button",{name:"Discard earlier entries"}).waitFor();
+    assert.equal(await carrier.inputValue(),initialCarrier);
+    console.log("PASS",browser.browserType().name(),"tracking draft recovers and a stale copy cannot overwrite the order");
+    await page.goto(fixture.url+"/admin/returns");
+    const response=page.getByLabel("Message visible to the customer");
+    await response.fill(note); await saved.waitFor();
+    await page.reload(); await resume.click();
+    assert.equal(await response.inputValue(),note);
+    role="supplier"; await page.goto(fixture.url+"/supplier/orders");
+    const tracking=page.getByLabel("Tracking number",{exact:true});
+    await tracking.fill("RECOVER-123"); await saved.waitFor();
+    await page.reload(); await resume.click();
+    assert.equal(await tracking.inputValue(),"RECOVER-123");
+    assert.equal(commands.filter(url=>/\/(shipments|returns|orders)(\/|$)/.test(new URL(url).pathname)).length,0);
+    console.log("PASS",browser.browserType().name(),"return and supplier tracking text recover without sending an order command");
+  } finally { await context.close(); }
+}
+
 async function supplierPhotos(browser) {
   const context=await browser.newContext({viewport:{width:390,height:844}});
   const account="507f1f77bcf86cd799439011";
@@ -114,6 +170,7 @@ try {
       await guestDelivery(browser);
       console.log("PASS",engine.name(),"guest address encrypted, restored and discarded");
       await customerForms(browser);
+      await fulfilmentForms(browser);
       await supplierPhotos(browser);
       console.log("PASS",engine.name(),"interrupted supplier upload recovered identical photo bytes and a single gallery image");
     } finally { await browser.close(); }
