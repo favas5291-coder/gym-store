@@ -1,3 +1,4 @@
+import useVersionedEditorDraft from "../hooks/useVersionedEditorDraft.js";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -90,6 +91,13 @@ function KitManager({ token }) {
   const [locationSearch, setLocationSearch] = useState("");
   const [locationQuery, setLocationQuery] = useState("");
   const [locationRevision, setLocationRevision] = useState(0);
+
+  const saved = draft && kits.find(row => identity(row) === identity(draft));
+  const recovery = useVersionedEditorDraft({
+    kind: "fitness-kit", enabled: saved?.status === "draft", saved, value: draft, dirty,
+    restore(value) { setDraft(value); setDirty(true); },
+    conflict() { setMustReload(true); },
+  });
 
   const lock = useRef(false);
   const controller = useRef(null);
@@ -193,6 +201,7 @@ function KitManager({ token }) {
           return;
         }
 
+        await recovery.clear().catch(() => {});
         setKits((previous) =>
           previous.map((row) =>
             identity(row) === identity(saved)
@@ -216,6 +225,7 @@ function KitManager({ token }) {
           return;
         }
 
+        if (dirty) await recovery.clear().catch(() => {});
         setKits(rows);
         setDraft(null);
         setDirty(false);
@@ -269,6 +279,7 @@ function KitManager({ token }) {
       return;
     }
 
+    if (dirty) void recovery.clear().catch(() => {});
     setDraft(clone(kit));
     setDirty(false);
     setError("");
@@ -358,6 +369,7 @@ function KitManager({ token }) {
       )}
 
       {notice && <p role="status">{notice}</p>}
+      {recovery.notice}
 
       {mustReload && (
         <p className="notice">

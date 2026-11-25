@@ -1,3 +1,4 @@
+import "../styles/product-gallery-mobile.css";
 import { isNativeApp } from "../native/platform.js";
 import { ArrowRight } from "lucide-react";
 import {
@@ -207,7 +208,7 @@ function ProductDetail({
   const [galleryImageRatios, setGalleryImageRatios] = useState({});
 
   const chooseGalleryColor = useCallback(
-    (color) => {
+    (color, size) => {
       setSelectedColor(color);
 
       // Reset to the new colour's first photo.
@@ -224,6 +225,8 @@ function ProductDetail({
           const next =
             new URLSearchParams(current);
 
+          if (size) next.set("size", size);
+          else next.delete("size");
           if (color) {
             next.set("colour", color);
           } else {
@@ -232,7 +235,7 @@ function ProductDetail({
 
           return next;
         },
-        { replace: true },
+        { replace: true, preventScrollReset: true },
       );
     },
     [setSearchParams],
@@ -578,12 +581,19 @@ function ProductDetail({
 
           <ProductOptions
             showSupporting={false}
+            onSizeChange={size => setSearchParams(current => {
+              const updated = new URLSearchParams(current);
+              if (size) updated.set("size", size);
+              else updated.delete("size");
+              return updated;
+            }, { replace: true, preventScrollReset: true })}
             onColorChange={
               chooseGalleryColor
             }
             product={{
               ...product,
               selectedColor,
+              selectedSize: searchParams.get("size"),
 
               returnPolicy:
                 information.returns,

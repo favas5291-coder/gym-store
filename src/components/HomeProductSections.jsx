@@ -50,7 +50,7 @@ export default function HomeProductSections() {
   }, [lead, available]);
   const featured = featuredProducts.length
     ? <ProductRow title="Featured gear" id="featured" products={featuredProducts} to="/shop" grid featured />
-    : <section className="gm-section catalog-status" aria-live="polite">
+    : <section id="featured" className="gm-section catalog-status" aria-live="polite">
         <h2>{loading ? "Loading featured gear…" : error ? "Featured gear couldn’t load." : "More gear is on the way."}</h2>
         {loading && <div className="opening-placeholders" aria-hidden="true"><i/><i/><i/><i/></div>}
         {error && <button type="button" className="button" onClick={refreshProducts}>Retry collection</button>}

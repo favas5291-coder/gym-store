@@ -336,11 +336,14 @@ function ScrollToTop() {
   const { pathname, key } = useLocation();
   const navigation = useNavigationType();
   const positions = useRef(new Map());
+  const previousPath = useRef(null);
 
   useLayoutEffect(() => {
     const state = window.history.state;
     const saved = positions.current.get(key) ?? state?.gymdrobeScrollY;
-    const target = navigation === "POP" && Number.isFinite(saved) ? saved : 0;
+    const changingVariant = navigation === "REPLACE" && previousPath.current === pathname && pathname.startsWith("/product/");
+    previousPath.current = pathname;
+    const target = changingVariant ? window.scrollY : navigation === "POP" && Number.isFinite(saved) ? saved : 0;
     let waiting = target > 0;
     let observer;
     function restore() {
@@ -360,7 +363,7 @@ function ScrollToTop() {
         catch { /* The in-memory history still works in restricted browsers. */ }
       }
     }
-    if (waiting) {
+    if (waiting && typeof ResizeObserver !== "undefined") {
       observer = new ResizeObserver(restore);
       observer.observe(document.body);
     }

@@ -135,7 +135,7 @@ export default function StorefrontSearch({
   value, onChange, onSubmit, onRemember, recent, onClearHistory, onRemoveRecent,
   onOpen, onDismiss, routeKey, placeholder,
 }) {
-  const { products, loading, error, refreshing, refreshProducts } = useCatalog();
+  const { products, homeProducts, ensureProducts, loading, error, refreshing, refreshProducts } = useCatalog();
   const navigate = useNavigate();
   const root = useRef(null);
   const input = useRef(null);
@@ -150,7 +150,8 @@ export default function StorefrontSearch({
   const query = value.trim();
   const index = useMemo(() => open ? indexForCatalogue(products) : null, [open, products]);
   const result = useMemo(() => query && index ? searchCatalogue(index, query, { limit: 4 }) : null, [index, query]);
-  const categories = useMemo(() => categorySuggestions(products), [products]);
+  const hintProducts = products.length ? products : homeProducts;
+  const categories = useMemo(() => categorySuggestions(hintProducts), [hintProducts]);
   const [interacted, setInteracted] = useState(false);
   const showHint = !open && !value && categories.length > 0;
   const waiting = !products.length && (loading || refreshing);
@@ -233,6 +234,7 @@ export default function StorefrontSearch({
 
   function activate() {
     if (!open) {
+      ensureProducts();
       entryScroll.current = [window.scrollX, window.scrollY];
       setInteracted(true);
       onOpen();

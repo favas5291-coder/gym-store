@@ -31,7 +31,7 @@ export default function GetApp({ showPromotion }) {
     </button>
     <dialog ref={dialog} className="get-app-dialog" aria-labelledby="get-app-title" onClose={() => trigger.current?.focus()}>
       <button className="get-app-close" type="button" aria-label="Close Get App" onClick={() => dialog.current.close()}><X size={20} /></button>
-      <img loading="lazy" decoding="async" src="/brand/external/gymdrobe-app-icon-1024.png" alt="GymDrobe app icon" width="72" height="72" />
+      <img loading="lazy" decoding="async" srcSet="/brand/app-icon-192.webp 192w" sizes="88px" src="/brand/external/gymdrobe-app-icon-1024.png" alt="GymDrobe app icon" width="72" height="72" />
       <h2 id="get-app-title">Get GymDrobe</h2>
       <p>Scan on your phone for installation instructions.</p>
       <img loading="lazy" decoding="async" src="/brand/gymdrobe-install-qr.svg" alt="QR code for gymdrobe.com/install" width="152" height="152" />

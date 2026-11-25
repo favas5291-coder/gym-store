@@ -44,7 +44,7 @@ export default function useEditorRecovery({ user, token, entity, value, dirty, r
       session.pending = input.value;
       session.timer = setTimeout(session.flush, 250);
     };
-    getEditorDraftKey(token).then(data => openEditorJournal(scope, data.key)).then(journal => {
+    session.ready = getEditorDraftKey(token).then(data => openEditorJournal(scope, data.key)).then(journal => {
       if (!session.live) {
         // A route change can beat key acquisition on the first edit.
         if (session.detached && journal.value === null) return journal.write(session.detached);
@@ -81,7 +81,9 @@ export default function useEditorRecovery({ user, token, entity, value, dirty, r
 
   async function clear() {
     const session = current.current;
-    if (!session?.journal) return;
+    if (!session) return;
+    if (!session.journal) await session.ready;
+    if (!session.journal) throw new Error("Unable to clear the draft on this device.");
     session.blocked = false;
     await session.write(null, "");
   }
@@ -105,6 +107,7 @@ export default function useEditorRecovery({ user, token, entity, value, dirty, r
   return { notice, hasRecovery: Boolean(state.recovered), clear, checkpoint: async snapshot => {
     const session = current.current;
     if (!session) throw new Error("Draft recovery is unavailable.");
+    if (!session.journal) await session.ready;
     await session.write(snapshot, "Draft saved on this device.");
   } };
 }

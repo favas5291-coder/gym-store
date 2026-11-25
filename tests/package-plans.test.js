@@ -636,6 +636,7 @@ function ui(
     useEffect: () => {},
     useCallback: (fn) => fn,
     useAuth: () => auth,
+    useVersionedEditorDraft: () => ({notice:null, clear:async () => {}}),
 
     h,
     Fragment: "fragment",

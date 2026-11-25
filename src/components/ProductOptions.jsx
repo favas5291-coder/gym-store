@@ -103,6 +103,7 @@ function ProductOptionsContent({
   product,
   onAdded,
   onColorChange,
+  onSizeChange,
   showSupporting = true,
 }) {
   const {
@@ -307,7 +308,9 @@ function ProductOptionsContent({
         "color",
       )
     ) {
-      onColorChange?.(update.color);
+      onColorChange?.(update.color, update.size);
+    } else if (Object.hasOwn(update, "size")) {
+      onSizeChange?.(update.size);
     }
 
     setSelection((current) => ({
@@ -1087,6 +1090,7 @@ export default function ProductOptions({
   product,
   onAdded,
   onColorChange,
+  onSizeChange,
   showSupporting = true,
 }) {
   return (
@@ -1097,6 +1101,7 @@ export default function ProductOptions({
       product={product}
       onAdded={onAdded}
       onColorChange={onColorChange}
+      onSizeChange={onSizeChange}
       showSupporting={showSupporting}
     />
   );

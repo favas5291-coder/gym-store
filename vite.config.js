@@ -20,7 +20,7 @@ function publicCatalogueStartup(env, mode) {
         children: `(() => {
           const path = location.pathname.replace(/\\/+$/, "") || "/";
           if (!${JSON.stringify(paths)}.includes(path)) return;
-          const url = ${JSON.stringify(url)};
+          const url = ${JSON.stringify(url)} + (path === "/" ? "?view=page&limit=8" : "");
           const controller = new AbortController();
           const timer = setTimeout(() => controller.abort(), 60000);
           const response = fetch(url, {
@@ -48,14 +48,14 @@ export default defineConfig(({ mode }) => ({
       order: "post",
       handler(html) {
         if (["ios", "android"].includes(mode)) return html;
-        const logo = readFileSync(new URL("./public/brand/gymdrobe-wordmark-cream.png", import.meta.url));
+        const logo = readFileSync(new URL("./public/brand/gymdrobe-wordmark-cream.webp", import.meta.url));
         // Parse the static entrance before WebKit encounters module startup resources.
         const resources = [];
         html = html.replace(/<script type="module"[^>]* src="[^"]+"[^>]*><\/script>|<link rel="modulepreload"[^>]+>/g, tag => {
           resources.push(tag);
           return "";
         }).replace("</body>", resources.join("\n") + "\n</body>");
-        return html.replace('src="/brand/gymdrobe-wordmark-cream.png"', 'src="data:image/png;base64,' + logo.toString("base64") + '"')
+        return html.replace('src="/brand/gymdrobe-wordmark-cream.png"', 'src="data:image/webp;base64,' + logo.toString("base64") + '"')
           .replace(/<link rel="stylesheet" crossorigin href="([^"]+)">/g, (tag, href) => {
             // On the homepage the inline opening and shell can paint while the main CSS downloads.
             return `<script>

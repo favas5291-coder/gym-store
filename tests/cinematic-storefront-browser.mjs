@@ -56,6 +56,54 @@ try{
    assert.equal(await page.evaluate(() => localStorage.getItem('gymdrobe-recent-searches')), null);
   } finally {await view.c.close();}
  });
+ await check('Mobile Home reads one small page and search continues from its cursor', async () => {
+  const view = await context(390,{browser:{viewport:{width:390,height:740},isMobile:true,hasTouch:true}});
+  const rows = Array.from({length:21},(_,i)=>{
+   const id = String(i+1).padStart(24,'0');
+   return {...f.products[0], id, _id:id, name:i===20?'Zircon training tee':'Gym tee '+i};
+  });
+  const requests=[];
+  try {
+   await view.c.addInitScript(id=>{
+    localStorage.setItem('gymdrobe.web-opening.seen.v1','1');
+    localStorage.setItem('gymdrobe-wishlist',JSON.stringify([id]));
+   },rows.at(-1).id);
+   await view.c.route(url=>url.pathname==='/api/products',route=>{
+    const url=new URL(route.request().url());
+    requests.push(url.search);
+    const after=url.searchParams.get('after')||'';
+    const size=Number(url.searchParams.get('limit'))||rows.length;
+    const remaining=rows.filter(row=>row.id>after);
+    const products=remaining.slice(0,size);
+    return route.fulfill({json:{success:true,products,nextCursor:remaining.length>size?products.at(-1).id:null}});
+   });
+   await visit(view.p,'/');
+   await view.p.locator('.gs-terms strong').waitFor();
+   assert.deepEqual(requests,['?view=page&limit=8']);
+   assert.equal(await view.p.evaluate(()=>localStorage.getItem('gymdrobe-wishlist')),JSON.stringify([rows.at(-1).id]));
+   await view.p.getByRole('combobox',{name:'Search products'}).fill('zircon');
+   await view.p.locator('a.gs-product').filter({hasText:'Zircon training tee'}).waitFor();
+   assert.deepEqual(requests,['?view=page&limit=8','?view=page&limit=40&after='+rows[7].id]);
+  } finally {await view.c.close();}
+ });
+ await check('Product colour and size survive reload and browser Back', async () => {
+  const view=await context(390);
+  try {
+   const page=view.p;
+   await visit(page,'/product/'+fixtureProductId);
+   await choose(page);
+   assert.equal(new URL(page.url()).searchParams.get('size'),'M');
+   await page.reload();
+   const size=page.getByRole('button',{name:'Size M',exact:true}).first();
+   await size.waitFor();
+   assert.equal(await size.getAttribute('aria-pressed'),'true');
+   await page.getByRole('navigation',{name:'Shopping navigation'}).getByRole('link',{name:'Wishlist'}).click();
+   await page.goBack();
+   await size.waitFor();
+   assert.equal(await size.getAttribute('aria-pressed'),'true');
+   assert.equal(new URL(page.url()).searchParams.get('colour'),'Black');
+  } finally {await view.c.close();}
+ });
  for (const width of [390, 1440]) {
   const view = await context(width);
   await check(`${width}px editorial cards, account contrast and guide`, async () => {
@@ -178,7 +226,7 @@ try{
  const recovery=await context(390,{browser:{isMobile:true,hasTouch:true}});
  await check('Search Retry preserves the query and recovers real suggestions',async()=>{
   let attempts=0;
-  await recovery.c.route('**/api/products',async route=>{
+  await recovery.c.route(url => url.pathname === '/api/products',async route=>{
    attempts++;
    if(attempts===1) {
     return route.fulfill({status:503,json:{success:false,message:'Catalogue unavailable'}});
