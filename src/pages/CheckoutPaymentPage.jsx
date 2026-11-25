@@ -668,6 +668,7 @@ function Checkout({ auth, mode }) {
     user, token, entity: ["checkout-address"], value: address,
     guest: !user && (ready && review.canCheckout || Boolean(addressTouched.current || hasLegacyAddress || guestAccess())),
     autoResume: !user && !frozen,
+    commitOnInput: true,
     dirty: !frozen && Boolean(addressTouched.current || hasLegacyAddress),
     restore(saved) {
       if (frozen) return;

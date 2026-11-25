@@ -1475,7 +1475,7 @@ function AdminProductsWorkspace({ token }) {
     draft, baseline: baseline.current, createUncertain, requestId: requestId.current,
   }), [draft, createUncertain]);
   const recovery = useEditorRecovery({
-    user, token, entity: ["admin-product", editorSlot], value: recoveryValue,
+    user, token, entity: ["admin-product", editorSlot], value: recoveryValue, commitOnInput: true,
     dirty: Boolean(draft && (createUncertain || JSON.stringify(draft) !== JSON.stringify(baseline.current))),
     restore(saved) {
       if (!saved.draft || String(saved.draft.id || "new") !== editorSlot) return;

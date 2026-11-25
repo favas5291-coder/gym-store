@@ -405,7 +405,11 @@ try{
   const pay=x.p.locator('.gd-checkout-pay');await x.p.waitForFunction(()=>{const b=document.querySelector('.gd-checkout-pay');return b&&!b.disabled;});
   await pay.click();await x.p.getByText('Correct the highlighted delivery details.',{exact:true}).waitFor();assert.ok(await x.p.locator('[aria-invalid="true"]').count()>0);
   for(const [name,value] of Object.entries({fullName:'Preview Customer',email:'preview@example.test',phone:'9876543210',addressLine:'12 Preview Street',city:'Kozhikode',state:'Kerala'}))await x.p.locator(`input[name="${name}"]`).fill(value);
-  await x.p.reload();await x.p.getByLabel('Full name',{exact:true}).waitFor();assert.equal(await x.p.getByLabel('Full name',{exact:true}).inputValue(),'Preview Customer');
+  // Restoring a private form requires its grant and an IndexedDB decrypt.
+  // Reload immediately after typing and assert the most recent field as well.
+  await x.p.reload();
+  await x.p.waitForFunction(()=>document.querySelector('input[name="fullName"]')?.value==='Preview Customer' &&
+    document.querySelector('input[name="state"]')?.value==='Kerala', undefined, {timeout:8000});
   await x.p.getByRole('radio',{name:/COD with 10% advance/}).check();await x.p.waitForTimeout(550);assert.match(await x.p.locator('.price-summary').innerText(),/₹143\.80/);
   assert.ok(await x.p.locator('.gd-checkout-coupon summary').count());await capture(x.p,'checkout-desktop');
   assert.equal(x.mock.requests.filter(r=>r.path==='/api/payments/razorpay/order'||r.path==='/api/payments/razorpay/verify').length,0);

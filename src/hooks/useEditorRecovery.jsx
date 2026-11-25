@@ -3,7 +3,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { getEditorDraftKey } from "../services/authApi.js";
 import { openEditorJournal } from "../utils/editorJournal.js";
 
-export default function useEditorRecovery({ user, token, entity, value, dirty, restore, onPersist, guest = false, autoResume = false }) {
+export default function useEditorRecovery({ user, token, entity, value, dirty, restore, onPersist, guest = false, autoResume = false, commitOnInput = false }) {
   const owner = user?.id || user?._id;
   const scope = entity && (owner ? JSON.stringify([owner, user.role, ...entity]) : guest ? JSON.stringify(["guest", ...entity]) : null);
   const current = useRef(null);
@@ -35,7 +35,11 @@ export default function useEditorRecovery({ user, token, entity, value, dirty, r
     };
     session.flush = () => {
       if (session.pending !== null && session.journal && !session.blocked) {
-        void session.write(session.pending, "Draft saved on this device.").catch(() => {});
+        session.saving = true;
+        void session.write(session.pending, "Draft saved on this device.").catch(() => {}).finally(() => {
+          session.saving = false;
+          if (commitOnInput && session.pending) session.flush();
+        });
       }
     };
     session.queue = () => {
@@ -56,7 +60,14 @@ export default function useEditorRecovery({ user, token, entity, value, dirty, r
       clearTimeout(session.timer);
       session.pending = input.value;
       show({ message: "Saving draft…" });
-      session.timer = setTimeout(session.flush, 250);
+      // A browser may terminate asynchronous pagehide work. For short,
+      // frequently interrupted forms begin the encrypted write in this turn.
+      // Coalesce overlapping keystrokes while disk I/O is still outstanding.
+      if (commitOnInput) {
+        if (!session.saving) queueMicrotask(session.flush);
+      } else {
+        session.timer = setTimeout(session.flush, 250);
+      }
     };
     const access = guest ? guestDraftKey() : getEditorDraftKey(token);
     session.ready = access.then(data => openEditorJournal(
@@ -92,7 +103,7 @@ export default function useEditorRecovery({ user, token, entity, value, dirty, r
       window.removeEventListener("pagehide", session.flush);
       window.removeEventListener("online", session.flush);
     };
-  }, [scope, token, attempt, guest]);
+  }, [scope, token, attempt, guest, commitOnInput]);
 
   useLayoutEffect(() => {
     latest.current = { value, dirty, restore, autoResume };
