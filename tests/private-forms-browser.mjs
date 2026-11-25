@@ -99,6 +99,10 @@ async function fulfilmentForms(browser) {
     await page.reload(); await manage.click(); await resume.click();
     await page.getByRole("button",{name:"Discard earlier entries"}).waitFor();
     assert.equal(await carrier.inputValue(),initialCarrier);
+    await carrier.fill("Newer revision fixture carrier"); await saved.waitFor();
+    await page.getByRole("button",{name:"Dismiss earlier entries"}).click();
+    await page.reload(); await manage.click(); await resume.click();
+    assert.equal(await carrier.inputValue(),"Newer revision fixture carrier");
     console.log("PASS",browser.browserType().name(),"tracking draft recovers and a stale copy cannot overwrite the order");
     await page.goto(fixture.url+"/admin/returns");
     const response=page.getByLabel("Message visible to the customer");

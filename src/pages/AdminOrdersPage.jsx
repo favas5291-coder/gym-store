@@ -529,6 +529,7 @@ function AdminOrderCard({
       }
 
       await trackingRecovery.clear().catch(() => {});
+      if (!mounted.current) return;
       setDetailedOrder(updated);
       setDraft(createDraft(updated));
       onUpdated(updated);

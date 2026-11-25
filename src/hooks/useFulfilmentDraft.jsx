@@ -9,8 +9,9 @@ export default function useFulfilmentDraft({ entity, revision, fields, original,
   const [older, setOlder] = useState(null);
   const identity = JSON.stringify([user?.id || user?._id, user?.role, entity]);
   const changed = Object.fromEntries(Object.entries(fields).filter(([key, value]) => value !== original[key]));
+  const dirty = Object.keys(changed).length > 0;
   const recovery = useEditorRecovery({
-    user, token, entity, value: { revision, changed }, dirty: Object.keys(changed).length > 0,
+    user, token, entity, value: { revision, changed }, dirty,
     restore(saved) {
       const allowed = Object.fromEntries(Object.entries(saved.changed || {}).filter(
         ([name, value]) => Object.hasOwn(labels, name) && typeof value === "string",
@@ -31,10 +32,12 @@ export default function useFulfilmentDraft({ entity, revision, fields, original,
       <dl>{Object.entries(olderFields).filter(([name]) => Object.hasOwn(labels,name)).map(([name,value]) =>
         <div key={name}><dt>{labels[name]}</dt><dd>{String(value || "Cleared")}</dd></div>)}</dl>
       <button type="button" className="text-link" onClick={() => {
-        if (window.confirm("Discard these earlier entries?")) {
+        if (dirty) {
+          setOlder(null);
+        } else if (window.confirm("Discard these earlier entries?")) {
           void recovery.clear().then(() => setOlder(null)).catch(() => {});
         }
-      }}>Discard earlier entries</button>
+      }}>{dirty ? "Dismiss earlier entries" : "Discard earlier entries"}</button>
     </div>}</>,
   };
 }
