@@ -335,20 +335,53 @@ function LegacyLoginRedirect() {
 function ScrollToTop() {
   const { pathname, key } = useLocation();
   const navigation = useNavigationType();
-  const homePosition = useRef(null);
-  const homeKey = pathname === "/" ? key : null;
-  const backToHome = Boolean(homeKey) && navigation === "POP";
+  const positions = useRef(new Map());
+  const previousPath = useRef(null);
 
   useLayoutEffect(() => {
-    const returningHome = backToHome && homePosition.current?.key === homeKey;
-    window.scrollTo({ top: returningHome ? homePosition.current.top : 0, behavior: "instant" });
-    if (homeKey) {
-      const remember = () => { homePosition.current = { key: homeKey, top: window.scrollY }; };
-      remember();
-      window.addEventListener("scroll", remember, { passive: true });
-      return () => window.removeEventListener("scroll", remember);
+    const state = window.history.state;
+    const saved = positions.current.get(key) ?? state?.gymdrobeScrollY;
+    const changingVariant = navigation === "REPLACE" && previousPath.current === pathname && pathname.startsWith("/product/");
+    previousPath.current = pathname;
+    const target = changingVariant ? window.scrollY : navigation === "POP" && Number.isFinite(saved) ? saved : 0;
+    let waiting = target > 0;
+    let observer;
+    function restore() {
+      window.scrollTo({ top: target, behavior: "instant" });
+      if (Math.abs(window.scrollY - target) <= 1) stop();
     }
-  }, [pathname, homeKey, backToHome]);
+    function stop() { waiting = false; observer?.disconnect(); }
+    function remember() {
+      if (waiting) return;
+      positions.current.set(key, window.scrollY);
+      if (positions.current.size > 100) positions.current.delete(positions.current.keys().next().value);
+    }
+    function persist() {
+      remember();
+      if (!waiting) {
+        try { window.history.replaceState({ ...window.history.state, gymdrobeScrollY: window.scrollY }, ""); }
+        catch { /* The in-memory history still works in restricted browsers. */ }
+      }
+    }
+    if (waiting && typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(restore);
+      observer.observe(document.body);
+    }
+    restore();
+    const timeout = setTimeout(stop, 6000);
+    window.addEventListener("scroll", remember, { passive: true });
+    window.addEventListener("pagehide", persist);
+    document.addEventListener("click", persist, true);
+    for (const event of ["wheel", "touchstart", "keydown"]) window.addEventListener(event, stop, { passive: true });
+    return () => {
+      clearTimeout(timeout);
+      stop();
+      window.removeEventListener("scroll", remember);
+      window.removeEventListener("pagehide", persist);
+      document.removeEventListener("click", persist, true);
+      for (const event of ["wheel", "touchstart", "keydown"]) window.removeEventListener(event, stop);
+    };
+  }, [key, pathname, navigation]);
 
   return null;
 }
@@ -577,7 +610,7 @@ function Layout() {
           key={location.pathname}
         >
           <Suspense
-            fallback={<PageLoading />}
+            fallback={<PageLoading compactLabel={{ "/cart": "Loading your bag", "/login": "Loading sign-in" }[currentPath]} />}
           >
             <Routes>
               <Route path="/categories" element={<NativeCategoriesPage />} />

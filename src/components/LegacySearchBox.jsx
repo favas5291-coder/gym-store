@@ -3,7 +3,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { Search, Clock3, ArrowRight, ShoppingBag, X } from "lucide-react";
-import { createSearchIndex, searchCatalogue } from "../utils/smartSearch.js";
+import { indexForCatalogue, searchCatalogue } from "../utils/smartSearch.js";
 import { getTotalStock } from "../utils/cartUtils.js";
 import { getDiscountedPrice } from "../utils/productPricing.js";
 import PhotoSearchButton from "./PhotoSearchButton.jsx";
@@ -64,7 +64,7 @@ export default function LegacySearchBox({
   // a real query settles, then reuse it while the shopper keeps typing.
   const hasQuery = Boolean(settled);
   const index = useMemo(
-    () => hasQuery ? createSearchIndex(products) : null,
+    () => hasQuery ? indexForCatalogue(products) : null,
     [products, hasQuery],
   );
   const searchData = useMemo(

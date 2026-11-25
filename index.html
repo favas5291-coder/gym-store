@@ -15,6 +15,14 @@
         if (location.pathname !== "/" || location.hash || ["android", "ios"].includes("%MODE%") ||
             window.Capacitor?.isNativePlatform?.()) return;
         document.documentElement.dataset.homeBoot = String(performance.now());
+        const lead = document.createElement("link");
+        lead.rel = "preload";
+        lead.as = "image";
+        lead.fetchPriority = "high";
+        lead.imageSrcset = "/media/campaign/women-hoodie-432.webp?v=3 432w, /media/campaign/women-hoodie-736.webp?v=3 736w";
+        lead.imageSizes = "(max-width: 700px) calc(100vw - 26px), (max-width: 1466px) calc((100vw - 34px) / 2), 716px";
+        lead.href = "/media/campaign/women-hoodie-736.webp?v=3";
+        document.head.append(lead);
         try {
           const seen = "gymdrobe.web-opening.seen.v1";
           if (!localStorage.getItem(seen)) {
@@ -248,7 +256,7 @@
     <template id="home-boot-template">
       <div id="home-boot-shell">
         <header>
-          <img src="/brand/gymdrobe-wordmark-green.png" alt="GymDrobe" width="720" height="134" />
+          <img srcset="/brand/gymdrobe-wordmark-green.webp 1x" src="/brand/gymdrobe-wordmark-green.png" alt="GymDrobe" width="720" height="134" />
           <form data-boot-search role="search" action="/shop" method="get">
             <input type="search" name="search" aria-label="Search products" placeholder="Search GymDrobe" enterkeyhint="search" autocomplete="off" />
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg>
@@ -278,11 +286,6 @@
         const app = document.getElementById("app");
         const logo = screen.querySelector("img");
         let opening = root.hasAttribute("data-opening-active");
-        let minimumMet = !opening;
-        let expired = false;
-        let minimumTimer;
-        let visibleSince;
-        let minimumLeft = 3000;
         let marked = false;
         let frame;
         app.inert = true;
@@ -304,7 +307,6 @@
           const focused = document.activeElement === search;
           uncover();
           observer.disconnect();
-          clearTimeout(minimumTimer);
           clearTimeout(deadlineTimer);
           cancelAnimationFrame(frame);
           window.removeEventListener("pagehide", leave);
@@ -323,7 +325,7 @@
 
         function check() {
           if (location.pathname !== "/" || location.hash) return handoff();
-          if ((!minimumMet && !expired) || root.hasAttribute("data-style-pending") ||
+          if (root.hasAttribute("data-style-pending") ||
               root.hasAttribute("data-home-style-error")) return;
           const tile = app.querySelector('a[data-home-lead][href="/shop?gender=Women"]');
           if (tile && tile.textContent.trim() && tile.getBoundingClientRect().width &&
@@ -336,33 +338,21 @@
 
         function leave() {
           // A restored history entry should resume shopping, even if the intro was interrupted.
-          minimumMet = true;
           uncover();
           check();
         }
 
         function visible() {
           cancelAnimationFrame(frame);
-          if (!opening || minimumMet) return;
-          if (document.hidden) {
-            if (visibleSince !== undefined) {
-              minimumLeft = Math.max(0, minimumLeft - (performance.now() - visibleSince));
-              visibleSince = undefined;
-              clearTimeout(minimumTimer);
-            }
-            return;
-          }
-          if (visibleSince !== undefined) return;
+          if (!opening || marked || document.hidden) return;
           // The second frame follows a paint opportunity for the decoded inline wordmark.
           frame = requestAnimationFrame(() => {
             frame = requestAnimationFrame(() => {
               if (document.hidden || !opening) return;
-              visibleSince = performance.now();
               if (!marked) {
                 marked = true;
                 performance.mark("gymdrobe-logo-visible");
               }
-              minimumTimer = setTimeout(() => { minimumMet = true; check(); }, minimumLeft);
             });
           });
         }
@@ -374,7 +364,6 @@
         window.addEventListener("popstate", check);
         // Keep this independent of logo decode, paint scheduling, and the React bundle.
         const deadlineTimer = setTimeout(() => {
-          expired = true;
           uncover();
           shell.querySelector("[data-boot-reload]").hidden = false;
           check();

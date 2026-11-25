@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import useVersionedEditorDraft from "../hooks/useVersionedEditorDraft.js";
+import { useMemo, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext.jsx";
@@ -978,6 +979,14 @@ function ProfileEditor({ token, initial, onClose }) {
   const lock = useRef(false);
   const controller = useRef(null);
   const form = useRef(null);
+  const editorValue = useMemo(() => ({draft, pinText, amounts, agreement, expiry}), [draft, pinText, amounts, agreement, expiry]);
+  const recovery = useVersionedEditorDraft({
+    kind: "shipping-profile", saved, value: editorValue, dirty: dirty || Boolean(agreement || expiry),
+    restore(value) { setDraft(value.draft); setPinText(value.pinText); setAmounts(value.amounts);
+      setAgreement(value.agreement); setExpiry(value.expiry); setDirty(true); setAcknowledged(false); },
+    conflict() { setBlocked(true); setError("The saved record changed after this draft. Review the latest record before applying your edits."); },
+  });
+
   const denyRef = useRef(() => setDenied(true));
 
   useEffect(() => {
@@ -1130,6 +1139,7 @@ function ProfileEditor({ token, initial, onClose }) {
 
       if (!mounted.current) return;
 
+      await recovery.clear().catch(() => {});
       setSaved(clone(result));
       setDraft(clone(result));
       setPinText(result.destinationPincodes.join("\n"));
@@ -1208,6 +1218,7 @@ function ProfileEditor({ token, initial, onClose }) {
               "Leave this editor? Unsaved changes will be discarded. Check the list for any uncertain save.",
             )
           ) {
+            void recovery.clear().catch(() => {});
             onClose();
           }
         }}
@@ -1215,6 +1226,7 @@ function ProfileEditor({ token, initial, onClose }) {
         Back to shipping profiles
       </button>
 
+      {recovery.notice}
       <h2>{saved ? saved.name : "New shipping profile"}</h2>
 
       {saved && (

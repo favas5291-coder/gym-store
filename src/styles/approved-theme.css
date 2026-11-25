@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap");
+@import "../assets/fonts/storefront.css";
 
 #app .premium-storefront {
   --editorial-green: #171717;
@@ -108,6 +108,7 @@
 }
 
 .footer-wordmark {
+  height: auto;
   width: clamp(136px, 19vw, 224px);
 }
 

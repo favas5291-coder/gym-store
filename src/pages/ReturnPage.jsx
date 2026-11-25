@@ -1,6 +1,8 @@
+import useEditorRecovery from "../hooks/useEditorRecovery.jsx";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -145,6 +147,23 @@ function ReturnForm({
   const [now, setNow] =
     useState(Date.now);
 
+  const { user } = useAuth();
+  const orderVersion = order?.updatedAt || null;
+  const recoverable = useMemo(() => ({ type, chosen, reason, orderVersion }), [type, chosen, reason, orderVersion]);
+  const recovery = useEditorRecovery({
+    user, token, entity: order ? ["return-request", orderId] : null, value: recoverable,
+    dirty: !awaiting && !submitting && Boolean(reason || Object.keys(chosen).length || type !== "return"),
+    restore(saved) {
+      if (pending.current || lock.current) return;
+      setReason(saved.reason);
+      setType(saved.type);
+      if (orderVersion && saved.orderVersion === orderVersion) setChosen(saved.chosen);
+      else { setChosen({}); setError("Your order changed. Review the eligible items and select them again."); }
+    },
+  });
+  const clearDraft = useRef(recovery.clear);
+  clearDraft.current = recovery.clear;
+
   const mounted = useRef(false);
   const lock = useRef(false);
   const generation = useRef(0);
@@ -229,6 +248,7 @@ function ReturnForm({
         return false;
       }
 
+      void clearDraft.current().catch(() => {});
       clearReturnAttempt(key);
       pending.current = null;
 
@@ -768,6 +788,7 @@ function ReturnForm({
           onSubmit={submit}
           aria-busy={submitting}
         >
+          {recovery.notice}
           <p className="notice">
             Each item's deadline and conditions come
             from this purchase. Your request goes to

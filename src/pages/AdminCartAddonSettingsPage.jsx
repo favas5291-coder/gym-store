@@ -1,3 +1,4 @@
+import useVersionedEditorDraft from "../hooks/useVersionedEditorDraft.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -588,6 +589,12 @@ function SettingsEditor({ token }) {
         JSON.stringify(saved),
   );
 
+  const recovery = useVersionedEditorDraft({
+    kind: "cart-add-on-settings", saved, value: draft, dirty, enabled: Boolean(saved),
+    restore(value) { setDraft(value); setConfirmed(false); },
+    conflict() { setBlocked(true); setError("Add-on settings changed since this draft. Reload the current settings before saving."); },
+  });
+
   const disabled =
     !ready ||
     loading ||
@@ -785,6 +792,7 @@ function SettingsEditor({ token }) {
         return;
       }
 
+      await recovery.clear().catch(() => {});
       setSaved(result);
       setDraft(clone(result));
       setNotice("Cart add-on settings saved.");
@@ -914,6 +922,7 @@ function SettingsEditor({ token }) {
         </p>
       )}
 
+      {recovery.notice}
       {blocked && (
         <p className="gd-admin-test">
           Your draft is preserved. Load the saved

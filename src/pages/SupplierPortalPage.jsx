@@ -42,7 +42,7 @@ export default function SupplierPortalPage() {
     try {
       const data = await action();
       if (request !== epoch.current) return;
-      setWorkspace(data.workspace); setCode(""); setHistory([]); setMessage(success);
+      setWorkspace(data.workspace); setCode(""); setHistory([]); setMessage(success); return true;
     } catch (failure) {
       if (request !== epoch.current) return;
       setError(failure.message);
@@ -79,7 +79,7 @@ export default function SupplierPortalPage() {
     {workspace && available && <section className="gd-supplier-panel">
       <SupplierWorkspaceSummary workspace={workspace} />
       {!workspace.acceptedAgreement && ["pending-verification", "rejected"].includes(workspace.status) &&
-        <SupplierBusinessForm key={workspace.revision} initial={workspace.profile} busy={busy || locked} label={workspace.submittedAt ? "Save & resubmit details" : "Submit business details"}
+        <SupplierBusinessForm key={workspace.revision} workspace={workspace} initial={workspace.profile} busy={busy || locked} label={workspace.submittedAt ? "Save & resubmit details" : "Submit business details"}
           onSubmit={(profile) => mutate(() => api.updateProfile(token, workspace.revision, profile), "Business details submitted for review.")} />}
       <SupplierTerms agreement={workspace.acceptedAgreement || workspace.offeredAgreement} />
       {workspace.offeredAgreement && !workspace.acceptedAgreement && <SupplierAcceptance key={workspace.offeredAgreement.digest} workspace={workspace} busy={busy || locked}

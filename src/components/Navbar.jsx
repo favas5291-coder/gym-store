@@ -272,7 +272,7 @@ function Icon({ name, size = 22 }) {
 }
 
 export function Brand() {
-  return <img className="gn-wordmark" src="/brand/gymdrobe-wordmark-green.png" alt="GymDrobe" />;
+  return <img className="gn-wordmark" srcSet="/brand/gymdrobe-wordmark-green.webp 1x" src="/brand/gymdrobe-wordmark-green.png" alt="GymDrobe" />;
 }
 
 export default function Navbar({
@@ -311,7 +311,7 @@ export default function Navbar({
 
   const [search, setSearch] = useState(
     () =>
-      new URLSearchParams(location.search).get(
+      (storefront && window.history.state?.gymdrobeSearchDraft) || new URLSearchParams(location.search).get(
         "search",
       ) || "",
   );

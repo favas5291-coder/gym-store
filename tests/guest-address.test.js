@@ -83,6 +83,8 @@ const content = (node) =>
     ? node.children.map(content).join(" ")
     : String(node ?? "");
 
+const fixtureJournals = new WeakMap();
+
 async function application({
   local = storage(),
   session = storage(),
@@ -90,6 +92,7 @@ async function application({
   mode = "cart",
   attempt = null,
   file = null,
+  journalBlocked = false,
 } = {}) {
   const filename =
     file ||
@@ -177,6 +180,10 @@ async function application({
     exports: {},
   };
 
+  let recover;
+  let autorestored = false;
+  if (!fixtureJournals.has(local)) fixtureJournals.set(local, new Map());
+  const journals = fixtureJournals.get(local);
   vm.runInNewContext(
     output.code +
       "\nmodule.exports={Checkout};",
@@ -192,6 +199,18 @@ async function application({
       sessionStorage: session,
       AbortController,
 
+      guestAccess: () => ({token:"fixture-guest-grant"}),
+      useEditorRecovery({user, guest, value, dirty, restore, onPersist, autoResume}) {
+        const id = user?.id || user?._id || (guest ? "guest-session" : null);
+        if (journalBlocked) return {notice:h("p",{},"Draft recovery is unavailable."),clear:async()=>{throw Error("Storage blocked");}};
+        if (id && autoResume && !autorestored && !dirty && journals.has(id)) {
+          autorestored=true;
+          restore(clone(journals.get(id)));
+        }
+        if (id && dirty) { journals.set(id, clone(value)); onPersist?.(); }
+        recover = () => { if (id && journals.has(id)) restore(clone(journals.get(id))); };
+        return {notice:dirty?h("p",{},"Draft saved on this device."):null, clear: async () => journals.delete(id)};
+      },
       useState(value) {
         const i = si++;
 
@@ -398,6 +417,7 @@ async function application({
     local,
     session,
 
+    resume() { recover(); },
     edit(value) {
       nodes(render())
         .find(
@@ -405,6 +425,7 @@ async function application({
             node.type === "AddressForm",
         )
         .props.onChange(value);
+      render();
     },
 
     clear() {
@@ -426,7 +447,7 @@ async function application({
         "button",
       );
 
-      button.props.onClick();
+      return button.props.onClick();
     },
 
     unmount() {
@@ -483,7 +504,7 @@ test(
       JSON.stringify(delivery),
     );
 
-    const before = local.getItem(guestKey);
+    assert.ok(local.getItem(guestKey));
 
     const app = await application({
       local,
@@ -499,7 +520,7 @@ test(
 
     assert.equal(
       local.getItem(guestKey),
-      before,
+      null,
     );
 
     const remounted = await application({
@@ -588,7 +609,7 @@ test(
 );
 
 test(
-  "a blocked local store falls back to the tab copy after a full remount",
+  "a blocked local store still permits recovery with the guest grant and encrypted journal",
   async () => {
     const local = storage(true);
     const session = storage();
@@ -602,7 +623,7 @@ test(
 
     assert.match(
       content(app.render()),
-      /saved in this tab/,
+      /Draft saved on this device/,
     );
 
     app.unmount();
@@ -735,6 +756,8 @@ test(
         fullName: "Account Customer",
       });
 
+      assert.equal(account.address().fullName, "Account Customer");
+      assert.equal(local.getItem("gymdrobe-checkout-address:" + (user.id || user._id)), null);
       account.unmount();
 
       const restored = await application({
@@ -743,6 +766,8 @@ test(
         user,
       });
 
+      restored.address();
+      restored.resume();
       assert.equal(
         restored.address().fullName,
         "Account Customer",
@@ -786,7 +811,7 @@ test(
       session,
     });
 
-    app.clear();
+    await app.clear();
 
     assert.deepEqual(
       app.address(),
@@ -827,6 +852,7 @@ test(
     const app = await application({
       local: storage(true),
       session: storage(true),
+      journalBlocked: true,
     });
 
     app.edit(delivery);
@@ -838,10 +864,10 @@ test(
 
     assert.match(
       content(app.render()),
-      /may be lost after refreshing/,
+      /Draft recovery is unavailable/,
     );
 
-    app.clear();
+    await app.clear();
 
     assert.deepEqual(
       app.address(),
@@ -850,7 +876,7 @@ test(
 
     assert.match(
       content(app.render()),
-      /prevented permanently clearing/,
+      /saved copy could not be removed/,
     );
 
     app.unmount();

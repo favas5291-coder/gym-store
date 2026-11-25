@@ -1,3 +1,4 @@
+import useVersionedEditorDraft from "../hooks/useVersionedEditorDraft.js";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -857,6 +858,13 @@ function LocationEditor({ token, initial, onClose }) {
   const [supplierData, setSupplierData] = useState(null);
   const [supplierError, setSupplierError] = useState("");
 
+  const editorValue = draft;
+  const recovery = useVersionedEditorDraft({
+    kind: "packing-location", saved, value: editorValue, dirty,
+    restore(value) { setDraft(value); setDirty(true); setAcknowledged(false); setTransferAcknowledged(false); },
+    conflict() { setBlocked(true); setError("The saved record changed after this draft. Review the latest record before applying your edits."); },
+  });
+
   const mounted = useRef(false);
   const lock = useRef(false);
   const controller = useRef(null);
@@ -1064,6 +1072,7 @@ function LocationEditor({ token, initial, onClose }) {
 
       if (!mounted.current) return;
 
+      await recovery.clear().catch(() => {});
       setSaved(clone(result));
       setDraft(clone({ ...blank(), ...result }));
       setDirty(false);
@@ -1153,6 +1162,7 @@ function LocationEditor({ token, initial, onClose }) {
               "Leave this editor? Unsaved changes will be discarded. Check the list for any uncertain save.",
             )
           ) {
+            void recovery.clear().catch(() => {});
             onClose();
           }
         }}
@@ -1160,6 +1170,7 @@ function LocationEditor({ token, initial, onClose }) {
         Back to locations
       </button>
 
+      {recovery.notice}
       <h2>{saved ? saved.name : "New packing location"}</h2>
 
       {saved && (

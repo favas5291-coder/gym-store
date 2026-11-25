@@ -31,14 +31,14 @@ export default function GetApp({ showPromotion }) {
     </button>
     <dialog ref={dialog} className="get-app-dialog" aria-labelledby="get-app-title" onClose={() => trigger.current?.focus()}>
       <button className="get-app-close" type="button" aria-label="Close Get App" onClick={() => dialog.current.close()}><X size={20} /></button>
-      <img src="/brand/external/gymdrobe-app-icon-1024.png" alt="GymDrobe app icon" width="72" height="72" />
+      <img loading="lazy" decoding="async" srcSet="/brand/app-icon-192.webp 192w" sizes="88px" src="/brand/external/gymdrobe-app-icon-1024.png" alt="GymDrobe app icon" width="72" height="72" />
       <h2 id="get-app-title">Get GymDrobe</h2>
       <p>Scan on your phone for installation instructions.</p>
-      <img src="/brand/gymdrobe-install-qr.svg" alt="QR code for gymdrobe.com/install" width="152" height="152" />
+      <img loading="lazy" decoding="async" src="/brand/gymdrobe-install-qr.svg" alt="QR code for gymdrobe.com/install" width="152" height="152" />
       <Link to="/install" onClick={() => dialog.current.close()}>iPhone and Android home-screen instructions</Link>
     </dialog>
     {showPromotion && !dismissed && <aside className="get-app-promotion" aria-label="GymDrobe app">
-      <img src="/brand/gymdrobe-install-qr.svg" alt="" width="64" height="64" />
+      <img loading="lazy" decoding="async" src="/brand/gymdrobe-install-qr.svg" alt="" width="64" height="64" />
       <Link to="/install">Get GymDrobe<br /> <small>Scan or open install options</small></Link>
       <button type="button" aria-label="Dismiss app promotion" onClick={dismissPromotion}><X size={16} /></button>
     </aside>}

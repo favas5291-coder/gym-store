@@ -1,13 +1,32 @@
-import { useLayoutEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
+import { nativeResumeKey, resumableRoute } from "./resumeRoute.js";
+import { useLayoutEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { isNativeApp, nativeRouteFromUrl, nativeRouteFromEvent } from "./platform.js";
 import { clearInterruptedNativePayment, interruptedNativePayment, nativePaymentActive } from "./payment.js";
 import "./native.css";
 
 export default function NativeAppController() {
   const navigate = useNavigate();
+  const { user, loading, authError } = useAuth();
+  const { pathname, search } = useLocation();
+  const [ordinaryLaunch, setOrdinaryLaunch] = useState(false);
+  const startupHandled = useRef(false);
+  const route = useRef(null);
+  route.current = loading || authError ? null : {key:nativeResumeKey(user), role:user?.role, path:pathname + search};
   const navigation = useRef(navigate);
   navigation.current = navigate;
+  useLayoutEffect(() => {
+    if (!ordinaryLaunch || loading || authError || startupHandled.current) return;
+    startupHandled.current = true;
+    if (location.pathname !== "/" || location.search || location.hash || nativePaymentActive()) return;
+    try {
+      const key = nativeResumeKey(user);
+      const last = resumableRoute(localStorage.getItem(key), user?.role);
+      if (last) navigation.current(last, { replace: true });
+    } catch { /* Storage is optional during launch. */ }
+  }, [ordinaryLaunch, loading, authError, user]);
+
   useLayoutEffect(() => {
     const go = (...args) => navigation.current(...args);
     if (!isNativeApp()) return;
@@ -19,7 +38,20 @@ export default function NativeAppController() {
       if (disposed) await handle.remove();
       else listeners.push(handle);
     };
+    function remember() {
+      const active = route.current;
+      if (!active) return;
+      try {
+        const path = resumableRoute(active.path, active.role);
+        if (path) localStorage.setItem(active.key, path);
+        else localStorage.removeItem(active.key);
+      } catch { /* Keep in-memory navigation available. */ }
+    }
+    const hidden = () => { if (document.hidden) remember(); };
+    document.addEventListener("visibilitychange", hidden);
+    window.addEventListener("pagehide", remember);
     const openLink = (event) => {
+      startupHandled.current = true;
       const route = nativeRouteFromEvent(event);
       const blocked = nativePaymentActive();
       if (window.Capacitor?.DEBUG) console.info("Native route decision", JSON.stringify({ eventType: typeof event, route: route?.split("?")[0] || null, blocked }));
@@ -44,6 +76,7 @@ export default function NativeAppController() {
       const { App } = await import("@capacitor/app");
       if (disposed) return;
       await listen(App, "appUrlOpen", openLink);
+      await listen(App, "pause", remember);
       // A keyboard plugin failure must not stop app links or payment recovery.
       import("@capacitor/keyboard").then(async ({ Keyboard }) => {
         await listen(Keyboard, "keyboardWillShow", () => document.documentElement.classList.add("native-keyboard-open"));
@@ -76,6 +109,7 @@ export default function NativeAppController() {
           window.dispatchEvent(new Event("gymdrobe-camera-interrupted"));
         }
         if (result.pluginId === "GymDrobeCheckout") {
+          startupHandled.current = true;
           clearInterruptedNativePayment();
           go("/checkout", { replace: true });
         }
@@ -86,6 +120,7 @@ export default function NativeAppController() {
         clearInterruptedNativePayment();
         go("/checkout", { replace: true });
       } else if (launched?.url) openLink(launched);
+      else setOrdinaryLaunch(true);
       const { SplashScreen } = await import("@capacitor/splash-screen");
       await SplashScreen.hide();
     }
@@ -94,6 +129,8 @@ export default function NativeAppController() {
     });
     return () => {
       disposed = true;
+      window.removeEventListener("pagehide", remember);
+      document.removeEventListener("visibilitychange", hidden);
       document.removeEventListener("click", externalLink);
       for (const handle of listeners) handle.remove();
     };

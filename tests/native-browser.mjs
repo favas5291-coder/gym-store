@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { startStorefrontFixture, mockStorefront } from "./storefront-fixture.mjs";
+import { startStorefrontFixture, mockStorefront, fixtureProductId } from "./storefront-fixture.mjs";
 const { chromium } = await import(process.env.GYMDROBE_PLAYWRIGHT_MODULE || "playwright");
 const f = await startStorefrontFixture(4216);
 const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"], ...(process.env.GYMDROBE_CHROMIUM_PATH ? { executablePath: process.env.GYMDROBE_CHROMIUM_PATH } : {}) });
@@ -131,6 +131,14 @@ try {
     await page.waitForURL(/\/checkout/);
     const after = await page.evaluate(() => window.__nativeCalls.filter((call) => call.plugin === "GymDrobeCheckout").length);
     assert.equal(after, before);
+  });
+  await check("a fresh native WebView restores a backgrounded product without replaying private query values", async () => {
+    await page.goto(f.url+"/product/"+fixtureProductId+"?size=M&debug=unrelated");
+    await page.waitForFunction(()=>Boolean(window.__nativeListeners.pause));
+    await page.evaluate(()=>window.__nativeListeners.pause());
+    await page.goto(f.url+"/");
+    await page.waitForURL(url=>url.pathname==="/product/"+fixtureProductId && url.searchParams.get("size")==="M");
+    assert.equal(new URL(page.url()).searchParams.has("debug"),false);
   });
   await check("no uncaught native-adapter UI errors", async () => assert.deepEqual(errors, []));
 } finally {

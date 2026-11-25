@@ -1,3 +1,4 @@
+import useVersionedEditorDraft from "../hooks/useVersionedEditorDraft.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -12,16 +13,26 @@ function OfferForm({ workspace, busy, onSubmit, onError }) {
   const [draft, setDraft] = useState(() => ({ title: "90-day supplier trial", text: "", percentage: "",
     shippingResponsibility: "", gatewayFeeResponsibility: "", returnResponsibility: "",
     effectiveFrom: dateInput(new Date()), offerExpiresAt: dateInput(new Date(Date.now() + 7 * 86400000)) }));
+  const [baseline] = useState(draft);
+  const [stale, setStale] = useState(false);
+  const recovery = useVersionedEditorDraft({
+    kind:"supplier-commercial-offer",saved:workspace,value:draft,dirty:draft!==baseline,
+    restore:setDraft,conflict:()=>setStale(true),
+  });
   const update = (key, value) => setDraft((old) => ({ ...old, [key]: value }));
-  return <form className="gd-supplier-section" onSubmit={(event) => {
+  return <form className="gd-supplier-section" onSubmit={async (event) => {
     event.preventDefault();
     try {
       const { percentage, ...terms } = draft;
-      onSubmit({ ...terms, commissionBps: commissionBps(percentage),
+      if (stale) return;
+      const saved = await onSubmit({ ...terms, commissionBps: commissionBps(percentage),
         effectiveFrom: new Date(terms.effectiveFrom).toISOString(), offerExpiresAt: new Date(terms.offerExpiresAt).toISOString() });
+      if (saved) await recovery.clear().catch(() => {});
     } catch (error) { onError(error.message); }
   }}>
-    <fieldset className="gd-supplier-fields" disabled={busy}>
+    {recovery.notice}
+    {stale && <p role="alert">This supplier record changed. <button type="button" onClick={()=>{setDraft(baseline);setStale(false);void recovery.clear().catch(()=>{});}}>Start from the current offer</button></p>}
+    <fieldset className="gd-supplier-fields" disabled={busy || stale}>
       <legend>{workspace.offeredAgreement ? "Replace the unaccepted offer" : "Prepare a commercial offer"}</legend>
       <p>Enter the proposed agreement in full. The supplier must explicitly accept it. Joining and monthly fees stay at ₹0 for the 90-day trial.</p>
       <label className="gd-supplier-field">Agreement title<input required maxLength={150} value={draft.title} onChange={(e) => update("title", e.target.value)} /></label>
@@ -107,7 +118,7 @@ export default function AdminSupplierOnboardingPage() {
       setRows((old) => old.some((row) => row.id === data.workspace.id)
         ? old.map((row) => row.id === data.workspace.id ? data.workspace : row)
         : [data.workspace, ...old].slice(0, 20));
-      setInvitation(data.invitation || null); setHistory([]); setMessage(success);
+      setInvitation(data.invitation || null); setHistory([]); setMessage(success); return true;
     } catch (failure) {
       if (request !== epoch.current) return;
       setError(failure.message);

@@ -1,7 +1,10 @@
+import useEditorRecovery from "../hooks/useEditorRecovery.jsx";
 import {
   useCallback,
   useEffect,
   useState,
+  useRef,
+  useMemo,
 } from "react";
 
 import {
@@ -305,6 +308,18 @@ export default function AddressesPage() {
 
 
   // ====================================================
+  const originalAddress = useRef(null);
+  const recoveryValue = useMemo(() => ({ address: editing, original: originalAddress.current }), [editing]);
+  const recovery = useEditorRecovery({user, token, entity: ["address", getAddressId(editing) || "new"], value: recoveryValue,
+    dirty: Boolean(editing && originalAddress.current && JSON.stringify(editing) !== JSON.stringify(originalAddress.current)),
+    restore(saved) {
+      if (editing?.id && JSON.stringify(addressPayload(editing)) !== JSON.stringify(addressPayload(saved.original))) {
+        setError("This address changed since the draft was saved. Review the latest address first."); return;
+      }
+      originalAddress.current = saved.original;
+      setEditing(saved.address);
+    },
+  });
   // LOAD ADDRESSES
   // ====================================================
 
@@ -417,7 +432,7 @@ export default function AddressesPage() {
   // ====================================================
 
   function addNewAddress() {
-    setEditing({
+    const initial = {
       ...EMPTY_ADDRESS,
 
       fullName:
@@ -435,7 +450,9 @@ export default function AddressesPage() {
       isDefault:
         addresses.length ===
         0,
-    });
+    };
+    originalAddress.current = initial;
+    setEditing(initial);
 
 
     setErrors(
@@ -455,7 +472,7 @@ export default function AddressesPage() {
   function editAddress(
     address
   ) {
-    setEditing({
+    const initial = {
       ...EMPTY_ADDRESS,
       ...address,
 
@@ -463,7 +480,9 @@ export default function AddressesPage() {
         getAddressId(
           address
         ),
-    });
+    };
+    originalAddress.current = initial;
+    setEditing(initial);
 
 
     setErrors(
@@ -488,6 +507,7 @@ export default function AddressesPage() {
     }
 
 
+    void recovery.clear().catch(() => {});
     setEditing(
       null
     );
@@ -590,6 +610,7 @@ export default function AddressesPage() {
       }
 
 
+      await recovery.clear().catch(() => {});
       await loadAddresses(
         true
       );
@@ -1156,6 +1177,7 @@ export default function AddressesPage() {
           ADDRESS MODAL
       =============================================== */}
 
+      {!editing && recovery.notice}
       {editing && (
         <Modal
           title={
@@ -1169,6 +1191,7 @@ export default function AddressesPage() {
             closeEditor
           }
         >
+          {recovery.notice}
           <form
             onSubmit={
               save

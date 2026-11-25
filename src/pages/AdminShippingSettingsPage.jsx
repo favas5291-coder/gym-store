@@ -1,5 +1,7 @@
+import useEditorRecovery from "../hooks/useEditorRecovery.jsx";
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -419,7 +421,7 @@ function CategoryChoices({
 }
 
 export default function AdminShippingSettingsPage() {
-  const { token } = useAuth();
+  const { user, token } = useAuth();
 
   const [saved, setSaved] =
     useState(null);
@@ -466,7 +468,18 @@ export default function AdminShippingSettingsPage() {
 
   session.current = token;
 
+  const original = useRef(null);
+  const recoveryValue = useMemo(() => ({ draft, amount, eligiblePins, excludedPins, version: saved?.version }), [draft, amount, eligiblePins, excludedPins, saved?.version]);
+  const recovery = useEditorRecovery({user, token, entity: saved ? ["shipping-settings"] : null, value: recoveryValue,
+    dirty: Boolean(draft && original.current !== JSON.stringify(recoveryValue)), restore(data) {
+      if (data.version !== saved.version) { setError("Shipping settings changed since this draft. Review the current offer before saving."); setReloadRequired(true); }
+      setDraft(data.draft); setAmount(data.amount); setEligiblePins(data.eligiblePins); setExcludedPins(data.excludedPins);
+    },
+  });
+
   function install(value) {
+    original.current = JSON.stringify({ draft: value.freeShipping, amount: (value.freeShipping.minimumSubtotalPaise / 100).toFixed(2),
+      eligiblePins: value.freeShipping.eligiblePincodes.join("\n"), excludedPins: value.freeShipping.excludedPincodes.join("\n"), version: value.version });
     setSaved(value);
 
     setDraft(
@@ -643,6 +656,7 @@ export default function AdminShippingSettingsPage() {
         return;
       }
 
+      await recovery.clear().catch(() => {});
       install(result);
 
       setNotice(
@@ -769,6 +783,7 @@ export default function AdminShippingSettingsPage() {
         </p>
       )}
 
+      {recovery.notice}
       {offer && saved && (
         <form
           onSubmit={submit}

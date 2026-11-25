@@ -44,6 +44,8 @@ export default function AuthProvider({ children }) {
   const [storageReady, setStorageReady] = useState(false);
   const tokenRef = useRef(token);
   const sessionRevision = useRef(0);
+  const verifiedToken = useRef(null);
+  const checkingToken = useRef(null);
   const googleLoginBusy = useRef(false);
 
   const retrySession = useCallback(() => {
@@ -52,6 +54,7 @@ export default function AuthProvider({ children }) {
 
   useEffect(() => {
     let active = true;
+    let resumeTimer;
     async function syncSavedSession(event) {
       if (event.type === "storage" && event.key !== TOKEN_KEY && event.key !== null) return;
       if (document.visibilityState === "hidden") return;
@@ -66,6 +69,7 @@ export default function AuthProvider({ children }) {
       if (!active || revision !== sessionRevision.current) return;
       if (savedToken !== tokenRef.current) {
         sessionRevision.current += 1;
+        verifiedToken.current = null;
         tokenRef.current = savedToken;
         setUser(null);
         setAuthError(null);
@@ -74,19 +78,24 @@ export default function AuthProvider({ children }) {
         setToken(savedToken);
       } else if (savedToken && (authError || ["online", "focus", "visibilitychange"].includes(event.type) || (event.type === "pageshow" && event.persisted))) {
         // Retry verification on reconnect/return, never trust a cached user alone.
-        retrySession();
+        clearTimeout(resumeTimer);
+        resumeTimer = setTimeout(() => {
+          if (active && tokenRef.current === savedToken && checkingToken.current !== savedToken) retrySession();
+        }, 60);
       }
     }
     for (const type of ["online", "focus", "pageshow", "storage"]) window.addEventListener(type, syncSavedSession);
     document.addEventListener("visibilitychange", syncSavedSession);
     return () => {
       active = false;
+      clearTimeout(resumeTimer);
       for (const type of ["online", "focus", "pageshow", "storage"]) window.removeEventListener(type, syncSavedSession);
       document.removeEventListener("visibilitychange", syncSavedSession);
     };
   }, [retrySession, authError]);
 
   useEffect(() => {
+    if (storageReady) return;
     let cancelled = false;
     const revision = sessionRevision.current;
     sessionStorage().read().then((stored) => {
@@ -100,7 +109,7 @@ export default function AuthProvider({ children }) {
       setLoading(false);
     });
     return () => { cancelled = true; };
-  }, [restoreAttempt]);
+  }, [restoreAttempt, storageReady]);
 
   useEffect(() => {
     if (!storageReady) return;
@@ -114,7 +123,9 @@ export default function AuthProvider({ children }) {
         return;
       }
 
-      setLoading(true);
+      const background = verifiedToken.current === token;
+      checkingToken.current = token;
+      if (!background) setLoading(true);
       setAuthError(null);
 
       try {
@@ -128,6 +139,7 @@ export default function AuthProvider({ children }) {
           throw new Error("Unable to restore your account.");
         }
 
+        verifiedToken.current = token;
         setUser(data.user);
       } catch (error) {
         if (cancelled || tokenRef.current !== token) {
@@ -142,10 +154,11 @@ export default function AuthProvider({ children }) {
           sessionRevision.current += 1;
           tokenRef.current = null;
 
+          verifiedToken.current = null;
           setToken(null);
           setUser(null);
           setAuthError(null);
-        } else {
+        } else if (!background) {
           // Preserve the session during temporary connection failures.
           setAuthError(
             error.message || "Unable to verify your session. Please retry."
@@ -153,6 +166,7 @@ export default function AuthProvider({ children }) {
         }
       } finally {
         if (!cancelled && tokenRef.current === token) {
+          checkingToken.current = null;
           setLoading(false);
         }
       }
@@ -216,6 +230,7 @@ export default function AuthProvider({ children }) {
 
     sessionRevision.current += 1;
     tokenRef.current = data.token;
+    verifiedToken.current = data.token;
 
     setToken(data.token);
     setUser(data.user);
@@ -332,6 +347,7 @@ export default function AuthProvider({ children }) {
 
     sessionRevision.current += 1;
     tokenRef.current = null;
+    verifiedToken.current = null;
 
     setToken(null);
     setUser(null);

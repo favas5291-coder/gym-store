@@ -268,3 +268,14 @@ export function getAppleChallenge() { return request("/auth/apple/challenge"); }
 export function loginWithApple(credentials) { return request("/auth/apple", { method: "POST", body: credentials }); }
 export function getDeletionPolicy(token) { requireToken(token); return request("/auth/account-deletion", { token }); }
 export function deleteAccount(token, confirmation) { requireToken(token); return request("/auth/account-deletion", { method: "DELETE", token, body: { confirmation } }); }
+
+const pendingDraftKeys = new Map();
+
+export function getEditorDraftKey(token) {
+  requireToken(token);
+  if (!pendingDraftKeys.has(token)) {
+    const fetchKey = request("/auth/draft-key", { token }).finally(() => pendingDraftKeys.delete(token));
+    pendingDraftKeys.set(token, fetchKey);
+  }
+  return pendingDraftKeys.get(token);
+}

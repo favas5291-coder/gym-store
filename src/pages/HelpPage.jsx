@@ -1,4 +1,5 @@
-import { useRef, useState, useEffect } from "react";
+import useEditorRecovery from "../hooks/useEditorRecovery.jsx";
+import { useRef, useState, useEffect, useMemo } from "react";
 import { Link, useSearchParams, useLocation } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext.jsx";
@@ -66,6 +67,13 @@ export default function HelpPage() {
 
   const lock = useRef(false);
   const pending = useRef(null);
+  const requestId = useRef(crypto.randomUUID());
+  const recoveryValue = useMemo(() => ({ form, requestId: requestId.current }), [form]);
+  const recovery = useEditorRecovery({user, token, entity: ["support", params.get("order") || "", params.get("product") || ""],
+    value: recoveryValue, dirty: Boolean(form.subject || form.message), restore(saved) {
+      requestId.current = saved.requestId; pending.current = null; setForm(saved.form);
+    },
+  });
   const session = useRef(token);
 
   session.current = token;
@@ -96,7 +104,7 @@ export default function HelpPage() {
       if (!pending.current || pending.current.signature !== signature) {
         pending.current = {
           signature,
-          requestId: crypto.randomUUID(),
+          requestId: requestId.current,
         };
       }
 
@@ -116,6 +124,8 @@ export default function HelpPage() {
         `Request sent. Ticket ID: ${data.ticket.id}. Check Your requests below for replies.`,
       );
 
+      await recovery.clear().catch(() => {});
+      requestId.current = crypto.randomUUID();
       setForm((value) => ({
         ...value,
         subject: "",
@@ -224,6 +234,7 @@ export default function HelpPage() {
             <p>Account email: {user.email}</p>
 
             <form onSubmit={submit}>
+              {recovery.notice}
               <fieldset
                 disabled={busy}
                 style={{

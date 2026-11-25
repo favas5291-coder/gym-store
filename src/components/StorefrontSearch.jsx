@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, ChevronRight, Clock3, Mic, Search, Tag, X } from "lucide-react";
 import { useCatalog } from "../context/CatalogContext.jsx";
 import { productDepartment, normalizeCatalogText } from "../utils/catalog.js";
-import { createSearchIndex, matchingOffer, searchCatalogue } from "../utils/smartSearch.js";
+import { indexForCatalogue, matchingOffer, searchCatalogue } from "../utils/smartSearch.js";
 import PhotoSearchButton from "./PhotoSearchButton.jsx";
 import { ProductImage } from "./StorefrontShared.jsx";
 import "./StorefrontSearch.css";
@@ -135,7 +135,7 @@ export default function StorefrontSearch({
   value, onChange, onSubmit, onRemember, recent, onClearHistory, onRemoveRecent,
   onOpen, onDismiss, routeKey, placeholder,
 }) {
-  const { products, loading, error, refreshing, refreshProducts } = useCatalog();
+  const { products, homeProducts, ensureProducts, loading, error, refreshing, refreshProducts } = useCatalog();
   const navigate = useNavigate();
   const root = useRef(null);
   const input = useRef(null);
@@ -148,9 +148,10 @@ export default function StorefrontSearch({
   const [active, setActive] = useState(-1);
   const [space, setSpace] = useState(null);
   const query = value.trim();
-  const index = useMemo(() => open ? createSearchIndex(products) : null, [open, products]);
+  const hintProducts = products.length ? products : homeProducts;
+  const index = useMemo(() => open ? indexForCatalogue(hintProducts) : null, [open, hintProducts]);
   const result = useMemo(() => query && index ? searchCatalogue(index, query, { limit: 4 }) : null, [index, query]);
-  const categories = useMemo(() => categorySuggestions(products), [products]);
+  const categories = useMemo(() => categorySuggestions(hintProducts), [hintProducts]);
   const [interacted, setInteracted] = useState(false);
   const showHint = !open && !value && categories.length > 0;
   const waiting = !products.length && (loading || refreshing);
@@ -233,6 +234,7 @@ export default function StorefrontSearch({
 
   function activate() {
     if (!open) {
+      ensureProducts();
       entryScroll.current = [window.scrollX, window.scrollY];
       setInteracted(true);
       onOpen();
@@ -261,6 +263,19 @@ export default function StorefrontSearch({
       // Some browser modes restrict history writes; navigating to the product still works.
     }
   }
+
+  useEffect(() => {
+    if (!open) return;
+    const hidden = () => { if (document.hidden) saveDraft(); };
+    const timer = setTimeout(saveDraft, 160);
+    document.addEventListener("visibilitychange", hidden);
+    window.addEventListener("pagehide", saveDraft);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", hidden);
+      window.removeEventListener("pagehide", saveDraft);
+    };
+  }, [open, value]);
 
   function finish() {
     saveDraft();
@@ -357,7 +372,7 @@ export default function StorefrontSearch({
         </div>}
       </div>
       <div className="gs-scroll" ref={list}>
-        {waiting && <p className="gs-message" role="status">Loading products…</p>}
+        {waiting && !(query ? result?.matches.length : categories.length || recent.length) && <p className="gs-message" role="status">Loading products…</p>}
         {unavailable && <div className="gs-message" role="status">Couldn’t load products.
           <button type="button" onClick={() => refreshProducts()}>Retry</button>
         </div>}

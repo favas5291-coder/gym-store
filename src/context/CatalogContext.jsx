@@ -19,6 +19,7 @@ import {
 import {
   createProduct,
   getProducts,
+  getProductPage,
   updateProduct,
 } from "../services/productApi.js";
 
@@ -254,6 +255,8 @@ export default function CatalogProvider({
 }) {
   const { user, token } = useAuth();
   const { pathname } = useLocation();
+  // These workspaces load their own authoritative records and options.
+  const separateCatalogue = /^\/supplier(?:\/|$)|^\/admin\/marketplace(?:\/|$)/.test(pathname);
 
   const [products, setProducts] = useState([]);
 
@@ -275,6 +278,8 @@ export default function CatalogProvider({
   const loadedRef = useRef(false);
   const lastRefresh = useRef(0);
   const previousPath = useRef(null);
+  const preview = useRef(null);
+  const [homeProducts, setHomeProducts] = useState([]);
 
   const saveLock = useRef(false);
 
@@ -292,7 +297,25 @@ export default function CatalogProvider({
     };
   }, []);
 
-  const refreshProducts = useCallback(() => {
+  // A partial homepage catalogue may suggest categories, but must never
+  // reconcile a cart, mark a wishlist item unavailable or validate a price.
+  const firstPage = useCallback(() => {
+    if (!preview.current) {
+      const pending = getProductPage().then(page => {
+        if (mounted.current && preview.current === pending && !loadedRef.current) {
+          setHomeProducts(page.products.map(normalizeProduct).filter(product => product?.isActive));
+        }
+        return page;
+      }).catch(failure => {
+        if (preview.current === pending) preview.current = null;
+        throw failure;
+      });
+      preview.current = pending;
+    }
+    return preview.current;
+  }, []);
+
+  const refreshProducts = useCallback((continuePreview = false) => {
     // Share a running request instead of starting
     // duplicate catalogue requests.
     if (
@@ -316,7 +339,20 @@ export default function CatalogProvider({
 
     const promise = (async () => {
       try {
-        const data = await getProducts();
+        let data;
+        if (continuePreview === true && !loadedRef.current) {
+          let page = await firstPage();
+          data = [...page.products];
+          let previous = "";
+          while (page.nextCursor) {
+            if (page.nextCursor <= previous) throw new Error("Catalogue changed. Please retry.");
+            previous = page.nextCursor;
+            page = await getProductPage(previous);
+            data.push(...page.products);
+          }
+        } else {
+          data = await getProducts();
+        }
 
         if (!Array.isArray(data)) {
           throw new Error(
@@ -341,6 +377,8 @@ export default function CatalogProvider({
 
         productsRef.current = next;
         loadedRef.current = true;
+        preview.current = null;
+        setHomeProducts([]);
 
         lastRefresh.current = Date.now();
 
@@ -385,7 +423,25 @@ export default function CatalogProvider({
     };
 
     return promise;
-  }, []);
+  }, [firstPage]);
+
+  const ensureProducts = useCallback(() => {
+    if (loadedRef.current || error) return Promise.resolve(productsRef.current);
+    return refreshProducts(pathname === "/" || Boolean(preview.current));
+  }, [pathname, refreshProducts, error]);
+
+  const loadHomePreview = useCallback(() => {
+    firstPage().then(page => {
+      if (mounted.current && !loadedRef.current && page.nextCursor === null) {
+        refreshProducts(true);
+      }
+    }).catch(failure => {
+      if (mounted.current && !loadedRef.current && !inFlight.current) {
+        setError(failure.message || "Unable to load products.");
+        setLoading(false);
+      }
+    });
+  }, [firstPage, refreshProducts]);
 
   useEffect(() => {
     const before = previousPath.current;
@@ -407,12 +463,14 @@ export default function CatalogProvider({
         )
       );
 
-    if (needsRefresh) {
-      refreshProducts();
+    if (!separateCatalogue && needsRefresh) {
+      if (pathname === "/" && !loadedRef.current) loadHomePreview();
+      else refreshProducts(Boolean(preview.current) && !availabilityRoute(pathname));
     }
-  }, [pathname, refreshProducts]);
+  }, [pathname, separateCatalogue, refreshProducts, loadHomePreview]);
 
   useEffect(() => {
+    if (separateCatalogue) return;
     let timer;
 
     function scheduleRefresh(event) {
@@ -442,7 +500,10 @@ export default function CatalogProvider({
       clearTimeout(timer);
 
       timer = setTimeout(() => {
-        refreshProducts();
+        if (pathname === "/" && !loadedRef.current && !inFlight.current) {
+          if (force) preview.current = null;
+          loadHomePreview();
+        } else refreshProducts();
       }, 150);
     }
 
@@ -526,7 +587,7 @@ export default function CatalogProvider({
         scheduleRefresh,
       );
     };
-  }, [refreshProducts]);
+  }, [pathname, refreshProducts, separateCatalogue, loadHomePreview]);
 
   const getLatestProducts = useCallback(
     () => productsRef.current,
@@ -695,6 +756,8 @@ export default function CatalogProvider({
   const value = useMemo(
     () => ({
       products,
+      homeProducts,
+      ensureProducts,
       loading,
       loaded,
       refreshing,
@@ -710,6 +773,8 @@ export default function CatalogProvider({
     }),
     [
       products,
+      homeProducts,
+      ensureProducts,
       loading,
       loaded,
       refreshing,

@@ -80,8 +80,11 @@ try {
     if (process.env.PERFORMANCE_ASSERT === '1') {
       assert.equal(mock.requests.filter(({ path, method }) => path === '/api/products' && method === 'GET').length, 1, 'Catalogue startup and React must share a single request');
     }
+    const checkShift = route === '/shop' || (width === 390 && ['/shop?search=training','/cart','/login'].includes(route));
+    if (process.env.PERFORMANCE_ASSERT === '1' && checkShift) {
+      assert.ok(metrics.cls <= 0.1, `Layout shift exceeded target on ${route}: ${JSON.stringify(metrics.shifts)}`);
+    }
     if (process.env.PERFORMANCE_ASSERT === '1' && route === '/shop') {
-      assert.ok(metrics.cls <= 0.1, `Shop layout shift exceeded target: ${JSON.stringify(metrics)}`);
       assert.equal(metrics.alternateImages, 0, 'Hidden alternate photos must not load without intent');
       if (width === 1440) {
         await page.locator('.gm-product-card').first().hover();

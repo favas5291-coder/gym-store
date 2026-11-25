@@ -1,3 +1,4 @@
+import useFulfilmentDraft from "../hooks/useFulfilmentDraft.jsx";
 import AdminKitFulfillment from "../components/AdminKitFulfillment.jsx";
 import PurchasedKitSummary from "../components/PurchasedKitSummary.jsx";
 import AdminItemSourcing from "../components/AdminItemSourcing.jsx";
@@ -146,6 +147,14 @@ function customerEmail(order) {
   );
 }
 
+const trackingFields = {
+  carrier: "Courier", trackingNumber: "Tracking number", estimatedDelivery: "Estimated delivery",
+  courierUrl: "Tracking link", trackingNotice: "Tracking notice", trackingMessage: "Tracking message",
+};
+function trackingValues(draft) {
+  return Object.fromEntries(Object.keys(trackingFields).map(key => [key, draft[key]]));
+}
+
 function createDraft(order) {
   return {
     status: order?.status || "confirmed",
@@ -283,16 +292,10 @@ function AdminOrderCard({
     }
 
     if (expanded) {
-      if (
-        JSON.stringify(draft) !==
-          JSON.stringify(createDraft(current)) &&
-        !window.confirm(
-          "Discard the unsaved order changes?",
-        )
-      ) {
-        return;
+      if (JSON.stringify(draft) !== JSON.stringify(createDraft(current))) {
+        if (!window.confirm("Discard the unsaved order changes?")) return;
+        if (detailsReady) await trackingRecovery.clear().catch(() => {});
       }
-
       setExpanded(false);
       return;
     }
@@ -354,6 +357,13 @@ function AdminOrderCard({
   }
 
   const current = detailedOrder || order;
+  const originalTracking = trackingValues(createDraft(current));
+  const trackingRecovery = useFulfilmentDraft({
+    entity: expanded && detailsReady ? ["admin-order-tracking", id] : null,
+    revision: current.updatedAt || JSON.stringify([current.status, originalTracking]),
+    fields: trackingValues(draft), original: originalTracking, labels: trackingFields,
+    restore(changes) { setDraft(previous => ({ ...previous, ...changes })); },
+  });
 
   const cancelled =
     current?.status === "cancelled";
@@ -518,6 +528,8 @@ function AdminOrderCard({
         );
       }
 
+      await trackingRecovery.clear().catch(() => {});
+      if (!mounted.current) return;
       setDetailedOrder(updated);
       setDraft(createDraft(updated));
       onUpdated(updated);
@@ -1078,6 +1090,7 @@ function AdminOrderCard({
                       maxWidth: "720px",
                     }}
                   >
+                    {trackingRecovery.notice}
                     <div className="field">
                       <label htmlFor={`status-${id}`}>
                         Order status

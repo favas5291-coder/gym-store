@@ -20,6 +20,20 @@ export function responsiveProductImage(source) {
   try {
     const url = new URL(source);
 
+    // This catalogue CDN carries the square packshot size in its path.
+    // Retain its existing format, background, crop and product identifier.
+    if (url.origin === "https://images.puma.com" && !url.username && !url.password && !url.search && !url.hash) {
+      const match = url.pathname.match(/^\/image\/upload\/f_auto,q_auto,b_rgb:[a-f0-9]{6},w_(\d+),h_\1\/global\//i);
+      if (match) {
+        const original = Number(match[1]);
+        return WIDTHS.filter(width => width <= original).map(width => {
+          const candidate = new URL(url);
+          candidate.pathname = candidate.pathname.replace(/,w_\d+,h_\d+\//, ",w_" + width + ",h_" + width + "/");
+          return candidate.href + " " + width + "w";
+        }).join(", ") || null;
+      }
+    }
+
     const supportedPath =
       /^\/(?:cdn\/shop\/(?:files|products)\/|s\/files\/)/.test(
         url.pathname,

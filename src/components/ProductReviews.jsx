@@ -1,3 +1,4 @@
+import useEditorRecovery from "../hooks/useEditorRecovery.jsx";
 import { useEffect, useState } from "react";
 
 import { useAuth } from "../context/AuthContext.jsx";
@@ -22,6 +23,7 @@ import {
 } from "../services/reviewApi.js";
 
 export default function ProductReviews({ product }) {
+  const { user } = useAuth();
   const productId = product?.id || product?._id;
 
   if (!productId) {
@@ -30,7 +32,7 @@ export default function ProductReviews({ product }) {
 
   return (
     <ReviewPanel
-      key={String(productId)}
+      key={JSON.stringify([productId, user?.id || user?._id, user?.role])}
       product={product}
       productId={productId}
     />
@@ -66,6 +68,9 @@ function ReviewPanel({ product, productId }) {
     user?._id || user?.id || "",
   );
 
+  const recovery = useEditorRecovery({user, token, entity: ["review", productId], value: form,
+    dirty: Boolean(form.comment || form.rating !== "5"), restore(saved) { setEditing(true); setForm(saved); },
+  });
   const owns = (review) =>
     Boolean(
       userId &&
@@ -167,6 +172,7 @@ function ReviewPanel({ product, productId }) {
   }
 
   function cancelEditing() {
+    void recovery.clear().catch(() => {});
     setEditing(false);
     setError("");
     setForm({
@@ -224,6 +230,7 @@ function ReviewPanel({ product, productId }) {
         );
       }
 
+      await recovery.clear().catch(() => {});
       updateProductReviews(productId, [
         data.review,
         ...reviews.filter(
@@ -306,6 +313,7 @@ function ReviewPanel({ product, productId }) {
       className="reviews-section"
       aria-labelledby="product-reviews-title"
     >
+      {recovery.notice}
       <h2 id="product-reviews-title">
         RATINGS & REVIEWS
       </h2>

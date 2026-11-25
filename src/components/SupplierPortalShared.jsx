@@ -1,3 +1,4 @@
+import useVersionedEditorDraft from "../hooks/useVersionedEditorDraft.js";
 import { useState } from "react";
 import "../pages/AdminSuppliersPage.css";
 import "../pages/SupplierPortalPage.css";
@@ -11,13 +12,25 @@ export function supplierDate(value) {
   return value ? new Date(value).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "Not recorded";
 }
 
-export function SupplierBusinessForm({ initial, busy, onSubmit, label = "Submit application" }) {
+export function SupplierBusinessForm({ initial, workspace, busy, onSubmit, label = "Submit application" }) {
   const [profile, setProfile] = useState(() => ({ legalName: "", contactName: "", phone: "", gstin: "", ...initial,
     dispatchAddress: { addressLine: "", city: "", state: "", pincode: "", country: "IN", ...initial?.dispatchAddress } }));
+  const [baseline] = useState(profile);
+  const [stale, setStale] = useState(false);
+  const recovery = useVersionedEditorDraft({
+    kind:"supplier-application", saved:workspace,
+    value:profile, dirty:JSON.stringify(profile)!==JSON.stringify(baseline),
+    restore:setProfile, conflict:()=>setStale(true),
+  });
   const update = (key, value) => setProfile((old) => ({ ...old, [key]: value }));
   const address = (key, value) => setProfile((old) => ({ ...old, dispatchAddress: { ...old.dispatchAddress, [key]: value } }));
-  return <form onSubmit={(event) => { event.preventDefault(); onSubmit(profile); }}>
-    <fieldset className="gd-supplier-fields" disabled={busy}>
+  return <form onSubmit={async event => {
+    event.preventDefault();
+    if (!stale && await onSubmit(profile)) await recovery.clear().catch(() => {});
+  }}>
+    {recovery.notice}
+    {stale && <p role="alert">This application changed. <button type="button" onClick={()=>{setProfile(baseline);setStale(false);void recovery.clear().catch(()=>{});}}>Use current business details</button></p>}
+    <fieldset className="gd-supplier-fields" disabled={busy || stale}>
       <legend>Business & dispatch details</legend>
       <div className="gd-supplier-field-grid">
         <label className="gd-supplier-field">Legal business name<input required minLength={2} maxLength={200} value={profile.legalName} onChange={(e) => update("legalName", e.target.value)} autoComplete="organization" /></label>

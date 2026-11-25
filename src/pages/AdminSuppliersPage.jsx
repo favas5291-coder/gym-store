@@ -1,7 +1,9 @@
+import useVersionedEditorDraft from "../hooks/useVersionedEditorDraft.js";
 import {
   useCallback,
   useEffect,
   useRef,
+  useMemo,
   useState,
 } from "react";
 
@@ -364,6 +366,14 @@ function SupplierEditor({
 
   const dirty = detailsDirty || verificationDirty;
 
+  const editorValue = useMemo(() => ({ draft, verification }), [draft, verification]);
+  const recovery = useVersionedEditorDraft({
+    kind: "supplier-management", saved: supplier, value: editorValue, dirty,
+    enabled: newSupplier || Boolean(supplier),
+    restore(value) { setDraft(value.draft); setVerification(value.verification); },
+    conflict() { setNeedsReload(true); },
+  });
+
   const locked =
     needsReload || remote.loading || Boolean(remote.error);
 
@@ -449,6 +459,7 @@ function SupplierEditor({
         ? result.withdrawnProducts
         : 0;
 
+      await recovery.clear().catch(() => {});
       adopt(result.supplier, {
         productCount: counts.productCount,
         activeProductCount: Number.isSafeInteger(
@@ -592,6 +603,7 @@ function SupplierEditor({
     if (!confirm || busy) return;
 
     if (confirm.kind === "reload") {
+      void recovery.clear().catch(() => {});
       setConfirm(null);
       setNotice("");
       remote.reload();
@@ -599,6 +611,7 @@ function SupplierEditor({
     }
 
     if (confirm.kind === "discard") {
+      void recovery.clear().catch(() => {});
       setConfirm(null);
       adopt(supplier);
       return;
@@ -798,6 +811,7 @@ function SupplierEditor({
         </p>
       )}
 
+      {recovery.notice}
       <form onSubmit={save} noValidate>
         <fieldset
           className="gd-supplier-fields"

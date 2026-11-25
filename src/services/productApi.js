@@ -63,11 +63,14 @@ async function request(
     signal,
     timeoutMs = REQUEST_TIMEOUT,
     earlyRequest,
+    requestId,
   } = {},
 ) {
   const headers = {
     Accept: "application/json",
   };
+
+  if (requestId) headers["Idempotency-Key"] = requestId;
 
   let serializedBody;
 
@@ -309,23 +312,32 @@ function responseInteger(value, fallback, minimum = 0) {
 // PUBLIC CATALOGUE
 // ======================================================
 
-export async function getProducts(options = {}) {
+async function readCatalogue(path, options = {}) {
   const early = typeof window === "undefined" ? undefined : window.__gymdrobeCatalogueRequest;
-  const canReuse = early?.url === `${API_URL}/products` && Object.keys(options).length === 0;
-  if (early) delete window.__gymdrobeCatalogueRequest;
-  const data = await request("/products", canReuse ? { earlyRequest: early } : options);
-
+  const reuse = early?.url === API_URL + path && Object.keys(options).length === 0;
+  if (reuse) delete window.__gymdrobeCatalogueRequest;
+  const data = await request(path, reuse ? { earlyRequest: early } : options);
   if (!Array.isArray(data.products)) {
-    throw apiError(
-      "The product catalogue could not be read. Please retry.",
-      {
-        code: "INVALID_PRODUCT_RESPONSE",
-        data,
-      },
-    );
+    throw apiError("The product catalogue could not be read. Please retry.", {
+      code: "INVALID_PRODUCT_RESPONSE",
+    });
   }
+  return data;
+}
 
-  return data.products;
+export async function getProducts(options = {}) {
+  return (await readCatalogue("/products", options)).products;
+}
+
+export async function getProductPage(after) {
+  const path = after
+    ? "/products?view=page&limit=40&after=" + encodeURIComponent(after)
+    : "/products?view=page&limit=8";
+  const { products, nextCursor = null } = await readCatalogue(path);
+  if (nextCursor !== null && !/^[a-f0-9]{24}$/i.test(nextCursor)) {
+    throw apiError("Invalid catalogue cursor. Please retry.", { code: "INVALID_PRODUCT_RESPONSE" });
+  }
+  return { products, nextCursor };
 }
 
 export async function getProductById(id, options = {}) {

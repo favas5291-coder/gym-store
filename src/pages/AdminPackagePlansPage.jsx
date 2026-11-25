@@ -1,3 +1,4 @@
+import useVersionedEditorDraft from "../hooks/useVersionedEditorDraft.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -134,6 +135,13 @@ function Editor({token, initial, onDenied, onSaved, onClose}) {
   const busyRef = useRef(false);
   const mounted = useRef(true);
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved ? packagePlanBody(saved) : blank());
+  const editorValue = draft;
+  const recovery = useVersionedEditorDraft({
+    kind: "package-plan", saved, value: editorValue, dirty,
+    restore(value) { setDraft(value); setMeasured(false); },
+    conflict() { setBlocked(true); setError("The saved record changed after this draft. Review the latest record before applying your edits."); },
+  });
+
   const componentIds = JSON.stringify([...new Set(draft.components.map(row => row.product))].sort());
   const allocationIssues = packageAllocationIssues(draft);
   const confirmed = Boolean(saved?.verification.confirmedAt && saved?.verification.confirmedBy && Date.parse(saved.verification.validUntil) > clock);
@@ -158,7 +166,7 @@ function Editor({token, initial, onDenied, onSaved, onClose}) {
   function update(change) {setDraft(previous => ({...previous, ...change})); setError(""); setNotice(""); setMeasured(false);}
   function component(key, change) {update({components: draft.components.map(row => row.key === key ? {...row, ...change} : row)});}
   function parcel(key, change) {update({parcels: draft.parcels.map(row => row.key === key ? {...row, ...change} : row)});}
-  function close() {if (!busyRef.current && (!dirty || window.confirm("Discard the unsaved package plan changes?"))) onClose();}
+  function close() {if (!busyRef.current && (!dirty || window.confirm("Discard the unsaved package plan changes?"))) {void recovery.clear().catch(() => {}); onClose();}}
 
   async function run(action) {
     if (busyRef.current || (blocked && action !== "reload")) return;
@@ -191,6 +199,7 @@ function Editor({token, initial, onDenied, onSaved, onClose}) {
         result = await savePackagePlan(token, saved, {...packagePlanBody(saved), status: action}, {signal: abort.signal});
       }
       if (!mounted.current) return;
+      await recovery.clear().catch(() => {});
       setSaved(result); setDraft(packagePlanBody(result)); setBlocked(false); setMeasured(false);
       setNotice(action === "confirm" ? "Measurements confirmed. Activate the saved plan separately." : action === "reload" ? "Latest saved plan loaded." : `Plan saved as ${result.status}.`);
       onSaved();
@@ -203,6 +212,7 @@ function Editor({token, initial, onDenied, onSaved, onClose}) {
   }
 
   return <section className="gd-admin-panel" aria-labelledby="package-editor-title">
+    {recovery.notice}
     <div className="gd-admin-heading"><div><h2 id="package-editor-title">{saved ? `Edit ${saved.name}` : "New package plan"}</h2><p>{saved ? `${saved.planCode} · ${saved.status} · version ${saved.version}` : "Start with an unpublished draft."}</p></div><button type="button" className="gd-admin-action" disabled={busy} onClick={close}>Close editor</button></div>
     {error && <p className="gd-admin-alert" role="alert">{error}</p>}
     {notice && <p className="gd-admin-success" role="status">{notice}</p>}

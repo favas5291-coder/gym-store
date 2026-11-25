@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import useEditorRecovery from "../hooks/useEditorRecovery.jsx";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext.jsx";
@@ -15,6 +16,8 @@ function formatDate(value) {
 }
 
 function InboxWorkspace({ token, admin, revision }) {
+  const { user } = useAuth();
+  const owner = user?.id || user?._id;
   const prefix = admin ? "/admin/tickets" : "";
 
   const [items, setItems] = useState([]);
@@ -22,7 +25,10 @@ function InboxWorkspace({ token, admin, revision }) {
   const [pages, setPages] = useState(1);
   const [status, setStatus] = useState("");
 
-  const [selected, setSelected] = useState("");
+  const [selected, setSelected] = useState(() => {
+    const last = window.history.state?.gymdrobeSupport;
+    return owner && last?.owner === owner && last.admin === admin ? last.id : "";
+  });
   const [ticket, setTicket] = useState(null);
   const [reply, setReply] = useState("");
 
@@ -40,6 +46,15 @@ function InboxWorkspace({ token, admin, revision }) {
   const pending = useRef(null);
   const activeSelection = useRef(selected);
   const detailGeneration = useRef(0);
+
+  const replyValue = useMemo(() => ({ reply, requestId: pending.current?.requestId }), [reply, selected]);
+  const recovery = useEditorRecovery({
+    user, token, entity: selected ? ["support-reply", selected] : null, value: replyValue, dirty: Boolean(reply),
+    restore(saved) {
+      pending.current = { ticketId:selected, message:saved.reply.trim(), requestId:saved.requestId || crypto.randomUUID() };
+      setReply(saved.reply);
+    },
+  });
 
   activeSelection.current = selected;
 
@@ -205,6 +220,8 @@ function InboxWorkspace({ token, admin, revision }) {
       return;
     }
 
+    if (reply) void recovery.clear().catch(() => {});
+    try { window.history.replaceState({...window.history.state, gymdrobeSupport:{id,admin,owner}}, ""); } catch { /* Link access still works. */ }
     detailGeneration.current += 1;
     pending.current = null;
     setReply("");
@@ -298,6 +315,7 @@ function InboxWorkspace({ token, admin, revision }) {
       setListRevision((current) => current + 1);
 
       if (kind === "replies") {
+        await recovery.clear().catch(() => {});
         setReply("");
         pending.current = null;
       }
@@ -537,6 +555,7 @@ function InboxWorkspace({ token, admin, revision }) {
                       : "Reply"}
                   </label>
 
+                  {recovery.notice}
                   <textarea
                     id="support-reply"
                     disabled={busy || detailLoading}
@@ -545,9 +564,11 @@ function InboxWorkspace({ token, admin, revision }) {
                     maxLength={2000}
                     rows={4}
                     value={reply}
-                    onChange={(event) =>
-                      setReply(event.target.value)
-                    }
+                    onChange={event => {
+                      const value = event.target.value;
+                      pending.current = { ticketId:selected, message:value.trim(), requestId:crypto.randomUUID() };
+                      setReply(value);
+                    }}
                   />
                 </div>
 

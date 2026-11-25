@@ -1,14 +1,16 @@
+import useEditorRecovery from "../hooks/useEditorRecovery.jsx";
 import ProductSourceSuggestions from "../components/ProductSourceSuggestions.jsx";
 import ProductColorImagesEditor from "../components/ProductColorImagesEditor.jsx";
 
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import {
   useAuth,
@@ -1380,7 +1382,7 @@ function ProductCard({
 
 function AdminProductsWorkspace({ token }) {
   const catalog = useCatalog();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
   const mounted = useRef(false);
   const version = useRef(0);
@@ -1404,17 +1406,27 @@ function AdminProductsWorkspace({ token }) {
   const [success, setSuccess] =
     useState("");
 
-  const [searchInput, setSearchInput] =
-    useState("");
-
-  const [filters, setFilters] =
-    useState({
-      search: "",
-      category: "",
-      stockStatus: "",
-      active: "",
-      page: 1,
-    });
+  const owner = String(user.id || user._id);
+  const listState = useRef(window.history.state?.gymdrobeAdminProducts);
+  const previousList = listState.current?.owner === owner ? listState.current : null;
+  const [searchInput, setSearchInput] = useState(previousList?.searchInput || "");
+  const [filters, setFilters] = useState(previousList?.filters || {
+    search: "", category: "", stockStatus: "", active: "", page: 1,
+  });
+  useEffect(() => {
+    const persist = () => {
+      try { window.history.replaceState({ ...window.history.state, gymdrobeAdminProducts: {owner, filters, searchInput} }, ""); }
+      catch { /* Keep filtering available when history writes are restricted. */ }
+    };
+    const timer = setTimeout(persist, 150);
+    window.addEventListener("pagehide", persist);
+    document.addEventListener("click", persist, true);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("pagehide", persist);
+      document.removeEventListener("click", persist, true);
+    };
+  }, [owner, filters, searchInput]);
 
   const [pages, setPages] =
     useState(1);
@@ -1451,6 +1463,77 @@ function AdminProductsWorkspace({ token }) {
 
   const [createUncertain, setCreateUncertain] =
     useState(false);
+
+  const location = useLocation();
+  const navigate = useNavigate();
+  const requestedEditor = new URLSearchParams(location.search).get("editor");
+  const [editorSlot, setEditorSlot] = useState(requestedEditor || "new");
+  const preparedEditor = useRef(null);
+  const restoredEditor = useRef(null);
+  const requestId = useRef(crypto.randomUUID());
+  const recoveryValue = useMemo(() => ({
+    draft, baseline: baseline.current, createUncertain, requestId: requestId.current,
+  }), [draft, createUncertain]);
+  const recovery = useEditorRecovery({
+    user, token, entity: ["admin-product", editorSlot], value: recoveryValue, commitOnInput: true,
+    dirty: Boolean(draft && (createUncertain || JSON.stringify(draft) !== JSON.stringify(baseline.current))),
+    restore(saved) {
+      if (!saved.draft || String(saved.draft.id || "new") !== editorSlot) return;
+      restoredEditor.current = editorSlot;
+      baseline.current = saved.baseline;
+      requestId.current = saved.requestId;
+      setDraft(saved.draft);
+      setCreateUncertain(Boolean(saved.createUncertain));
+    },
+  });
+
+  function rememberEditor(id) {
+    if (id === requestedEditor) return;
+    if (!id && location.state?.fromProductList) {
+      navigate(-1);
+      return;
+    }
+    const query = new URLSearchParams(location.search);
+    if (id) query.set("editor", id);
+    else query.delete("editor");
+    preparedEditor.current = id;
+    setEditorSlot(id || "new");
+    navigate({ pathname: location.pathname, search: query.toString() }, {
+      replace: Boolean(requestedEditor),
+      state: { ...location.state, fromProductList: Boolean(id && (!requestedEditor || location.state?.fromProductList)) },
+    });
+  }
+
+  useEffect(() => {
+    let active = true;
+    restoredEditor.current = null;
+    setEditorSlot(requestedEditor || "new");
+    if (!requestedEditor) {
+      preparedEditor.current = null;
+      baseline.current = null;
+      setDraft(null);
+      setCreateUncertain(false);
+      setEditorError("");
+    } else if (preparedEditor.current === requestedEditor) {
+      preparedEditor.current = null;
+    } else {
+      setDraft(null);
+      setCreateUncertain(false);
+      setEditorError("");
+      const apply = product => {
+        if (!active || restoredEditor.current === requestedEditor) return;
+        const initial = draftFor(product);
+        baseline.current = initial;
+        requestId.current = crypto.randomUUID();
+        setDraft(initial);
+      };
+      if (requestedEditor === "new") apply(null);
+      else getAdminProductById(token, requestedEditor).then(apply).catch(error => {
+        if (active) setError(error.message || "Unable to reopen this product.");
+      });
+    }
+    return () => { active = false; };
+  }, [requestedEditor, token]);
 
   useEffect(() => {
     mounted.current = true;
@@ -1684,6 +1767,8 @@ function AdminProductsWorkspace({ token }) {
 
   function setEditor(product) {
     const next = draftFor(product);
+    rememberEditor(next.id || "new");
+    requestId.current = crypto.randomUUID();
 
     baseline.current = next;
 
@@ -1719,6 +1804,7 @@ function AdminProductsWorkspace({ token }) {
       return;
     }
 
+    if (draft && !createUncertain && !recovery.hasRecovery) await recovery.clear().catch(() => {});
     setSuccess("");
     setEditorError("");
 
@@ -1790,6 +1876,8 @@ function AdminProductsWorkspace({ token }) {
       !lock.current &&
       discardAllowed()
     ) {
+      void recovery.clear().catch(() => {});
+      rememberEditor(null);
       setDraft(null);
       setEditorError("");
       baseline.current = null;
@@ -1902,6 +1990,8 @@ function AdminProductsWorkspace({ token }) {
             draft.id,
           );
 
+        if (fresh.updatedAt) payload.expectedUpdatedAt = fresh.updatedAt;
+
         const conflict = conflictFor(
           draft,
           original,
@@ -1925,12 +2015,14 @@ function AdminProductsWorkspace({ token }) {
         return;
       }
 
+      if (creating) await recovery.checkpoint({ ...recoveryValue, createUncertain: true });
       sent = true;
 
       const response = creating
         ? await createProduct(
             token,
             payload,
+            { requestId: requestId.current },
           )
         : await updateProduct(
             token,
@@ -1956,6 +2048,7 @@ function AdminProductsWorkspace({ token }) {
         return;
       }
 
+      await recovery.clear().catch(() => {});
       setEditor(product);
       setCreateUncertain(false);
 
@@ -2098,6 +2191,8 @@ function AdminProductsWorkspace({ token }) {
       }
 
       if (sameProduct) {
+        await recovery.clear().catch(() => {});
+        rememberEditor(null);
         setDraft(null);
         baseline.current = null;
         setEditorError("");
@@ -2434,6 +2529,7 @@ function AdminProductsWorkspace({ token }) {
       )}
 
       <div ref={editorRef}>
+        {recovery.notice}
         {draft && (
           <ProductEditor
             token={token}
